@@ -593,6 +593,9 @@ export function ItemDetailPanel({
       setSelectedFfeSection('')
       setSelectedFfeItemId('')
       setShowAlreadyChosenWarning(false)
+      // Clear original value refs
+      originalFormDataRef.current = null
+      originalImagesRef.current = null
     }
   }, [isOpen])
   
@@ -790,6 +793,10 @@ export function ItemDetailPanel({
   const [showAddComponent, setShowAddComponent] = useState(false)
   const componentImageInputRef = useRef<HTMLInputElement>(null)
   const [uploadingComponentImage, setUploadingComponentImage] = useState(false)
+
+  // Track original values to detect changes
+  const originalFormDataRef = useRef<typeof formData | null>(null)
+  const originalImagesRef = useRef<string[] | null>(null)
 
   // Default document types with labels and colors
   const defaultDocumentTypes = [
@@ -1389,7 +1396,7 @@ export function ItemDetailPanel({
         contactName = parts.slice(1).join(' / ')
       }
 
-      setFormData({
+      const newFormData = {
         name: item.name || '',
         description: item.description || '',
         sku: (item as any).sku || '',
@@ -1419,14 +1426,19 @@ export function ItemDetailPanel({
         rrpCurrency: (item as any).rrpCurrency || 'CAD',
         tradePriceCurrency: (item as any).tradePriceCurrency || 'CAD',
         notes: item.notes || '',
-      })
+      }
+      setFormData(newFormData)
       // Filter out empty/null image URLs
       const validImages = (item.images || []).filter((img: string) => img && img.trim())
-      setImages(validImages.length > 0 ? validImages : (item.thumbnailUrl ? [item.thumbnailUrl] : []))
+      const newImages = validImages.length > 0 ? validImages : (item.thumbnailUrl ? [item.thumbnailUrl] : [])
+      setImages(newImages)
       // Set rooms - either from roomIds array or from single roomId
       setSelectedRoomIds(item.roomIds || (item.roomId ? [item.roomId] : []))
       // Set components from item
       setComponents(item.components || [])
+      // Store original values to detect changes on close
+      originalFormDataRef.current = { ...newFormData }
+      originalImagesRef.current = [...newImages]
     } else if (mode === 'create') {
       // Reset form for new item
       setFormData({
@@ -1688,8 +1700,26 @@ export function ItemDetailPanel({
     }
   }, [isOpen, item?.id])
 
+  // Check if form data has changed from original
+  const hasChanges = useCallback(() => {
+    if (!originalFormDataRef.current || !originalImagesRef.current) return false
+
+    // Compare form data
+    const orig = originalFormDataRef.current
+    const formChanged = Object.keys(formData).some(key => {
+      const k = key as keyof typeof formData
+      return formData[k] !== orig[k]
+    })
+
+    // Compare images
+    const imagesChanged = images.length !== originalImagesRef.current.length ||
+      images.some((img, i) => img !== originalImagesRef.current![i])
+
+    return formChanged || imagesChanged
+  }, [formData, images])
+
   // Handle close with immediate save (no debounce)
-  // Always save on close for existing items to ensure no data is lost
+  // Only save if changes were made
   const handleClose = useCallback(async () => {
     // Cancel any pending auto-save timer
     if (autoSaveTimerRef.current) {
@@ -1703,7 +1733,13 @@ export function ItemDetailPanel({
       return
     }
 
-    // Always save on close for existing items (if name is valid)
+    // Only save if changes were made
+    if (!hasChanges()) {
+      onClose()
+      return
+    }
+
+    // Save changes on close (if name is valid)
     if (formData.name.trim()) {
       try {
         const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${item.id}`, {
@@ -1751,7 +1787,7 @@ export function ItemDetailPanel({
     }
 
     onClose()
-  }, [mode, item?.id, item?.roomId, formData, images, onClose, onSave])
+  }, [mode, item?.id, item?.roomId, formData, images, onClose, onSave, hasChanges])
 
   const handleSelectSupplier = (supplierId: string) => {
     const supplier = suppliers.find(s => s.id === supplierId)
