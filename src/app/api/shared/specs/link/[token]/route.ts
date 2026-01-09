@@ -96,6 +96,10 @@ export async function GET(
               }
             }
           }
+        },
+        // Include components for price calculation
+        components: {
+          orderBy: { order: 'asc' }
         }
       },
       orderBy: { order: 'asc' }
@@ -146,7 +150,23 @@ export async function GET(
         attachments: shareLink.showSpecSheets ? (item.attachments || null) : null,
         // Approval fields - always include so UI can show status
         clientApproved: item.clientApproved || false,
-        clientApprovedAt: item.clientApprovedAt?.toISOString() || null
+        clientApprovedAt: item.clientApprovedAt?.toISOString() || null,
+        // Components - show if pricing is shown
+        components: shareLink.showPricing ? (item.components || []).map(c => ({
+          id: c.id,
+          name: c.name,
+          modelNumber: c.modelNumber,
+          image: c.image,
+          price: c.price ? Number(c.price) : null,
+          quantity: c.quantity || 1
+        })) : [],
+        componentsTotal: shareLink.showPricing
+          ? (item.components || []).reduce((sum, c) => {
+              const price = c.price ? Number(c.price) : 0
+              const qty = c.quantity || 1
+              return sum + (price * qty)
+            }, 0)
+          : 0
       }
     })
 

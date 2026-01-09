@@ -65,6 +65,18 @@ interface ItemDocument {
   }
 }
 
+// Item component (sub-item like transformer for a light fixture)
+interface ItemComponent {
+  id: string
+  name: string
+  modelNumber?: string | null
+  image?: string | null
+  price?: number | null
+  quantity: number
+  order: number
+  notes?: string | null
+}
+
 interface FFERoom {
   roomId: string
   roomName: string
@@ -124,6 +136,9 @@ interface ItemDetailPanelProps {
     clientApproved?: boolean
     clientApprovedAt?: string
     clientApprovedVia?: string
+    // Components (sub-items)
+    components?: ItemComponent[]
+    componentsTotal?: number
   } | null
   mode: 'view' | 'edit' | 'create'
   sectionId?: string
@@ -767,6 +782,15 @@ export function ItemDetailPanel({
   const [editDocumentNote, setEditDocumentNote] = useState('')
   const [savingDocumentEdit, setSavingDocumentEdit] = useState(false)
 
+  // Components state (sub-items like transformer for a light fixture)
+  const [components, setComponents] = useState<ItemComponent[]>([])
+  const [savingComponent, setSavingComponent] = useState(false)
+  const [editingComponent, setEditingComponent] = useState<ItemComponent | null>(null)
+  const [newComponent, setNewComponent] = useState({ name: '', modelNumber: '', price: '', quantity: 1, image: '' })
+  const [showAddComponent, setShowAddComponent] = useState(false)
+  const componentImageInputRef = useRef<HTMLInputElement>(null)
+  const [uploadingComponentImage, setUploadingComponentImage] = useState(false)
+
   // Default document types with labels and colors
   const defaultDocumentTypes = [
     { id: 'Quotes', label: 'Quote', color: 'blue', dbType: 'SUPPLIER_QUOTE' },
@@ -1063,6 +1087,183 @@ export function ItemDetailPanel({
     return File
   }
 
+  // Component management functions
+  const handleAddComponent = async () => {
+    if (!newComponent.name.trim()) {
+      toast.error('Component name is required')
+      return
+    }
+
+    const targetRoomId = item?.roomId || roomId
+    if (!targetRoomId || !item?.id) {
+      // For new items, just add to local state
+      const tempId = `temp-${Date.now()}`
+      setComponents(prev => [...prev, {
+        id: tempId,
+        name: newComponent.name,
+        modelNumber: newComponent.modelNumber || null,
+        image: newComponent.image || null,
+        price: newComponent.price ? parseFloat(newComponent.price) : null,
+        quantity: newComponent.quantity || 1,
+        order: prev.length,
+        notes: null
+      }])
+      setNewComponent({ name: '', modelNumber: '', price: '', quantity: 1, image: '' })
+      setShowAddComponent(false)
+      return
+    }
+
+    setSavingComponent(true)
+    try {
+      const res = await fetch(`/api/ffe/v2/rooms/${targetRoomId}/items/${item.id}/components`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newComponent.name,
+          modelNumber: newComponent.modelNumber || null,
+          image: newComponent.image || null,
+          price: newComponent.price || null,
+          quantity: newComponent.quantity || 1
+        })
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        setComponents(prev => [...prev, data.component])
+        setNewComponent({ name: '', modelNumber: '', price: '', quantity: 1, image: '' })
+        setShowAddComponent(false)
+        toast.success('Component added')
+        onSave?.()
+      } else {
+        const errorData = await res.json().catch(() => ({}))
+        toast.error(errorData.error || 'Failed to add component')
+      }
+    } catch (error) {
+      console.error('Error adding component:', error)
+      toast.error('Failed to add component')
+    } finally {
+      setSavingComponent(false)
+    }
+  }
+
+  const handleUpdateComponent = async (component: ItemComponent) => {
+    const targetRoomId = item?.roomId || roomId
+    if (!targetRoomId || !item?.id) return
+
+    setSavingComponent(true)
+    try {
+      const res = await fetch(`/api/ffe/v2/rooms/${targetRoomId}/items/${item.id}/components`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          componentId: component.id,
+          name: component.name,
+          modelNumber: component.modelNumber,
+          image: component.image,
+          price: component.price,
+          quantity: component.quantity
+        })
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        setComponents(prev => prev.map(c => c.id === component.id ? data.component : c))
+        setEditingComponent(null)
+        toast.success('Component updated')
+        onSave?.()
+      } else {
+        const errorData = await res.json().catch(() => ({}))
+        toast.error(errorData.error || 'Failed to update component')
+      }
+    } catch (error) {
+      console.error('Error updating component:', error)
+      toast.error('Failed to update component')
+    } finally {
+      setSavingComponent(false)
+    }
+  }
+
+  const handleDeleteComponent = async (componentId: string) => {
+    const targetRoomId = item?.roomId || roomId
+    if (!targetRoomId || !item?.id) {
+      // For local components (new items), just remove from state
+      setComponents(prev => prev.filter(c => c.id !== componentId))
+      return
+    }
+
+    if (!confirm('Delete this component?')) return
+
+    setSavingComponent(true)
+    try {
+      const res = await fetch(`/api/ffe/v2/rooms/${targetRoomId}/items/${item.id}/components?componentId=${componentId}`, {
+        method: 'DELETE'
+      })
+
+      if (res.ok) {
+        setComponents(prev => prev.filter(c => c.id !== componentId))
+        toast.success('Component deleted')
+        onSave?.()
+      } else {
+        const errorData = await res.json().catch(() => ({}))
+        toast.error(errorData.error || 'Failed to delete component')
+      }
+    } catch (error) {
+      console.error('Error deleting component:', error)
+      toast.error('Failed to delete component')
+    } finally {
+      setSavingComponent(false)
+    }
+  }
+
+  const handleComponentImageUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+
+    const file = files[0]
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file')
+      return
+    }
+
+    if (file.size > 4 * 1024 * 1024) {
+      toast.error('Image must be less than 4MB')
+      return
+    }
+
+    setUploadingComponentImage(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('imageType', 'general')
+
+      const res = await fetch('/api/upload-image', {
+        method: 'POST',
+        body: formData
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        if (data.url) {
+          setNewComponent(prev => ({ ...prev, image: data.url }))
+          toast.success('Image uploaded')
+        }
+      } else {
+        toast.error('Failed to upload image')
+      }
+    } catch (error) {
+      console.error('Upload error:', error)
+      toast.error('Failed to upload image')
+    } finally {
+      setUploadingComponentImage(false)
+    }
+  }
+
+  // Calculate component total price
+  const componentsTotal = components.reduce((sum, c) => {
+    const price = c.price || 0
+    const qty = c.quantity || 1
+    return sum + (price * qty)
+  }, 0)
+
   // Drag and drop handlers
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
@@ -1224,6 +1425,8 @@ export function ItemDetailPanel({
       setImages(validImages.length > 0 ? validImages : (item.thumbnailUrl ? [item.thumbnailUrl] : []))
       // Set rooms - either from roomIds array or from single roomId
       setSelectedRoomIds(item.roomIds || (item.roomId ? [item.roomId] : []))
+      // Set components from item
+      setComponents(item.components || [])
     } else if (mode === 'create') {
       // Reset form for new item
       setFormData({
@@ -1254,6 +1457,7 @@ export function ItemDetailPanel({
         notes: '',
       })
       setImages([])
+      setComponents([])
       // Set initial room from prop if provided
       setSelectedRoomIds(roomId ? [roomId] : [])
       // Reset FFE selection
@@ -1814,7 +2018,261 @@ export function ItemDetailPanel({
                     />
                   </div>
                 </div>
-                
+
+                {/* Components Section */}
+                <div className="space-y-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Package className="w-4 h-4 text-gray-600" />
+                      <Label className="text-sm font-medium text-gray-900">Components</Label>
+                      {components.length > 0 && (
+                        <Badge variant="secondary" className="text-xs">
+                          {components.length}
+                        </Badge>
+                      )}
+                    </div>
+                    {componentsTotal > 0 && (
+                      <span className="text-sm font-medium text-gray-700">
+                        Total: ${componentsTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500">Add sub-items like transformers, mounting brackets, etc. Component prices are added to the item total.</p>
+
+                  {/* Existing Components */}
+                  {components.length > 0 && (
+                    <div className="space-y-2">
+                      {components.map((comp) => (
+                        <div key={comp.id} className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200">
+                          {/* Component Image */}
+                          {comp.image ? (
+                            <img src={comp.image} alt={comp.name} className="w-10 h-10 rounded object-cover" />
+                          ) : (
+                            <div className="w-10 h-10 rounded bg-gray-100 flex items-center justify-center">
+                              <Package className="w-5 h-5 text-gray-400" />
+                            </div>
+                          )}
+
+                          {/* Component Info */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">{comp.name}</p>
+                            {comp.modelNumber && (
+                              <p className="text-xs text-gray-500 truncate">{comp.modelNumber}</p>
+                            )}
+                          </div>
+
+                          {/* Quantity & Price */}
+                          <div className="text-right">
+                            {comp.price ? (
+                              <>
+                                <p className="text-sm font-medium text-gray-900">
+                                  ${(comp.price * (comp.quantity || 1)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </p>
+                                {comp.quantity > 1 && (
+                                  <p className="text-xs text-gray-500">
+                                    {comp.quantity} x ${comp.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </p>
+                                )}
+                              </>
+                            ) : (
+                              <p className="text-xs text-gray-400">No price</p>
+                            )}
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => setEditingComponent(comp)}
+                              className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                              title="Edit component"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteComponent(comp.id)}
+                              disabled={savingComponent}
+                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                              title="Delete component"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Add Component Form */}
+                  {showAddComponent ? (
+                    <div className="p-3 bg-white rounded-lg border border-blue-200 space-y-3">
+                      <input
+                        ref={componentImageInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handleComponentImageUpload(e.target.files)}
+                      />
+
+                      <div className="flex gap-3">
+                        {/* Image Upload */}
+                        <div
+                          onClick={() => componentImageInputRef.current?.click()}
+                          className="w-16 h-16 rounded border-2 border-dashed border-gray-300 hover:border-blue-400 cursor-pointer flex items-center justify-center bg-gray-50 hover:bg-blue-50 transition-colors overflow-hidden"
+                        >
+                          {uploadingComponentImage ? (
+                            <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+                          ) : newComponent.image ? (
+                            <img src={newComponent.image} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <ImageIcon className="w-5 h-5 text-gray-400" />
+                          )}
+                        </div>
+
+                        <div className="flex-1 space-y-2">
+                          <Input
+                            value={newComponent.name}
+                            onChange={(e) => setNewComponent(prev => ({ ...prev, name: e.target.value }))}
+                            placeholder="Component name *"
+                            className="h-8 text-sm"
+                          />
+                          <Input
+                            value={newComponent.modelNumber}
+                            onChange={(e) => setNewComponent(prev => ({ ...prev, modelNumber: e.target.value }))}
+                            placeholder="Model number (optional)"
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-xs text-gray-500">Price</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={newComponent.price}
+                            onChange={(e) => setNewComponent(prev => ({ ...prev, price: e.target.value }))}
+                            placeholder="0.00"
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs text-gray-500">Quantity</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={newComponent.quantity}
+                            onChange={(e) => setNewComponent(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setShowAddComponent(false)
+                            setNewComponent({ name: '', modelNumber: '', price: '', quantity: 1, image: '' })
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={handleAddComponent}
+                          disabled={savingComponent || !newComponent.name.trim()}
+                        >
+                          {savingComponent ? (
+                            <>
+                              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                              Adding...
+                            </>
+                          ) : (
+                            'Add Component'
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAddComponent(true)}
+                      className="w-full border-dashed"
+                    >
+                      <Plus className="w-3.5 h-3.5 mr-1" />
+                      Add Component
+                    </Button>
+                  )}
+                </div>
+
+                {/* Edit Component Dialog */}
+                {editingComponent && (
+                  <Dialog open={!!editingComponent} onOpenChange={() => setEditingComponent(null)}>
+                    <DialogContent className="sm:max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Edit Component</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                          <Label>Name</Label>
+                          <Input
+                            value={editingComponent.name}
+                            onChange={(e) => setEditingComponent({ ...editingComponent, name: e.target.value })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Model Number</Label>
+                          <Input
+                            value={editingComponent.modelNumber || ''}
+                            onChange={(e) => setEditingComponent({ ...editingComponent, modelNumber: e.target.value })}
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label>Price</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={editingComponent.price || ''}
+                              onChange={(e) => setEditingComponent({ ...editingComponent, price: e.target.value ? parseFloat(e.target.value) : null })}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Quantity</Label>
+                            <Input
+                              type="number"
+                              min="1"
+                              value={editingComponent.quantity}
+                              onChange={(e) => setEditingComponent({ ...editingComponent, quantity: parseInt(e.target.value) || 1 })}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditingComponent(null)}>
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={() => handleUpdateComponent(editingComponent)}
+                          disabled={savingComponent}
+                        >
+                          {savingComponent ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Saving...
+                            </>
+                          ) : (
+                            'Save Changes'
+                          )}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                )}
+
                 {/* FFE Linking Section - Step by Step */}
                 {mode === 'create' && ffeItems.length > 0 && (
                   <div className="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-200">

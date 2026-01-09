@@ -1589,6 +1589,32 @@ model RoomFFEItem {
 
   // Programa import links
   programaLinks    ProgramaItem[]     @relation("ProgramaLinkedItem")
+
+  // Item components (sub-items like transformer for a light fixture)
+  components       ItemComponent[]    @relation("ItemComponents")
+}
+
+// Item components - sub-items that belong to a parent spec item
+// Example: LED fixture ($100) + transformer ($50) + mounting bracket ($25)
+// The main item shows "LED Fixture" but total price includes all components
+model ItemComponent {
+  id          String      @id @default(cuid())
+  itemId      String      // Parent RoomFFEItem
+  name        String      // Component name (e.g., "Transformer")
+  modelNumber String?     // Component model number
+  image       String?     // Component image URL
+  price       Decimal?    // Component price (uses parent's currency)
+  quantity    Int         @default(1)
+  order       Int         @default(0)
+  notes       String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relation to parent item
+  item        RoomFFEItem @relation("ItemComponents", fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+  @@index([itemId, order])
 }
 
 // Tracks quote requests sent for a specific item to a specific supplier

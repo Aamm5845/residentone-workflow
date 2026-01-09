@@ -1153,36 +1153,46 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       return s.rrpCurrency || 'CAD'
     }
 
-    // Separate trade prices by currency
+    // Separate trade prices by currency (including components)
     // If trade price is missing but RRP exists, use RRP (no markup = same price)
     const totalTradePriceCAD = specsToCalculate.reduce((sum, s) => {
       if (getEffectiveTradeCurrency(s) !== 'CAD') return sum
       const price = s.tradePrice ?? s.rrp ?? 0
       const qty = s.quantity || 1
-      return sum + (price * qty)
+      const componentsPrice = (s as any).componentsTotal || 0
+      // Components are per-unit, so multiply by item quantity
+      return sum + (price * qty) + (componentsPrice * qty)
     }, 0)
 
     const totalTradePriceUSD = specsToCalculate.reduce((sum, s) => {
       if (getEffectiveTradeCurrency(s) !== 'USD') return sum
       const price = s.tradePrice ?? s.rrp ?? 0
       const qty = s.quantity || 1
-      return sum + (price * qty)
+      const componentsPrice = (s as any).componentsTotal || 0
+      return sum + (price * qty) + (componentsPrice * qty)
     }, 0)
 
-    // Separate RRP by currency
+    // Separate RRP by currency (including components with markup applied)
     // If RRP is missing but trade price exists, use trade price (no markup = same price)
     const totalRRPCAD = specsToCalculate.reduce((sum, s) => {
       if (getEffectiveRrpCurrency(s) !== 'CAD') return sum
       const price = s.rrp ?? s.tradePrice ?? 0
       const qty = s.quantity || 1
-      return sum + (price * qty)
+      const componentsPrice = (s as any).componentsTotal || 0
+      // Apply markup to components for RRP calculation
+      const markupPercent = s.markupPercent || 0
+      const componentsRRP = componentsPrice * (1 + markupPercent / 100)
+      return sum + (price * qty) + (componentsRRP * qty)
     }, 0)
 
     const totalRRPUSD = specsToCalculate.reduce((sum, s) => {
       if (getEffectiveRrpCurrency(s) !== 'USD') return sum
       const price = s.rrp ?? s.tradePrice ?? 0
       const qty = s.quantity || 1
-      return sum + (price * qty)
+      const componentsPrice = (s as any).componentsTotal || 0
+      const markupPercent = s.markupPercent || 0
+      const componentsRRP = componentsPrice * (1 + markupPercent / 100)
+      return sum + (price * qty) + (componentsRRP * qty)
     }, 0)
 
     // Calculate average discount based on CAD values (primary currency)

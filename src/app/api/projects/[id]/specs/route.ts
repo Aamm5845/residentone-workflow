@@ -41,6 +41,10 @@ export async function GET(
                 items: {
                   orderBy: { order: 'asc' },
                   include: {
+                    // Include components for price calculation
+                    components: {
+                      orderBy: { order: 'asc' }
+                    },
                     libraryProduct: {
                       include: {
                         category: true
@@ -182,7 +186,24 @@ export async function GET(
             status: item.quoteRequests[0].status,
             sentAt: item.quoteRequests[0].sentAt,
             supplierName: item.quoteRequests[0].supplier?.name || item.quoteRequests[0].vendorName
-          } : null
+          } : null,
+          // Components for this item
+          components: (item.components || []).map(c => ({
+            id: c.id,
+            name: c.name,
+            modelNumber: c.modelNumber,
+            image: c.image,
+            price: c.price ? Number(c.price) : null,
+            quantity: c.quantity || 1,
+            order: c.order,
+            notes: c.notes
+          })),
+          // Component price total (sum of all component prices * qty)
+          componentsTotal: (item.components || []).reduce((sum, c) => {
+            const price = c.price ? Number(c.price) : 0
+            const qty = c.quantity || 1
+            return sum + (price * qty)
+          }, 0)
         }))
       ) : []
     )
@@ -207,20 +228,26 @@ export async function GET(
     const approvedItems = visibleSpecs.filter(s => s.clientApproved).length
     const unapprovedItems = totalItems - approvedItems
     
-    // Calculate financial totals
+    // Calculate financial totals (including components)
     const totalTradePrice = visibleSpecs.reduce((sum, s) => {
       const price = s.tradePrice || 0
       const qty = s.quantity || 1
-      return sum + (price * qty)
+      const componentsPrice = s.componentsTotal || 0
+      // Components are per-unit, so multiply by item quantity
+      return sum + (price * qty) + (componentsPrice * qty)
     }, 0)
-    
+
     const totalRRP = visibleSpecs.reduce((sum, s) => {
       const price = s.rrp || 0
       const qty = s.quantity || 1
-      return sum + (price * qty)
+      const componentsPrice = s.componentsTotal || 0
+      // When calculating RRP, apply markup to components as well
+      const markupPercent = s.markupPercent || 0
+      const componentsRRP = componentsPrice * (1 + markupPercent / 100)
+      return sum + (price * qty) + (componentsRRP * qty)
     }, 0)
-    
-    const avgTradeDiscount = totalRRP > 0 
+
+    const avgTradeDiscount = totalRRP > 0
       ? ((totalRRP - totalTradePrice) / totalRRP * 100)
       : 0
 

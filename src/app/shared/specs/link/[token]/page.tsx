@@ -176,6 +176,7 @@ export default function SharedSpecLinkPage() {
 
   // Calculate total cost by currency (RRP only - don't show trade prices to clients)
   // Use same fallback logic as admin view: rrp ?? tradePrice (if no markup, both are same)
+  // Include component prices (with markup applied)
   const totals = useMemo(() => {
     if (!specs || specs.length === 0) return { cadTotal: 0, usdTotal: 0 }
 
@@ -183,13 +184,18 @@ export default function SharedSpecLinkPage() {
       const currency = item.rrpCurrency || 'CAD'
       if (currency !== 'CAD') return sum
       const price = item.rrp ?? item.tradePrice ?? 0
-      return sum + (price * (item.quantity || 1))
+      const qty = item.quantity || 1
+      const componentsPrice = (item as any).componentsTotal || 0
+      // For RRP view, show item price + component prices
+      return sum + (price * qty) + (componentsPrice * qty)
     }, 0)
     const usdTotal = specs.reduce((sum, item) => {
       const currency = item.rrpCurrency || 'CAD'
       if (currency !== 'USD') return sum
       const price = item.rrp ?? item.tradePrice ?? 0
-      return sum + (price * (item.quantity || 1))
+      const qty = item.quantity || 1
+      const componentsPrice = (item as any).componentsTotal || 0
+      return sum + (price * qty) + (componentsPrice * qty)
     }, 0)
     return { cadTotal: cadTotal || 0, usdTotal: usdTotal || 0 }
   }, [specs])
