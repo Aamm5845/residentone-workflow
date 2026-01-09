@@ -3636,38 +3636,19 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           
           {/* Financial Summary Bar - Only in Financial Tab */}
           {activeTab === 'financial' && (
-            <div className="flex items-center gap-8 mt-3 pt-3 border-t border-gray-100 flex-wrap">
-              {/* CAD Totals - Trade & RRP grouped */}
-              <div className="flex items-center gap-4 pr-6 border-r border-gray-200">
-                <div>
-                  <p className="text-xs text-gray-500 uppercase">Trade (CAD)</p>
-                  <p className="text-lg font-semibold text-gray-900">${(financials?.totalTradePriceCAD ?? 0).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 uppercase">RRP (CAD)</p>
-                  <p className="text-lg font-semibold text-gray-900">${(financials?.totalRRPCAD ?? 0).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                </div>
+            <div className="flex items-center gap-6 mt-3 pt-3 border-t border-gray-100 flex-wrap">
+              {/* RRP CAD */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 uppercase">RRP (CAD)</span>
+                <span className="text-lg font-semibold text-gray-900">${(financials?.totalRRPCAD ?? 0).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
-              {/* USD Totals - Trade & RRP grouped - Only show if there are USD items */}
-              {((financials?.totalTradePriceUSD ?? 0) > 0 || (financials?.totalRRPUSD ?? 0) > 0) && (
-                <div className="flex items-center gap-4 pr-6 border-r border-gray-200">
-                  <div>
-                    <p className="text-xs text-blue-500 uppercase">Trade (USD)</p>
-                    <p className="text-lg font-semibold text-blue-600">${(financials?.totalTradePriceUSD ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-blue-500 uppercase">RRP (USD)</p>
-                    <p className="text-lg font-semibold text-blue-600">${(financials?.totalRRPUSD ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                  </div>
+              {/* RRP USD - Only show if there are USD items */}
+              {(financials?.totalRRPUSD ?? 0) > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-blue-500 uppercase">RRP (USD)</span>
+                  <span className="text-lg font-semibold text-blue-600">${(financials?.totalRRPUSD ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
               )}
-              {/* Avg Margin */}
-              <div>
-                <p className="text-xs text-gray-500 uppercase">Avg Margin</p>
-                <p className="text-lg font-semibold text-gray-900">
-                  {(financials?.totalTradePriceCAD ?? 0) > 0 ? `${(financials?.avgTradeDiscount ?? 0).toFixed(2)}%` : '-'}
-                </p>
-              </div>
             </div>
           )}
           </div>
