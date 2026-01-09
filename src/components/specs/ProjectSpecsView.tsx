@@ -4127,12 +4127,12 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 key={group.name}
                 id={`section-${group.name.replace(/\s+/g, '-')}`}
                 className="bg-white rounded-xl border border-gray-200 overflow-hidden scroll-mt-40"
+                onMouseEnter={() => setHoveredSection(group.name)}
+                onMouseLeave={() => setHoveredSection(null)}
               >
                 {/* Category Header */}
                 <div
                   className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-100 group/header"
-                  onMouseEnter={() => setHoveredSection(group.name)}
-                  onMouseLeave={() => setHoveredSection(null)}
                 >
                   <div className="flex items-center gap-2">
                     {/* Select all checkbox - show on hover */}

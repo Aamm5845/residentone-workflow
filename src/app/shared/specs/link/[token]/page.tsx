@@ -84,6 +84,8 @@ export default function SharedSpecLinkPage() {
   const [addressInput, setAddressInput] = useState('')
   const [addressError, setAddressError] = useState<string | null>(null)
   const [pendingApprovalItemId, setPendingApprovalItemId] = useState<string | null>(null)
+  const [pendingApprovalCategory, setPendingApprovalCategory] = useState<string | null>(null)
+  const [approvingCategories, setApprovingCategories] = useState<Set<string>>(new Set())
 
   const [shareSettings, setShareSettings] = useState<ShareSettings>({
     showSupplier: false,
@@ -349,6 +351,133 @@ export default function SharedSpecLinkPage() {
     }
     if (pendingApprovalItemId) {
       submitApproval(pendingApprovalItemId, addressInput.trim())
+    } else if (pendingApprovalCategory) {
+      submitCategoryApproval(pendingApprovalCategory, addressInput.trim())
+    }
+  }
+
+  // Get items that can be approved in a category (have RRP, not already approved, not contractor-to-order)
+  const getApprovableItems = (categoryName: string) => {
+    const group = groupedSpecs.find(g => g.name === categoryName)
+    if (!group) return []
+    return group.items.filter(item =>
+      item.rrp &&
+      item.rrp > 0 &&
+      !item.clientApproved &&
+      item.specStatus !== 'CONTRACTOR_TO_ORDER'
+    )
+  }
+
+  // Handle "Approve All" for a category
+  const handleApproveCategory = (categoryName: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+
+    if (approvingCategories.has(categoryName)) return
+
+    const approvableItems = getApprovableItems(categoryName)
+    if (approvableItems.length === 0) {
+      toast.error('No items to approve in this category')
+      return
+    }
+
+    // If no verified address yet, show modal
+    if (!verifiedAddress) {
+      setPendingApprovalCategory(categoryName)
+      setPendingApprovalItemId(null)
+      setShowAddressModal(true)
+      setAddressError(null)
+      return
+    }
+
+    // Proceed with bulk approval
+    submitCategoryApproval(categoryName, verifiedAddress)
+  }
+
+  const submitCategoryApproval = async (categoryName: string, address: string) => {
+    const approvableItems = getApprovableItems(categoryName)
+    if (approvableItems.length === 0) return
+
+    setApprovingCategories(prev => new Set([...prev, categoryName]))
+
+    // Add all items to approving state
+    const itemIds = approvableItems.map(item => item.id)
+    setApprovingItems(prev => new Set([...prev, ...itemIds]))
+
+    let successCount = 0
+    let failedCount = 0
+    let addressInvalid = false
+
+    // Approve items sequentially to avoid overwhelming the server
+    for (const item of approvableItems) {
+      try {
+        const res = await fetch(`/api/shared/specs/link/${token}/approve`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ itemId: item.id, projectAddress: address })
+        })
+
+        const data = await res.json()
+
+        if (!res.ok) {
+          if (data.invalidAddress) {
+            // Address was wrong - stop and show error
+            addressInvalid = true
+            setVerifiedAddress(null)
+            setAddressError(data.error || 'Invalid address')
+            setPendingApprovalCategory(categoryName)
+            setShowAddressModal(true)
+            break
+          }
+          failedCount++
+          continue
+        }
+
+        // Address is correct - save it for future approvals
+        setVerifiedAddress(address)
+        successCount++
+
+        // Update local state for this item
+        setSpecs(prev => prev.map(s =>
+          s.id === item.id
+            ? { ...s, clientApproved: true, clientApprovedAt: new Date().toISOString() }
+            : s
+        ))
+        setGroupedSpecs(prev => prev.map(g => ({
+          ...g,
+          items: g.items.map(s =>
+            s.id === item.id
+              ? { ...s, clientApproved: true, clientApprovedAt: new Date().toISOString() }
+              : s
+          )
+        })))
+      } catch (err) {
+        failedCount++
+      }
+    }
+
+    // Cleanup
+    setApprovingCategories(prev => {
+      const newSet = new Set(prev)
+      newSet.delete(categoryName)
+      return newSet
+    })
+    setApprovingItems(prev => {
+      const newSet = new Set(prev)
+      itemIds.forEach(id => newSet.delete(id))
+      return newSet
+    })
+
+    if (!addressInvalid) {
+      setShowAddressModal(false)
+      setAddressInput('')
+      setPendingApprovalCategory(null)
+
+      if (successCount > 0) {
+        toast.success(`Approved ${successCount} item${successCount > 1 ? 's' : ''} in ${categoryName}`)
+      }
+      if (failedCount > 0) {
+        toast.error(`Failed to approve ${failedCount} item${failedCount > 1 ? 's' : ''}`)
+      }
     }
   }
 
@@ -542,6 +671,26 @@ export default function SharedSpecLinkPage() {
                     <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
                       {group.items.length}
                     </span>
+                    {/* Approve All button - only show if approval is allowed and there are approvable items */}
+                    {shareSettings.allowApproval && getApprovableItems(group.name).length > 0 && (
+                      <button
+                        onClick={(e) => handleApproveCategory(group.name, e)}
+                        disabled={approvingCategories.has(group.name)}
+                        className="flex items-center gap-1.5 px-3 py-1 bg-emerald-600 text-white text-xs font-medium rounded-md hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                      >
+                        {approvingCategories.has(group.name) ? (
+                          <>
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            Approving...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="w-3 h-3" />
+                            Approve All ({getApprovableItems(group.name).length})
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
                   <button
                     onClick={() => toggleCategory(group.name)}
@@ -745,7 +894,9 @@ export default function SharedSpecLinkPage() {
               Verify Your Identity
             </h3>
             <p className="text-sm text-gray-600 mb-4">
-              To approve items, please enter the project street number for verification.
+              {pendingApprovalCategory
+                ? `To approve all items in ${pendingApprovalCategory}, please enter the project street number for verification.`
+                : 'To approve items, please enter the project street number for verification.'}
             </p>
 
             <div className="mb-4">
@@ -785,6 +936,7 @@ export default function SharedSpecLinkPage() {
                   setAddressInput('')
                   setAddressError(null)
                   setPendingApprovalItemId(null)
+                  setPendingApprovalCategory(null)
                 }}
                 className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
               >
@@ -792,13 +944,15 @@ export default function SharedSpecLinkPage() {
               </button>
               <button
                 onClick={handleAddressSubmit}
-                disabled={approvingItems.size > 0}
+                disabled={approvingItems.size > 0 || approvingCategories.size > 0}
                 className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-md transition-colors disabled:opacity-50 flex items-center gap-2"
               >
-                {approvingItems.size > 0 && (
+                {(approvingItems.size > 0 || approvingCategories.size > 0) && (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 )}
-                Verify & Approve
+                {pendingApprovalCategory
+                  ? `Verify & Approve All (${getApprovableItems(pendingApprovalCategory).length})`
+                  : 'Verify & Approve'}
               </button>
             </div>
           </div>
