@@ -799,14 +799,14 @@ export default function SharedSpecLinkPage() {
                           <p className="text-[10px] text-gray-400 uppercase">Lead Time</p>
                         </div>
 
-                        {/* Price - only if pricing is shown */}
+                        {/* Price - only if pricing is shown (includes components) */}
                         {shareSettings.showPricing && (
                           <div className="col-span-1 text-center">
                             <p className={cn(
                               "text-sm font-medium",
                               item.rrpCurrency === 'USD' ? "text-blue-600" : "text-gray-900"
                             )}>
-                              {formatCurrency((item.rrp || 0) * (item.quantity || 1), item.rrpCurrency)}
+                              {formatCurrency(((item.rrp || 0) + ((item as any).componentsTotal || 0)) * (item.quantity || 1), item.rrpCurrency)}
                             </p>
                             <p className="text-[10px] text-gray-400 uppercase">
                               {item.rrpCurrency === 'USD' ? 'USD' : 'CAD'}

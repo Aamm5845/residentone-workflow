@@ -2878,7 +2878,7 @@ export function ItemDetailPanel({
                   />
                 </div>
 
-                {/* RRP TOTAL Section */}
+                {/* RRP TOTAL Section - includes components */}
                 <div className="bg-gray-50 rounded-lg p-4 mt-4">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600 font-medium">RRP TOTAL</span>
@@ -2886,15 +2886,19 @@ export function ItemDetailPanel({
                       "font-semibold text-xl",
                       formData.rrpCurrency === 'USD' ? "text-blue-600" : "text-emerald-600"
                     )}>
-                      ${((parseFloat(formData.rrp) || 0) * (formData.quantity || 1)).toFixed(2)}
+                      ${(((parseFloat(formData.rrp) || 0) + componentsTotal) * (formData.quantity || 1)).toFixed(2)}
                       <span className="text-sm text-gray-500 ml-1">{formData.rrpCurrency}</span>
                     </span>
                   </div>
-                  {formData.quantity > 1 && (
-                    <p className="text-xs text-gray-500 text-right mt-2">
-                      ${formData.rrp || '0.00'} × {formData.quantity} units
-                    </p>
-                  )}
+                  {/* Breakdown */}
+                  <div className="text-xs text-gray-500 text-right mt-2 space-y-0.5">
+                    {formData.rrp && parseFloat(formData.rrp) > 0 && (
+                      <p>Item: ${parseFloat(formData.rrp).toFixed(2)} × {formData.quantity || 1}</p>
+                    )}
+                    {componentsTotal > 0 && (
+                      <p>Components: ${componentsTotal.toFixed(2)} × {formData.quantity || 1}</p>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

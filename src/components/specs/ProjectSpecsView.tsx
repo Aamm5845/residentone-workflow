@@ -3099,10 +3099,20 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     return result
   }
   
-  // Calculate section totals
+  // Calculate section totals (including components)
   const getSectionTotals = (items: SpecItem[]) => {
-    const tradeTotal = items.reduce((sum, item) => sum + ((item.tradePrice || 0) * (item.quantity || 1)), 0)
-    const rrpTotal = items.reduce((sum, item) => sum + ((item.rrp || 0) * (item.quantity || 1)), 0)
+    const tradeTotal = items.reduce((sum, item) => {
+      const itemPrice = item.tradePrice || 0
+      const componentsPrice = (item as any).componentsTotal || 0
+      const qty = item.quantity || 1
+      return sum + ((itemPrice + componentsPrice) * qty)
+    }, 0)
+    const rrpTotal = items.reduce((sum, item) => {
+      const itemPrice = item.rrp || 0
+      const componentsPrice = (item as any).componentsTotal || 0
+      const qty = item.quantity || 1
+      return sum + ((itemPrice + componentsPrice) * qty)
+    }, 0)
     return { tradeTotal, rrpTotal }
   }
 
@@ -4413,9 +4423,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                       )}
                                       {(displayItem.tradePrice || displayItem.rrp) && (
                                         <div className="col-span-2 pt-1 border-t mt-1">
-                                          {displayItem.tradePrice && <span className="text-gray-700 font-medium">${displayItem.tradePrice.toFixed(2)} trade</span>}
+                                          {displayItem.tradePrice && <span className="text-gray-700 font-medium">${((displayItem.tradePrice || 0) + ((displayItem as any).componentsTotal || 0)).toFixed(2)} trade</span>}
                                           {displayItem.tradePrice && displayItem.rrp && <span className="text-gray-300 mx-1">|</span>}
-                                          {displayItem.rrp && <span className="text-gray-500">${displayItem.rrp.toFixed(2)} RRP</span>}
+                                          {displayItem.rrp && <span className="text-gray-500">${((displayItem.rrp || 0) + ((displayItem as any).componentsTotal || 0)).toFixed(2)} RRP</span>}
                                         </div>
                                       )}
                                     </div>
@@ -5227,8 +5237,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                           <p
                                             className={`text-xs cursor-text hover:bg-gray-100 rounded px-1 ${isUsdTrade ? 'text-blue-600' : 'text-gray-900'}`}
                                             onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'tradePrice', item.tradePrice?.toString() || '') }}
+                                            title={(item as any).componentsTotal > 0 ? `Item: ${formatCurrency(item.tradePrice || 0)} + Components: ${formatCurrency((item as any).componentsTotal)}` : undefined}
                                           >
-                                            {item.tradePrice ? formatCurrency(item.tradePrice) : '-'}
+                                            {item.tradePrice || (item as any).componentsTotal ? formatCurrency((item.tradePrice || 0) + ((item as any).componentsTotal || 0)) : '-'}
                                           </p>
                                         )}
                                       </div>
@@ -5279,8 +5290,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                           <p
                                             className={`text-xs cursor-text hover:bg-gray-100 rounded px-1 ${isUsdRrp ? 'text-blue-600' : 'text-gray-900'}`}
                                             onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'rrp', item.rrp?.toString() || '') }}
+                                            title={(item as any).componentsTotal > 0 ? `Item: ${formatCurrency(item.rrp || 0)} + Components: ${formatCurrency((item as any).componentsTotal)}` : undefined}
                                           >
-                                            {item.rrp ? formatCurrency(item.rrp) : '-'}
+                                            {item.rrp || (item as any).componentsTotal ? formatCurrency((item.rrp || 0) + ((item as any).componentsTotal || 0)) : '-'}
                                           </p>
                                         )}
                                       </div>
