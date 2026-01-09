@@ -2294,6 +2294,87 @@ export function ItemDetailPanel({
                   <p className="text-xs text-gray-500">Select the currency for this item's pricing</p>
                 </div>
 
+                {/* Trade Price Row */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Trade Price ({formData.tradePriceCurrency})</Label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Toggle between unit price and total input mode
+                        const currentTotal = (parseFloat(formData.tradePrice) || 0) * (formData.quantity || 1)
+                        const totalInput = document.getElementById('trade-total-input') as HTMLInputElement
+                        if (totalInput) {
+                          totalInput.value = currentTotal > 0 ? currentTotal.toFixed(2) : ''
+                          totalInput.focus()
+                        }
+                      }}
+                      className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                    >
+                      Enter quote total
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={formData.tradePrice}
+                        onChange={(e) => {
+                          const newTradePrice = e.target.value
+                          const rrp = parseFloat(formData.rrp) || 0
+
+                          // Auto-calculate markup if RRP exists
+                          if (rrp > 0 && newTradePrice) {
+                            const tradePriceValue = parseFloat(newTradePrice)
+                            const calculatedMarkup = ((rrp - tradePriceValue) / tradePriceValue * 100).toFixed(0)
+                            setFormData({ ...formData, tradePrice: newTradePrice, markupPercent: calculatedMarkup })
+                          } else {
+                            setFormData({ ...formData, tradePrice: newTradePrice })
+                          }
+                        }}
+                        placeholder="0.00"
+                        className="pl-7"
+                      />
+                    </div>
+                    {/* Quote Total Input - divides by quantity */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500 whitespace-nowrap">or total:</span>
+                      <div className="relative flex-1">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                        <Input
+                          id="trade-total-input"
+                          type="number"
+                          step="0.01"
+                          placeholder={`Total ÷ ${formData.quantity || 1} qty`}
+                          className="pl-6 h-8 text-sm"
+                          onChange={(e) => {
+                            const total = parseFloat(e.target.value) || 0
+                            const qty = formData.quantity || 1
+                            const unitPrice = (total / qty).toFixed(2)
+                            const rrp = parseFloat(formData.rrp) || 0
+
+                            // Auto-calculate markup if RRP exists
+                            if (rrp > 0 && unitPrice) {
+                              const tradePriceValue = parseFloat(unitPrice)
+                              const calculatedMarkup = ((rrp - tradePriceValue) / tradePriceValue * 100).toFixed(0)
+                              setFormData({ ...formData, tradePrice: unitPrice, markupPercent: calculatedMarkup })
+                            } else {
+                              setFormData({ ...formData, tradePrice: unitPrice })
+                            }
+                          }}
+                        />
+                      </div>
+                    </div>
+                    {formData.quantity > 1 && formData.tradePrice && (
+                      <p className="text-xs text-gray-500">
+                        Total: ${((parseFloat(formData.tradePrice) || 0) * formData.quantity).toFixed(2)} ({formData.quantity} × ${formData.tradePrice})
+                      </p>
+                    )}
+                  </div>
+                </div>
+
                 {/* RRP Row */}
                 <div className="space-y-2">
                   <Label>RRP ({formData.rrpCurrency})</Label>

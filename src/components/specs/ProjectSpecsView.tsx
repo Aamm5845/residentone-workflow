@@ -7695,14 +7695,22 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 {/* Create New Link Button */}
                 <Button
                   onClick={() => {
+                    if (specs.length === 0) {
+                      toast.error('No specs available to share')
+                      return
+                    }
                     setEditingShareLink(null)
                     setCreateShareLinkOpen(true)
                   }}
+                  disabled={loading || specs.length === 0}
                   className="w-full bg-emerald-600 hover:bg-emerald-700"
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Create Share Link
                 </Button>
+                {specs.length === 0 && !loading && (
+                  <p className="text-xs text-amber-600 text-center">Add specs to the project first</p>
+                )}
 
                 {/* Share Links List */}
                 {loadingShareLinks ? (

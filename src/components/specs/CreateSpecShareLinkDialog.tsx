@@ -178,6 +178,10 @@ export default function CreateSpecShareLinkDialog({
   }
 
   const selectAll = () => {
+    if (items.length === 0) {
+      toast.error('No items available to select')
+      return
+    }
     setSelectedItemIds(new Set(items.map(i => i.id)))
   }
 
@@ -385,7 +389,11 @@ export default function CreateSpecShareLinkDialog({
                 })}
                 {filteredGroups.length === 0 && (
                   <div className="text-center py-8 text-slate-500 text-sm">
-                    No items found
+                    {items.length === 0 ? (
+                      <p className="text-amber-600">No specs available. Add specs to the project first.</p>
+                    ) : (
+                      <p>No items match your search</p>
+                    )}
                   </div>
                 )}
               </div>

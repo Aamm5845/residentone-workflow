@@ -222,9 +222,11 @@ export default function SharedSpecLinkPage() {
     }
   }
 
-  const formatCurrency = (value: number | null) => {
+  const formatCurrency = (value: number | null, currency: string = 'CAD') => {
     if (value === null || value === undefined) return '-'
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
+    const currencyCode = currency === 'USD' ? 'USD' : 'CAD'
+    const locale = currency === 'USD' ? 'en-US' : 'en-CA'
+    return new Intl.NumberFormat(locale, { style: 'currency', currency: currencyCode }).format(value)
   }
 
   const formatLastUpdated = (dateStr: string | null) => {
@@ -645,10 +647,15 @@ export default function SharedSpecLinkPage() {
                         {/* Price - only if pricing is shown */}
                         {shareSettings.showPricing && (
                           <div className="col-span-1 text-center">
-                            <p className="text-sm font-medium text-gray-900">
-                              {formatCurrency((item.rrp || 0) * (item.quantity || 1))}
+                            <p className={cn(
+                              "text-sm font-medium",
+                              item.rrpCurrency === 'USD' ? "text-blue-600" : "text-gray-900"
+                            )}>
+                              {formatCurrency((item.rrp || 0) * (item.quantity || 1), item.rrpCurrency)}
                             </p>
-                            <p className="text-[10px] text-gray-400 uppercase">Total</p>
+                            <p className="text-[10px] text-gray-400 uppercase">
+                              {item.rrpCurrency === 'USD' ? 'USD' : 'CAD'}
+                            </p>
                           </div>
                         )}
 
