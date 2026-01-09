@@ -3641,23 +3641,23 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               <div className="flex items-center gap-4 pr-6 border-r border-gray-200">
                 <div>
                   <p className="text-xs text-gray-500 uppercase">Trade (CAD)</p>
-                  <p className="text-lg font-semibold text-gray-900">${financials.totalTradePriceCAD.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                  <p className="text-lg font-semibold text-gray-900">${(financials?.totalTradePriceCAD ?? 0).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 uppercase">RRP (CAD)</p>
-                  <p className="text-lg font-semibold text-gray-900">${financials.totalRRPCAD.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                  <p className="text-lg font-semibold text-gray-900">${(financials?.totalRRPCAD ?? 0).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                 </div>
               </div>
               {/* USD Totals - Trade & RRP grouped - Only show if there are USD items */}
-              {(financials.totalTradePriceUSD > 0 || financials.totalRRPUSD > 0) && (
+              {((financials?.totalTradePriceUSD ?? 0) > 0 || (financials?.totalRRPUSD ?? 0) > 0) && (
                 <div className="flex items-center gap-4 pr-6 border-r border-gray-200">
                   <div>
                     <p className="text-xs text-blue-500 uppercase">Trade (USD)</p>
-                    <p className="text-lg font-semibold text-blue-600">${financials.totalTradePriceUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    <p className="text-lg font-semibold text-blue-600">${(financials?.totalTradePriceUSD ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                   </div>
                   <div>
                     <p className="text-xs text-blue-500 uppercase">RRP (USD)</p>
-                    <p className="text-lg font-semibold text-blue-600">${financials.totalRRPUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    <p className="text-lg font-semibold text-blue-600">${(financials?.totalRRPUSD ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                   </div>
                 </div>
               )}
@@ -3665,7 +3665,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               <div>
                 <p className="text-xs text-gray-500 uppercase">Avg Margin</p>
                 <p className="text-lg font-semibold text-gray-900">
-                  {financials.totalTradePriceCAD > 0 ? `${financials.avgTradeDiscount.toFixed(2)}%` : '-'}
+                  {(financials?.totalTradePriceCAD ?? 0) > 0 ? `${(financials?.avgTradeDiscount ?? 0).toFixed(2)}%` : '-'}
                 </p>
               </div>
             </div>
