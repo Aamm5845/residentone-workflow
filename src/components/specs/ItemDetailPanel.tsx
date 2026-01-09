@@ -2922,7 +2922,7 @@ export function ItemDetailPanel({
                       "font-semibold text-xl",
                       formData.rrpCurrency === 'USD' ? "text-blue-600" : "text-emerald-600"
                     )}>
-                      ${(((parseFloat(formData.rrp) || 0) + componentsTotal) * (formData.quantity || 1)).toFixed(2)}
+                      ${(((parseFloat(formData.rrp) || 0) * (formData.quantity || 1)) + componentsTotal).toFixed(2)}
                       <span className="text-sm text-gray-500 ml-1">{formData.rrpCurrency}</span>
                     </span>
                   </div>
@@ -2932,7 +2932,7 @@ export function ItemDetailPanel({
                       <p>Item: ${parseFloat(formData.rrp).toFixed(2)} × {formData.quantity || 1}</p>
                     )}
                     {componentsTotal > 0 && (
-                      <p>Components: ${componentsTotal.toFixed(2)} × {formData.quantity || 1}</p>
+                      <p>Components: ${componentsTotal.toFixed(2)}</p>
                     )}
                   </div>
                 </div>

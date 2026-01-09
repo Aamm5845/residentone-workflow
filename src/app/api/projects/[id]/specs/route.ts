@@ -229,12 +229,13 @@ export async function GET(
     const unapprovedItems = totalItems - approvedItems
     
     // Calculate financial totals (including components)
+    // Components have their own qty - NOT multiplied by parent item qty
     const totalTradePrice = visibleSpecs.reduce((sum, s) => {
       const price = s.tradePrice || 0
       const qty = s.quantity || 1
       const componentsPrice = s.componentsTotal || 0
-      // Components are per-unit, so multiply by item quantity
-      return sum + (price * qty) + (componentsPrice * qty)
+      // Item price × qty + components (components have independent qty)
+      return sum + (price * qty) + componentsPrice
     }, 0)
 
     const totalRRP = visibleSpecs.reduce((sum, s) => {
@@ -244,7 +245,7 @@ export async function GET(
       // When calculating RRP, apply markup to components as well
       const markupPercent = s.markupPercent || 0
       const componentsRRP = componentsPrice * (1 + markupPercent / 100)
-      return sum + (price * qty) + (componentsRRP * qty)
+      return sum + (price * qty) + componentsRRP
     }, 0)
 
     const avgTradeDiscount = totalRRP > 0

@@ -1155,13 +1155,14 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
     // Separate trade prices by currency (including components)
     // If trade price is missing but RRP exists, use RRP (no markup = same price)
+    // Components have their own qty - NOT multiplied by parent item qty
     const totalTradePriceCAD = specsToCalculate.reduce((sum, s) => {
       if (getEffectiveTradeCurrency(s) !== 'CAD') return sum
       const price = s.tradePrice ?? s.rrp ?? 0
       const qty = s.quantity || 1
       const componentsPrice = (s as any).componentsTotal || 0
-      // Components are per-unit, so multiply by item quantity
-      return sum + (price * qty) + (componentsPrice * qty)
+      // Item price × qty + components (components have independent qty)
+      return sum + (price * qty) + componentsPrice
     }, 0)
 
     const totalTradePriceUSD = specsToCalculate.reduce((sum, s) => {
@@ -1169,11 +1170,12 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       const price = s.tradePrice ?? s.rrp ?? 0
       const qty = s.quantity || 1
       const componentsPrice = (s as any).componentsTotal || 0
-      return sum + (price * qty) + (componentsPrice * qty)
+      return sum + (price * qty) + componentsPrice
     }, 0)
 
     // Separate RRP by currency (including components with markup applied)
     // If RRP is missing but trade price exists, use trade price (no markup = same price)
+    // Components have their own qty - NOT multiplied by parent item qty
     const totalRRPCAD = specsToCalculate.reduce((sum, s) => {
       if (getEffectiveRrpCurrency(s) !== 'CAD') return sum
       const price = s.rrp ?? s.tradePrice ?? 0
@@ -1182,7 +1184,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       // Apply markup to components for RRP calculation
       const markupPercent = s.markupPercent || 0
       const componentsRRP = componentsPrice * (1 + markupPercent / 100)
-      return sum + (price * qty) + (componentsRRP * qty)
+      return sum + (price * qty) + componentsRRP
     }, 0)
 
     const totalRRPUSD = specsToCalculate.reduce((sum, s) => {
@@ -1192,7 +1194,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       const componentsPrice = (s as any).componentsTotal || 0
       const markupPercent = s.markupPercent || 0
       const componentsRRP = componentsPrice * (1 + markupPercent / 100)
-      return sum + (price * qty) + (componentsRRP * qty)
+      return sum + (price * qty) + componentsRRP
     }, 0)
 
     // Calculate average discount based on CAD values (primary currency)
@@ -3100,18 +3102,19 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   }
   
   // Calculate section totals (including components)
+  // Components have their own qty - NOT multiplied by parent item qty
   const getSectionTotals = (items: SpecItem[]) => {
     const tradeTotal = items.reduce((sum, item) => {
       const itemPrice = item.tradePrice || 0
       const componentsPrice = (item as any).componentsTotal || 0
       const qty = item.quantity || 1
-      return sum + ((itemPrice + componentsPrice) * qty)
+      return sum + (itemPrice * qty) + componentsPrice
     }, 0)
     const rrpTotal = items.reduce((sum, item) => {
       const itemPrice = item.rrp || 0
       const componentsPrice = (item as any).componentsTotal || 0
       const qty = item.quantity || 1
-      return sum + ((itemPrice + componentsPrice) * qty)
+      return sum + (itemPrice * qty) + componentsPrice
     }, 0)
     return { tradeTotal, rrpTotal }
   }
