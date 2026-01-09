@@ -47,6 +47,7 @@ export async function GET(
       ...link,
       shareUrl: `${baseUrl}/shared/specs/link/${link.token}`,
       itemCount: link.itemIds.length,
+      isAllItems: link.itemIds.length === 0, // Empty array = all items mode
       isExpired: link.expiresAt ? new Date() > link.expiresAt : false
     }))
 
@@ -100,39 +101,37 @@ export async function POST(
       expiresAt
     } = body
 
-    if (!itemIds || !Array.isArray(itemIds) || itemIds.length === 0) {
-      return NextResponse.json(
-        { error: 'At least one item must be selected' },
-        { status: 400 }
-      )
-    }
+    // Empty itemIds array means "all items" mode - dynamic, includes future items
+    // This is a valid use case, not an error
+    const isAllItemsMode = !itemIds || !Array.isArray(itemIds) || itemIds.length === 0
 
-    // Verify items belong to this project
-    // RoomFFEItem -> section -> instance -> room -> project
-    const validItems = await prisma.roomFFEItem.findMany({
-      where: {
-        id: { in: itemIds },
-        section: {
-          instance: {
-            room: { projectId }
+    // If specific items are selected, verify they belong to this project
+    if (!isAllItemsMode) {
+      const validItems = await prisma.roomFFEItem.findMany({
+        where: {
+          id: { in: itemIds },
+          section: {
+            instance: {
+              room: { projectId }
+            }
           }
-        }
-      },
-      select: { id: true }
-    })
+        },
+        select: { id: true }
+      })
 
-    if (validItems.length !== itemIds.length) {
-      return NextResponse.json(
-        { error: 'Some items do not belong to this project' },
-        { status: 400 }
-      )
+      if (validItems.length !== itemIds.length) {
+        return NextResponse.json(
+          { error: 'Some items do not belong to this project' },
+          { status: 400 }
+        )
+      }
     }
 
     const shareLink = await prisma.specShareLink.create({
       data: {
         projectId,
         name: name || null,
-        itemIds,
+        itemIds: isAllItemsMode ? [] : itemIds, // Empty array = all items mode
         showSupplier,
         showBrand,
         showPricing,
@@ -154,6 +153,7 @@ export async function POST(
         ...shareLink,
         shareUrl: `${getBaseUrl()}/shared/specs/link/${shareLink.token}`,
         itemCount: shareLink.itemIds.length,
+        isAllItems: shareLink.itemIds.length === 0, // Flag for "all items" mode
         isExpired: false
       }
     })
