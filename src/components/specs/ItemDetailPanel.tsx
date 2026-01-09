@@ -3028,11 +3028,14 @@ export function ItemDetailPanel({
                       const markupPercent = parseFloat(formData.markupPercent) || 0
                       return components.map(comp => {
                         if (!comp.price) return null
-                        const compTradeTotal = Number(comp.price) * (comp.quantity || 1)
-                        const compRrp = compTradeTotal * (1 + markupPercent / 100)
+                        const compUnitPrice = Number(comp.price)
+                        const compQty = comp.quantity || 1
+                        const compTradeTotal = compUnitPrice * compQty
+                        const compUnitRrp = compUnitPrice * (1 + markupPercent / 100)
+                        const compRrpTotal = compTradeTotal * (1 + markupPercent / 100)
                         return (
                           <p key={comp.id}>
-                            {comp.name}: ${compRrp.toFixed(2)} {markupPercent > 0 && `(+${markupPercent}%)`}
+                            {comp.name}: ${compUnitRrp.toFixed(2)} × {compQty} = ${compRrpTotal.toFixed(2)} {markupPercent > 0 && `(+${markupPercent}%)`}
                           </p>
                         )
                       })

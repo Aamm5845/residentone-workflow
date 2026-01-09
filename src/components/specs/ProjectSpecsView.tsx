@@ -3103,6 +3103,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   
   // Calculate section totals (including components)
   // Components have their own qty - NOT multiplied by parent item qty
+  // RRP for components includes markup from parent item
   const getSectionTotals = (items: SpecItem[]) => {
     const tradeTotal = items.reduce((sum, item) => {
       const itemPrice = item.tradePrice || 0
@@ -3113,8 +3114,11 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     const rrpTotal = items.reduce((sum, item) => {
       const itemPrice = item.rrp || 0
       const componentsPrice = (item as any).componentsTotal || 0
+      const markupPercent = item.markupPercent || 0
       const qty = item.quantity || 1
-      return sum + (itemPrice * qty) + componentsPrice
+      // Apply markup to components for RRP
+      const componentsRrp = componentsPrice * (1 + markupPercent / 100)
+      return sum + (itemPrice * qty) + componentsRrp
     }, 0)
     return { tradeTotal, rrpTotal }
   }
@@ -4424,12 +4428,21 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                           )
                                         })()
                                       )}
-                                      {(displayItem.tradePrice || displayItem.rrp) && (
-                                        <div className="col-span-2 pt-1 border-t mt-1">
-                                          {displayItem.tradePrice && <span className="text-gray-700 font-medium">${((displayItem.tradePrice || 0) + ((displayItem as any).componentsTotal || 0)).toFixed(2)} trade</span>}
-                                          {displayItem.tradePrice && displayItem.rrp && <span className="text-gray-300 mx-1">|</span>}
-                                          {displayItem.rrp && <span className="text-gray-500">${((displayItem.rrp || 0) + ((displayItem as any).componentsTotal || 0)).toFixed(2)} RRP</span>}
-                                        </div>
+                                      {(displayItem.tradePrice || displayItem.rrp || (displayItem as any).componentsTotal) && (
+                                        (() => {
+                                          const qty = displayItem.quantity || 1
+                                          const tradeTotal = ((displayItem.tradePrice || 0) * qty) + ((displayItem as any).componentsTotal || 0)
+                                          const markupPercent = displayItem.markupPercent || 0
+                                          const componentsRrp = ((displayItem as any).componentsTotal || 0) * (1 + markupPercent / 100)
+                                          const rrpTotal = ((displayItem.rrp || 0) * qty) + componentsRrp
+                                          return (
+                                            <div className="col-span-2 pt-1 border-t mt-1">
+                                              {tradeTotal > 0 && <span className="text-gray-700 font-medium">${tradeTotal.toFixed(2)} trade</span>}
+                                              {tradeTotal > 0 && rrpTotal > 0 && <span className="text-gray-300 mx-1">|</span>}
+                                              {rrpTotal > 0 && <span className="text-gray-500">${rrpTotal.toFixed(2)} RRP</span>}
+                                            </div>
+                                          )
+                                        })()
                                       )}
                                     </div>
                                   </div>
@@ -5220,7 +5233,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
                                   return (
                                     <>
-                                      {/* Trade Price */}
+                                      {/* Trade Price - shows total: (unit × qty) + components */}
                                       <div className="flex-shrink-0 w-24 h-9 text-right">
                                         <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">
                                           Trade {isUsdTrade && <span className="text-blue-500">(USD)</span>}
@@ -5237,13 +5250,20 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                             step="0.01"
                                           />
                                         ) : (
-                                          <p
-                                            className={`text-xs cursor-text hover:bg-gray-100 rounded px-1 ${isUsdTrade ? 'text-blue-600' : 'text-gray-900'}`}
-                                            onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'tradePrice', item.tradePrice?.toString() || '') }}
-                                            title={(item as any).componentsTotal > 0 ? `Item: ${formatCurrency(item.tradePrice || 0)} + Components: ${formatCurrency((item as any).componentsTotal)}` : undefined}
-                                          >
-                                            {item.tradePrice || (item as any).componentsTotal ? formatCurrency((item.tradePrice || 0) + ((item as any).componentsTotal || 0)) : '-'}
-                                          </p>
+                                          (() => {
+                                            const itemTradeTotal = (item.tradePrice || 0) * (item.quantity || 1)
+                                            const componentsPrice = (item as any).componentsTotal || 0
+                                            const total = itemTradeTotal + componentsPrice
+                                            return (
+                                              <p
+                                                className={`text-xs cursor-text hover:bg-gray-100 rounded px-1 ${isUsdTrade ? 'text-blue-600' : 'text-gray-900'}`}
+                                                onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'tradePrice', item.tradePrice?.toString() || '') }}
+                                                title={componentsPrice > 0 ? `Item: ${formatCurrency(item.tradePrice || 0)} × ${item.quantity || 1} + Components: ${formatCurrency(componentsPrice)}` : (item.quantity || 1) > 1 ? `${formatCurrency(item.tradePrice || 0)} × ${item.quantity}` : undefined}
+                                              >
+                                                {total > 0 ? formatCurrency(total) : '-'}
+                                              </p>
+                                            )
+                                          })()
                                         )}
                                       </div>
 
@@ -5273,7 +5293,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                         )}
                                       </div>
 
-                                      {/* RRP */}
+                                      {/* RRP - shows total: (unit × qty) + components with markup */}
                                       <div className="flex-shrink-0 w-20 h-9 text-right">
                                         <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">
                                           RRP {isUsdRrp && <span className="text-blue-500">(USD)</span>}
@@ -5290,13 +5310,23 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                             step="0.01"
                                           />
                                         ) : (
-                                          <p
-                                            className={`text-xs cursor-text hover:bg-gray-100 rounded px-1 ${isUsdRrp ? 'text-blue-600' : 'text-gray-900'}`}
-                                            onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'rrp', item.rrp?.toString() || '') }}
-                                            title={(item as any).componentsTotal > 0 ? `Item: ${formatCurrency(item.rrp || 0)} + Components: ${formatCurrency((item as any).componentsTotal)}` : undefined}
-                                          >
-                                            {item.rrp || (item as any).componentsTotal ? formatCurrency((item.rrp || 0) + ((item as any).componentsTotal || 0)) : '-'}
-                                          </p>
+                                          (() => {
+                                            const itemRrpTotal = (item.rrp || 0) * (item.quantity || 1)
+                                            const componentsPrice = (item as any).componentsTotal || 0
+                                            const markupPercent = item.markupPercent || 0
+                                            // Apply markup to components for RRP
+                                            const componentsRrp = componentsPrice * (1 + markupPercent / 100)
+                                            const total = itemRrpTotal + componentsRrp
+                                            return (
+                                              <p
+                                                className={`text-xs cursor-text hover:bg-gray-100 rounded px-1 ${isUsdRrp ? 'text-blue-600' : 'text-gray-900'}`}
+                                                onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'rrp', item.rrp?.toString() || '') }}
+                                                title={componentsPrice > 0 ? `Item: ${formatCurrency(item.rrp || 0)} × ${item.quantity || 1} + Components: ${formatCurrency(componentsRrp)}${markupPercent > 0 ? ` (+${markupPercent}%)` : ''}` : (item.quantity || 1) > 1 ? `${formatCurrency(item.rrp || 0)} × ${item.quantity}` : undefined}
+                                              >
+                                                {total > 0 ? formatCurrency(total) : '-'}
+                                              </p>
+                                            )
+                                          })()
                                         )}
                                       </div>
                                     </>
