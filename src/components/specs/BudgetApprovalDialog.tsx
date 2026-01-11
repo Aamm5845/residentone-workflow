@@ -27,6 +27,7 @@ import {
   Package
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
+import { calculateItemRRPTotal, formatCurrency } from '@/lib/pricing'
 
 interface BudgetApprovalDialogProps {
   open: boolean
@@ -51,6 +52,9 @@ interface SpecItem {
   categoryName: string
   roomName: string
   thumbnailUrl: string | null
+  // Pricing fields for components
+  componentsTotal?: number | null
+  markupPercent?: number | null
 }
 
 type Step = 'price-check' | 'review' | 'preview'
@@ -125,35 +129,37 @@ export default function BudgetApprovalDialog({
     }
   }, [open, projectName, itemsWithRrp])
 
-  // Calculate totals
-  const calculateItemPrice = (item: SpecItem): number => {
-    if (priceOverrides[item.id] !== undefined) {
-      return priceOverrides[item.id]
-    }
-    return item.rrp || 0
+  // Calculate item total using centralized pricing (includes components with markup)
+  const calculateItemTotal = (item: SpecItem): number => {
+    // If there's a price override, use that instead of rrp
+    const rrpToUse = priceOverrides[item.id] !== undefined
+      ? priceOverrides[item.id]
+      : (item.rrp || 0)
+
+    // Use centralized pricing calculation
+    return calculateItemRRPTotal({
+      rrp: rrpToUse,
+      quantity: item.quantity,
+      componentsTotal: item.componentsTotal,
+      markupPercent: item.markupPercent
+    })
   }
 
   const includedItemsList = useMemo(() => {
     return selectedSpecs.filter(s => includedItems.has(s.id))
   }, [selectedSpecs, includedItems])
 
-  // Calculate totals by currency (CAD and USD separately)
+  // Calculate totals by currency (CAD and USD separately) using centralized pricing
   const cadSubtotal = useMemo(() => {
     return includedItemsList
       .filter(item => (item.rrpCurrency || 'CAD') === 'CAD')
-      .reduce((sum, item) => {
-        const price = calculateItemPrice(item)
-        return sum + (price * (item.quantity || 1))
-      }, 0)
+      .reduce((sum, item) => sum + calculateItemTotal(item), 0)
   }, [includedItemsList, priceOverrides])
 
   const usdSubtotal = useMemo(() => {
     return includedItemsList
       .filter(item => item.rrpCurrency === 'USD')
-      .reduce((sum, item) => {
-        const price = calculateItemPrice(item)
-        return sum + (price * (item.quantity || 1))
-      }, 0)
+      .reduce((sum, item) => sum + calculateItemTotal(item), 0)
   }, [includedItemsList, priceOverrides])
 
   // For backward compatibility
@@ -279,15 +285,6 @@ export default function BudgetApprovalDialog({
     } finally {
       setSending(false)
     }
-  }
-
-  const formatCurrency = (amount: number, currency: string = 'CAD') => {
-    const currencyCode = currency === 'USD' ? 'USD' : 'CAD'
-    const locale = currency === 'USD' ? 'en-US' : 'en-CA'
-    return new Intl.NumberFormat(locale, {
-      style: 'currency',
-      currency: currencyCode
-    }).format(amount)
   }
 
   // Group items by section
@@ -491,7 +488,7 @@ export default function BudgetApprovalDialog({
                         <div key={item.id} className="flex justify-between px-3 py-2 text-sm border-b last:border-b-0">
                           <span className="text-gray-700 truncate flex-1">{item.name}</span>
                           <span className="text-gray-900 font-medium ml-4">
-                            {formatCurrency(calculateItemPrice(item) * (item.quantity || 1))}
+                            {formatCurrency(calculateItemTotal(item))}
                           </span>
                         </div>
                       ))}
@@ -563,7 +560,7 @@ export default function BudgetApprovalDialog({
                               )}
                             </div>
                             <span className="text-sm font-medium text-gray-900">
-                              {formatCurrency(calculateItemPrice(item) * (item.quantity || 1))}
+                              {formatCurrency(calculateItemTotal(item))}
                             </span>
                           </div>
                         ))}

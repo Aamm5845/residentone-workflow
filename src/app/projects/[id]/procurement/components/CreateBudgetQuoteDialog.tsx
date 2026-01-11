@@ -20,6 +20,7 @@ import {
   CheckCircle2
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { formatCurrency, roundCurrency } from '@/lib/pricing'
 
 interface CreateBudgetQuoteDialogProps {
   open: boolean
@@ -89,17 +90,18 @@ export default function CreateBudgetQuoteDialog({
   // Calculate totals by currency (CAD and USD separately)
   const selectedItemsList = items.filter(item => selectedItems.has(item.id))
 
+  // Calculate totals using centralized pricing utilities
   const cadSubtotal = selectedItemsList
     .filter(item => (item.currency || 'CAD') === 'CAD')
     .reduce((sum, item) => sum + (item.totalCost || 0), 0)
   const cadMarkupAmount = cadSubtotal * (markupPercent / 100)
-  const cadEstimatedTotal = Math.round((cadSubtotal + cadMarkupAmount) * 100) / 100
+  const cadEstimatedTotal = roundCurrency(cadSubtotal + cadMarkupAmount)
 
   const usdSubtotal = selectedItemsList
     .filter(item => item.currency === 'USD')
     .reduce((sum, item) => sum + (item.totalCost || 0), 0)
   const usdMarkupAmount = usdSubtotal * (markupPercent / 100)
-  const usdEstimatedTotal = Math.round((usdSubtotal + usdMarkupAmount) * 100) / 100
+  const usdEstimatedTotal = roundCurrency(usdSubtotal + usdMarkupAmount)
 
   // For backward compatibility
   const subtotal = cadSubtotal + usdSubtotal
@@ -192,15 +194,6 @@ export default function CreateBudgetQuoteDialog({
     setIncludeTax(true)
     setExpiresInDays(30)
     setIncludeApprovedItems(false)
-  }
-
-  const formatCurrency = (amount: number, currency: string = 'CAD') => {
-    const currencyCode = currency === 'USD' ? 'USD' : 'CAD'
-    const locale = currency === 'USD' ? 'en-US' : 'en-CA'
-    return new Intl.NumberFormat(locale, {
-      style: 'currency',
-      currency: currencyCode
-    }).format(amount)
   }
 
   // Group items by category
