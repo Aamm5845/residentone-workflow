@@ -45,6 +45,7 @@ interface SpecItem {
   sku: string | null
   quantity: number
   rrp: number | null
+  rrpCurrency?: string // CAD or USD
   tradePrice: number | null
   sectionName: string
   categoryName: string
@@ -136,12 +137,27 @@ export default function BudgetApprovalDialog({
     return selectedSpecs.filter(s => includedItems.has(s.id))
   }, [selectedSpecs, includedItems])
 
-  const subtotal = useMemo(() => {
-    return includedItemsList.reduce((sum, item) => {
-      const price = calculateItemPrice(item)
-      return sum + (price * (item.quantity || 1))
-    }, 0)
+  // Calculate totals by currency (CAD and USD separately)
+  const cadSubtotal = useMemo(() => {
+    return includedItemsList
+      .filter(item => (item.rrpCurrency || 'CAD') === 'CAD')
+      .reduce((sum, item) => {
+        const price = calculateItemPrice(item)
+        return sum + (price * (item.quantity || 1))
+      }, 0)
   }, [includedItemsList, priceOverrides])
+
+  const usdSubtotal = useMemo(() => {
+    return includedItemsList
+      .filter(item => item.rrpCurrency === 'USD')
+      .reduce((sum, item) => {
+        const price = calculateItemPrice(item)
+        return sum + (price * (item.quantity || 1))
+      }, 0)
+  }, [includedItemsList, priceOverrides])
+
+  // For backward compatibility
+  const subtotal = cadSubtotal + usdSubtotal
 
   const handlePriceChange = (itemId: string, value: string) => {
     const numValue = parseFloat(value) || 0
@@ -216,9 +232,11 @@ export default function BudgetApprovalDialog({
           description: description.trim() || null,
           itemIds: Array.from(includedItems),
           supplierQuoteIds: [],
-          estimatedTotal: subtotal,
+          // Store CAD total as primary, but include both for display
+          estimatedTotal: cadSubtotal,
+          estimatedTotalUSD: usdSubtotal > 0 ? usdSubtotal : null,
           markupPercent: 0, // RRP already includes markup
-          currency: 'CAD',
+          currency: 'CAD', // Primary currency
           includeTax,
           includedServices: [],
           expiresAt: expiresAt.toISOString(),
@@ -263,10 +281,12 @@ export default function BudgetApprovalDialog({
     }
   }
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-CA', {
+  const formatCurrency = (amount: number, currency: string = 'CAD') => {
+    const currencyCode = currency === 'USD' ? 'USD' : 'CAD'
+    const locale = currency === 'USD' ? 'en-US' : 'en-CA'
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
-      currency: 'CAD'
+      currency: currencyCode
     }).format(amount)
   }
 
@@ -378,16 +398,29 @@ export default function BudgetApprovalDialog({
                 </div>
               )}
 
-              {/* Summary */}
-              <div className="bg-violet-50 rounded-lg p-4">
-                <div className="flex justify-between text-sm mb-2">
+              {/* Summary - Separate CAD and USD */}
+              <div className="bg-violet-50 rounded-lg p-4 space-y-3">
+                <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Items Selected</span>
                   <span className="font-medium">{includedItems.size} of {selectedSpecs.length}</span>
                 </div>
-                <div className="flex justify-between text-lg font-semibold">
-                  <span className="text-violet-900">Estimated Total</span>
-                  <span className="text-violet-700">{formatCurrency(subtotal)}</span>
-                </div>
+                {cadSubtotal > 0 && (
+                  <div className="flex justify-between text-lg font-semibold">
+                    <span className="text-violet-900">Total CAD</span>
+                    <span className="text-violet-700">{formatCurrency(cadSubtotal, 'CAD')}</span>
+                  </div>
+                )}
+                {usdSubtotal > 0 && (
+                  <div className="flex justify-between text-lg font-semibold">
+                    <span className="text-blue-900">Total USD</span>
+                    <span className="text-blue-700">{formatCurrency(usdSubtotal, 'USD')}</span>
+                  </div>
+                )}
+                {cadSubtotal > 0 && usdSubtotal > 0 && (
+                  <p className="text-xs text-gray-500 italic pt-1">
+                    Note: CAD and USD items shown separately.
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -467,15 +500,26 @@ export default function BudgetApprovalDialog({
                 </div>
               </div>
 
-              {/* Totals */}
-              <div className="bg-violet-50 rounded-lg p-4">
-                <div className="flex justify-between text-lg font-semibold">
-                  <span className="text-violet-900">Total</span>
-                  <span className="text-violet-700">
-                    {formatCurrency(subtotal)}
-                    {includeTax && <span className="text-sm font-normal text-violet-600 ml-1">+ tax</span>}
-                  </span>
-                </div>
+              {/* Totals - Separate CAD and USD */}
+              <div className="bg-violet-50 rounded-lg p-4 space-y-2">
+                {cadSubtotal > 0 && (
+                  <div className="flex justify-between text-lg font-semibold">
+                    <span className="text-violet-900">Total CAD</span>
+                    <span className="text-violet-700">
+                      {formatCurrency(cadSubtotal, 'CAD')}
+                      {includeTax && <span className="text-sm font-normal text-violet-600 ml-1">+ tax</span>}
+                    </span>
+                  </div>
+                )}
+                {usdSubtotal > 0 && (
+                  <div className="flex justify-between text-lg font-semibold">
+                    <span className="text-blue-900">Total USD</span>
+                    <span className="text-blue-700">
+                      {formatCurrency(usdSubtotal, 'USD')}
+                      {includeTax && <span className="text-sm font-normal text-blue-600 ml-1">+ tax</span>}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -527,14 +571,25 @@ export default function BudgetApprovalDialog({
                     ))}
                   </div>
 
-                  <div className="mt-6 pt-4 border-t border-gray-200">
-                    <div className="flex justify-between text-lg font-semibold">
-                      <span>Estimated Total</span>
-                      <span className="text-violet-700">
-                        {formatCurrency(subtotal)}
-                        {includeTax && <span className="text-sm font-normal text-gray-500 ml-1">+ tax</span>}
-                      </span>
-                    </div>
+                  <div className="mt-6 pt-4 border-t border-gray-200 space-y-2">
+                    {cadSubtotal > 0 && (
+                      <div className="flex justify-between text-lg font-semibold">
+                        <span>Estimated Total (CAD)</span>
+                        <span className="text-violet-700">
+                          {formatCurrency(cadSubtotal, 'CAD')}
+                          {includeTax && <span className="text-sm font-normal text-gray-500 ml-1">+ tax</span>}
+                        </span>
+                      </div>
+                    )}
+                    {usdSubtotal > 0 && (
+                      <div className="flex justify-between text-lg font-semibold">
+                        <span>Estimated Total (USD)</span>
+                        <span className="text-blue-700">
+                          {formatCurrency(usdSubtotal, 'USD')}
+                          {includeTax && <span className="text-sm font-normal text-gray-500 ml-1">+ tax</span>}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="mt-6 text-center">

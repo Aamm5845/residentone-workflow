@@ -32,6 +32,7 @@ interface CreateBudgetQuoteDialogProps {
     name: string
     categoryName?: string
     totalCost: number
+    currency?: string // CAD or USD
     clientApproved?: boolean
   }>
   preselectedSupplierQuoteIds?: string[]
@@ -43,6 +44,7 @@ interface FFEItem {
   name: string
   categoryName?: string
   totalCost: number
+  currency: string // CAD or USD
   clientApproved: boolean
 }
 
@@ -73,6 +75,7 @@ export default function CreateBudgetQuoteDialog({
     if (open && preselectedItems) {
       setItems(preselectedItems.map(item => ({
         ...item,
+        currency: item.currency || 'CAD',
         clientApproved: item.clientApproved || false
       })))
       // Auto-select items that are NOT already client-approved
@@ -83,11 +86,25 @@ export default function CreateBudgetQuoteDialog({
     }
   }, [open, preselectedItems])
 
-  // Calculate totals
+  // Calculate totals by currency (CAD and USD separately)
   const selectedItemsList = items.filter(item => selectedItems.has(item.id))
-  const subtotal = selectedItemsList.reduce((sum, item) => sum + (item.totalCost || 0), 0)
-  const markupAmount = subtotal * (markupPercent / 100)
-  const estimatedTotal = Math.round((subtotal + markupAmount) * 100) / 100
+
+  const cadSubtotal = selectedItemsList
+    .filter(item => (item.currency || 'CAD') === 'CAD')
+    .reduce((sum, item) => sum + (item.totalCost || 0), 0)
+  const cadMarkupAmount = cadSubtotal * (markupPercent / 100)
+  const cadEstimatedTotal = Math.round((cadSubtotal + cadMarkupAmount) * 100) / 100
+
+  const usdSubtotal = selectedItemsList
+    .filter(item => item.currency === 'USD')
+    .reduce((sum, item) => sum + (item.totalCost || 0), 0)
+  const usdMarkupAmount = usdSubtotal * (markupPercent / 100)
+  const usdEstimatedTotal = Math.round((usdSubtotal + usdMarkupAmount) * 100) / 100
+
+  // For backward compatibility
+  const subtotal = cadSubtotal + usdSubtotal
+  const markupAmount = cadMarkupAmount + usdMarkupAmount
+  const estimatedTotal = cadEstimatedTotal + usdEstimatedTotal
 
   // Filter items based on includeApprovedItems toggle
   const visibleItems = includeApprovedItems
@@ -139,9 +156,11 @@ export default function CreateBudgetQuoteDialog({
           description: description.trim() || null,
           itemIds: Array.from(selectedItems),
           supplierQuoteIds: preselectedSupplierQuoteIds || [],
-          estimatedTotal,
+          // Store CAD total as primary, but include both for display
+          estimatedTotal: cadEstimatedTotal,
+          estimatedTotalUSD: usdEstimatedTotal > 0 ? usdEstimatedTotal : null,
           markupPercent,
-          currency: 'CAD',
+          currency: 'CAD', // Primary currency
           includeTax,
           includedServices: [],
           expiresAt: expiresAt.toISOString()
@@ -175,10 +194,12 @@ export default function CreateBudgetQuoteDialog({
     setIncludeApprovedItems(false)
   }
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-CA', {
+  const formatCurrency = (amount: number, currency: string = 'CAD') => {
+    const currencyCode = currency === 'USD' ? 'USD' : 'CAD'
+    const locale = currency === 'USD' ? 'en-US' : 'en-CA'
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
-      currency: 'CAD'
+      currency: currencyCode
     }).format(amount)
   }
 
@@ -295,8 +316,8 @@ export default function CreateBudgetQuoteDialog({
                           </span>
                         )}
                       </div>
-                      <span className="text-sm text-gray-600">
-                        {formatCurrency(item.totalCost || 0)}
+                      <span className={`text-sm ${item.currency === 'USD' ? 'text-blue-600' : 'text-gray-600'}`}>
+                        {formatCurrency(item.totalCost || 0, item.currency)}
                       </span>
                     </div>
                   ))}
@@ -339,21 +360,57 @@ export default function CreateBudgetQuoteDialog({
             </div>
           </div>
 
-          {/* Totals */}
-          <div className="bg-violet-50 rounded-lg p-4 space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Items Cost</span>
-              <span className="font-medium">{formatCurrency(subtotal)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Markup ({markupPercent}%)</span>
-              <span className="font-medium">{formatCurrency(markupAmount)}</span>
-            </div>
-            <div className="flex justify-between text-lg font-semibold border-t border-violet-200 pt-2 mt-2">
-              <span className="text-violet-900">Estimated Total</span>
-              <span className="text-violet-700">{formatCurrency(estimatedTotal)}</span>
-            </div>
-            <div className="flex items-center gap-2 mt-2">
+          {/* Totals - Separate CAD and USD */}
+          <div className="bg-violet-50 rounded-lg p-4 space-y-3">
+            {/* CAD Section */}
+            {cadSubtotal > 0 && (
+              <div className="space-y-2">
+                <div className="text-xs font-medium text-gray-500 uppercase">CAD</div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Items Cost</span>
+                  <span className="font-medium">{formatCurrency(cadSubtotal, 'CAD')}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Markup ({markupPercent}%)</span>
+                  <span className="font-medium">{formatCurrency(cadMarkupAmount, 'CAD')}</span>
+                </div>
+                <div className="flex justify-between text-base font-semibold">
+                  <span className="text-violet-900">Subtotal CAD</span>
+                  <span className="text-violet-700">{formatCurrency(cadEstimatedTotal, 'CAD')}</span>
+                </div>
+              </div>
+            )}
+
+            {/* USD Section */}
+            {usdSubtotal > 0 && (
+              <div className="space-y-2 pt-2 border-t border-violet-200">
+                <div className="text-xs font-medium text-blue-500 uppercase">USD</div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Items Cost</span>
+                  <span className="font-medium text-blue-600">{formatCurrency(usdSubtotal, 'USD')}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Markup ({markupPercent}%)</span>
+                  <span className="font-medium text-blue-600">{formatCurrency(usdMarkupAmount, 'USD')}</span>
+                </div>
+                <div className="flex justify-between text-base font-semibold">
+                  <span className="text-blue-900">Subtotal USD</span>
+                  <span className="text-blue-700">{formatCurrency(usdEstimatedTotal, 'USD')}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Combined Total Notice */}
+            {cadSubtotal > 0 && usdSubtotal > 0 && (
+              <div className="pt-2 border-t border-violet-200">
+                <p className="text-xs text-gray-500 italic">
+                  Note: CAD and USD items are shown separately as they cannot be combined.
+                </p>
+              </div>
+            )}
+
+            {/* Tax checkbox */}
+            <div className="flex items-center gap-2 pt-2 border-t border-violet-200">
               <Checkbox
                 id="includeTax"
                 checked={includeTax}
