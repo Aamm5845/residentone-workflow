@@ -25,7 +25,8 @@ import {
   Send,
   Eye,
   Package,
-  Mail
+  Mail,
+  Download
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { calculateItemRRPTotal, formatCurrency } from '@/lib/pricing'
@@ -334,6 +335,58 @@ export default function BudgetApprovalDialog({
     } finally {
       setSendingTest(false)
     }
+  }
+
+  // Export to Excel/CSV for price verification
+  const handleExportExcel = () => {
+    // Build CSV content grouped by category
+    const rows: string[] = []
+
+    // Header
+    rows.push('Category,Product Name,Qty,Unit Price,Total Price,Currency')
+
+    // Group by section/category
+    const itemsByCategory = includedItemsList.reduce((acc, item) => {
+      const cat = item.sectionName || item.categoryName || 'Other'
+      if (!acc[cat]) acc[cat] = []
+      acc[cat].push(item)
+      return acc
+    }, {} as Record<string, SpecItem[]>)
+
+    // Add items grouped by category
+    Object.entries(itemsByCategory).forEach(([category, items]) => {
+      items.forEach(item => {
+        const unitPrice = item.rrp ?? item.tradePrice ?? 0
+        const totalPrice = calculateItemTotal(item)
+        const currency = item.rrpCurrency || 'CAD'
+        // Escape quotes in product name
+        const productName = `"${(item.name || '').replace(/"/g, '""')}"`
+        rows.push(`"${category}",${productName},${item.quantity || 1},${unitPrice.toFixed(2)},${totalPrice.toFixed(2)},${currency}`)
+      })
+    })
+
+    // Add totals
+    rows.push('')
+    if (cadSubtotal > 0) {
+      rows.push(`"","TOTAL CAD","","",${cadSubtotal.toFixed(2)},CAD`)
+    }
+    if (usdSubtotal > 0) {
+      rows.push(`"","TOTAL USD","","",${usdSubtotal.toFixed(2)},USD`)
+    }
+
+    // Create and download file
+    const csvContent = rows.join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `budget-approval-${projectName.replace(/[^a-z0-9]/gi, '-')}-${new Date().toISOString().split('T')[0]}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    toast.success('Exported to CSV')
   }
 
   // Group items by section
@@ -697,6 +750,15 @@ export default function BudgetApprovalDialog({
               <Button variant="outline" onClick={() => setStep('review')}>
                 <ChevronLeft className="w-4 h-4 mr-1" />
                 Back
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleExportExcel}
+                disabled={includedItems.size === 0}
+                className="border-green-200 text-green-700 hover:bg-green-50"
+              >
+                <Download className="w-4 h-4 mr-1" />
+                Export CSV
               </Button>
               <Button
                 variant="outline"
