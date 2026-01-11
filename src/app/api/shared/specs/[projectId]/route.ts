@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { calculateComponentsTotal, calculateComponentsRRP } from '@/lib/pricing'
 
 // Public API - no auth required
 export async function GET(
@@ -79,13 +80,8 @@ export async function GET(
       const room = item.section?.instance?.room
       const markupPercent = item.markupPercent || 0
 
-      // Calculate components total with markup applied (matching Financial Tab)
-      const rawComponentsTotal = (item.components || []).reduce((sum, c) => {
-        const price = c.price ? Number(c.price) : 0
-        const qty = c.quantity || 1
-        return sum + (price * qty)
-      }, 0)
-      const componentsTotal = rawComponentsTotal * (1 + markupPercent / 100)
+      // Use centralized pricing calculation for components with markup
+      const componentsTotal = calculateComponentsRRP(item.components || [], markupPercent)
 
       return {
         id: item.id,

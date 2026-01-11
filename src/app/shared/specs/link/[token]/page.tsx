@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { calculateItemRRPTotal, formatCurrency as formatPriceCurrency } from '@/lib/pricing'
 import {
   ExternalLink,
   Loader2,
@@ -174,21 +175,22 @@ export default function SharedSpecLinkPage() {
       .filter(group => group.items.length > 0)
   }, [groupedSpecs, searchQuery])
 
-  // Calculate total cost by currency (RRP only - don't show trade prices to clients)
-  // Use same fallback logic as admin view: rrp ?? tradePrice (if no markup, both are same)
-  // Include component prices - components have their own qty, NOT multiplied by parent
+  // Calculate total cost by currency using centralized pricing
+  // RRP only - don't show trade prices to clients
+  // Components already have markup applied from API (componentsTotal includes markup)
   const totals = useMemo(() => {
     if (!specs || specs.length === 0) return { cadTotal: 0, usdTotal: 0 }
 
     const cadTotal = specs.reduce((sum, item) => {
       const currency = item.rrpCurrency || 'CAD'
       if (currency !== 'CAD') return sum
+      // componentsTotal from API already has markup applied, so just add directly
       const price = item.rrp ?? item.tradePrice ?? 0
       const qty = item.quantity || 1
       const componentsPrice = (item as any).componentsTotal || 0
-      // Item price × qty + components (components have independent qty)
       return sum + (price * qty) + componentsPrice
     }, 0)
+
     const usdTotal = specs.reduce((sum, item) => {
       const currency = item.rrpCurrency || 'CAD'
       if (currency !== 'USD') return sum
@@ -197,6 +199,7 @@ export default function SharedSpecLinkPage() {
       const componentsPrice = (item as any).componentsTotal || 0
       return sum + (price * qty) + componentsPrice
     }, 0)
+
     return { cadTotal: cadTotal || 0, usdTotal: usdTotal || 0 }
   }, [specs])
 

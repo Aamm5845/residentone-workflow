@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { formatCurrency as formatPriceCurrency } from '@/lib/pricing'
 import {
   ExternalLink,
   Loader2,
@@ -151,8 +152,10 @@ export default function SharedSpecsPage() {
       .filter(group => group.items.length > 0)
   }, [groupedSpecs, searchQuery])
 
-  // Calculate total cost for financial tab (RRP only - don't show trade prices to clients)
-  // Includes components with markup already applied from API
+  // Calculate total cost by currency using same formula as centralized pricing
+  // RRP only - don't show trade prices to clients
+  // Components already have markup applied from API (componentsTotal includes markup)
+  // Formula: (item.rrp × quantity) + componentsTotal
   const totals = useMemo(() => {
     const cadTotal = specs.reduce((sum, item) => {
       const currency = item.rrpCurrency || 'CAD'
@@ -162,6 +165,7 @@ export default function SharedSpecsPage() {
       const componentsPrice = item.componentsTotal || 0
       return sum + (price * qty) + componentsPrice
     }, 0)
+
     const usdTotal = specs.reduce((sum, item) => {
       const currency = item.rrpCurrency || 'CAD'
       if (currency !== 'USD') return sum
@@ -170,6 +174,7 @@ export default function SharedSpecsPage() {
       const componentsPrice = item.componentsTotal || 0
       return sum + (price * qty) + componentsPrice
     }, 0)
+
     return { cadTotal, usdTotal }
   }, [specs])
 
