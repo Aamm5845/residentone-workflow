@@ -1390,23 +1390,35 @@ export interface BudgetQuoteEmailData {
     categoryName?: string
   }>
   estimatedTotal: number
+  estimatedTotalUSD?: number // Separate USD total
   currency?: string
   includeTax: boolean
   includedServices: string[]
   validUntil?: Date | null
   portalUrl: string
+  isTest?: boolean // For test email indicator
 }
 
 export function generateBudgetQuoteEmailTemplate(data: BudgetQuoteEmailData): {
   subject: string
   html: string
 } {
-  const formatCurrency = (amount: number) => {
+  const formatCurrencyCAD = (amount: number) => {
     return new Intl.NumberFormat('en-CA', {
       style: 'currency',
-      currency: data.currency || 'CAD',
+      currency: 'CAD',
     }).format(amount)
   }
+
+  const formatCurrencyUSD = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(amount)
+  }
+
+  // For backward compatibility
+  const formatCurrency = formatCurrencyCAD
 
   const formatDate = (date: Date) => {
     return new Intl.DateTimeFormat('en-CA', {
@@ -1494,7 +1506,12 @@ export function generateBudgetQuoteEmailTemplate(data: BudgetQuoteEmailData): {
             <!-- Budget Amount Card -->
             <div style="background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%); border: 2px solid #c084fc; border-radius: 12px; padding: 24px; margin-bottom: 24px; text-align: center;">
                 <div style="font-size: 13px; color: #7c3aed; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; font-weight: 600;">Estimated Budget</div>
-                <div style="font-size: 36px; color: #6b21a8; font-weight: 700;">${formatCurrency(data.estimatedTotal)}</div>
+                ${data.estimatedTotal > 0 ? `
+                <div style="font-size: 36px; color: #6b21a8; font-weight: 700;">${formatCurrencyCAD(data.estimatedTotal)}</div>
+                ` : ''}
+                ${data.estimatedTotalUSD && data.estimatedTotalUSD > 0 ? `
+                <div style="font-size: ${data.estimatedTotal > 0 ? '24px' : '36px'}; color: #1e40af; font-weight: 700; ${data.estimatedTotal > 0 ? 'margin-top: 12px; padding-top: 12px; border-top: 1px solid #c084fc;' : ''}">${formatCurrencyUSD(data.estimatedTotalUSD)}</div>
+                ` : ''}
                 ${data.includeTax ? `<div style="font-size: 13px; color: #9333ea; margin-top: 4px;">+ applicable taxes</div>` : ''}
             </div>
 

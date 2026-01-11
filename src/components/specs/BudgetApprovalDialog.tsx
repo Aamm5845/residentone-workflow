@@ -24,7 +24,8 @@ import {
   ChevronLeft,
   Send,
   Eye,
-  Package
+  Package,
+  Mail
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { calculateItemRRPTotal, formatCurrency } from '@/lib/pricing'
@@ -88,6 +89,11 @@ export default function BudgetApprovalDialog({
   // Selected items to include in budget
   const [includedItems, setIncludedItems] = useState<Set<string>>(new Set())
 
+  // Test email state
+  const [showTestEmailDialog, setShowTestEmailDialog] = useState(false)
+  const [testEmail, setTestEmail] = useState('')
+  const [sendingTest, setSendingTest] = useState(false)
+
   // Get selected specs
   const selectedSpecs = useMemo(() => {
     return specs.filter(s => selectedItemIds.includes(s.id))
@@ -130,11 +136,13 @@ export default function BudgetApprovalDialog({
   }, [open, projectName, itemsWithRrp])
 
   // Calculate item total using centralized pricing (includes components with markup)
+  // Matches Financial Tab logic: rrp ?? tradePrice for fallback
   const calculateItemTotal = (item: SpecItem): number => {
     // If there's a price override, use that instead of rrp
+    // Otherwise fall back to tradePrice if no RRP (same as Financial Tab)
     const rrpToUse = priceOverrides[item.id] !== undefined
       ? priceOverrides[item.id]
-      : (item.rrp || 0)
+      : (item.rrp ?? item.tradePrice ?? 0)
 
     // Use centralized pricing calculation
     return calculateItemRRPTotal({
@@ -287,6 +295,47 @@ export default function BudgetApprovalDialog({
     }
   }
 
+  // Send test email
+  const handleSendTest = async () => {
+    if (!testEmail.trim()) {
+      toast.error('Please enter a test email address')
+      return
+    }
+
+    setSendingTest(true)
+    try {
+      const res = await fetch('/api/budget-quotes/send-test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          testEmail: testEmail.trim(),
+          projectId,
+          title: title.trim(),
+          description: description.trim() || null,
+          itemIds: Array.from(includedItems),
+          estimatedTotal: cadSubtotal,
+          estimatedTotalUSD: usdSubtotal > 0 ? usdSubtotal : null,
+          includeTax,
+          expiresInDays
+        })
+      })
+
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || 'Failed to send test email')
+      }
+
+      toast.success(`Test email sent to ${testEmail.trim()}`)
+      setShowTestEmailDialog(false)
+      setTestEmail('')
+    } catch (error: any) {
+      console.error('Error sending test email:', error)
+      toast.error(error.message || 'Failed to send test email')
+    } finally {
+      setSendingTest(false)
+    }
+  }
+
   // Group items by section
   const itemsBySection = useMemo(() => {
     return includedItemsList.reduce((acc, item) => {
@@ -298,6 +347,7 @@ export default function BudgetApprovalDialog({
   }, [includedItemsList])
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
@@ -649,6 +699,15 @@ export default function BudgetApprovalDialog({
                 Back
               </Button>
               <Button
+                variant="outline"
+                onClick={() => setShowTestEmailDialog(true)}
+                disabled={sending || includedItems.size === 0}
+                className="border-purple-200 text-purple-700 hover:bg-purple-50"
+              >
+                <Mail className="w-4 h-4 mr-1" />
+                Send Test
+              </Button>
+              <Button
                 onClick={handleSend}
                 disabled={sending || !clientEmail}
                 className="bg-violet-600 hover:bg-violet-700"
@@ -670,5 +729,73 @@ export default function BudgetApprovalDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    {/* Test Email Dialog */}
+    <Dialog open={showTestEmailDialog} onOpenChange={setShowTestEmailDialog}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Mail className="w-5 h-5 text-purple-600" />
+            Send Test Email
+          </DialogTitle>
+          <DialogDescription>
+            Send a test email to preview how it will look before sending to the client.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-4">
+          <div>
+            <Label htmlFor="test-email-address">Test Email Address</Label>
+            <Input
+              id="test-email-address"
+              type="email"
+              placeholder="Enter your email address..."
+              value={testEmail}
+              onChange={(e) => setTestEmail(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && testEmail.trim()) {
+                  handleSendTest()
+                }
+              }}
+              className="mt-1.5"
+            />
+          </div>
+
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+            <p className="text-sm text-amber-800">
+              <strong>Note:</strong> The test email will include a "[TEST]" prefix and a banner indicating the approval link won't work.
+            </p>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => setShowTestEmailDialog(false)}
+            disabled={sendingTest}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSendTest}
+            disabled={sendingTest || !testEmail.trim()}
+            className="bg-purple-600 hover:bg-purple-700"
+          >
+            {sendingTest ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Sending...
+              </>
+            ) : (
+              <>
+                <Mail className="w-4 h-4 mr-2" />
+                Send Test
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   )
 }
