@@ -21,65 +21,6 @@ export async function GET(
           select: {
             name: true
           }
-        },
-        rooms: {
-          select: {
-            id: true,
-            name: true,
-            type: true,
-            ffeInstance: {
-              select: {
-                sections: {
-                  select: {
-                    id: true,
-                    name: true,
-                    items: {
-                      where: {
-                        visibility: 'VISIBLE',
-                        // Only show actual specs - exclude FFE Workspace task items
-                        specStatus: {
-                          notIn: ['DRAFT', 'NEEDS_SPEC', 'HIDDEN']
-                        }
-                      },
-                      select: {
-                        id: true,
-                        name: true,
-                        description: true,
-                        brand: true,
-                        sku: true,
-                        modelNumber: true,
-                        supplierName: true,
-                        supplierLink: true,
-                        quantity: true,
-                        leadTime: true,
-                        specStatus: true,
-                        images: true,
-                        color: true,
-                        finish: true,
-                        material: true,
-                        width: true,
-                        length: true,
-                        height: true,
-                        depth: true,
-                        tradePrice: true,
-                        rrp: true,
-                        rrpCurrency: true,
-                        markupPercent: true,
-                        updatedAt: true,
-                        createdAt: true,
-                        // Include components for price calculation
-                        components: {
-                          orderBy: { order: 'asc' }
-                        }
-                      },
-                      orderBy: { order: 'asc' }
-                    }
-                  },
-                  orderBy: { order: 'asc' }
-                }
-              }
-            }
-          }
         }
       }
     })
@@ -94,75 +35,101 @@ export async function GET(
       return NextResponse.json({ error: 'This schedule is not published' }, { status: 403 })
     }
 
-    // Transform specs data - only include actual specs (not FFE workspace tasks)
-    const taskStatuses = ['DRAFT', 'NEEDS_SPEC', 'HIDDEN']
-    
-    const allItems = project.rooms.flatMap(room =>
-      room.ffeInstance?.sections.flatMap(section =>
-        section.items.map(item => {
-          const markupPercent = item.markupPercent || 0
-          // Calculate components total with markup applied (matching Financial Tab)
-          const rawComponentsTotal = (item.components || []).reduce((sum, c) => {
-            const price = c.price ? Number(c.price) : 0
-            const qty = c.quantity || 1
-            return sum + (price * qty)
-          }, 0)
-          const componentsTotal = rawComponentsTotal * (1 + markupPercent / 100)
-
-          return {
-            id: item.id,
-            name: item.name,
-            description: item.description,
-            roomName: room.name || room.type?.replace(/_/g, ' ') || 'Room',
-            roomType: room.type,
-            sectionName: section.name,
-            categoryName: section.name,
-            productName: item.modelNumber,
-            brand: item.brand,
-            sku: item.sku,
-            supplierName: item.supplierName,
-            supplierLink: item.supplierLink,
-            quantity: item.quantity,
-            leadTime: item.leadTime,
-            specStatus: item.specStatus,
-            images: item.images || [],
-            thumbnailUrl: (item.images as string[])?.[0] || null,
-            color: item.color,
-            finish: item.finish,
-            material: item.material,
-            width: item.width,
-            length: item.length,
-            height: item.height,
-            depth: item.depth,
-            updatedAt: item.updatedAt,
-            tradePrice: shareSettings.showPricing ? item.tradePrice : null,
-            rrp: shareSettings.showPricing ? item.rrp : null,
-            rrpCurrency: item.rrpCurrency || 'CAD',
-            // Components with markup applied for RRP display
-            components: shareSettings.showPricing ? (item.components || []).map(c => {
-              const basePrice = c.price ? Number(c.price) : null
-              const priceWithMarkup = basePrice !== null ? basePrice * (1 + markupPercent / 100) : null
-              return {
-                id: c.id,
-                name: c.name,
-                modelNumber: c.modelNumber,
-                price: priceWithMarkup,
-                quantity: c.quantity || 1
-              }
-            }) : [],
-            componentsTotal: shareSettings.showPricing ? componentsTotal : 0
+    // Fetch items directly - same query pattern as new share links and Financial Tab
+    // This ensures consistent item inclusion across all views
+    const items = await prisma.roomFFEItem.findMany({
+      where: {
+        visibility: 'VISIBLE',
+        specStatus: { notIn: ['DRAFT', 'NEEDS_SPEC', 'HIDDEN'] },
+        section: {
+          instance: {
+            room: {
+              projectId: projectId
+            }
           }
-        })
-      ) || []
-    )
-    
-    // Filter to only show actual specs - same logic as All Specs view
-    const specs = allItems.filter(spec => {
-      // Exclude FFE Workspace task statuses
-      if (!spec.specStatus || taskStatuses.includes(spec.specStatus)) {
-        return false
+        }
+      },
+      include: {
+        section: {
+          select: {
+            id: true,
+            name: true,
+            instance: {
+              select: {
+                room: {
+                  select: {
+                    id: true,
+                    name: true,
+                    type: true
+                  }
+                }
+              }
+            }
+          }
+        },
+        components: {
+          orderBy: { order: 'asc' }
+        }
+      },
+      orderBy: { order: 'asc' }
+    })
+
+    // Transform specs data
+    const specs = items.map(item => {
+      const room = item.section?.instance?.room
+      const markupPercent = item.markupPercent || 0
+
+      // Calculate components total with markup applied (matching Financial Tab)
+      const rawComponentsTotal = (item.components || []).reduce((sum, c) => {
+        const price = c.price ? Number(c.price) : 0
+        const qty = c.quantity || 1
+        return sum + (price * qty)
+      }, 0)
+      const componentsTotal = rawComponentsTotal * (1 + markupPercent / 100)
+
+      return {
+        id: item.id,
+        name: item.name,
+        description: item.description,
+        roomName: room?.name || room?.type?.replace(/_/g, ' ') || 'Room',
+        roomType: room?.type,
+        sectionName: item.section?.name || '',
+        categoryName: item.section?.name || '',
+        productName: item.modelNumber,
+        brand: item.brand,
+        sku: item.sku,
+        supplierName: item.supplierName,
+        supplierLink: item.supplierLink,
+        quantity: item.quantity,
+        leadTime: item.leadTime,
+        specStatus: item.specStatus,
+        images: item.images || [],
+        thumbnailUrl: (item.images as string[])?.[0] || null,
+        color: item.color,
+        finish: item.finish,
+        material: item.material,
+        width: item.width,
+        length: item.length,
+        height: item.height,
+        depth: item.depth,
+        updatedAt: item.updatedAt,
+        tradePrice: shareSettings.showPricing ? item.tradePrice : null,
+        rrp: shareSettings.showPricing ? item.rrp : null,
+        rrpCurrency: item.rrpCurrency || 'CAD',
+        // Components with markup applied for RRP display
+        components: shareSettings.showPricing ? (item.components || []).map(c => {
+          const basePrice = c.price ? Number(c.price) : null
+          const priceWithMarkup = basePrice !== null ? basePrice * (1 + markupPercent / 100) : null
+          return {
+            id: c.id,
+            name: c.name,
+            modelNumber: c.modelNumber,
+            price: priceWithMarkup,
+            quantity: c.quantity || 1
+          }
+        }) : [],
+        componentsTotal: shareSettings.showPricing ? componentsTotal : 0
       }
-      return true
     })
 
     // Calculate last updated from all items
