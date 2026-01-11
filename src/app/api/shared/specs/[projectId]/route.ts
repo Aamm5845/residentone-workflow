@@ -63,8 +63,14 @@ export async function GET(
                         depth: true,
                         tradePrice: true,
                         rrp: true,
+                        rrpCurrency: true,
+                        markupPercent: true,
                         updatedAt: true,
-                        createdAt: true
+                        createdAt: true,
+                        // Include components for price calculation
+                        components: {
+                          orderBy: { order: 'asc' }
+                        }
                       },
                       orderBy: { order: 'asc' }
                     }
@@ -91,37 +97,62 @@ export async function GET(
     // Transform specs data - only include actual specs (not FFE workspace tasks)
     const taskStatuses = ['DRAFT', 'NEEDS_SPEC', 'HIDDEN']
     
-    const allItems = project.rooms.flatMap(room => 
+    const allItems = project.rooms.flatMap(room =>
       room.ffeInstance?.sections.flatMap(section =>
-        section.items.map(item => ({
-          id: item.id,
-          name: item.name,
-          description: item.description,
-          roomName: room.name || room.type?.replace(/_/g, ' ') || 'Room',
-          roomType: room.type,
-          sectionName: section.name,
-          categoryName: section.name,
-          productName: item.modelNumber,
-          brand: item.brand,
-          sku: item.sku,
-          supplierName: item.supplierName,
-          supplierLink: item.supplierLink,
-          quantity: item.quantity,
-          leadTime: item.leadTime,
-          specStatus: item.specStatus,
-          images: item.images || [],
-          thumbnailUrl: (item.images as string[])?.[0] || null,
-          color: item.color,
-          finish: item.finish,
-          material: item.material,
-          width: item.width,
-          length: item.length,
-          height: item.height,
-          depth: item.depth,
-          updatedAt: item.updatedAt,
-          tradePrice: shareSettings.showPricing ? item.tradePrice : null,
-          rrp: shareSettings.showPricing ? item.rrp : null
-        }))
+        section.items.map(item => {
+          const markupPercent = item.markupPercent || 0
+          // Calculate components total with markup applied (matching Financial Tab)
+          const rawComponentsTotal = (item.components || []).reduce((sum, c) => {
+            const price = c.price ? Number(c.price) : 0
+            const qty = c.quantity || 1
+            return sum + (price * qty)
+          }, 0)
+          const componentsTotal = rawComponentsTotal * (1 + markupPercent / 100)
+
+          return {
+            id: item.id,
+            name: item.name,
+            description: item.description,
+            roomName: room.name || room.type?.replace(/_/g, ' ') || 'Room',
+            roomType: room.type,
+            sectionName: section.name,
+            categoryName: section.name,
+            productName: item.modelNumber,
+            brand: item.brand,
+            sku: item.sku,
+            supplierName: item.supplierName,
+            supplierLink: item.supplierLink,
+            quantity: item.quantity,
+            leadTime: item.leadTime,
+            specStatus: item.specStatus,
+            images: item.images || [],
+            thumbnailUrl: (item.images as string[])?.[0] || null,
+            color: item.color,
+            finish: item.finish,
+            material: item.material,
+            width: item.width,
+            length: item.length,
+            height: item.height,
+            depth: item.depth,
+            updatedAt: item.updatedAt,
+            tradePrice: shareSettings.showPricing ? item.tradePrice : null,
+            rrp: shareSettings.showPricing ? item.rrp : null,
+            rrpCurrency: item.rrpCurrency || 'CAD',
+            // Components with markup applied for RRP display
+            components: shareSettings.showPricing ? (item.components || []).map(c => {
+              const basePrice = c.price ? Number(c.price) : null
+              const priceWithMarkup = basePrice !== null ? basePrice * (1 + markupPercent / 100) : null
+              return {
+                id: c.id,
+                name: c.name,
+                modelNumber: c.modelNumber,
+                price: priceWithMarkup,
+                quantity: c.quantity || 1
+              }
+            }) : [],
+            componentsTotal: shareSettings.showPricing ? componentsTotal : 0
+          }
+        })
       ) || []
     )
     

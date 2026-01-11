@@ -31,6 +31,7 @@ interface SpecItem {
   thumbnailUrl: string | null
   tradePrice: number | null
   rrp: number | null
+  rrpCurrency?: string
   color: string | null
   finish: string | null
   material: string | null
@@ -38,6 +39,7 @@ interface SpecItem {
   length: string | null
   height: string | null
   depth: string | null
+  componentsTotal?: number
 }
 
 interface CategoryGroup {
@@ -150,20 +152,35 @@ export default function SharedSpecsPage() {
   }, [groupedSpecs, searchQuery])
 
   // Calculate total cost for financial tab (RRP only - don't show trade prices to clients)
-  const totalCost = useMemo(() => {
-    return specs.reduce((sum, item) => {
+  // Includes components with markup already applied from API
+  const totals = useMemo(() => {
+    const cadTotal = specs.reduce((sum, item) => {
+      const currency = item.rrpCurrency || 'CAD'
+      if (currency !== 'CAD') return sum
       const price = item.rrp || 0
-      return sum + (price * (item.quantity || 1))
+      const qty = item.quantity || 1
+      const componentsPrice = item.componentsTotal || 0
+      return sum + (price * qty) + componentsPrice
     }, 0)
+    const usdTotal = specs.reduce((sum, item) => {
+      const currency = item.rrpCurrency || 'CAD'
+      if (currency !== 'USD') return sum
+      const price = item.rrp || 0
+      const qty = item.quantity || 1
+      const componentsPrice = item.componentsTotal || 0
+      return sum + (price * qty) + componentsPrice
+    }, 0)
+    return { cadTotal, usdTotal }
   }, [specs])
 
-  // Calculate category costs (RRP only)
+  // Calculate category costs (RRP only, including components)
   const categoryCosts = useMemo(() => {
     const costs: Record<string, number> = {}
     specs.forEach(item => {
       const category = item.categoryName || 'General'
       const price = item.rrp || 0
-      costs[category] = (costs[category] || 0) + (price * (item.quantity || 1))
+      const componentsPrice = item.componentsTotal || 0
+      costs[category] = (costs[category] || 0) + (price * (item.quantity || 1)) + componentsPrice
     })
     return costs
   }, [specs])
@@ -344,9 +361,19 @@ export default function SharedSpecsPage() {
 
               {/* Total Cost for Financial Tab */}
               {activeTab === 'financial' && shareSettings.showPricing && (
-                <div className="ml-4 pl-4 border-l border-gray-200">
-                  <span className="text-lg font-semibold text-gray-900">{formatCurrency(totalCost)}</span>
-                  <span className="text-xs text-gray-400 uppercase ml-2">Total Cost</span>
+                <div className="flex items-center gap-4 ml-4 pl-4 border-l border-gray-200">
+                  {totals.cadTotal > 0 && (
+                    <div>
+                      <span className="text-lg font-semibold text-gray-900">${totals.cadTotal.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      <span className="text-xs text-gray-400 uppercase ml-1">CAD</span>
+                    </div>
+                  )}
+                  {totals.usdTotal > 0 && (
+                    <div>
+                      <span className="text-lg font-semibold text-blue-600">${totals.usdTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      <span className="text-xs text-blue-400 uppercase ml-1">USD</span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -527,7 +554,7 @@ export default function SharedSpecsPage() {
                             </div>
                             <div className="col-span-1 text-center">
                               <p className="text-sm font-medium text-gray-900">
-                                {formatCurrency((item.rrp || 0) * (item.quantity || 1))}
+                                {formatCurrency(((item.rrp || 0) * (item.quantity || 1)) + (item.componentsTotal || 0))}
                               </p>
                               <p className="text-[10px] text-gray-400 uppercase">Total</p>
                             </div>
