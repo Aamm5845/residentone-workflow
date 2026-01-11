@@ -12,6 +12,15 @@ import {
   Download
 } from 'lucide-react'
 
+interface ComponentItem {
+  id: string
+  name: string
+  modelNumber: string | null
+  image: string | null
+  price: number | null
+  quantity: number
+}
+
 interface SpecItem {
   id: string
   name: string
@@ -31,6 +40,7 @@ interface SpecItem {
   thumbnailUrl: string | null
   tradePrice: number | null
   rrp: number | null
+  rrpCurrency?: string
   color: string | null
   finish: string | null
   material: string | null
@@ -40,6 +50,8 @@ interface SpecItem {
   depth: string | null
   attachments: any[] | null
   updatedAt: string
+  components?: ComponentItem[]
+  componentsTotal?: number
 }
 
 interface Navigation {
@@ -119,9 +131,11 @@ export default function ItemDetailPage() {
     }
   }, [token, itemId])
 
-  const formatCurrency = (value: number | null) => {
+  const formatCurrency = (value: number | null, currency: string = 'CAD') => {
     if (value === null || value === undefined) return '-'
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
+    const currencyCode = currency === 'USD' ? 'USD' : 'CAD'
+    const locale = currency === 'USD' ? 'en-US' : 'en-CA'
+    return new Intl.NumberFormat(locale, { style: 'currency', currency: currencyCode }).format(value)
   }
 
   const formatLastUpdated = (dateStr: string | null) => {
@@ -359,23 +373,66 @@ export default function ItemDetailPage() {
             )}
 
             {/* Pricing */}
-            {shareSettings.showPricing && (item.rrp || item.tradePrice) && (
+            {shareSettings.showPricing && (item.rrp || item.tradePrice || (item.componentsTotal && item.componentsTotal > 0)) && (
               <div className="mt-8">
                 <h4 className="text-sm font-medium text-gray-500 uppercase mb-4">Pricing</h4>
                 <div className="grid grid-cols-2 gap-6">
                   {item.rrp && (
                     <div>
-                      <p className="text-lg font-semibold text-gray-900">{formatCurrency(item.rrp)}</p>
+                      <p className="text-lg font-semibold text-gray-900">{formatCurrency(item.rrp, item.rrpCurrency)}</p>
                       <p className="text-xs text-gray-400 uppercase mt-1">Unit Price</p>
                     </div>
                   )}
                   {item.quantity > 0 && item.rrp && (
                     <div>
-                      <p className="text-lg font-semibold text-gray-900">{formatCurrency(item.rrp * item.quantity)}</p>
-                      <p className="text-xs text-gray-400 uppercase mt-1">Total Price</p>
+                      <p className="text-lg font-semibold text-gray-900">{formatCurrency(item.rrp * item.quantity, item.rrpCurrency)}</p>
+                      <p className="text-xs text-gray-400 uppercase mt-1">Item Subtotal</p>
                     </div>
                   )}
                 </div>
+
+                {/* Components */}
+                {item.components && item.components.length > 0 && (
+                  <div className="mt-6 pt-4 border-t border-gray-100">
+                    <h5 className="text-sm font-medium text-gray-500 uppercase mb-3">Components</h5>
+                    <div className="space-y-2">
+                      {item.components.map((comp) => (
+                        <div key={comp.id} className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-700">{comp.name}</span>
+                            {comp.quantity > 1 && (
+                              <span className="text-gray-400">× {comp.quantity}</span>
+                            )}
+                          </div>
+                          <span className="text-gray-600">
+                            {comp.price ? formatCurrency(comp.price * comp.quantity, item.rrpCurrency) : '-'}
+                          </span>
+                        </div>
+                      ))}
+                      <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-100">
+                        <span className="font-medium text-gray-700">Components Subtotal</span>
+                        <span className="font-medium text-gray-900">
+                          {formatCurrency(item.componentsTotal || 0, item.rrpCurrency)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Grand Total */}
+                {(item.rrp || (item.componentsTotal && item.componentsTotal > 0)) && (
+                  <div className="mt-6 pt-4 border-t border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <span className="text-lg font-semibold text-gray-900">Total Price</span>
+                      <span className="text-xl font-bold text-gray-900">
+                        {formatCurrency(
+                          ((item.rrp || 0) * (item.quantity || 1)) + (item.componentsTotal || 0),
+                          item.rrpCurrency
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

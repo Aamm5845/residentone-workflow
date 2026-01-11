@@ -152,20 +152,33 @@ export async function GET(
         clientApproved: item.clientApproved || false,
         clientApprovedAt: item.clientApprovedAt?.toISOString() || null,
         // Components - show if pricing is shown
-        components: shareLink.showPricing ? (item.components || []).map(c => ({
-          id: c.id,
-          name: c.name,
-          modelNumber: c.modelNumber,
-          image: c.image,
-          price: c.price ? Number(c.price) : null,
-          quantity: c.quantity || 1
-        })) : [],
+        // Apply markup to component prices for RRP display (same as Financial tab)
+        markupPercent: shareLink.showPricing ? (item.markupPercent || 0) : 0,
+        components: shareLink.showPricing ? (item.components || []).map(c => {
+          const basePrice = c.price ? Number(c.price) : null
+          const markupPercent = item.markupPercent || 0
+          // Apply markup to component price for client-facing RRP
+          const priceWithMarkup = basePrice !== null ? basePrice * (1 + markupPercent / 100) : null
+          return {
+            id: c.id,
+            name: c.name,
+            modelNumber: c.modelNumber,
+            image: c.image,
+            price: priceWithMarkup,
+            quantity: c.quantity || 1
+          }
+        }) : [],
         componentsTotal: shareLink.showPricing
-          ? (item.components || []).reduce((sum, c) => {
-              const price = c.price ? Number(c.price) : 0
-              const qty = c.quantity || 1
-              return sum + (price * qty)
-            }, 0)
+          ? (() => {
+              const rawTotal = (item.components || []).reduce((sum, c) => {
+                const price = c.price ? Number(c.price) : 0
+                const qty = c.quantity || 1
+                return sum + (price * qty)
+              }, 0)
+              // Apply markup to components for RRP (matching Financial tab calculation)
+              const markupPercent = item.markupPercent || 0
+              return rawTotal * (1 + markupPercent / 100)
+            })()
           : 0
       }
     })

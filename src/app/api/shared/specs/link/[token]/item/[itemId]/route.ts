@@ -40,12 +40,10 @@ export async function GET(
       return NextResponse.json({ error: 'This link has expired' }, { status: 410 })
     }
 
-    // Check if item is in the share link's items
-    if (!shareLink.itemIds.includes(itemId)) {
-      return NextResponse.json({ error: 'Item not found in this share link' }, { status: 404 })
-    }
+    // Check if using Select All mode (empty itemIds = all visible specs)
+    const isSelectAll = !shareLink.itemIds || shareLink.itemIds.length === 0
 
-    // Fetch the item
+    // Fetch the item with components
     const item = await prisma.roomFFEItem.findUnique({
       where: { id: itemId },
       include: {
@@ -59,12 +57,16 @@ export async function GET(
                   select: {
                     id: true,
                     name: true,
-                    type: true
+                    type: true,
+                    projectId: true
                   }
                 }
               }
             }
           }
+        },
+        components: {
+          orderBy: { order: 'asc' }
         }
       }
     })
@@ -73,12 +75,42 @@ export async function GET(
       return NextResponse.json({ error: 'Item not found' }, { status: 404 })
     }
 
+    // Check if item belongs to this share link
+    if (isSelectAll) {
+      // For Select All mode, verify item belongs to the project and is visible
+      if (item.section?.instance?.room?.projectId !== shareLink.projectId ||
+          item.visibility !== 'VISIBLE' ||
+          !item.isSpecItem ||
+          ['DRAFT', 'NEEDS_SPEC', 'HIDDEN'].includes(item.specStatus || '')) {
+        return NextResponse.json({ error: 'Item not found in this share link' }, { status: 404 })
+      }
+    } else {
+      // For specific items mode, check if item is in the list
+      if (!shareLink.itemIds.includes(itemId)) {
+        return NextResponse.json({ error: 'Item not found in this share link' }, { status: 404 })
+      }
+    }
+
     // Get all items for navigation (previous/next)
     const allItems = await prisma.roomFFEItem.findMany({
-      where: {
-        id: { in: shareLink.itemIds },
-        visibility: 'VISIBLE'
-      },
+      where: isSelectAll
+        ? {
+            // Select All mode - fetch all visible spec items from the project
+            visibility: 'VISIBLE',
+            isSpecItem: true,
+            specStatus: { notIn: ['DRAFT', 'NEEDS_SPEC', 'HIDDEN'] },
+            section: {
+              instance: {
+                room: {
+                  projectId: shareLink.projectId
+                }
+              }
+            }
+          }
+        : {
+            id: { in: shareLink.itemIds },
+            visibility: 'VISIBLE'
+          },
       select: {
         id: true,
         name: true
@@ -120,8 +152,37 @@ export async function GET(
       depth: shareLink.showDetails ? item.depth : null,
       tradePrice: shareLink.showPricing ? item.tradePrice : null,
       rrp: shareLink.showPricing ? item.rrp : null,
+      rrpCurrency: item.rrpCurrency || 'CAD',
       attachments: shareLink.showSpecSheets ? (item.attachments || null) : null,
-      updatedAt: item.updatedAt
+      updatedAt: item.updatedAt,
+      // Components with markup applied for RRP display
+      markupPercent: shareLink.showPricing ? (item.markupPercent || 0) : 0,
+      components: shareLink.showPricing ? (item.components || []).map(c => {
+        const basePrice = c.price ? Number(c.price) : null
+        const markupPercent = item.markupPercent || 0
+        // Apply markup to component price for client-facing RRP
+        const priceWithMarkup = basePrice !== null ? basePrice * (1 + markupPercent / 100) : null
+        return {
+          id: c.id,
+          name: c.name,
+          modelNumber: c.modelNumber,
+          image: c.image,
+          price: priceWithMarkup,
+          quantity: c.quantity || 1
+        }
+      }) : [],
+      componentsTotal: shareLink.showPricing
+        ? (() => {
+            const rawTotal = (item.components || []).reduce((sum, c) => {
+              const price = c.price ? Number(c.price) : 0
+              const qty = c.quantity || 1
+              return sum + (price * qty)
+            }, 0)
+            // Apply markup to components for RRP (matching Financial tab calculation)
+            const markupPercent = item.markupPercent || 0
+            return rawTotal * (1 + markupPercent / 100)
+          })()
+        : 0
     }
 
     return NextResponse.json({
