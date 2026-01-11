@@ -63,8 +63,8 @@ export async function GET(
       where: isSelectAll
         ? {
             // Select All mode - fetch all visible spec items from the project
+            // Match the same filtering as the specs API (Financial Tab)
             visibility: 'VISIBLE',
-            isSpecItem: true,
             specStatus: { notIn: ['DRAFT', 'NEEDS_SPEC', 'HIDDEN'] },
             section: {
               instance: {

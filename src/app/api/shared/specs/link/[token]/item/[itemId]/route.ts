@@ -78,9 +78,9 @@ export async function GET(
     // Check if item belongs to this share link
     if (isSelectAll) {
       // For Select All mode, verify item belongs to the project and is visible
+      // Match the same filtering as the specs API (Financial Tab)
       if (item.section?.instance?.room?.projectId !== shareLink.projectId ||
           item.visibility !== 'VISIBLE' ||
-          !item.isSpecItem ||
           ['DRAFT', 'NEEDS_SPEC', 'HIDDEN'].includes(item.specStatus || '')) {
         return NextResponse.json({ error: 'Item not found in this share link' }, { status: 404 })
       }
@@ -96,8 +96,8 @@ export async function GET(
       where: isSelectAll
         ? {
             // Select All mode - fetch all visible spec items from the project
+            // Match the same filtering as the specs API (Financial Tab)
             visibility: 'VISIBLE',
-            isSpecItem: true,
             specStatus: { notIn: ['DRAFT', 'NEEDS_SPEC', 'HIDDEN'] },
             section: {
               instance: {
