@@ -3322,8 +3322,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem>Export to CSV</DropdownMenuItem>
-                  <DropdownMenuItem>Export to PDF</DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExportExcel}>Export to CSV</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setPdfExportDialogOpen(true)}>Export to PDF</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
