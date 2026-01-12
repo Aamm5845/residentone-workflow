@@ -235,7 +235,7 @@ export default function FloorplanApprovalWorkspace({
       if (previewResponse.ok) {
         const previewData = await previewResponse.json()
         
-        const attachments = currentVersion?.assets.map(asset => ({
+        const attachments = currentVersion?.assets?.map(asset => ({
           id: asset.id,
           title: asset.asset.title,
           url: asset.asset.url,
@@ -275,10 +275,13 @@ export default function FloorplanApprovalWorkspace({
 
     if (response.ok) {
       const data = await response.json()
-      setCurrentVersion(data.version)
+      // Merge the returned partial version data with existing currentVersion to preserve assets
+      if (data.version) {
+        setCurrentVersion(prev => prev ? { ...prev, ...data.version } : prev)
+      }
       setSelectedAssets(selectedAttachmentIds)
-      if (data.version?.id) {
-        fetchEmailAnalytics(data.version.id)
+      if (currentVersion?.id) {
+        fetchEmailAnalytics(currentVersion.id)
       }
     } else {
       const data = await response.json().catch(() => ({}))
@@ -1155,7 +1158,7 @@ export default function FloorplanApprovalWorkspace({
                 </p>
                 <ul className="text-xs text-gray-500 space-y-1">
                   {currentVersion?.assets
-                    .filter(a => selectedAssets.includes(a.id))
+                    ?.filter(a => selectedAssets.includes(a.id))
                     .map(a => (
                       <li key={a.id} className="flex items-center gap-1">
                         <FileText className="w-3 h-3" />
