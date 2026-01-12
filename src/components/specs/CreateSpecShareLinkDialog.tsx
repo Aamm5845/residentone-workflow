@@ -72,6 +72,7 @@ export default function CreateSpecShareLinkDialog({
   // Form state
   const [name, setName] = useState('')
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set())
+  const [shareAllSpecs, setShareAllSpecs] = useState(false) // New: Share All mode
   const [showSupplier, setShowSupplier] = useState(false)
   const [showBrand, setShowBrand] = useState(true)
   const [showPricing, setShowPricing] = useState(false)
@@ -85,9 +86,10 @@ export default function CreateSpecShareLinkDialog({
     if (open) {
       if (editingLink) {
         setName(editingLink.name || '')
-        // If itemIds is empty, it means "all items" mode - select all
+        // If itemIds is empty, it means "all items" mode
         const isAllItemsMode = !editingLink.itemIds || editingLink.itemIds.length === 0
-        setSelectedItemIds(isAllItemsMode ? new Set(items.map(i => i.id)) : new Set(editingLink.itemIds))
+        setShareAllSpecs(isAllItemsMode)
+        setSelectedItemIds(isAllItemsMode ? new Set() : new Set(editingLink.itemIds))
         setShowSupplier(editingLink.showSupplier)
         setShowBrand(editingLink.showBrand)
         setShowPricing(editingLink.showPricing)
@@ -97,6 +99,7 @@ export default function CreateSpecShareLinkDialog({
         setExpiresAt(editingLink.expiresAt ? editingLink.expiresAt.split('T')[0] : '')
       } else {
         setName('')
+        setShareAllSpecs(false)
         setSelectedItemIds(new Set())
         setShowSupplier(false)
         setShowBrand(true)
@@ -198,8 +201,9 @@ export default function CreateSpecShareLinkDialog({
   }
 
   const handleSave = async () => {
-    if (selectedItemIds.size === 0) {
-      toast.error('Please select at least one item')
+    // Require selection unless "Share All" is enabled
+    if (!shareAllSpecs && selectedItemIds.size === 0) {
+      toast.error('Please select at least one item or enable "Share All Specs"')
       return
     }
 
@@ -209,9 +213,8 @@ export default function CreateSpecShareLinkDialog({
         ? `/api/projects/${projectId}/spec-share-links/${editingLink.id}`
         : `/api/projects/${projectId}/spec-share-links`
 
-      // If ALL items are selected, send empty array (means "all items" mode - dynamic)
-      const isAllSelected = selectedItemIds.size === items.length
-      const itemIdsToSend = isAllSelected ? [] : Array.from(selectedItemIds)
+      // If shareAllSpecs is enabled, send empty array (means "all items" mode - dynamic)
+      const itemIdsToSend = shareAllSpecs ? [] : Array.from(selectedItemIds)
 
       const response = await fetch(url, {
         method: editingLink ? 'PATCH' : 'POST',
@@ -269,10 +272,48 @@ export default function CreateSpecShareLinkDialog({
             </p>
           </div>
 
-          {/* Item Selection */}
+          {/* Share All Specs Toggle */}
+          <div className={cn(
+            "p-4 rounded-lg border-2 transition-colors",
+            shareAllSpecs
+              ? "bg-emerald-50 border-emerald-300"
+              : "bg-slate-50 border-slate-200 hover:border-slate-300"
+          )}>
+            <label className="flex items-center justify-between cursor-pointer">
+              <div className="flex items-center gap-3">
+                <div className={cn(
+                  "w-10 h-10 rounded-lg flex items-center justify-center",
+                  shareAllSpecs ? "bg-emerald-500" : "bg-slate-300"
+                )}>
+                  <CheckSquare className={cn(
+                    "w-5 h-5",
+                    shareAllSpecs ? "text-white" : "text-slate-500"
+                  )} />
+                </div>
+                <div>
+                  <span className="text-sm font-semibold text-slate-900">Share All Specs</span>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Automatically includes all current and future spec items
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={shareAllSpecs}
+                onCheckedChange={(checked) => {
+                  setShareAllSpecs(checked)
+                  if (checked) {
+                    setSelectedItemIds(new Set()) // Clear individual selection
+                  }
+                }}
+              />
+            </label>
+          </div>
+
+          {/* Item Selection - Only show if not sharing all */}
+          {!shareAllSpecs && (
           <div className="flex-1 min-h-0 flex flex-col">
             <div className="flex items-center justify-between mb-2">
-              <Label>Select Items to Share</Label>
+              <Label>Or Select Specific Items</Label>
               <div className="flex gap-2">
                 <Button
                   type="button"
@@ -400,15 +441,10 @@ export default function CreateSpecShareLinkDialog({
             </div>
 
             <p className="text-xs text-slate-500 mt-1">
-              {selectedItemIds.size === items.length ? (
-                <span className="text-emerald-600 font-medium">
-                  All {items.length} items selected • New items will be included automatically
-                </span>
-              ) : (
-                <>{selectedItemIds.size} of {items.length} items selected</>
-              )}
+              {selectedItemIds.size} of {items.length} items selected
             </p>
           </div>
+          )}
 
           {/* Visibility Options */}
           <div className="space-y-3">
@@ -507,7 +543,7 @@ export default function CreateSpecShareLinkDialog({
           </Button>
           <Button
             onClick={handleSave}
-            disabled={saving || selectedItemIds.size === 0}
+            disabled={saving || (!shareAllSpecs && selectedItemIds.size === 0)}
             className="bg-emerald-600 hover:bg-emerald-700"
           >
             {saving ? (
