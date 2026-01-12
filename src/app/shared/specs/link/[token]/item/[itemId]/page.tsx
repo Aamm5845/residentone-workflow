@@ -395,23 +395,30 @@ export default function ItemDetailPage() {
                 {item.components && item.components.length > 0 && (
                   <div className="mt-6 pt-4 border-t border-gray-100">
                     <h5 className="text-sm font-medium text-gray-500 uppercase mb-3">Components</h5>
-                    <div className="space-y-2">
-                      {item.components.map((comp) => (
-                        <div key={comp.id} className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            <span className="text-gray-700">{comp.name}</span>
-                            {comp.quantity > 1 && (
-                              <span className="text-gray-400">× {comp.quantity}</span>
-                            )}
+                    <div className="space-y-3">
+                      {item.components.map((comp) => {
+                        const unitPrice = comp.price || 0
+                        const qty = comp.quantity || 1
+                        const totalPrice = unitPrice * qty
+                        return (
+                          <div key={comp.id} className="flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-700 font-medium">{comp.name}:</span>
+                              {comp.price ? (
+                                <span className="text-gray-500">
+                                  {formatCurrency(unitPrice, item.rrpCurrency)} × {qty}
+                                </span>
+                              ) : null}
+                            </div>
+                            <span className="text-gray-900 font-medium">
+                              {comp.price ? formatCurrency(totalPrice, item.rrpCurrency) : '-'}
+                            </span>
                           </div>
-                          <span className="text-gray-600">
-                            {comp.price ? formatCurrency(comp.price * comp.quantity, item.rrpCurrency) : '-'}
-                          </span>
-                        </div>
-                      ))}
-                      <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-100">
+                        )
+                      })}
+                      <div className="flex items-center justify-between text-sm pt-3 border-t border-gray-200">
                         <span className="font-medium text-gray-700">Components Subtotal</span>
-                        <span className="font-medium text-gray-900">
+                        <span className="font-semibold text-gray-900">
                           {formatCurrency(item.componentsTotal || 0, item.rrpCurrency)}
                         </span>
                       </div>

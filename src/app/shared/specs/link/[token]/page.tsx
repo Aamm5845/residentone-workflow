@@ -831,6 +831,7 @@ export default function SharedSpecLinkPage() {
 
                         {/* Approval Column */}
                         <div className="col-span-1 flex items-center justify-end gap-2">
+                          {/* Approval Status/Button */}
                           {item.specStatus === 'CONTRACTOR_TO_ORDER' ? (
                             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-orange-50 text-orange-700 rounded-full whitespace-nowrap">
                               <span className="text-xs font-medium">Contractor</span>
@@ -857,11 +858,18 @@ export default function SharedSpecLinkPage() {
                             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 text-gray-500 rounded-full whitespace-nowrap">
                               <span className="text-xs">Pending</span>
                             </div>
-                          ) : (
-                            <span className="px-3 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded group-hover:bg-gray-100 transition-colors whitespace-nowrap">
-                              Details
-                            </span>
-                          )}
+                          ) : null}
+
+                          {/* Details Button - Always visible */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              openItemDetail(item.id)
+                            }}
+                            className="px-3 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded hover:bg-gray-100 transition-colors whitespace-nowrap"
+                          >
+                            Details
+                          </button>
                         </div>
                       </div>
                     ))}
