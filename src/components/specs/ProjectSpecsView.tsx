@@ -106,6 +106,7 @@ import CropFromRenderingDialog from '@/components/image/CropFromRenderingDialog'
 import ImageEditorModal from '@/components/image/ImageEditorModal'
 import CreateSpecShareLinkDialog from '@/components/specs/CreateSpecShareLinkDialog'
 import SpecPDFExportDialog from '@/components/specs/SpecPDFExportDialog'
+import SpecCSVExportDialog from '@/components/specs/SpecCSVExportDialog'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ItemDetailPanel } from './ItemDetailPanel'
 import CreateRFQDialog from '@/components/procurement/create-rfq-dialog'
@@ -628,6 +629,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
   // PDF Export dialog state
   const [pdfExportDialogOpen, setPdfExportDialogOpen] = useState(false)
+
+  // CSV Export dialog state
+  const [csvExportDialogOpen, setCsvExportDialogOpen] = useState(false)
 
   // Image editor modal state
   const [imageEditorModal, setImageEditorModal] = useState<{
@@ -3322,7 +3326,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleExportExcel}>Export to CSV</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setCsvExportDialogOpen(true)}>Export to CSV</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setPdfExportDialogOpen(true)}>Export to PDF</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -8389,6 +8393,15 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         projectName={project.name}
         items={specs}
         selectedItemIds={selectedItems}
+      />
+
+      {/* CSV Export Dialog */}
+      <SpecCSVExportDialog
+        open={csvExportDialogOpen}
+        onOpenChange={setCsvExportDialogOpen}
+        specs={specs}
+        selectedItemIds={selectedItems}
+        projectName={project.name}
       />
 
       {/* Programa Import Dialog */}
