@@ -1422,7 +1422,11 @@ export function ItemDetailPanel({
         tradePrice: item.tradePrice?.toString() || '',
         rrp: item.rrp?.toString() || '',
         tradeDiscount: item.tradeDiscount?.toString() || '',
-        markupPercent: (item as any).markupPercent?.toString() || '',
+        // Calculate markup from trade price and RRP if not manually set
+        markupPercent: (item as any).markupPercent?.toString() ||
+          (item.tradePrice && item.rrp && item.tradePrice > 0
+            ? (((item.rrp - item.tradePrice) / item.tradePrice) * 100).toFixed(1)
+            : ''),
         rrpCurrency: (item as any).rrpCurrency || 'CAD',
         tradePriceCurrency: (item as any).tradePriceCurrency || 'CAD',
         notes: item.notes || '',
