@@ -1831,7 +1831,7 @@ export function ItemDetailPanel({
       />
       
       {/* Panel */}
-      <div className="fixed right-0 top-0 h-full w-[520px] max-w-[90vw] bg-white shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300">
+      <div className="fixed right-0 top-0 h-full w-[500px] max-w-[95vw] bg-white shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300 overflow-x-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
           <div className="flex items-center gap-3">
@@ -1900,8 +1900,8 @@ export function ItemDetailPanel({
         </div>
         
         {/* Content */}
-        <ScrollArea className="flex-1">
-          <div className="p-5 space-y-6">
+        <ScrollArea className="flex-1 overflow-x-hidden">
+          <div className="p-5 space-y-6 overflow-x-hidden">
             {activeTab === 'summary' && (
               <>
                 {/* Image Upload - supports up to 10 images */}
