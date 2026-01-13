@@ -54,6 +54,7 @@ interface SpecItem {
   categoryName: string
   roomName: string
   thumbnailUrl: string | null
+  specStatus?: string | null
   // Pricing fields for components
   componentsTotal?: number | null
   markupPercent?: number | null
@@ -95,9 +96,15 @@ export default function BudgetApprovalDialog({
   const [testEmail, setTestEmail] = useState('')
   const [sendingTest, setSendingTest] = useState(false)
 
-  // Get selected specs
+  // Statuses to exclude from budget approval
+  const EXCLUDED_STATUSES = ['CLIENT_TO_ORDER', 'CONTRACTOR_TO_ORDER', 'HIDDEN', 'DRAFT', 'NEEDS_SPEC']
+
+  // Get selected specs, filtering out excluded statuses
   const selectedSpecs = useMemo(() => {
-    return specs.filter(s => selectedItemIds.includes(s.id))
+    return specs.filter(s =>
+      selectedItemIds.includes(s.id) &&
+      !EXCLUDED_STATUSES.includes(s.specStatus || '')
+    )
   }, [specs, selectedItemIds])
 
   // Items with RRP and items needing price
