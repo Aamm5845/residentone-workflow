@@ -66,7 +66,7 @@ export async function POST(
         }
       })
 
-      // Update all items to BUDGET_APPROVED status
+      // Update all items to BUDGET_APPROVED status and mark as client approved
       if (budgetQuote.itemIds.length > 0) {
         await prisma.roomFFEItem.updateMany({
           where: {
@@ -75,7 +75,8 @@ export async function POST(
           data: {
             specStatus: 'BUDGET_APPROVED',
             clientApproved: true,
-            clientApprovedAt: new Date()
+            clientApprovedAt: new Date(),
+            clientApprovedVia: 'budget_quote'
           }
         })
       }
