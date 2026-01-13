@@ -159,26 +159,28 @@ export async function POST(
     // Mirror to Dropbox (archival/backup - non-fatal if fails)
     let dropboxUrl: string | undefined
     let dropboxPath: string | undefined
-    
+
     if (project.dropboxFolder) {
       try {
         console.log('[Floorplan-Assets] Mirroring to Dropbox...')
         const { DropboxService } = await import('@/lib/dropbox-service')
         const dropboxService = new DropboxService()
-        
-        // Ensure folder structure
-        const basePath = `${project.dropboxFolder}/11- SOFTWARE UPLOADS`
+
+        // Ensure folder structure: 8- DRAWINGS/Floorplan Approvals/V1
+        const basePath = `${project.dropboxFolder}/8- DRAWINGS`
         const floorplanPath = `${basePath}/Floorplan Approvals`
-        
+        const versionFolder = `${floorplanPath}/${version.version || 'V1'}`
+
         try {
           await dropboxService.createFolder(basePath)
           await dropboxService.createFolder(floorplanPath)
+          await dropboxService.createFolder(versionFolder)
         } catch (folderError) {
           console.log('[Floorplan-Assets] Dropbox folders already exist')
         }
-        
-        // Upload to Dropbox
-        dropboxPath = `${floorplanPath}/${fileName}`
+
+        // Upload to Dropbox in version folder
+        dropboxPath = `${versionFolder}/${fileName}`
         await dropboxService.uploadFile(dropboxPath, buffer)
         
         // Get shared link
