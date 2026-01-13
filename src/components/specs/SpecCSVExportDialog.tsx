@@ -8,6 +8,14 @@ import { Label } from '@/components/ui/label'
 import { FileSpreadsheet, Download } from 'lucide-react'
 import toast from 'react-hot-toast'
 
+interface ComponentItem {
+  id: string
+  name: string
+  modelNumber?: string | null
+  price?: number | null
+  quantity: number
+}
+
 interface SpecItem {
   id: string
   docCode?: string
@@ -35,6 +43,7 @@ interface SpecItem {
   description?: string
   notes?: string
   clientApproved?: boolean
+  components?: ComponentItem[]
 }
 
 interface SpecCSVExportDialogProps {
@@ -95,10 +104,14 @@ export default function SpecCSVExportDialog({
   const [selectedColumns, setSelectedColumns] = useState<Set<string>>(
     new Set(EXPORT_COLUMNS.filter(c => c.default).map(c => c.key))
   )
+  const [includeComponentsAsRows, setIncludeComponentsAsRows] = useState(false)
 
   const specsToExport = selectedItemIds.size > 0
     ? specs.filter(s => selectedItemIds.has(s.id))
     : specs
+
+  // Count total components
+  const totalComponents = specsToExport.reduce((sum, spec) => sum + (spec.components?.length || 0), 0)
 
   const toggleColumn = (key: string) => {
     setSelectedColumns(prev => {
@@ -186,8 +199,14 @@ export default function SpecCSVExportDialog({
           return spec.rrpCurrency === 'USD' && spec.rrp
             ? `$${Number(spec.rrp).toFixed(2)}`
             : ''
-        case 'markup':
-          return spec.markupPercent != null ? `${spec.markupPercent}%` : ''
+        case 'markup': {
+          // Use stored markup or calculate from trade price and RRP
+          let markup = spec.markupPercent
+          if (markup == null && spec.tradePrice && spec.rrp && spec.tradePrice > 0) {
+            markup = ((spec.rrp - spec.tradePrice) / spec.tradePrice) * 100
+          }
+          return markup != null ? `${markup.toFixed(1)}%` : ''
+        }
         case 'lineTotal': {
           const price = spec.rrp || spec.tradePrice || 0
           const qty = spec.quantity || 1
@@ -209,10 +228,62 @@ export default function SpecCSVExportDialog({
       }
     }
 
-    // Convert specs to CSV rows
-    const rows = specsToExport.map(spec =>
-      orderedColumns.map(col => getValue(spec, col.key))
-    )
+    // Helper to get value for component row
+    const getComponentValue = (spec: SpecItem, comp: ComponentItem, key: string): string | number => {
+      const markupPercent = spec.markupPercent || 0
+      const compPrice = comp.price || 0
+      const compRrp = compPrice * (1 + markupPercent / 100)
+      const currency = spec.rrpCurrency || spec.tradePriceCurrency || 'CAD'
+
+      switch (key) {
+        case 'docCode': return '' // Components don't have doc codes
+        case 'name': return `  ↳ ${comp.name}` // Indent to show it's a component
+        case 'room': return spec.roomName || ''
+        case 'section': return spec.sectionName || ''
+        case 'brand': return '' // Components don't have brands
+        case 'modelSku': return comp.modelNumber || ''
+        case 'supplier': return spec.supplierName || '' // Use parent's supplier
+        case 'quantity': return comp.quantity || 1
+        case 'tradePriceCAD':
+          return currency === 'CAD' && compPrice ? `$${compPrice.toFixed(2)}` : ''
+        case 'tradePriceUSD':
+          return currency === 'USD' && compPrice ? `$${compPrice.toFixed(2)}` : ''
+        case 'rrpCAD':
+          return currency === 'CAD' && compRrp ? `$${compRrp.toFixed(2)}` : ''
+        case 'rrpUSD':
+          return currency === 'USD' && compRrp ? `$${compRrp.toFixed(2)}` : ''
+        case 'markup':
+          return markupPercent ? `${markupPercent}%` : ''
+        case 'lineTotal': {
+          const total = compRrp * (comp.quantity || 1)
+          return total > 0 ? `$${total.toFixed(2)} ${currency}` : ''
+        }
+        case 'status': return 'COMPONENT'
+        case 'leadTime': return ''
+        case 'color': return ''
+        case 'finish': return ''
+        case 'material': return ''
+        case 'dimensions': return ''
+        case 'description': return ''
+        case 'notes': return ''
+        case 'clientApproved': return ''
+        default: return ''
+      }
+    }
+
+    // Convert specs to CSV rows (and optionally include components)
+    const rows: (string | number)[][] = []
+    specsToExport.forEach(spec => {
+      // Add the main item row
+      rows.push(orderedColumns.map(col => getValue(spec, col.key)))
+
+      // Add component rows if enabled
+      if (includeComponentsAsRows && spec.components && spec.components.length > 0) {
+        spec.components.forEach(comp => {
+          rows.push(orderedColumns.map(col => getComponentValue(spec, comp, col.key)))
+        })
+      }
+    })
 
     // Escape CSV values
     const escapeCSV = (value: string | number) => {
@@ -240,7 +311,10 @@ export default function SpecCSVExportDialog({
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
 
-    toast.success(`Exported ${specsToExport.length} items to CSV`)
+    const totalRows = includeComponentsAsRows
+      ? specsToExport.length + specsToExport.reduce((sum, s) => sum + (s.components?.length || 0), 0)
+      : specsToExport.length
+    toast.success(`Exported ${totalRows} rows to CSV`)
     onOpenChange(false)
   }
 
@@ -269,8 +343,27 @@ export default function SpecCSVExportDialog({
               {selectedItemIds.size > 0 && (
                 <span className="text-slate-500"> (selected)</span>
               )}
+              {totalComponents > 0 && (
+                <span className="text-slate-500"> with {totalComponents} components</span>
+              )}
             </p>
           </div>
+
+          {/* Include components as rows option */}
+          {totalComponents > 0 && (
+            <div className="mb-4 p-3 border rounded-lg">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <Checkbox
+                  checked={includeComponentsAsRows}
+                  onCheckedChange={(checked) => setIncludeComponentsAsRows(!!checked)}
+                />
+                <div>
+                  <span className="text-sm font-medium text-slate-700">Include components as separate rows</span>
+                  <p className="text-xs text-slate-500">Components will appear as rows below their parent item</p>
+                </div>
+              </label>
+            </div>
+          )}
 
           {/* Quick actions */}
           <div className="flex items-center justify-between mb-4">
