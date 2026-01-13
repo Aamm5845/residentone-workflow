@@ -907,7 +907,7 @@ export default function SharedSpecLinkPage() {
                           {/* Approval Status/Button */}
                           {item.specStatus === 'CONTRACTOR_TO_ORDER' ? (
                             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-orange-50 text-orange-700 rounded-full whitespace-nowrap">
-                              <span className="text-xs font-medium">Contractor</span>
+                              <span className="text-xs font-medium">Contractor to Order</span>
                             </div>
                           ) : item.clientApproved ? (
                             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full whitespace-nowrap">
