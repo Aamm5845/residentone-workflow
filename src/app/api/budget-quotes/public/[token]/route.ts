@@ -64,15 +64,22 @@ export async function GET(
       .reduce((sum, item) => sum + (parseFloat(item.rrp?.toString() || '0') * (item.quantity || 1)), 0)
 
     // Transform items for client view (include price for section totals)
-    const clientItems = items.map(item => ({
-      id: item.id,
-      name: item.name,
-      quantity: item.quantity || 1,
-      price: item.rrp ? parseFloat(item.rrp.toString()) : null,
-      currency: item.rrpCurrency || 'CAD',
-      thumbnail: item.thumbnailUrl || (item.images as string[])?.[0] || null,
-      categoryName: item.section?.name || 'Items'
-    }))
+    const clientItems = items.map(item => {
+      // Safely get first image from images array
+      let thumbnail = item.thumbnailUrl || null
+      if (!thumbnail && item.images && Array.isArray(item.images) && item.images.length > 0) {
+        thumbnail = item.images[0] as string
+      }
+      return {
+        id: item.id,
+        name: item.name,
+        quantity: item.quantity || 1,
+        price: item.rrp ? parseFloat(item.rrp.toString()) : null,
+        currency: item.rrpCurrency || 'CAD',
+        thumbnail,
+        categoryName: item.section?.name || 'Items'
+      }
+    })
 
     // Return client-safe data
     return NextResponse.json({

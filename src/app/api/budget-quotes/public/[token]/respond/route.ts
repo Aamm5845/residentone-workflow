@@ -40,6 +40,12 @@ export async function POST(
             name: true,
             logoUrl: true
           }
+        },
+        createdBy: {
+          select: {
+            id: true,
+            name: true
+          }
         }
       }
     })
@@ -81,6 +87,22 @@ export async function POST(
         })
       }
 
+      // Create inbox notification for the user who created the budget quote
+      try {
+        await prisma.notification.create({
+          data: {
+            userId: budgetQuote.createdBy.id,
+            type: 'PROJECT_UPDATE',
+            title: 'Budget Approved',
+            message: `${clientName} approved the budget "${budgetQuote.title}" for ${budgetQuote.project.name}`,
+            relatedId: budgetQuote.projectId,
+            relatedType: 'budget_approved'
+          }
+        })
+      } catch (notifError) {
+        console.error('Failed to create inbox notification:', notifError)
+      }
+
       // Send notification email
       try {
         const emailHtml = generateBudgetApprovalNotificationEmail({
@@ -117,9 +139,26 @@ export async function POST(
         where: { token },
         data: {
           status: 'QUESTION_ASKED',
-          clientQuestion: question.trim()
+          clientQuestion: question.trim(),
+          clientQuestionAt: new Date()
         }
       })
+
+      // Create inbox notification for the user who created the budget quote
+      try {
+        await prisma.notification.create({
+          data: {
+            userId: budgetQuote.createdBy.id,
+            type: 'PROJECT_UPDATE',
+            title: 'Client Question on Budget',
+            message: `${clientName} has a question about "${budgetQuote.title}": ${question.trim().substring(0, 100)}${question.trim().length > 100 ? '...' : ''}`,
+            relatedId: budgetQuote.projectId,
+            relatedType: 'budget_question'
+          }
+        })
+      } catch (notifError) {
+        console.error('Failed to create inbox notification:', notifError)
+      }
 
       // Send notification email
       try {
