@@ -887,9 +887,12 @@ export default function SharedSpecLinkPage() {
                           </div>
                         )}
 
-                        {/* Status Column */}
+                        {/* Status Column - hide for statuses that are shown in Approval column */}
                         <div className="col-span-1 flex items-center justify-center">
-                          {item.specStatus && formatSpecStatus(item.specStatus) && (
+                          {item.specStatus &&
+                           item.specStatus !== 'CONTRACTOR_TO_ORDER' &&
+                           item.specStatus !== 'CLIENT_TO_ORDER' &&
+                           formatSpecStatus(item.specStatus) && (
                             <span className={cn(
                               "px-2 py-0.5 text-[10px] font-medium rounded whitespace-nowrap",
                               formatSpecStatus(item.specStatus)!.color
