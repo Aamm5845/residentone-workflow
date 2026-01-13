@@ -4334,7 +4334,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 <HoverCardTrigger asChild>
                                   <div
                                     className={cn(
-                                      "w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden cursor-pointer transition-all",
+                                      "relative w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden cursor-pointer transition-all",
                                       (displayItem.thumbnailUrl || displayItem.images?.[0])
                                         ? "hover:ring-2 hover:ring-purple-400 hover:ring-offset-1"
                                         : "hover:ring-2 hover:ring-blue-400 hover:ring-offset-1 hover:bg-gray-200",
@@ -4359,13 +4359,21 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                     {uploadingImageForItem === displayItem.id ? (
                                       <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />
                                     ) : displayItem.thumbnailUrl || displayItem.images?.[0] ? (
-                                      <img
-                                        src={displayItem.thumbnailUrl || displayItem.images?.[0]}
-                                        alt={displayItem.name}
-                                        className="w-full h-full object-cover"
-                                        loading="eager"
-                                        decoding="async"
-                                      />
+                                      <>
+                                        <img
+                                          src={displayItem.thumbnailUrl || displayItem.images?.[0]}
+                                          alt={displayItem.name}
+                                          className="w-full h-full object-cover"
+                                          loading="eager"
+                                          decoding="async"
+                                        />
+                                        {/* Components indicator */}
+                                        {displayItem.components && displayItem.components.length > 0 && (
+                                          <div className="absolute top-0.5 right-0.5 w-4 h-4 bg-purple-500 rounded-full flex items-center justify-center shadow-sm" title={`${displayItem.components.length} component${displayItem.components.length > 1 ? 's' : ''}`}>
+                                            <Plus className="w-2.5 h-2.5 text-white" />
+                                          </div>
+                                        )}
+                                      </>
                                     ) : (
                                       <div className="flex flex-col items-center">
                                         <ImageIcon className="w-5 h-5 text-gray-400" />
