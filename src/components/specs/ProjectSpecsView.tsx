@@ -4309,7 +4309,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                         >
                           {/* Hover Actions - Fixed on left side, show on hover or if selected */}
                           <div className={cn(
-                            "absolute left-2 top-1/2 -translate-y-1/2 flex items-center gap-1 z-10 transition-opacity duration-150",
+                            "absolute left-1 lg:left-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 lg:gap-1 z-10 transition-opacity duration-150",
                             hoveredItem === displayItem.id || selectedItems.has(item.id) ? "opacity-100" : "opacity-0"
                           )}>
                             <Checkbox
@@ -4326,15 +4326,15 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             </button>
                           </div>
                           
-                          {/* Main Item Row - Using flex with fixed widths for equal distribution */}
-                          <div className="flex items-start w-full px-4 py-2 pl-14 gap-2">
-                            {/* Image - Fixed width, clickable to open editor or upload */}
-                            <div className="flex-shrink-0 w-16">
+                          {/* Main Item Row - Using flex with responsive widths */}
+                          <div className="flex items-start w-full px-2 lg:px-4 py-2 pl-10 lg:pl-14 gap-1.5 lg:gap-2">
+                            {/* Image - Responsive width, clickable to open editor or upload */}
+                            <div className="flex-shrink-0 w-12 lg:w-16">
                               <HoverCard openDelay={300} closeDelay={100}>
                                 <HoverCardTrigger asChild>
                                   <div
                                     className={cn(
-                                      "relative w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden cursor-pointer transition-all",
+                                      "relative w-12 h-12 lg:w-16 lg:h-16 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden cursor-pointer transition-all",
                                       (displayItem.thumbnailUrl || displayItem.images?.[0])
                                         ? "hover:ring-2 hover:ring-purple-400 hover:ring-offset-1"
                                         : "hover:ring-2 hover:ring-blue-400 hover:ring-offset-1 hover:bg-gray-200",
@@ -5246,7 +5246,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   return (
                                     <>
                                       {/* Trade Price - shows total: (unit × qty) + components */}
-                                      <div className="flex-shrink-0 w-24 h-9 text-right">
+                                      <div className="flex-shrink w-16 lg:w-24 h-9 text-right">
                                         <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">
                                           Trade {isUsdTrade && <span className="text-blue-500">(USD)</span>}
                                         </p>
@@ -5279,8 +5279,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                         )}
                                       </div>
 
-                                      {/* Markup % */}
-                                      <div className="flex-shrink-0 w-16 h-9 text-right">
+                                      {/* Markup % - hidden on small screens */}
+                                      <div className="hidden md:block flex-shrink w-12 lg:w-16 h-9 text-right">
                                         <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Markup</p>
                                         {editingField?.itemId === item.id && editingField?.field === 'markupPercent' ? (
                                           <Input
@@ -5317,7 +5317,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                       </div>
 
                                       {/* RRP - shows total: (unit × qty) + components with markup */}
-                                      <div className="flex-shrink-0 w-20 h-9 text-right">
+                                      <div className="flex-shrink w-16 lg:w-20 h-9 text-right">
                                         <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">
                                           RRP {isUsdRrp && <span className="text-blue-500">(USD)</span>}
                                         </p>
@@ -5359,7 +5359,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             )}
                             
                             {/* Supplier - Flexible to fill space, allows 2 lines */}
-                            <div className="flex-1 min-w-[100px] h-9 relative" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex-1 min-w-0 h-9 relative" onClick={(e) => e.stopPropagation()}>
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Supplier</p>
                               <DropdownMenu open={supplierPickerItem === item.id} onOpenChange={(open) => setSupplierPickerItem(open ? item.id : null)}>
                                 <DropdownMenuTrigger asChild>
@@ -5474,14 +5474,14 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             <div className="flex-shrink-0 flex flex-col items-end gap-1 ml-auto">
                               {/* Row 1: Approve + Status + Menu */}
                               <div className="flex items-center gap-1.5">
-                                {/* Client Approved Checkbox - Fixed width */}
+                                {/* Client Approved Checkbox - Responsive width */}
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation()
                                     handleToggleClientApproval(item.id, item.clientApproved)
                                   }}
                                   className={cn(
-                                    "flex items-center justify-center gap-1.5 px-2 py-1 rounded border text-xs transition-all w-[90px]",
+                                    "flex items-center justify-center gap-1 px-1.5 lg:px-2 py-1 rounded border text-xs transition-all w-auto lg:w-[90px]",
                                     item.clientApproved
                                       ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
                                       : "bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50"
@@ -5493,14 +5493,14 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   ) : (
                                     <Circle className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />
                                   )}
-                                  <span className="hidden sm:inline">{item.clientApproved ? 'Approved' : 'Approve'}</span>
+                                  <span className="hidden lg:inline">{item.clientApproved ? 'Approved' : 'Approve'}</span>
                                 </button>
 
-                                {/* Status Dropdown - Fixed width */}
+                                {/* Status Dropdown - Responsive width */}
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <button
-                                      className="flex items-center gap-1 px-2 py-1 rounded border border-gray-200 hover:border-gray-300 bg-white text-xs transition-colors whitespace-nowrap w-[130px]"
+                                      className="flex items-center gap-1 px-1.5 lg:px-2 py-1 rounded border border-gray-200 hover:border-gray-300 bg-white text-xs transition-colors whitespace-nowrap w-auto lg:w-[130px]"
                                       onClick={(e) => e.stopPropagation()}
                                     >
                                       {getItemStatusDisplay(item.specStatus || 'DRAFT')}
