@@ -78,7 +78,8 @@ const EXPORT_COLUMNS: ExportColumn[] = [
   { key: 'rrpCAD', label: 'RRP (CAD)', category: 'pricing', default: true },
   { key: 'rrpUSD', label: 'RRP (USD)', category: 'pricing', default: true },
   { key: 'markup', label: 'Markup %', category: 'pricing', default: true },
-  { key: 'lineTotal', label: 'Line Total', category: 'pricing', default: true },
+  { key: 'lineTotalCAD', label: 'Line Total (CAD)', category: 'pricing', default: true },
+  { key: 'lineTotalUSD', label: 'Line Total (USD)', category: 'pricing', default: true },
 
   // Details
   { key: 'status', label: 'Status', category: 'details', default: true },
@@ -207,12 +208,21 @@ export default function SpecCSVExportDialog({
           }
           return markup != null ? `${markup.toFixed(1)}%` : ''
         }
-        case 'lineTotal': {
+        case 'lineTotalCAD': {
+          const currency = spec.rrpCurrency || spec.tradePriceCurrency || 'CAD'
+          if (currency !== 'CAD') return ''
           const price = spec.rrp || spec.tradePrice || 0
           const qty = spec.quantity || 1
           const total = Number(price) * qty
+          return total > 0 ? `$${total.toFixed(2)}` : ''
+        }
+        case 'lineTotalUSD': {
           const currency = spec.rrpCurrency || spec.tradePriceCurrency || 'CAD'
-          return total > 0 ? `$${total.toFixed(2)} ${currency}` : ''
+          if (currency !== 'USD') return ''
+          const price = spec.rrp || spec.tradePrice || 0
+          const qty = spec.quantity || 1
+          const total = Number(price) * qty
+          return total > 0 ? `$${total.toFixed(2)}` : ''
         }
         case 'status': return spec.specStatus || ''
         case 'leadTime': return spec.leadTime || ''
@@ -254,9 +264,15 @@ export default function SpecCSVExportDialog({
           return currency === 'USD' && compRrp ? `$${compRrp.toFixed(2)}` : ''
         case 'markup':
           return markupPercent ? `${markupPercent}%` : ''
-        case 'lineTotal': {
+        case 'lineTotalCAD': {
+          if (currency !== 'CAD') return ''
           const total = compRrp * (comp.quantity || 1)
-          return total > 0 ? `$${total.toFixed(2)} ${currency}` : ''
+          return total > 0 ? `$${total.toFixed(2)}` : ''
+        }
+        case 'lineTotalUSD': {
+          if (currency !== 'USD') return ''
+          const total = compRrp * (comp.quantity || 1)
+          return total > 0 ? `$${total.toFixed(2)}` : ''
         }
         case 'status': return 'COMPONENT'
         case 'leadTime': return ''
