@@ -5295,13 +5295,24 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                             placeholder="%"
                                           />
                                         ) : (
-                                          <p
-                                            className={`text-xs cursor-text hover:bg-gray-100 rounded px-1 ${item.markupPercent ? 'text-gray-900' : 'text-gray-400'}`}
-                                            onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'markupPercent', item.markupPercent?.toString() || '') }}
-                                            title={item.tradePrice ? 'Enter markup % to auto-calculate RRP' : 'Add trade price first'}
-                                          >
-                                            {item.markupPercent ? `${item.markupPercent}%` : '-'}
-                                          </p>
+                                          (() => {
+                                            // Calculate markup from trade price and RRP if both exist
+                                            let displayMarkup: number | null = item.markupPercent || null
+                                            let isCalculated = false
+                                            if (!displayMarkup && item.tradePrice && item.rrp && item.tradePrice > 0) {
+                                              displayMarkup = ((item.rrp - item.tradePrice) / item.tradePrice) * 100
+                                              isCalculated = true
+                                            }
+                                            return (
+                                              <p
+                                                className={`text-xs cursor-text hover:bg-gray-100 rounded px-1 ${displayMarkup != null ? (isCalculated ? 'text-purple-600' : 'text-gray-900') : 'text-gray-400'}`}
+                                                onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'markupPercent', item.markupPercent?.toString() || '') }}
+                                                title={isCalculated ? 'Calculated from Trade Price & RRP' : (item.tradePrice ? 'Enter markup % to auto-calculate RRP' : 'Add trade price first')}
+                                              >
+                                                {displayMarkup != null ? `${displayMarkup.toFixed(1)}%` : '-'}
+                                              </p>
+                                            )
+                                          })()
                                         )}
                                       </div>
 
