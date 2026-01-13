@@ -89,7 +89,8 @@ export async function POST(
 
       // Create inbox notification for the user who created the budget quote
       try {
-        await prisma.notification.create({
+        console.log('Creating approval notification for user:', budgetQuote.createdBy.id)
+        const notification = await prisma.notification.create({
           data: {
             userId: budgetQuote.createdBy.id,
             type: 'PROJECT_UPDATE',
@@ -99,6 +100,7 @@ export async function POST(
             relatedType: 'budget_approved'
           }
         })
+        console.log('Approval notification created:', notification.id)
       } catch (notifError) {
         console.error('Failed to create inbox notification:', notifError)
       }
@@ -146,7 +148,8 @@ export async function POST(
 
       // Create inbox notification for the user who created the budget quote
       try {
-        await prisma.notification.create({
+        console.log('Creating notification for user:', budgetQuote.createdBy.id)
+        const notification = await prisma.notification.create({
           data: {
             userId: budgetQuote.createdBy.id,
             type: 'PROJECT_UPDATE',
@@ -156,6 +159,7 @@ export async function POST(
             relatedType: 'budget_question'
           }
         })
+        console.log('Notification created:', notification.id)
       } catch (notifError) {
         console.error('Failed to create inbox notification:', notifError)
       }
