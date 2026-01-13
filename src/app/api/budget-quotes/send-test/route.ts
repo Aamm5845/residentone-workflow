@@ -74,7 +74,6 @@ export async function POST(request: NextRequest) {
         itemIds: itemIds || [],
         supplierQuoteIds: [],
         estimatedTotal: estimatedTotal || 0,
-        estimatedTotalUSD: estimatedTotalUSD || null,
         markupPercent: null,
         currency: 'CAD',
         includeTax: includeTax ?? true,
