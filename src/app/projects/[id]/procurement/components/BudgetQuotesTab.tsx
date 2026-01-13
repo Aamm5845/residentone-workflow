@@ -449,26 +449,15 @@ export default function BudgetQuotesTab({ projectId, searchQuery }: BudgetQuotes
                     <TableCell onClick={e => e.stopPropagation()}>
                       <div className="flex items-center gap-2">
                         {(quote.status === 'DRAFT' || quote.status === 'PENDING') && (
-                          <>
-                            <Button
-                              variant="default"
-                              size="sm"
-                              className="h-7 px-2 text-xs bg-violet-600 hover:bg-violet-700"
-                              onClick={() => openSendDialog(quote)}
-                            >
-                              <Send className="w-3.5 h-3.5 mr-1" />
-                              Send
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                              onClick={() => openDeleteDialog(quote)}
-                              title="Delete"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
-                          </>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="h-7 px-2 text-xs bg-violet-600 hover:bg-violet-700"
+                            onClick={() => openSendDialog(quote)}
+                          >
+                            <Send className="w-3.5 h-3.5 mr-1" />
+                            Send
+                          </Button>
                         )}
                         <Button
                           variant="ghost"
@@ -488,6 +477,15 @@ export default function BudgetQuotesTab({ projectId, searchQuery }: BudgetQuotes
                         >
                           <ExternalLink className="w-3.5 h-3.5" />
                         </a>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => openDeleteDialog(quote)}
+                          title="Delete"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
