@@ -48,7 +48,6 @@ export async function GET(
         quantity: true,
         rrp: true,
         rrpCurrency: true,
-        thumbnailUrl: true,
         images: true,
         section: {
           select: {
@@ -66,8 +65,8 @@ export async function GET(
     // Transform items for client view (include price for section totals)
     const clientItems = items.map(item => {
       // Safely get first image from images array
-      let thumbnail = item.thumbnailUrl || null
-      if (!thumbnail && item.images && Array.isArray(item.images) && item.images.length > 0) {
+      let thumbnail: string | null = null
+      if (item.images && Array.isArray(item.images) && item.images.length > 0) {
         thumbnail = item.images[0] as string
       }
       return {
