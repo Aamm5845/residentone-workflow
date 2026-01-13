@@ -33,6 +33,7 @@ interface BudgetQuoteData {
   companyName: string
   companyLogo: string | null
   estimatedTotal: number
+  estimatedTotalUSD: number | null
   currency: string
   includeTax: boolean
   includedServices: string[]
@@ -44,6 +45,9 @@ interface BudgetQuoteData {
   items: Array<{
     id: string
     name: string
+    quantity: number
+    price: number | null
+    currency: string
     categoryName: string
   }>
 }
@@ -92,10 +96,10 @@ export default function BudgetQuoteClientPage() {
     }
   }, [token])
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-CA', {
+  const formatCurrency = (amount: number, currency: string = 'CAD') => {
+    return new Intl.NumberFormat(currency === 'USD' ? 'en-US' : 'en-CA', {
       style: 'currency',
-      currency: data?.currency || 'CAD',
+      currency: currency,
     }).format(amount)
   }
 
@@ -226,7 +230,7 @@ export default function BudgetQuoteClientPage() {
           </div>
           <div className="text-center">
             <Badge className="bg-white/20 text-white border-0 mb-3">
-              Budget Estimate
+              Budget Approval
             </Badge>
             <h1 className="text-2xl font-bold mb-2">{data.title}</h1>
             <p className="text-purple-100">for {data.projectName}</p>
@@ -272,11 +276,17 @@ export default function BudgetQuoteClientPage() {
         {/* Budget Amount Card */}
         <Card className="mb-6 overflow-hidden">
           <div className="bg-gradient-to-r from-violet-500 to-purple-500 p-6 text-center text-white">
-            <p className="text-sm uppercase tracking-wide text-purple-100 mb-2">Estimated Budget</p>
-            <p className="text-4xl font-bold">{formatCurrency(data.estimatedTotal)}</p>
-            {data.includeTax && (
-              <p className="text-sm text-purple-200 mt-1">+ applicable taxes</p>
+            <p className="text-sm uppercase tracking-wide text-purple-100 mb-3">Budget for Selected Items</p>
+            {data.estimatedTotal > 0 && (
+              <p className="text-4xl font-bold">{formatCurrency(data.estimatedTotal, 'CAD')} <span className="text-lg font-normal text-purple-200">CAD</span></p>
             )}
+            {data.estimatedTotalUSD && data.estimatedTotalUSD > 0 && (
+              <p className="text-4xl font-bold mt-2">{formatCurrency(data.estimatedTotalUSD, 'USD')} <span className="text-lg font-normal text-purple-200">USD</span></p>
+            )}
+            {data.includeTax && (
+              <p className="text-sm text-purple-200 mt-2">+ applicable taxes</p>
+            )}
+            <p className="text-xs text-purple-300 mt-1">* Delivery fees and duties may apply</p>
           </div>
           {data.expiresAt && !isExpired && (
             <div className="bg-gray-50 px-6 py-3 text-center text-sm text-gray-600">
@@ -299,43 +309,73 @@ export default function BudgetQuoteClientPage() {
           <CardContent className="pt-6">
             <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <Package className="w-5 h-5 text-purple-600" />
-              What's Included
+              Items for Approval
             </h3>
             <p className="text-xs text-gray-500 mb-3">
-              These items require approval. Some items may already be approved or not yet included.
+              This budget covers the items listed below. Additional items may be sent for approval separately.
             </p>
             <div className="space-y-2">
-              {Object.entries(itemsByCategory).map(([category, items]) => (
-                <div key={category} className="border border-gray-200 rounded-lg overflow-hidden">
-                  <button
-                    onClick={() => toggleCategory(category)}
-                    className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors"
-                  >
-                    <span className="font-medium text-gray-900">{category}</span>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="text-xs">
-                        {items.length} item{items.length !== 1 ? 's' : ''}
-                      </Badge>
-                      {expandedCategories.has(category) ? (
-                        <ChevronUp className="w-4 h-4 text-gray-500" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4 text-gray-500" />
-                      )}
-                    </div>
-                  </button>
-                  {expandedCategories.has(category) && (
-                    <ul className="px-4 py-3 space-y-2 bg-white">
-                      {items.map((item) => (
-                        <li key={item.id} className="text-sm text-gray-600 flex items-center gap-2">
-                          <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />
-                          {item.name}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              ))}
+              {Object.entries(itemsByCategory).map(([category, items]) => {
+                // Calculate category total
+                const categoryTotal = items.reduce((sum, item) => {
+                  if (item.price && item.currency === 'CAD') {
+                    return sum + (item.price * item.quantity)
+                  }
+                  return sum
+                }, 0)
+                const categoryTotalUSD = items.reduce((sum, item) => {
+                  if (item.price && item.currency === 'USD') {
+                    return sum + (item.price * item.quantity)
+                  }
+                  return sum
+                }, 0)
+
+                return (
+                  <div key={category} className="border border-gray-200 rounded-lg overflow-hidden">
+                    <button
+                      onClick={() => toggleCategory(category)}
+                      className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors"
+                    >
+                      <span className="font-medium text-gray-900">{category}</span>
+                      <div className="flex items-center gap-3">
+                        {categoryTotal > 0 && (
+                          <span className="text-sm font-medium text-gray-700">{formatCurrency(categoryTotal, 'CAD')}</span>
+                        )}
+                        {categoryTotalUSD > 0 && (
+                          <span className="text-sm font-medium text-gray-700">{formatCurrency(categoryTotalUSD, 'USD')}</span>
+                        )}
+                        <Badge variant="secondary" className="text-xs">
+                          {items.length} item{items.length !== 1 ? 's' : ''}
+                        </Badge>
+                        {expandedCategories.has(category) ? (
+                          <ChevronUp className="w-4 h-4 text-gray-500" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-gray-500" />
+                        )}
+                      </div>
+                    </button>
+                    {expandedCategories.has(category) && (
+                      <ul className="px-4 py-3 space-y-2 bg-white">
+                        {items.map((item) => (
+                          <li key={item.id} className="text-sm text-gray-600 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />
+                              {item.name}
+                            </div>
+                            {item.quantity > 1 && (
+                              <span className="text-xs text-gray-400">×{item.quantity}</span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )
+              })}
             </div>
+            <p className="text-xs text-gray-400 mt-4 text-center">
+              For detailed pricing and status, check your shared specs link.
+            </p>
           </CardContent>
         </Card>
 

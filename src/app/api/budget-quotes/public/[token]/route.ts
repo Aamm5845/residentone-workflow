@@ -37,7 +37,7 @@ export async function GET(
       return NextResponse.json({ error: 'Budget quote not found' }, { status: 404 })
     }
 
-    // Fetch item details
+    // Fetch item details with quantity and pricing info
     const items = await prisma.roomFFEItem.findMany({
       where: {
         id: { in: budgetQuote.itemIds }
@@ -45,6 +45,9 @@ export async function GET(
       select: {
         id: true,
         name: true,
+        quantity: true,
+        rrp: true,
+        rrpCurrency: true,
         section: {
           select: {
             name: true
@@ -53,10 +56,18 @@ export async function GET(
       }
     })
 
-    // Transform items for client view (no prices shown)
+    // Calculate USD total from items with USD currency
+    const usdTotal = items
+      .filter(item => item.rrpCurrency === 'USD' && item.rrp)
+      .reduce((sum, item) => sum + (parseFloat(item.rrp?.toString() || '0') * (item.quantity || 1)), 0)
+
+    // Transform items for client view (include price for section totals)
     const clientItems = items.map(item => ({
       id: item.id,
       name: item.name,
+      quantity: item.quantity || 1,
+      price: item.rrp ? parseFloat(item.rrp.toString()) : null,
+      currency: item.rrpCurrency || 'CAD',
       categoryName: item.section?.name || 'Items'
     }))
 
@@ -70,6 +81,7 @@ export async function GET(
       companyName: budgetQuote.org.name,
       companyLogo: budgetQuote.org.logoUrl,
       estimatedTotal: parseFloat(budgetQuote.estimatedTotal.toString()),
+      estimatedTotalUSD: usdTotal > 0 ? usdTotal : null,
       currency: budgetQuote.currency,
       includeTax: budgetQuote.includeTax,
       includedServices: budgetQuote.includedServices || [],
