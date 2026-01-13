@@ -339,10 +339,10 @@ export default function BudgetQuoteClientPage() {
                       <span className="font-medium text-gray-900">{category}</span>
                       <div className="flex items-center gap-3">
                         {categoryTotal > 0 && (
-                          <span className="text-sm font-medium text-gray-700">{formatCurrency(categoryTotal, 'CAD')}</span>
+                          <span className="text-sm font-medium text-gray-700">{formatCurrency(categoryTotal, 'CAD')} <span className="text-xs text-gray-400">CAD</span></span>
                         )}
                         {categoryTotalUSD > 0 && (
-                          <span className="text-sm font-medium text-gray-700">{formatCurrency(categoryTotalUSD, 'USD')}</span>
+                          <span className="text-sm font-medium text-gray-700">{formatCurrency(categoryTotalUSD, 'USD')} <span className="text-xs text-gray-400">USD</span></span>
                         )}
                         <Badge variant="secondary" className="text-xs">
                           {items.length} item{items.length !== 1 ? 's' : ''}
