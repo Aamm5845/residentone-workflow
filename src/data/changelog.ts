@@ -19,6 +19,48 @@ export interface ChangelogEntry {
 export const changelog: ChangelogEntry[] = [
   // ⬇️ ADD NEW UPDATES HERE (at the top) ⬇️
   {
+    id: 'update-2025-01-12-procurement',
+    date: 'January 12, 2026',
+    title: 'Full Procurement Workflow',
+    description: 'Complete end-to-end procurement management - from requesting quotes to tracking deliveries. Manage your entire purchasing process in one place.',
+    type: 'feature',
+    icon: 'zap',
+    highlights: [
+      '📥 Inbox: See all procurement notifications (quotes received, overdue invoices, deliveries)',
+      '📝 RFQs: Create Request for Quotes and send to multiple suppliers',
+      '💰 Supplier Quotes: Review and compare quotes from suppliers with AI-powered matching',
+      '📊 Budget Quotes: Send simplified cost estimates to clients for approval',
+      '🧾 Client Invoices: Generate invoices, track payments, send reminders',
+      '📦 Orders: Create purchase orders after payment, track supplier deliveries',
+      '🚚 Delivery Tracker: Monitor shipments with carrier info and tracking numbers'
+    ],
+    link: {
+      href: '/projects',
+      label: 'Go to Projects → Select Project → Procurement tab'
+    }
+  },
+  {
+    id: 'update-2025-01-12-all-specs',
+    date: 'January 12, 2026',
+    title: 'All Specs - Unified Item Management',
+    description: 'See all your FFE items in one consolidated view. Track status, manage pricing, share with clients, and export to PDF or CSV.',
+    type: 'feature',
+    icon: 'star',
+    highlights: [
+      '📋 View all FFE items across all rooms in one unified list',
+      '🔄 Track item status: Draft → Selected → Quote Received → Ordered → Delivered',
+      '💵 Manage pricing: Trade price, RRP, markup percentage',
+      '🔗 Link specs to FFE requirements (many-to-many)',
+      '📤 Export to PDF (grid/list layouts) or CSV with custom columns',
+      '🔗 Create shareable links for client approval',
+      '📧 Send budget quotes directly to clients for approval'
+    ],
+    link: {
+      href: '/projects',
+      label: 'Go to Projects → Select Project → All Specs tab'
+    }
+  },
+  {
     id: 'update-2024-12-01-project-updates',
     date: 'December 1, 2025',
     title: 'Project Updates & On-Site Surveys',
