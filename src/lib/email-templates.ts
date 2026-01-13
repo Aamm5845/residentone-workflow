@@ -648,15 +648,6 @@ export function generateSupplierQuoteEmailTemplate(data: SupplierQuoteEmailData)
     </div>
     ` : ''}
 
-    ${data.includeNotes ? `
-    <!-- Notes Available -->
-    <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 16px; margin: 24px 0;">
-      <p style="margin: 0; color: #b45309; font-size: 14px;">
-        <strong>📝 Item notes included</strong><br>
-        <span style="font-size: 13px; color: #d97706;">Specific notes and requirements for each item are available in the portal.</span>
-      </p>
-    </div>
-    ` : ''}
 
     <!-- CTA Button -->
     <div style="text-align: center; margin: 32px 0;">

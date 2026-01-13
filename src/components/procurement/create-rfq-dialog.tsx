@@ -20,7 +20,7 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Loader2, Search, Plus, Trash2, Paperclip } from 'lucide-react'
+import { Loader2, Search, Plus, Trash2, Paperclip, FolderOpen } from 'lucide-react'
 import toast from 'react-hot-toast'
 import FileUpload, { UploadedFile } from './file-upload'
 
@@ -36,6 +36,7 @@ interface Project {
   id: string
   name: string
   projectNumber?: string
+  dropboxFolder?: string
 }
 
 interface Supplier {
@@ -260,6 +261,26 @@ export default function CreateRFQDialog({
     item.roomName?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  // Get the selected project's Dropbox folder URL for 8- DRAWINGS
+  const getDropboxUrl = () => {
+    const selectedProject = projects.find(p => p.id === projectId)
+    if (!selectedProject?.dropboxFolder) return null
+    // Construct Dropbox web URL for the 8- DRAWINGS folder
+    const folderPath = `${selectedProject.dropboxFolder}/8- DRAWINGS`
+    // Encode the path for Dropbox web URL
+    const encodedPath = encodeURIComponent(folderPath)
+    return `https://www.dropbox.com/home${folderPath}`
+  }
+
+  const openDropboxFolder = () => {
+    const url = getDropboxUrl()
+    if (url) {
+      window.open(url, '_blank')
+    } else {
+      toast.error('No Dropbox folder configured for this project')
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
@@ -335,16 +356,30 @@ export default function CreateRFQDialog({
                   <p className="text-xs text-gray-500 mb-2">
                     Upload PDFs, images, or drawings that suppliers will see in their portal
                   </p>
-                  <FileUpload
-                    projectId={projectId}
-                    category="Shopping"
-                    fileType="Drawings"
-                    onUploadComplete={(file) => setAttachedFiles(prev => [...prev, file])}
-                    onUploadError={(error) => console.error('Upload error:', error)}
-                    maxFiles={10}
-                    visibleToSupplier={true}
-                    compact={true}
-                  />
+                  <div className="flex gap-2 items-start">
+                    <div className="flex-1">
+                      <FileUpload
+                        projectId={projectId}
+                        category="Shopping"
+                        fileType="Drawings"
+                        onUploadComplete={(file) => setAttachedFiles(prev => [...prev, file])}
+                        onUploadError={(error) => console.error('Upload error:', error)}
+                        maxFiles={10}
+                        visibleToSupplier={true}
+                        compact={true}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={openDropboxFolder}
+                      className="shrink-0"
+                    >
+                      <FolderOpen className="w-4 h-4 mr-2" />
+                      Dropbox
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
@@ -367,16 +402,30 @@ export default function CreateRFQDialog({
                   <p className="text-xs text-gray-500 mb-2">
                     Upload PDFs, images, or drawings that suppliers will see in their portal
                   </p>
-                  <FileUpload
-                    projectId={projectId}
-                    category="Shopping"
-                    fileType="Drawings"
-                    onUploadComplete={(file) => setAttachedFiles(prev => [...prev, file])}
-                    onUploadError={(error) => console.error('Upload error:', error)}
-                    maxFiles={10}
-                    visibleToSupplier={true}
-                    compact={true}
-                  />
+                  <div className="flex gap-2 items-start">
+                    <div className="flex-1">
+                      <FileUpload
+                        projectId={projectId}
+                        category="Shopping"
+                        fileType="Drawings"
+                        onUploadComplete={(file) => setAttachedFiles(prev => [...prev, file])}
+                        onUploadError={(error) => console.error('Upload error:', error)}
+                        maxFiles={10}
+                        visibleToSupplier={true}
+                        compact={true}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={openDropboxFolder}
+                      className="shrink-0"
+                    >
+                      <FolderOpen className="w-4 h-4 mr-2" />
+                      Dropbox
+                    </Button>
+                  </div>
                   {attachedFiles.length > 0 && (
                     <div className="mt-2 text-xs text-gray-500">
                       {attachedFiles.length} file(s) will be visible to suppliers
