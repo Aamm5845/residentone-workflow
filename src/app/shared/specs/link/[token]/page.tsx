@@ -12,9 +12,23 @@ import {
   Search,
   X,
   Check,
-  CheckCircle2
+  CheckCircle2,
+  Info
 } from 'lucide-react'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import toast from 'react-hot-toast'
+
+interface ComponentItem {
+  id: string
+  name: string
+  modelNumber: string | null
+  price: number | null
+  quantity: number
+}
 
 interface SpecItem {
   id: string
@@ -46,6 +60,8 @@ interface SpecItem {
   depth: string | null
   clientApproved: boolean
   clientApprovedAt: string | null
+  components?: ComponentItem[]
+  componentsTotal?: number
 }
 
 interface CategoryGroup {
@@ -805,12 +821,66 @@ export default function SharedSpecLinkPage() {
                         {/* Price - only if pricing is shown (includes components) */}
                         {shareSettings.showPricing && (
                           <div className="col-span-1 text-center">
-                            <p className={cn(
-                              "text-sm font-medium",
-                              item.rrpCurrency === 'USD' ? "text-blue-600" : "text-gray-900"
-                            )}>
-                              {formatCurrency(((item.rrp || 0) * (item.quantity || 1)) + ((item as any).componentsTotal || 0), item.rrpCurrency)}
-                            </p>
+                            <div className="flex items-center justify-center gap-1">
+                              <p className={cn(
+                                "text-sm font-medium",
+                                item.rrpCurrency === 'USD' ? "text-blue-600" : "text-gray-900"
+                              )}>
+                                {formatCurrency(((item.rrp || 0) * (item.quantity || 1)) + (item.componentsTotal || 0), item.rrpCurrency)}
+                              </p>
+                              {/* Component breakdown popover */}
+                              {item.components && item.components.length > 0 && (
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <button
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="w-4 h-4 rounded-full bg-purple-100 hover:bg-purple-200 flex items-center justify-center transition-colors"
+                                      title="View price breakdown"
+                                    >
+                                      <Info className="w-2.5 h-2.5 text-purple-600" />
+                                    </button>
+                                  </PopoverTrigger>
+                                  <PopoverContent
+                                    side="left"
+                                    align="center"
+                                    className="w-64 p-3"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <div className="space-y-2">
+                                      <p className="text-xs font-medium text-gray-500 uppercase">Price Breakdown</p>
+                                      {/* Base item price */}
+                                      {item.rrp && item.rrp > 0 && (
+                                        <div className="flex justify-between text-sm">
+                                          <span className="text-gray-600">Base item</span>
+                                          <span className="text-gray-900">
+                                            {formatCurrency(item.rrp, item.rrpCurrency)} × {item.quantity || 1}
+                                          </span>
+                                        </div>
+                                      )}
+                                      {/* Components */}
+                                      <div className="border-t pt-2 space-y-1.5">
+                                        <p className="text-xs font-medium text-gray-500">Components</p>
+                                        {item.components.map(comp => (
+                                          <div key={comp.id} className="flex justify-between text-sm">
+                                            <span className="text-gray-600 truncate mr-2">{comp.name}</span>
+                                            <span className="text-gray-900 whitespace-nowrap">
+                                              {comp.price ? `${formatCurrency(comp.price, item.rrpCurrency)} × ${comp.quantity}` : '-'}
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                      {/* Total */}
+                                      <div className="border-t pt-2 flex justify-between text-sm font-medium">
+                                        <span className="text-gray-700">Total</span>
+                                        <span className={item.rrpCurrency === 'USD' ? "text-blue-600" : "text-gray-900"}>
+                                          {formatCurrency(((item.rrp || 0) * (item.quantity || 1)) + (item.componentsTotal || 0), item.rrpCurrency)}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
+                              )}
+                            </div>
                             <p className="text-[10px] text-gray-400 uppercase">
                               {item.rrpCurrency === 'USD' ? 'USD' : 'CAD'}
                             </p>
