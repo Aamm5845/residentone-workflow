@@ -301,6 +301,9 @@ export default function BudgetQuoteClientPage() {
               <Package className="w-5 h-5 text-purple-600" />
               What's Included
             </h3>
+            <p className="text-xs text-gray-500 mb-3">
+              These items require approval. Some items may already be approved or not yet included.
+            </p>
             <div className="space-y-2">
               {Object.entries(itemsByCategory).map(([category, items]) => (
                 <div key={category} className="border border-gray-200 rounded-lg overflow-hidden">

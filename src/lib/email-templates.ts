@@ -1486,9 +1486,10 @@ export function generateBudgetQuoteEmailTemplate(data: BudgetQuoteEmailData): {
             <div style="font-size: 28px; color: #111827; font-weight: 700;">${formatCurrencyCAD(data.estimatedTotal)} <span style="font-size: 14px; font-weight: 500; color: #6b7280;">CAD</span></div>
             ` : ''}
             ${data.estimatedTotalUSD && data.estimatedTotalUSD > 0 ? `
-            <div style="font-size: ${data.estimatedTotal > 0 ? '20px' : '28px'}; color: #1e40af; font-weight: 700; ${data.estimatedTotal > 0 ? 'margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb;' : ''}">${formatCurrencyUSD(data.estimatedTotalUSD)} <span style="font-size: 14px; font-weight: 500; color: #6b7280;">USD</span></div>
+            <div style="font-size: 28px; color: #1e40af; font-weight: 700; ${data.estimatedTotal > 0 ? 'margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb;' : ''}">${formatCurrencyUSD(data.estimatedTotalUSD)} <span style="font-size: 14px; font-weight: 500; color: #6b7280;">USD</span></div>
             ` : ''}
             ${data.includeTax ? `<div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">+ applicable taxes</div>` : ''}
+            <div style="font-size: 11px; color: #9ca3af; margin-top: 6px;">* Delivery fees and duties may apply</div>
         </div>
 
         ${data.validUntil ? `

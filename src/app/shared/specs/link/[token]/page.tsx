@@ -736,10 +736,10 @@ export default function SharedSpecLinkPage() {
                       <div
                         key={item.id}
                         onClick={() => openItemDetail(item.id)}
-                        className="grid grid-cols-12 gap-3 py-4 px-4 -mx-4 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors items-center group"
+                        className="grid grid-cols-[56px_minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_60px_80px_100px_80px_auto] gap-3 py-4 px-4 -mx-4 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors items-center group"
                       >
                         {/* Image */}
-                        <div className="col-span-1">
+                        <div>
                           <div className="w-14 h-14 rounded-md bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden">
                             {item.thumbnailUrl || item.images?.[0] ? (
                               <img
@@ -754,7 +754,7 @@ export default function SharedSpecLinkPage() {
                         </div>
 
                         {/* Name & Location */}
-                        <div className="col-span-2 min-w-0">
+                        <div className="min-w-0">
                           <p className="text-sm font-medium text-gray-900 truncate group-hover:text-gray-700">
                             {item.name}
                           </p>
@@ -777,7 +777,7 @@ export default function SharedSpecLinkPage() {
                         </div>
 
                         {/* Model Number */}
-                        <div className="col-span-1 min-w-0">
+                        <div className="min-w-0">
                           {item.modelNumber && (
                             <>
                               <p className="text-sm text-gray-700 truncate">{item.modelNumber}</p>
@@ -787,7 +787,7 @@ export default function SharedSpecLinkPage() {
                         </div>
 
                         {/* Brand */}
-                        <div className="col-span-1 min-w-0">
+                        <div className="min-w-0">
                           {item.brand && (
                             <>
                               <p className="text-sm text-gray-600 truncate">{item.brand}</p>
@@ -797,7 +797,7 @@ export default function SharedSpecLinkPage() {
                         </div>
 
                         {/* Color */}
-                        <div className="col-span-1 min-w-0">
+                        <div className="min-w-0">
                           {item.color && (
                             <>
                               <p className="text-sm text-gray-600 truncate">{item.color}</p>
@@ -807,20 +807,20 @@ export default function SharedSpecLinkPage() {
                         </div>
 
                         {/* Qty */}
-                        <div className="col-span-1 text-center">
+                        <div className="text-center">
                           <p className="text-sm text-gray-700">{item.quantity || 0}</p>
                           <p className="text-[10px] text-gray-400 uppercase">Qty</p>
                         </div>
 
                         {/* Lead Time - always show */}
-                        <div className="col-span-1 text-center">
+                        <div className="text-center">
                           <p className="text-sm text-gray-700">{item.leadTime || '-'}</p>
                           <p className="text-[10px] text-gray-400 uppercase">Lead Time</p>
                         </div>
 
                         {/* Price - only if pricing is shown (includes components) */}
                         {shareSettings.showPricing && (
-                          <div className="col-span-1 text-center">
+                          <div className="text-center">
                             <div className="flex items-center justify-center gap-1">
                               <p className={cn(
                                 "text-sm font-medium",
@@ -888,7 +888,7 @@ export default function SharedSpecLinkPage() {
                         )}
 
                         {/* Status Column - hide for statuses that are shown in Approval column */}
-                        <div className="col-span-1 flex items-center justify-center">
+                        <div className="flex items-center justify-center">
                           {item.specStatus &&
                            item.specStatus !== 'CONTRACTOR_TO_ORDER' &&
                            item.specStatus !== 'CLIENT_TO_ORDER' &&
@@ -903,7 +903,7 @@ export default function SharedSpecLinkPage() {
                         </div>
 
                         {/* Approval Column */}
-                        <div className="col-span-1 flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-2">
                           {/* Approval Status/Button */}
                           {item.specStatus === 'CONTRACTOR_TO_ORDER' ? (
                             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-orange-50 text-orange-700 rounded-full whitespace-nowrap">
@@ -916,9 +916,13 @@ export default function SharedSpecLinkPage() {
                             </div>
                           ) : shareSettings.allowApproval && item.rrp ? (
                             <button
-                              onClick={(e) => handleApproveItem(item.id, e)}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                e.preventDefault()
+                                handleApproveItem(item.id, e)
+                              }}
                               disabled={approvingItems.has(item.id)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded-md hover:bg-emerald-700 transition-colors disabled:opacity-50 whitespace-nowrap"
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded-md hover:bg-emerald-700 transition-colors disabled:opacity-50 whitespace-nowrap z-10"
                             >
                               {approvingItems.has(item.id) ? (
                                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -937,6 +941,7 @@ export default function SharedSpecLinkPage() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
+                              e.preventDefault()
                               openItemDetail(item.id)
                             }}
                             className="px-3 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded hover:bg-gray-100 transition-colors whitespace-nowrap"

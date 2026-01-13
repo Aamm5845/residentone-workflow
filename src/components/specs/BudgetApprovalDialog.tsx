@@ -97,13 +97,14 @@ export default function BudgetApprovalDialog({
   const [sendingTest, setSendingTest] = useState(false)
 
   // Statuses to exclude from budget approval
-  const EXCLUDED_STATUSES = ['CLIENT_TO_ORDER', 'CONTRACTOR_TO_ORDER', 'HIDDEN', 'DRAFT', 'NEEDS_SPEC']
+  const EXCLUDED_STATUSES = ['CLIENT_TO_ORDER', 'CONTRACTOR_TO_ORDER', 'HIDDEN', 'DRAFT', 'NEEDS_SPEC', 'APPROVED']
 
-  // Get selected specs, filtering out excluded statuses
+  // Get selected specs, filtering out excluded statuses and already approved items
   const selectedSpecs = useMemo(() => {
     return specs.filter(s =>
       selectedItemIds.includes(s.id) &&
-      !EXCLUDED_STATUSES.includes(s.specStatus || '')
+      !EXCLUDED_STATUSES.includes(s.specStatus || '') &&
+      !(s as any).clientApproved // Also filter out items already approved by client
     )
   }, [specs, selectedItemIds])
 

@@ -115,13 +115,12 @@ export async function POST(request: NextRequest) {
     // Modify subject to indicate test
     const testSubject = `[TEST] ${emailSubject}`
 
-    // Add test banner to email with the portal URL visible
+    // Add test banner to email - show URL but note it won't work
     const testBanner = `
       <div style="background-color: #FEF3C7; border: 2px solid #F59E0B; padding: 12px; margin-bottom: 15px; border-radius: 6px; text-align: center;">
-        <strong style="color: #92400E; font-size: 13px;">⚠️ TEST EMAIL - This is a preview</strong>
-        <div style="margin-top: 8px; padding: 8px; background: white; border-radius: 4px;">
-          <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">Portal Link (for testing):</div>
-          <a href="${portalUrl}" style="font-size: 12px; color: #1e40af; word-break: break-all;">${portalUrl}</a>
+        <strong style="color: #92400E; font-size: 13px;">⚠️ TEST EMAIL - This is a preview only</strong>
+        <div style="margin-top: 8px; font-size: 11px; color: #92400E;">
+          The button below will not work in test mode. Send the actual email to create a working link.
         </div>
       </div>
     `
