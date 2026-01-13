@@ -3375,7 +3375,9 @@ export function ItemDetailPanel({
                                 minute: '2-digit'
                               })
                             : 'Date not recorded'}
-                          {item.clientApprovedVia === 'share_link' && ' • via Share Link'}
+                          {item.clientApprovedVia === 'share_link' ? ' • via Share Link' :
+                           item.clientApprovedVia === 'budget_quote' ? ' • via Budget Approval' :
+                           ' • Manually'}
                         </p>
                       </div>
                     </div>
