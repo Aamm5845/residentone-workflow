@@ -115,29 +115,20 @@ export async function POST(request: NextRequest) {
     // Modify subject to indicate test
     const testSubject = `[TEST] ${emailSubject}`
 
-    // Add test banner to email and disable the CTA button
+    // Add test banner to email with the portal URL visible
     const testBanner = `
-      <div style="background-color: #FEF3C7; border: 2px solid #F59E0B; padding: 16px; margin-bottom: 20px; border-radius: 8px; text-align: center;">
-        <strong style="color: #92400E; font-size: 14px;">⚠️ TEST EMAIL - This is a preview. The button below is disabled.</strong>
-      </div>
-    `
-
-    // Replace the clickable button with a disabled/greyed out version
-    const disabledButton = `
-      <div style="display: inline-block; background: #9CA3AF; color: white; padding: 16px 40px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; cursor: not-allowed;">
-        Review &amp; Approve Budget (Disabled in Test)
+      <div style="background-color: #FEF3C7; border: 2px solid #F59E0B; padding: 12px; margin-bottom: 15px; border-radius: 6px; text-align: center;">
+        <strong style="color: #92400E; font-size: 13px;">⚠️ TEST EMAIL - This is a preview</strong>
+        <div style="margin-top: 8px; padding: 8px; background: white; border-radius: 4px;">
+          <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">Portal Link (for testing):</div>
+          <a href="${portalUrl}" style="font-size: 12px; color: #1e40af; word-break: break-all;">${portalUrl}</a>
+        </div>
       </div>
     `
 
     let testHtml = emailHtml.replace(
-      /<div style="max-width: 600px/,
-      `${testBanner}<div style="max-width: 600px`
-    )
-
-    // Replace the CTA button link with disabled version
-    testHtml = testHtml.replace(
-      /<a href="[^"]*"[^>]*>[\s\S]*?Review &amp; Approve Budget[\s\S]*?<\/a>/,
-      disabledButton
+      /<body([^>]*)>/,
+      `<body$1>${testBanner}`
     )
 
     // Send test email

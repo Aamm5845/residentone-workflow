@@ -1456,112 +1456,85 @@ export function generateBudgetQuoteEmailTemplate(data: BudgetQuoteEmailData): {
     </div>
   ` : ''
 
+  const brandColor = '#10B981'
+
   const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Budget Estimate - ${data.title}</title>
-</head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f3f4f6; line-height: 1.6;">
-    <div style="max-width: 600px; margin: 0 auto; background: white;">
-        <!-- Header -->
-        <div style="background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); padding: 32px; text-align: center;">
-            ${data.companyLogo ? `
-            <img src="${data.companyLogo}"
-                 alt="${data.companyName}"
-                 style="max-width: 180px; max-height: 60px; height: auto; margin-bottom: 20px; background-color: white; padding: 12px; border-radius: 8px;" />
-            ` : `
-            <div style="color: white; font-size: 24px; font-weight: 700; margin-bottom: 16px;">${data.companyName}</div>
-            `}
-            <div style="display: inline-block; background: rgba(255,255,255,0.2); color: white; padding: 6px 20px; border-radius: 16px; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em;">
-                Budget Estimate
-            </div>
-            <h1 style="margin: 16px 0 0 0; color: white; font-size: 24px; font-weight: 600;">${data.title}</h1>
-        </div>
+<html>
+<head><meta charset="utf-8"><title>Budget Estimate - ${data.title}</title></head>
+<body style="font-family: Arial, sans-serif; line-height: 1.5; color: #333; max-width: 550px; margin: 0 auto; padding: 10px;">
+    <!-- Header -->
+    <div style="background: ${brandColor}; padding: 15px 20px; border-radius: 6px 6px 0 0;">
+        ${data.companyLogo ? `
+        <img src="${data.companyLogo}" alt="${data.companyName}" style="max-width: 120px; max-height: 40px; height: auto; margin-bottom: 8px;" />
+        ` : ''}
+        <h2 style="color: white; margin: 0;">Budget Estimate - ${data.budgetQuoteNumber}</h2>
+    </div>
 
-        <!-- Content -->
-        <div style="padding: 32px;">
-            <!-- Greeting -->
-            <p style="margin: 0 0 16px 0; color: #374151; font-size: 16px;">
-                Dear ${data.clientName},
-            </p>
+    <!-- Content -->
+    <div style="background: white; padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 6px 6px;">
+        <p style="margin: 0 0 10px 0;">Hi ${data.clientName},</p>
+        <p style="margin: 0 0 15px 0;"><strong>${data.title}</strong> - ${data.projectName}</p>
 
-            <p style="margin: 0 0 24px 0; color: #6b7280; font-size: 15px;">
-                We're pleased to provide you with a budget estimate for your project. Please review the details below and let us know if you'd like to proceed.
-            </p>
+        ${data.description ? `
+        <p style="background: #f9fafb; padding: 10px; border-radius: 4px; margin: 0 0 15px 0; font-size: 14px; color: #6b7280;">${data.description}</p>
+        ` : ''}
 
-            <!-- Project Info -->
-            <div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
-                <div style="font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Project</div>
-                <div style="font-size: 16px; color: #111827; font-weight: 600;">${data.projectName}</div>
-            </div>
-
-            ${data.description ? `
-            <p style="margin: 0 0 24px 0; color: #6b7280; font-size: 14px; line-height: 1.6;">
-                ${data.description}
-            </p>
+        <!-- Budget Amount -->
+        <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 16px; margin: 0 0 20px 0; text-align: center;">
+            <div style="font-size: 12px; color: #6b7280; text-transform: uppercase; margin-bottom: 8px;">Estimated Budget</div>
+            ${data.estimatedTotal > 0 ? `
+            <div style="font-size: 28px; color: #111827; font-weight: 700;">${formatCurrencyCAD(data.estimatedTotal)} <span style="font-size: 14px; font-weight: 500; color: #6b7280;">CAD</span></div>
             ` : ''}
-
-            <!-- Budget Amount Card -->
-            <div style="background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%); border: 2px solid #c084fc; border-radius: 12px; padding: 24px; margin-bottom: 24px; text-align: center;">
-                <div style="font-size: 13px; color: #7c3aed; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; font-weight: 600;">Estimated Budget</div>
-                ${data.estimatedTotal > 0 ? `
-                <div style="font-size: 36px; color: #6b21a8; font-weight: 700;">${formatCurrencyCAD(data.estimatedTotal)}</div>
-                ` : ''}
-                ${data.estimatedTotalUSD && data.estimatedTotalUSD > 0 ? `
-                <div style="font-size: ${data.estimatedTotal > 0 ? '24px' : '36px'}; color: #1e40af; font-weight: 700; ${data.estimatedTotal > 0 ? 'margin-top: 12px; padding-top: 12px; border-top: 1px solid #c084fc;' : ''}">${formatCurrencyUSD(data.estimatedTotalUSD)}</div>
-                ` : ''}
-                ${data.includeTax ? `<div style="font-size: 13px; color: #9333ea; margin-top: 4px;">+ applicable taxes</div>` : ''}
-            </div>
-
-            ${data.validUntil ? `
-            <p style="margin: 0 0 24px 0; color: #6b7280; font-size: 13px; text-align: center;">
-                This estimate is valid until <strong>${formatDate(data.validUntil)}</strong>
-            </p>
+            ${data.estimatedTotalUSD && data.estimatedTotalUSD > 0 ? `
+            <div style="font-size: ${data.estimatedTotal > 0 ? '20px' : '28px'}; color: #1e40af; font-weight: 700; ${data.estimatedTotal > 0 ? 'margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb;' : ''}">${formatCurrencyUSD(data.estimatedTotalUSD)} <span style="font-size: 14px; font-weight: 500; color: #6b7280;">USD</span></div>
             ` : ''}
-
-            <!-- Items Included -->
-            <div style="margin-bottom: 24px;">
-                <h3 style="margin: 0 0 16px 0; color: #111827; font-size: 16px; font-weight: 600; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">
-                    What's Included
-                </h3>
-                ${itemsHtml}
-            </div>
-
-            <!-- Included Services -->
-            ${servicesHtml}
-
-            <!-- CTA Button -->
-            <div style="text-align: center; margin: 32px 0;">
-                <a href="${data.portalUrl}"
-                   style="display: inline-block; background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); color: white; padding: 16px 40px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; box-shadow: 0 4px 14px rgba(124, 58, 237, 0.4);">
-                    Review &amp; Approve Budget
-                </a>
-            </div>
-
-            <p style="margin: 0; color: #9ca3af; font-size: 12px; text-align: center;">
-                Click the button above to review the full details and approve this budget estimate.
-            </p>
-
-            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 32px 0;" />
-
-            <!-- Contact -->
-            <div style="text-align: center;">
-                <p style="margin: 0 0 8px 0; color: #374151; font-size: 14px; font-weight: 600;">${data.companyName}</p>
-                <p style="margin: 0; color: #6b7280; font-size: 13px;">
-                    ${data.companyEmail || ''}
-                    ${data.companyPhone ? ` | ${data.companyPhone}` : ''}
-                </p>
-            </div>
+            ${data.includeTax ? `<div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">+ applicable taxes</div>` : ''}
         </div>
 
-        <!-- Footer -->
-        <div style="background: #f9fafb; border-top: 1px solid #e5e7eb; padding: 20px; text-align: center;">
-            <p style="margin: 0; color: #9ca3af; font-size: 11px;">
-                &copy; ${new Date().getFullYear()} ${data.companyName}. All rights reserved.
-            </p>
+        ${data.validUntil ? `
+        <p style="margin: 0 0 15px 0; color: #6b7280; font-size: 13px; text-align: center;">
+            Valid until <strong>${formatDate(data.validUntil)}</strong>
+        </p>
+        ` : ''}
+
+        <!-- Items Table -->
+        <table style="width: 100%; border-collapse: collapse; margin: 0 0 20px 0;">
+            <tr style="background: #f3f4f6;">
+                <th style="padding: 8px; text-align: left; border: 1px solid #e5e7eb;">Items Included</th>
+            </tr>
+            ${Object.entries(itemsByCategory).map(([category, items]) => `
+            <tr>
+                <td style="padding: 8px; border: 1px solid #e5e7eb;">
+                    <strong style="color: #374151;">${category}</strong>
+                    <div style="color: #6b7280; font-size: 13px; margin-top: 4px;">${(items as string[]).join(', ')}</div>
+                </td>
+            </tr>
+            `).join('')}
+        </table>
+
+        ${data.includedServices.length > 0 ? `
+        <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 4px; padding: 12px; margin: 0 0 20px 0;">
+            <div style="font-weight: 600; color: #166534; font-size: 13px; margin-bottom: 8px;">Included Services</div>
+            <div style="color: #15803d; font-size: 13px;">${data.includedServices.join(', ')}</div>
         </div>
+        ` : ''}
+
+        <!-- CTA Button -->
+        <div style="text-align: center; margin: 20px 0;">
+            <a href="${data.portalUrl}" style="display: inline-block; background: ${brandColor}; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                Review &amp; Approve Budget
+            </a>
+        </div>
+
+        <p style="color: #9ca3af; font-size: 11px; text-align: center; margin: 15px 0 0 0;">
+            Click the button above to review details and approve this estimate.
+        </p>
+
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
+
+        <p style="margin: 0; color: #6b7280; font-size: 12px; text-align: center;">
+            ${data.companyName}${data.companyEmail ? ` | ${data.companyEmail}` : ''}${data.companyPhone ? ` | ${data.companyPhone}` : ''}
+        </p>
     </div>
 </body>
 </html>`
