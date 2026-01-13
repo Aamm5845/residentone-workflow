@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email'
 import { generateBudgetApprovalNotificationEmail, generateBudgetQuestionNotificationEmail } from '@/lib/email-templates'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 export const dynamic = 'force-dynamic'
 
@@ -105,9 +106,12 @@ export async function POST(
         console.error('Failed to create inbox notification:', notifError)
       }
 
-      // Send notification email
+      // Send notification email to Shaya with procurement link
       try {
-        const emailHtml = generateBudgetApprovalNotificationEmail({
+        const baseUrl = getBaseUrl()
+        const procurementUrl = `${baseUrl}/projects/${budgetQuote.projectId}/procurement`
+
+        const { subject, html } = generateBudgetApprovalNotificationEmail({
           budgetQuoteNumber: `BQ-${budgetQuote.id.slice(-6).toUpperCase()}`,
           clientName,
           clientEmail: budgetQuote.clientEmail || 'Unknown',
@@ -116,14 +120,16 @@ export async function POST(
           title: budgetQuote.title,
           itemCount: budgetQuote.itemIds.length,
           estimatedTotal: parseFloat(budgetQuote.estimatedTotal.toString()),
-          approvedAt: new Date()
+          approvedAt: new Date(),
+          dashboardUrl: procurementUrl
         })
 
         await sendEmail({
           to: NOTIFICATION_EMAIL,
-          subject: `Budget Approved: ${budgetQuote.title} - ${budgetQuote.project.name}`,
-          html: emailHtml
+          subject,
+          html
         })
+        console.log('Approval notification email sent to:', NOTIFICATION_EMAIL)
       } catch (emailError) {
         console.error('Failed to send approval notification:', emailError)
         // Don't fail the request if email fails
@@ -164,23 +170,27 @@ export async function POST(
         console.error('Failed to create inbox notification:', notifError)
       }
 
-      // Send notification email
+      // Send notification email to Shaya with procurement link
       try {
-        const emailHtml = generateBudgetQuestionNotificationEmail({
+        const baseUrl = getBaseUrl()
+        const procurementUrl = `${baseUrl}/projects/${budgetQuote.projectId}/procurement`
+
+        const { subject, html } = generateBudgetQuestionNotificationEmail({
           budgetQuoteNumber: `BQ-${budgetQuote.id.slice(-6).toUpperCase()}`,
           clientName,
           clientEmail: budgetQuote.clientEmail || 'Unknown',
           projectName: budgetQuote.project.name,
-          companyName: budgetQuote.org.name,
           title: budgetQuote.title,
-          question: question.trim()
+          question: question.trim(),
+          dashboardUrl: procurementUrl
         })
 
         await sendEmail({
           to: NOTIFICATION_EMAIL,
-          subject: `Question on Budget: ${budgetQuote.title} - ${budgetQuote.project.name}`,
-          html: emailHtml
+          subject,
+          html
         })
+        console.log('Question notification email sent to:', NOTIFICATION_EMAIL)
       } catch (emailError) {
         console.error('Failed to send question notification:', emailError)
         // Don't fail the request if email fails
