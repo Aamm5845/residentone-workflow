@@ -8,6 +8,12 @@ import {
   DialogTitle,
   DialogFooter
 } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -261,19 +267,19 @@ export default function CreateRFQDialog({
     item.roomName?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  // Get the selected project's Dropbox folder URL for 8- DRAWINGS
-  const getDropboxUrl = () => {
+  // Get the selected project's Dropbox folder URL
+  const getDropboxUrl = (subfolder?: string) => {
     const selectedProject = projects.find(p => p.id === projectId)
     if (!selectedProject?.dropboxFolder) return null
-    // Construct Dropbox web URL for the 8- DRAWINGS folder
-    const folderPath = `${selectedProject.dropboxFolder}/8- DRAWINGS`
-    // Encode the path for Dropbox web URL
-    const encodedPath = encodeURIComponent(folderPath)
+    // Construct Dropbox web URL
+    const folderPath = subfolder
+      ? `${selectedProject.dropboxFolder}/${subfolder}`
+      : selectedProject.dropboxFolder
     return `https://www.dropbox.com/home${folderPath}`
   }
 
-  const openDropboxFolder = () => {
-    const url = getDropboxUrl()
+  const openDropboxFolder = (subfolder?: string) => {
+    const url = getDropboxUrl(subfolder)
     if (url) {
       window.open(url, '_blank')
     } else {
@@ -369,16 +375,27 @@ export default function CreateRFQDialog({
                         compact={true}
                       />
                     </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={openDropboxFolder}
-                      className="shrink-0"
-                    >
-                      <FolderOpen className="w-4 h-4 mr-2" />
-                      Dropbox
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="shrink-0"
+                        >
+                          <FolderOpen className="w-4 h-4 mr-2" />
+                          Dropbox
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openDropboxFolder('8- DRAWINGS')}>
+                          8- DRAWINGS
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openDropboxFolder()}>
+                          Project Folder
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               )}
@@ -415,16 +432,27 @@ export default function CreateRFQDialog({
                         compact={true}
                       />
                     </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={openDropboxFolder}
-                      className="shrink-0"
-                    >
-                      <FolderOpen className="w-4 h-4 mr-2" />
-                      Dropbox
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="shrink-0"
+                        >
+                          <FolderOpen className="w-4 h-4 mr-2" />
+                          Dropbox
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openDropboxFolder('8- DRAWINGS')}>
+                          8- DRAWINGS
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openDropboxFolder()}>
+                          Project Folder
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                   {attachedFiles.length > 0 && (
                     <div className="mt-2 text-xs text-gray-500">
