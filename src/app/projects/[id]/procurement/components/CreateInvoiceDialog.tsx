@@ -26,7 +26,10 @@ import {
   ChevronDown,
   ChevronRight,
   ShieldCheck,
-  ShieldX
+  ShieldX,
+  FileText,
+  DollarSign,
+  AlertTriangle
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -56,13 +59,18 @@ interface SpecItem {
   roomName?: string
   tradePrice?: number | null
   rrp?: number | null
+  rrpCurrency?: string // CAD or USD
   supplierName?: string
   brand?: string
   images?: string[]
   clientApproved?: boolean
   clientApprovedAt?: string
   clientApprovedVia?: string
+  specStatus?: string | null
 }
+
+// Statuses to exclude from client invoice (client/contractor order items)
+const EXCLUDED_INVOICE_STATUSES = ['CLIENT_TO_ORDER', 'CONTRACTOR_TO_ORDER']
 
 interface ApprovedQuote {
   id: string
@@ -94,6 +102,7 @@ interface LineItem {
   supplierTotalPrice?: number
   markupValue?: number
   markupAmount?: number
+  currency?: string // CAD or USD
 }
 
 export default function CreateInvoiceDialog({
@@ -209,9 +218,16 @@ export default function CreateInvoiceDialog({
     }
   }
 
+  // Filter out items with excluded statuses (client/contractor to order)
+  const invoiceableSpecItems = useMemo(() => {
+    return specItems.filter(item =>
+      !EXCLUDED_INVOICE_STATUSES.includes(item.specStatus || '')
+    )
+  }, [specItems])
+
   // Group items by category
   const groupedItems = useMemo(() => {
-    const filtered = specItems.filter(item =>
+    const filtered = invoiceableSpecItems.filter(item =>
       !searchQuery ||
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -224,21 +240,36 @@ export default function CreateInvoiceDialog({
       groups[key].push(item)
       return groups
     }, {})
-  }, [specItems, searchQuery])
+  }, [invoiceableSpecItems, searchQuery])
 
-  // Items without valid price (cannot be invoiced)
+  // Items without valid price (cannot be invoiced - requires RRP)
   const itemsWithoutPrice = useMemo(() => {
-    return specItems.filter(item => !item.rrp && !item.tradePrice)
-  }, [specItems])
+    return invoiceableSpecItems.filter(item => !item.rrp)
+  }, [invoiceableSpecItems])
 
   // Items not approved by client (cannot be invoiced)
   const itemsNotApproved = useMemo(() => {
-    return specItems.filter(item => !item.clientApproved && (item.rrp || item.tradePrice))
-  }, [specItems])
+    return invoiceableSpecItems.filter(item => !item.clientApproved && item.rrp)
+  }, [invoiceableSpecItems])
 
-  // Check if item can be invoiced (must have price AND be approved)
+  // Items already invoiced or paid (can still be selected but show warning)
+  const itemsAlreadyInvoiced = useMemo(() => {
+    return invoiceableSpecItems.filter(item =>
+      item.specStatus === 'INVOICED_TO_CLIENT' || item.specStatus === 'CLIENT_PAID'
+    )
+  }, [invoiceableSpecItems])
+
+  // Check which selected items are already invoiced or paid
+  const selectedInvoicedItems = useMemo(() => {
+    return invoiceableSpecItems.filter(item =>
+      selectedItemIds.has(item.id) &&
+      (item.specStatus === 'INVOICED_TO_CLIENT' || item.specStatus === 'CLIENT_PAID')
+    )
+  }, [invoiceableSpecItems, selectedItemIds])
+
+  // Check if item can be invoiced (must have RRP AND be approved AND not excluded status)
   const canInvoiceItem = (item: SpecItem) => {
-    return (item.rrp || item.tradePrice) && item.clientApproved
+    return item.rrp && item.clientApproved && !EXCLUDED_INVOICE_STATUSES.includes(item.specStatus || '')
   }
 
   // Build line items for invoice
@@ -246,12 +277,13 @@ export default function CreateInvoiceDialog({
     const lineItems: LineItem[] = []
 
     if (activeSource === 'specs') {
-      specItems
+      // For approved budget items, use RRP directly - no markup applied
+      // This matches exactly the approved budget price
+      invoiceableSpecItems
         .filter(item => selectedItemIds.has(item.id))
         .forEach(item => {
+          const clientPrice = item.rrp || 0
           const costPrice = item.tradePrice || 0
-          const clientPrice = item.rrp || (costPrice * (1 + defaultMarkup / 100))
-          const markupAmount = clientPrice - costPrice
 
           lineItems.push({
             roomFFEItemId: item.id,
@@ -265,8 +297,9 @@ export default function CreateInvoiceDialog({
             clientTotalPrice: clientPrice * (item.quantity || 1),
             supplierUnitPrice: costPrice,
             supplierTotalPrice: costPrice * (item.quantity || 1),
-            markupValue: costPrice > 0 ? ((clientPrice - costPrice) / costPrice) * 100 : defaultMarkup,
-            markupAmount
+            markupValue: 0, // No markup for approved budget items
+            markupAmount: 0,
+            currency: item.rrpCurrency || 'CAD'
           })
         })
     } else {
@@ -299,16 +332,39 @@ export default function CreateInvoiceDialog({
     return lineItems
   }
 
-  // Calculate totals
+  // Calculate totals - separate CAD and USD
   const totals = useMemo(() => {
     const lineItems = buildLineItems()
+
+    // Separate items by currency
+    const cadItems = lineItems.filter(item => (item.currency || 'CAD') === 'CAD')
+    const usdItems = lineItems.filter(item => item.currency === 'USD')
+
+    const cadSubtotal = cadItems.reduce((sum, item) => sum + item.clientTotalPrice, 0)
+    const usdSubtotal = usdItems.reduce((sum, item) => sum + item.clientTotalPrice, 0)
+
     const supplierCost = lineItems.reduce((sum, item) => sum + (item.supplierTotalPrice || 0), 0)
-    const subtotal = lineItems.reduce((sum, item) => sum + item.clientTotalPrice, 0)
+    const subtotal = cadSubtotal + usdSubtotal // Combined for backward compatibility
     const markup = subtotal - supplierCost
-    const gst = subtotal * 0.05
-    const qst = subtotal * 0.09975
-    const total = subtotal + gst + qst
-    return { supplierCost, subtotal, markup, gst, qst, total, itemCount: lineItems.length }
+
+    // Tax applies to CAD items only
+    const gst = cadSubtotal * 0.05
+    const qst = cadSubtotal * 0.09975
+    const total = cadSubtotal + gst + qst
+
+    return {
+      supplierCost,
+      subtotal,
+      cadSubtotal,
+      usdSubtotal,
+      markup,
+      gst,
+      qst,
+      total,
+      itemCount: lineItems.length,
+      cadItemCount: cadItems.length,
+      usdItemCount: usdItems.length
+    }
   }, [selectedItemIds, selectedQuoteIds, activeSource, defaultMarkup])
 
   const toggleCategory = (category: string) => {
@@ -485,7 +541,7 @@ export default function CreateInvoiceDialog({
                   <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg mb-4 text-sm">
                     <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
                     <p className="text-amber-800">
-                      {itemsWithoutPrice.length} item{itemsWithoutPrice.length !== 1 ? 's' : ''} cannot be invoiced (no RRP or trade price set)
+                      {itemsWithoutPrice.length} item{itemsWithoutPrice.length !== 1 ? 's' : ''} cannot be invoiced (no RRP set)
                     </p>
                   </div>
                 )}
@@ -497,6 +553,30 @@ export default function CreateInvoiceDialog({
                     <p className="text-red-800">
                       {itemsNotApproved.length} item{itemsNotApproved.length !== 1 ? 's' : ''} need client approval before invoicing.
                       <span className="text-red-600 font-medium"> Approve in All Specs first.</span>
+                    </p>
+                  </div>
+                )}
+
+                {/* Info about already invoiced items */}
+                {itemsAlreadyInvoiced.length > 0 && (
+                  <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg mb-4 text-sm">
+                    <FileText className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-blue-800">
+                      {itemsAlreadyInvoiced.length} item{itemsAlreadyInvoiced.length !== 1 ? 's are' : ' is'} already invoiced or paid.
+                      <span className="text-blue-600"> You can still add them if needed (e.g., replacement item).</span>
+                    </p>
+                  </div>
+                )}
+
+                {/* Warning when selecting already invoiced items */}
+                {selectedInvoicedItems.length > 0 && (
+                  <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-300 rounded-lg mb-4 text-sm">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-amber-800">
+                      <span className="font-medium">{selectedInvoicedItems.length} selected item{selectedInvoicedItems.length !== 1 ? 's' : ''}</span> already invoiced/paid.
+                      {selectedInvoicedItems.some(i => i.specStatus === 'CLIENT_PAID') && (
+                        <span className="text-amber-700 font-medium"> Includes paid items!</span>
+                      )}
                     </p>
                   </div>
                 )}
@@ -559,15 +639,20 @@ export default function CreateInvoiceDialog({
                                 )}
 
                                 {items.map(item => {
-                                  const hasPrice = item.rrp || item.tradePrice
+                                  const hasPrice = !!item.rrp
                                   const isApproved = item.clientApproved
                                   const canInvoice = canInvoiceItem(item)
                                   const isSelected = selectedItemIds.has(item.id)
-                                  const price = item.rrp || (item.tradePrice ? item.tradePrice * (1 + defaultMarkup / 100) : 0)
+                                  const price = item.rrp || 0
+
+                                  // Check if item is already invoiced or paid
+                                  const isAlreadyInvoiced = item.specStatus === 'INVOICED_TO_CLIENT'
+                                  const isPaid = item.specStatus === 'CLIENT_PAID'
+                                  const hasInvoiceStatus = isAlreadyInvoiced || isPaid
 
                                   // Determine why item can't be invoiced
                                   const disabledReason = !hasPrice
-                                    ? 'No price'
+                                    ? 'No RRP'
                                     : !isApproved
                                     ? 'Not approved'
                                     : null
@@ -580,7 +665,8 @@ export default function CreateInvoiceDialog({
                                         canInvoice
                                           ? 'cursor-pointer hover:bg-gray-50'
                                           : 'opacity-60 cursor-not-allowed bg-gray-50',
-                                        isSelected && 'border-emerald-300 bg-emerald-50'
+                                        isSelected && 'border-emerald-300 bg-emerald-50',
+                                        hasInvoiceStatus && !isSelected && 'border-amber-200 bg-amber-50/50'
                                       )}
                                       onClick={() => canInvoice && toggleItem(item.id)}
                                     >
@@ -604,6 +690,19 @@ export default function CreateInvoiceDialog({
                                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" title="Client Approved" />
                                           ) : hasPrice && (
                                             <ShieldX className="w-3.5 h-3.5 text-red-400 flex-shrink-0" title="Not Approved" />
+                                          )}
+                                          {/* Invoice/Paid status badges */}
+                                          {isPaid && (
+                                            <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-300 px-1.5 py-0">
+                                              <DollarSign className="w-3 h-3 mr-0.5" />
+                                              Paid
+                                            </Badge>
+                                          )}
+                                          {isAlreadyInvoiced && (
+                                            <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-300 px-1.5 py-0">
+                                              <FileText className="w-3 h-3 mr-0.5" />
+                                              Invoiced
+                                            </Badge>
                                           )}
                                         </div>
                                         <div className="flex items-center gap-2 text-xs text-gray-500">
@@ -732,18 +831,37 @@ export default function CreateInvoiceDialog({
                     </div>
                   </>
                 )}
-                <div className="flex justify-between text-sm mt-1">
-                  <span className="text-gray-600">Client Subtotal</span>
-                  <span>{formatCurrency(totals.subtotal)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">GST + QST</span>
-                  <span>{formatCurrency(totals.gst + totals.qst)}</span>
-                </div>
-                <div className="flex justify-between font-medium mt-2 pt-2 border-t">
-                  <span>Client Total</span>
-                  <span>{formatCurrency(totals.total)}</span>
-                </div>
+                {/* Show CAD and USD subtotals separately */}
+                {totals.cadSubtotal > 0 && (
+                  <div className="flex justify-between text-sm mt-1">
+                    <span className="text-gray-600">Subtotal (CAD)</span>
+                    <span>{formatCurrency(totals.cadSubtotal)}</span>
+                  </div>
+                )}
+                {totals.usdSubtotal > 0 && (
+                  <div className="flex justify-between text-sm mt-1">
+                    <span className="text-gray-600">Subtotal (USD)</span>
+                    <span>US${totals.usdSubtotal.toLocaleString('en-CA', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                )}
+                {totals.cadSubtotal > 0 && (
+                  <>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">GST + QST (on CAD)</span>
+                      <span>{formatCurrency(totals.gst + totals.qst)}</span>
+                    </div>
+                    <div className="flex justify-between font-medium mt-2 pt-2 border-t">
+                      <span>Total (CAD)</span>
+                      <span>{formatCurrency(totals.total)}</span>
+                    </div>
+                  </>
+                )}
+                {totals.usdSubtotal > 0 && (
+                  <div className="flex justify-between font-medium mt-1">
+                    <span>Total (USD)</span>
+                    <span>US${totals.usdSubtotal.toLocaleString('en-CA', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -818,22 +936,40 @@ export default function CreateInvoiceDialog({
                   <span className="text-gray-600">Items</span>
                   <span>{totals.itemCount}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Subtotal</span>
-                  <span>{formatCurrency(totals.subtotal)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">GST (5%)</span>
-                  <span>{formatCurrency(totals.gst)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">QST (9.975%)</span>
-                  <span>{formatCurrency(totals.qst)}</span>
-                </div>
-                <div className="flex justify-between font-medium pt-2 border-t">
-                  <span>Total</span>
-                  <span className="text-lg">{formatCurrency(totals.total)}</span>
-                </div>
+                {totals.cadSubtotal > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Subtotal (CAD)</span>
+                    <span>{formatCurrency(totals.cadSubtotal)}</span>
+                  </div>
+                )}
+                {totals.usdSubtotal > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Subtotal (USD)</span>
+                    <span>US${totals.usdSubtotal.toLocaleString('en-CA', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                )}
+                {totals.cadSubtotal > 0 && (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">GST (5%)</span>
+                      <span>{formatCurrency(totals.gst)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">QST (9.975%)</span>
+                      <span>{formatCurrency(totals.qst)}</span>
+                    </div>
+                    <div className="flex justify-between font-medium pt-2 border-t">
+                      <span>Total (CAD)</span>
+                      <span className="text-lg">{formatCurrency(totals.total)}</span>
+                    </div>
+                  </>
+                )}
+                {totals.usdSubtotal > 0 && (
+                  <div className="flex justify-between font-medium pt-2 border-t">
+                    <span>Total (USD)</span>
+                    <span className="text-lg">US${totals.usdSubtotal.toLocaleString('en-CA', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
