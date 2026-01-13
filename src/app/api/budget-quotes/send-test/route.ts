@@ -117,10 +117,13 @@ export async function POST(request: NextRequest) {
 
     // Add test banner to email - show URL but note it won't work
     const testBanner = `
-      <div style="background-color: #FEF3C7; border: 2px solid #F59E0B; padding: 12px; margin-bottom: 15px; border-radius: 6px; text-align: center;">
-        <strong style="color: #92400E; font-size: 13px;">⚠️ TEST EMAIL - This is a preview only</strong>
-        <div style="margin-top: 8px; font-size: 11px; color: #92400E;">
-          The button below will not work in test mode. Send the actual email to create a working link.
+      <div style="background-color: #FEF3C7; border: 2px solid #F59E0B; padding: 16px; margin-bottom: 15px; border-radius: 6px; text-align: center;">
+        <strong style="color: #92400E; font-size: 14px;">⚠️ TEST EMAIL PREVIEW</strong>
+        <div style="margin-top: 8px; font-size: 12px; color: #92400E;">
+          This is a preview of how the email will look. The approval link will show "Not Found" because no budget quote was created.
+        </div>
+        <div style="margin-top: 6px; font-size: 12px; color: #92400E; font-weight: 600;">
+          To create a working link, click "Send to Client" instead.
         </div>
       </div>
     `
