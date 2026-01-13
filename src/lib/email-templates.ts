@@ -1456,86 +1456,91 @@ export function generateBudgetQuoteEmailTemplate(data: BudgetQuoteEmailData): {
     </div>
   ` : ''
 
-  const brandColor = '#10B981'
+  // Violet brand colors matching the budget quote page
+  const violetColor = '#a78bfa' // violet-400
+  const violetLight = '#ede9fe' // violet-100
+  const violetDark = '#4c1d95' // violet-900
+  const violetMuted = '#7c3aed' // violet-600
 
   const html = `<!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><title>Budget Estimate - ${data.title}</title></head>
-<body style="font-family: Arial, sans-serif; line-height: 1.5; color: #333; max-width: 550px; margin: 0 auto; padding: 10px;">
-    <!-- Header -->
-    <div style="background: ${brandColor}; padding: 15px 20px; border-radius: 6px 6px 0 0;">
-        ${data.companyLogo ? `
-        <img src="${data.companyLogo}" alt="${data.companyName}" style="max-width: 120px; max-height: 40px; height: auto; margin-bottom: 8px;" />
-        ` : ''}
-        <h2 style="color: white; margin: 0;">Budget Estimate - ${data.budgetQuoteNumber}</h2>
-    </div>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Budget Estimate - ${data.title}</title></head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f9fafb;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+        <!-- Main Card -->
+        <div style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
 
-    <!-- Content -->
-    <div style="background: white; padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 6px 6px;">
-        <p style="margin: 0 0 10px 0;">Hi ${data.clientName},</p>
-        <p style="margin: 0 0 15px 0;"><strong>${data.title}</strong> - ${data.projectName}</p>
+            <!-- Header -->
+            <div style="background: ${violetColor}; padding: 32px 24px; text-align: center;">
+                <div style="background: white; display: inline-block; padding: 8px 16px; border-radius: 16px; margin-bottom: 16px;">
+                    <span style="color: ${violetMuted}; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Budget Approval</span>
+                </div>
+                <h1 style="margin: 0 0 8px 0; color: white; font-size: 24px; font-weight: 600;">${data.title}</h1>
+                <p style="margin: 0; color: rgba(255,255,255,0.9); font-size: 14px;">for ${data.projectName}</p>
+            </div>
 
-        ${data.description ? `
-        <p style="background: #f9fafb; padding: 10px; border-radius: 4px; margin: 0 0 15px 0; font-size: 14px; color: #6b7280;">${data.description}</p>
-        ` : ''}
+            <!-- Budget Amount Card -->
+            <div style="background: ${violetLight}; padding: 32px 24px; text-align: center;">
+                <p style="margin: 0 0 12px 0; color: ${violetMuted}; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Budget for Selected Items</p>
+                ${data.estimatedTotal > 0 ? `
+                <p style="margin: 0; color: ${violetDark}; font-size: 36px; font-weight: 700;">${formatCurrencyCAD(data.estimatedTotal)} <span style="font-size: 16px; font-weight: 400; color: ${violetMuted};">CAD</span></p>
+                ` : ''}
+                ${data.estimatedTotalUSD && data.estimatedTotalUSD > 0 ? `
+                <p style="margin: 12px 0 0 0; color: ${violetDark}; font-size: 36px; font-weight: 700;">${formatCurrencyUSD(data.estimatedTotalUSD)} <span style="font-size: 16px; font-weight: 400; color: ${violetMuted};">USD</span></p>
+                ` : ''}
+                ${data.includeTax ? `<p style="margin: 8px 0 0 0; color: #7c3aed; font-size: 13px;">+ applicable taxes</p>` : ''}
+                <p style="margin: 8px 0 0 0; color: #a78bfa; font-size: 11px;">* Delivery fees and duties may apply</p>
+            </div>
 
-        <!-- Budget Amount -->
-        <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 16px; margin: 0 0 20px 0; text-align: center;">
-            <div style="font-size: 12px; color: #6b7280; text-transform: uppercase; margin-bottom: 8px;">Estimated Budget</div>
-            ${data.estimatedTotal > 0 ? `
-            <div style="font-size: 28px; color: #111827; font-weight: 700;">${formatCurrencyCAD(data.estimatedTotal)} <span style="font-size: 14px; font-weight: 500; color: #6b7280;">CAD</span></div>
-            ` : ''}
-            ${data.estimatedTotalUSD && data.estimatedTotalUSD > 0 ? `
-            <div style="font-size: 28px; color: #111827; font-weight: 700; ${data.estimatedTotal > 0 ? 'margin-top: 8px;' : ''}">${formatCurrencyUSD(data.estimatedTotalUSD)} <span style="font-size: 14px; font-weight: 500; color: #6b7280;">USD</span></div>
-            ` : ''}
-            ${data.includeTax ? `<div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">+ applicable taxes</div>` : ''}
-            <div style="font-size: 11px; color: #9ca3af; margin-top: 6px;">* Delivery fees and duties may apply</div>
+            <!-- Content -->
+            <div style="padding: 32px 24px;">
+                <p style="margin: 0 0 24px 0; color: #374151; font-size: 15px; line-height: 1.6;">
+                    Hi ${data.clientName},<br><br>
+                    We've prepared a budget estimate for your review. Click the button below to see the full details and approve.
+                </p>
+
+                ${data.description ? `
+                <div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin: 0 0 24px 0;">
+                    <p style="margin: 0; color: #6b7280; font-size: 14px; line-height: 1.5;">${data.description}</p>
+                </div>
+                ` : ''}
+
+                ${data.validUntil ? `
+                <p style="margin: 0 0 24px 0; color: #6b7280; font-size: 13px; text-align: center;">
+                    Valid until <strong style="color: #374151;">${formatDate(data.validUntil)}</strong>
+                </p>
+                ` : ''}
+
+                <!-- Items Summary -->
+                <div style="background: #f9fafb; border-radius: 8px; padding: 20px; margin: 0 0 24px 0;">
+                    <p style="margin: 0 0 16px 0; color: #374151; font-size: 14px; font-weight: 600;">Items Included</p>
+                    ${Object.entries(itemsByCategory).map(([category, items]) => `
+                    <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #e5e7eb;">
+                        <p style="margin: 0 0 4px 0; color: #374151; font-size: 13px; font-weight: 500;">${category}</p>
+                        <p style="margin: 0; color: #6b7280; font-size: 12px;">${(items as string[]).length} item${(items as string[]).length !== 1 ? 's' : ''}</p>
+                    </div>
+                    `).join('')}
+                    <p style="margin: 8px 0 0 0; color: #9ca3af; font-size: 11px; text-align: center;">Full details available in the portal</p>
+                </div>
+
+                <!-- CTA Button -->
+                <div style="text-align: center; margin: 32px 0;">
+                    <a href="${data.portalUrl}" style="display: inline-block; background: ${violetMuted}; color: white; padding: 16px 48px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px;">
+                        Review &amp; Approve
+                    </a>
+                </div>
+
+                <p style="color: #9ca3af; font-size: 12px; text-align: center; margin: 0;">
+                    Click the button above to review details and approve this estimate.
+                </p>
+            </div>
+
+            <!-- Footer -->
+            <div style="border-top: 1px solid #e5e7eb; padding: 24px; text-align: center;">
+                <img src="https://app.meisnerinteriors.com/meisnerinteriorlogo.png" alt="Meisner Interiors" style="height: 48px; margin-bottom: 12px;" />
+                <p style="margin: 0; color: #9ca3af; font-size: 11px;">Interior Design & Project Management</p>
+            </div>
         </div>
-
-        ${data.validUntil ? `
-        <p style="margin: 0 0 15px 0; color: #6b7280; font-size: 13px; text-align: center;">
-            Valid until <strong>${formatDate(data.validUntil)}</strong>
-        </p>
-        ` : ''}
-
-        <!-- Items Table -->
-        <table style="width: 100%; border-collapse: collapse; margin: 0 0 20px 0;">
-            <tr style="background: #f3f4f6;">
-                <th style="padding: 8px; text-align: left; border: 1px solid #e5e7eb;">Items Included</th>
-            </tr>
-            ${Object.entries(itemsByCategory).map(([category, items]) => `
-            <tr>
-                <td style="padding: 8px; border: 1px solid #e5e7eb;">
-                    <strong style="color: #374151;">${category}</strong>
-                    <div style="color: #6b7280; font-size: 13px; margin-top: 4px;">${(items as string[]).join(', ')}</div>
-                </td>
-            </tr>
-            `).join('')}
-        </table>
-
-        ${data.includedServices.length > 0 ? `
-        <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 4px; padding: 12px; margin: 0 0 20px 0;">
-            <div style="font-weight: 600; color: #166534; font-size: 13px; margin-bottom: 8px;">Included Services</div>
-            <div style="color: #15803d; font-size: 13px;">${data.includedServices.join(', ')}</div>
-        </div>
-        ` : ''}
-
-        <!-- CTA Button -->
-        <div style="text-align: center; margin: 20px 0;">
-            <a href="${data.portalUrl}" style="display: inline-block; background: ${brandColor}; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">
-                Review &amp; Approve Budget
-            </a>
-        </div>
-
-        <p style="color: #9ca3af; font-size: 11px; text-align: center; margin: 15px 0 0 0;">
-            Click the button above to review details and approve this estimate.
-        </p>
-
-        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
-
-        <p style="margin: 0; color: #6b7280; font-size: 12px; text-align: center;">
-            ${data.companyName}${data.companyEmail ? ` | ${data.companyEmail}` : ''}${data.companyPhone ? ` | ${data.companyPhone}` : ''}
-        </p>
     </div>
 </body>
 </html>`

@@ -410,8 +410,13 @@ export default function BudgetQuoteClientPage() {
         )}
 
         {/* Footer */}
-        <div className="mt-12 text-center text-sm text-gray-500">
-          <p>{data.companyName}</p>
+        <div className="mt-12 pt-8 border-t border-gray-200 text-center">
+          <img
+            src="/meisnerinteriorlogo.png"
+            alt="Meisner Interiors"
+            className="h-16 mx-auto mb-4"
+          />
+          <p className="text-xs text-gray-400">Interior Design & Project Management</p>
         </div>
       </div>
 
