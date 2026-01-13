@@ -575,43 +575,56 @@ export default function ClientInvoicePage() {
               </div>
 
               {/* Interac e-Transfer */}
-              {invoice.organization?.etransferEmail && (
-                <div className="bg-white rounded-xl border">
-                  <button
-                    onClick={() => setShowEtransferInfo(!showEtransferInfo)}
-                    className="w-full p-4 flex items-center justify-between text-left"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Mail className="w-5 h-5 text-gray-400" />
-                      <div>
-                        <p className="font-medium text-gray-900 text-sm">Interac e-Transfer</p>
-                        <p className="text-xs text-gray-500">No processing fee</p>
+              <div className="bg-white rounded-xl border">
+                <button
+                  onClick={() => setShowEtransferInfo(!showEtransferInfo)}
+                  className="w-full p-4 flex items-center justify-between text-left"
+                >
+                  <div className="flex items-center gap-3">
+                    {/* Interac Logo */}
+                    <div className="w-8 h-8 flex items-center justify-center">
+                      <svg viewBox="0 0 24 24" className="w-7 h-7" fill="none">
+                        <circle cx="12" cy="12" r="11" fill="#FFCC00"/>
+                        <path d="M7 12h10M12 7v10" stroke="#000" strokeWidth="2" strokeLinecap="round"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900 text-sm">Interac e-Transfer</p>
+                      <p className="text-xs text-gray-500">No processing fee</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-gray-900">{formatCurrency(invoice.totalAmount)}</span>
+                    <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showEtransferInfo ? 'rotate-180' : ''}`} />
+                  </div>
+                </button>
+                {showEtransferInfo && (
+                  <div className="px-4 pb-4 border-t pt-4">
+                    <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+                      {/* Interac branding header */}
+                      <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-200">
+                        <svg viewBox="0 0 80 24" className="h-5" fill="none">
+                          <circle cx="12" cy="12" r="11" fill="#FFCC00"/>
+                          <path d="M7 12h10M12 7v10" stroke="#000" strokeWidth="2" strokeLinecap="round"/>
+                          <text x="28" y="16" fill="#000" fontSize="12" fontWeight="bold" fontFamily="Arial, sans-serif">INTERAC</text>
+                        </svg>
+                        <span className="text-xs text-gray-500">e-Transfer</span>
+                      </div>
+                      <p className="font-medium text-gray-700 mb-2">Send e-Transfer to:</p>
+                      <p className="text-lg font-semibold text-gray-900">{invoice.organization?.etransferEmail || 'aaron@meisnerinteriors.com'}</p>
+                      <div className="mt-3 pt-3 border-t border-gray-200 space-y-1 text-xs text-gray-500">
+                        <p>1. Log in to your online banking</p>
+                        <p>2. Select "Send Interac e-Transfer"</p>
+                        <p>3. Enter the email above and amount: <strong>{formatCurrency(invoice.totalAmount)}</strong></p>
+                        <p>4. Use invoice number as message/memo</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-gray-900">{formatCurrency(invoice.totalAmount)}</span>
-                      <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showEtransferInfo ? 'rotate-180' : ''}`} />
-                    </div>
-                  </button>
-                  {showEtransferInfo && (
-                    <div className="px-4 pb-4 border-t pt-4">
-                      <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
-                        <p className="font-medium text-gray-700 mb-2">Send e-Transfer to:</p>
-                        <p className="text-lg font-semibold text-gray-900">{invoice.organization.etransferEmail}</p>
-                        <div className="mt-3 pt-3 border-t border-gray-200 space-y-1 text-xs text-gray-500">
-                          <p>1. Log in to your online banking</p>
-                          <p>2. Select "Send Interac e-Transfer"</p>
-                          <p>3. Enter the email above and amount: <strong>{formatCurrency(invoice.totalAmount)}</strong></p>
-                          <p>4. Use invoice number as message/memo</p>
-                        </div>
-                      </div>
-                      <p className="text-xs text-gray-400 mt-2">
-                        Message/Memo: {invoice.quoteNumber}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
+                    <p className="text-xs text-gray-400 mt-2">
+                      Message/Memo: {invoice.quoteNumber}
+                    </p>
+                  </div>
+                )}
+              </div>
 
               {/* Check */}
               <div className="bg-white rounded-xl border">
