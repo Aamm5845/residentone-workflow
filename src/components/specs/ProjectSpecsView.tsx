@@ -4029,7 +4029,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
       {/* Content - Show for Summary and Financial tabs */}
       {activeTab !== 'needs' && (
-      <div className="w-full max-w-full mx-auto px-4 py-4 overflow-x-auto">
+      <div className="max-w-full mx-auto px-4 py-4">
         {groupedSpecs.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-200 p-8">
             {/* Show available sections if any - deduplicated by section name */}
@@ -4236,8 +4236,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       items={group.items.map(item => item.id)}
                       strategy={verticalListSortingStrategy}
                     >
-                    {/* Items Table - scrollable on smaller screens */}
-                    <div className="divide-y divide-gray-100 overflow-x-auto">
+                    {/* Items Table */}
+                    <div className="divide-y divide-gray-100">
                       {group.items.map((item) => {
                         // Check if this item is part of an option group
                         const ffeId = getSpecFfeId(item)
@@ -4327,10 +4327,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                           </div>
                           
                           {/* Main Item Row - Using flex with fixed widths for equal distribution */}
-                          <div className={cn(
-                            "flex items-start w-full px-4 py-2 pl-14 gap-2",
-                            activeTab === 'financial' && "min-w-[900px]" // Ensure minimum width for financial columns
-                          )}>
+                          <div className="flex items-start w-full px-4 py-2 pl-14 gap-2">
                             {/* Image - Fixed width, clickable to open editor or upload */}
                             <div className="flex-shrink-0 w-16">
                               <HoverCard openDelay={300} closeDelay={100}>

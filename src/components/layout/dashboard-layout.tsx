@@ -291,8 +291,8 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
           </div>
 
           {/* Main Content */}
-          <main className="flex-1 bg-gray-50 overflow-x-hidden">
-            <div className="h-full overflow-x-auto">
+          <main className="flex-1 bg-gray-50">
+            <div className="h-full">
               {children}
             </div>
           </main>
