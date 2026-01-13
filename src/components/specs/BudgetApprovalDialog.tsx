@@ -648,25 +648,25 @@ export default function BudgetApprovalDialog({
               {/* Preview Card - Matches actual client page */}
               <div className="border rounded-lg overflow-hidden">
                 {/* Header */}
-                <div className="bg-gradient-to-r from-violet-600 to-purple-600 text-white p-5 text-center">
+                <div className="bg-violet-600 text-white p-5 text-center">
                   <span className="inline-block bg-white/20 text-white text-xs px-2 py-0.5 rounded mb-2">Budget Approval</span>
                   <h3 className="text-lg font-semibold">{title}</h3>
                   <p className="text-violet-200 text-sm mt-1">for {projectName}</p>
                 </div>
 
                 {/* Budget Amount */}
-                <div className="bg-gradient-to-r from-violet-500 to-purple-500 p-4 text-center text-white">
-                  <p className="text-xs uppercase tracking-wide text-purple-100 mb-2">Budget for Selected Items</p>
+                <div className="bg-violet-500 p-4 text-center text-white">
+                  <p className="text-xs uppercase tracking-wide text-violet-100 mb-2">Budget for Selected Items</p>
                   {cadSubtotal > 0 && (
-                    <p className="text-2xl font-bold">{formatCurrency(cadSubtotal, 'CAD')} <span className="text-sm font-normal text-purple-200">CAD</span></p>
+                    <p className="text-2xl font-bold">{formatCurrency(cadSubtotal, 'CAD')} <span className="text-sm font-normal text-violet-200">CAD</span></p>
                   )}
                   {usdSubtotal > 0 && (
-                    <p className="text-2xl font-bold mt-1">{formatCurrency(usdSubtotal, 'USD')} <span className="text-sm font-normal text-purple-200">USD</span></p>
+                    <p className="text-2xl font-bold mt-1">{formatCurrency(usdSubtotal, 'USD')} <span className="text-sm font-normal text-violet-200">USD</span></p>
                   )}
                   {includeTax && (
-                    <p className="text-xs text-purple-200 mt-1">+ applicable taxes</p>
+                    <p className="text-xs text-violet-200 mt-1">+ applicable taxes</p>
                   )}
-                  <p className="text-[10px] text-purple-300 mt-1">* Delivery fees and duties may apply</p>
+                  <p className="text-[10px] text-violet-300 mt-1">* Delivery fees and duties may apply</p>
                 </div>
 
                 <div className="p-4">
@@ -718,7 +718,7 @@ export default function BudgetApprovalDialog({
 
                   <div className="mt-4 text-center">
                     <div className="inline-flex gap-2">
-                      <div className="bg-gradient-to-r from-violet-600 to-purple-600 text-white px-4 py-2 rounded-md text-sm font-medium">
+                      <div className="bg-violet-600 text-white px-4 py-2 rounded-md text-sm font-medium">
                         Approve Budget
                       </div>
                       <div className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-md text-sm font-medium">

@@ -215,7 +215,7 @@ export default function BudgetQuoteClientPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-violet-100">
       {/* Header */}
-      <div className="bg-gradient-to-r from-violet-600 to-purple-600 text-white">
+      <div className="bg-violet-600 text-white">
         <div className="max-w-3xl mx-auto px-4 py-8">
           <div className="flex items-center justify-center mb-6">
             {data.companyLogo ? (
@@ -233,7 +233,7 @@ export default function BudgetQuoteClientPage() {
               Budget Approval
             </Badge>
             <h1 className="text-2xl font-bold mb-2">{data.title}</h1>
-            <p className="text-purple-100">for {data.projectName}</p>
+            <p className="text-violet-200">for {data.projectName}</p>
           </div>
         </div>
       </div>
@@ -275,18 +275,18 @@ export default function BudgetQuoteClientPage() {
 
         {/* Budget Amount Card */}
         <Card className="mb-6 overflow-hidden">
-          <div className="bg-gradient-to-r from-violet-500 to-purple-500 p-6 text-center text-white">
-            <p className="text-sm uppercase tracking-wide text-purple-100 mb-3">Budget for Selected Items</p>
+          <div className="bg-violet-500 p-6 text-center text-white">
+            <p className="text-sm uppercase tracking-wide text-violet-100 mb-3">Budget for Selected Items</p>
             {data.estimatedTotal > 0 && (
-              <p className="text-4xl font-bold">{formatCurrency(data.estimatedTotal, 'CAD')} <span className="text-lg font-normal text-purple-200">CAD</span></p>
+              <p className="text-4xl font-bold">{formatCurrency(data.estimatedTotal, 'CAD')} <span className="text-lg font-normal text-violet-200">CAD</span></p>
             )}
             {data.estimatedTotalUSD && data.estimatedTotalUSD > 0 && (
-              <p className="text-4xl font-bold mt-2">{formatCurrency(data.estimatedTotalUSD, 'USD')} <span className="text-lg font-normal text-purple-200">USD</span></p>
+              <p className="text-4xl font-bold mt-2">{formatCurrency(data.estimatedTotalUSD, 'USD')} <span className="text-lg font-normal text-violet-200">USD</span></p>
             )}
             {data.includeTax && (
-              <p className="text-sm text-purple-200 mt-2">+ applicable taxes</p>
+              <p className="text-sm text-violet-200 mt-2">+ applicable taxes</p>
             )}
-            <p className="text-xs text-purple-300 mt-1">* Delivery fees and duties may apply</p>
+            <p className="text-xs text-violet-300 mt-1">* Delivery fees and duties may apply</p>
           </div>
           {data.expiresAt && !isExpired && (
             <div className="bg-gray-50 px-6 py-3 text-center text-sm text-gray-600">
@@ -384,7 +384,7 @@ export default function BudgetQuoteClientPage() {
           <div className="flex flex-col sm:flex-row gap-3">
             <Button
               size="lg"
-              className="flex-1 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700"
+              className="flex-1 bg-violet-600 hover:bg-violet-700"
               onClick={() => setApproveDialogOpen(true)}
             >
               <CheckCircle2 className="w-5 h-5 mr-2" />
@@ -429,7 +429,7 @@ export default function BudgetQuoteClientPage() {
             <Button
               onClick={handleApprove}
               disabled={submitting}
-              className="bg-gradient-to-r from-violet-600 to-purple-600"
+              className="bg-violet-600 hover:bg-violet-700"
             >
               {submitting ? (
                 <>
