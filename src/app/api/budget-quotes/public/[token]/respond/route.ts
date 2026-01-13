@@ -73,7 +73,7 @@ export async function POST(
             id: { in: budgetQuote.itemIds }
           },
           data: {
-            status: 'BUDGET_APPROVED',
+            specStatus: 'BUDGET_APPROVED',
             clientApproved: true,
             clientApprovedAt: new Date()
           }
