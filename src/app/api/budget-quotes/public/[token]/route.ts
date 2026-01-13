@@ -48,6 +48,8 @@ export async function GET(
         quantity: true,
         rrp: true,
         rrpCurrency: true,
+        thumbnailUrl: true,
+        images: true,
         section: {
           select: {
             name: true
@@ -68,6 +70,7 @@ export async function GET(
       quantity: item.quantity || 1,
       price: item.rrp ? parseFloat(item.rrp.toString()) : null,
       currency: item.rrpCurrency || 'CAD',
+      thumbnail: item.thumbnailUrl || (item.images as string[])?.[0] || null,
       categoryName: item.section?.name || 'Items'
     }))
 

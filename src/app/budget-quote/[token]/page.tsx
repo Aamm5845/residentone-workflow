@@ -21,7 +21,8 @@ import {
   Package,
   Calendar,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  ImageIcon
 } from 'lucide-react'
 
 interface BudgetQuoteData {
@@ -48,6 +49,7 @@ interface BudgetQuoteData {
     quantity: number
     price: number | null
     currency: string
+    thumbnail: string | null
     categoryName: string
   }>
 }
@@ -357,9 +359,15 @@ export default function BudgetQuoteClientPage() {
                       <ul className="px-4 py-3 space-y-2 bg-white">
                         {items.map((item) => (
                           <li key={item.id} className="text-sm text-gray-600 flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />
-                              {item.name}
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                {item.thumbnail ? (
+                                  <img src={item.thumbnail} alt={item.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <ImageIcon className="w-4 h-4 text-gray-300" />
+                                )}
+                              </div>
+                              <span>{item.name}</span>
                             </div>
                             {item.quantity > 1 && (
                               <span className="text-xs text-gray-400">×{item.quantity}</span>
