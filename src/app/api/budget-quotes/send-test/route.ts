@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 
 /**
  * POST /api/budget-quotes/send-test
- * Send a test budget quote email without creating the quote in DB
+ * Create a real budget quote and send to test email - works exactly like client would see
  */
 export async function POST(request: NextRequest) {
   try {
@@ -19,6 +19,7 @@ export async function POST(request: NextRequest) {
     }
 
     const orgId = (session.user as any).orgId
+    const userId = session.user.id
     const body = await request.json()
     const {
       testEmail,
@@ -59,6 +60,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
+    // Calculate expiry date
+    const expiresAt = new Date()
+    expiresAt.setDate(expiresAt.getDate() + (expiresInDays || 30))
+
+    // Create a real budget quote in database
+    const budgetQuote = await prisma.budgetQuote.create({
+      data: {
+        orgId,
+        projectId,
+        title: title || 'Budget Approval',
+        description: description || null,
+        itemIds: itemIds || [],
+        supplierQuoteIds: [],
+        estimatedTotal: estimatedTotal || 0,
+        estimatedTotalUSD: estimatedTotalUSD || null,
+        markupPercent: null,
+        currency: 'CAD',
+        includeTax: includeTax ?? true,
+        includedServices: [],
+        clientEmail: testEmail,
+        expiresAt,
+        status: 'SENT',
+        sentAt: new Date(),
+        sentToEmail: testEmail,
+        createdById: userId
+      }
+    })
+
     // Fetch item details
     const items = await prisma.roomFFEItem.findMany({
       where: {
@@ -79,21 +108,14 @@ export async function POST(request: NextRequest) {
       .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ')
 
-    // Generate a fake token for the test
-    const fakeToken = 'TEST-' + Math.random().toString(36).substring(2, 10).toUpperCase()
-
-    // Build portal URL (test URL that won't work)
+    // Build portal URL with real token
     const baseUrl = getBaseUrl()
-    const portalUrl = `${baseUrl}/budget-quote/${fakeToken}`
+    const portalUrl = `${baseUrl}/budget-quote/${budgetQuote.token}`
 
-    // Calculate expiry date
-    const expiresAt = new Date()
-    expiresAt.setDate(expiresAt.getDate() + (expiresInDays || 30))
-
-    // Generate email
+    // Generate email - exactly like client would see
     const companyName = project.organization?.businessName || project.organization?.name || 'Company'
     const { subject: emailSubject, html: emailHtml } = generateBudgetQuoteEmailTemplate({
-      budgetQuoteNumber: `BQ-TEST-${Date.now().toString(36).toUpperCase()}`,
+      budgetQuoteNumber: `BQ-${budgetQuote.id.slice(-6).toUpperCase()}`,
       clientName,
       projectName: project.name,
       companyName,
@@ -108,41 +130,21 @@ export async function POST(request: NextRequest) {
       includeTax: includeTax ?? true,
       includedServices: [],
       validUntil: expiresAt,
-      portalUrl,
-      isTest: true // Add test indicator
+      portalUrl
     })
 
-    // Modify subject to indicate test
-    const testSubject = `[TEST] ${emailSubject}`
-
-    // Add test banner to email - show URL but note it won't work
-    const testBanner = `
-      <div style="background-color: #FEF3C7; border: 2px solid #F59E0B; padding: 16px; margin-bottom: 15px; border-radius: 6px; text-align: center;">
-        <strong style="color: #92400E; font-size: 14px;">⚠️ TEST EMAIL PREVIEW</strong>
-        <div style="margin-top: 8px; font-size: 12px; color: #92400E;">
-          This is a preview of how the email will look. The approval link will show "Not Found" because no budget quote was created.
-        </div>
-        <div style="margin-top: 6px; font-size: 12px; color: #92400E; font-weight: 600;">
-          To create a working link, click "Send to Client" instead.
-        </div>
-      </div>
-    `
-
-    let testHtml = emailHtml.replace(
-      /<body([^>]*)>/,
-      `<body$1>${testBanner}`
-    )
-
-    // Send test email
+    // Send email - no test banner, exactly like client sees
     await sendEmail({
       to: testEmail,
-      subject: testSubject,
-      html: testHtml
+      subject: emailSubject,
+      html: emailHtml
     })
 
     return NextResponse.json({
       success: true,
-      message: `Test email sent to ${testEmail}`
+      message: `Test email sent to ${testEmail}`,
+      budgetQuoteId: budgetQuote.id,
+      portalUrl
     })
   } catch (error) {
     console.error('Error sending test budget quote email:', error)

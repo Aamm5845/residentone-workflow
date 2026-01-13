@@ -831,9 +831,9 @@ export default function BudgetApprovalDialog({
             />
           </div>
 
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-            <p className="text-sm text-amber-800">
-              <strong>Note:</strong> The test email will include a "[TEST]" prefix and a banner indicating the approval link won't work.
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p className="text-sm text-blue-800">
+              This will create a real budget quote and send the exact email the client would see. The approval link will work.
             </p>
           </div>
         </div>
