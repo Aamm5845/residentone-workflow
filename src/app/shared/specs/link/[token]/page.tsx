@@ -672,7 +672,7 @@ export default function SharedSpecLinkPage() {
       )}
 
       {/* Main Content */}
-      <main className="max-w-[1400px] mx-auto px-6 py-6">
+      <main className="max-w-[1400px] mx-auto px-8 py-6">
         {filteredGroups.length === 0 ? (
           <div className="text-center py-20">
             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -736,7 +736,7 @@ export default function SharedSpecLinkPage() {
                       <div
                         key={item.id}
                         onClick={() => openItemDetail(item.id)}
-                        className="grid grid-cols-[56px_minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_60px_80px_100px_80px_auto] gap-3 py-4 px-4 -mx-4 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors items-center group"
+                        className="grid grid-cols-[56px_minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_60px_80px_100px_80px_180px] gap-3 py-4 px-6 -mx-6 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors items-center group"
                       >
                         {/* Image */}
                         <div>
