@@ -648,25 +648,25 @@ export default function BudgetApprovalDialog({
               {/* Preview Card - Matches actual client page */}
               <div className="border rounded-lg overflow-hidden">
                 {/* Header */}
-                <div className="bg-violet-100 p-4 text-center">
-                  <span className="inline-block bg-violet-200 text-violet-700 text-xs px-2 py-0.5 rounded mb-2">Budget Approval</span>
-                  <h3 className="text-lg font-semibold text-violet-900">{title}</h3>
-                  <p className="text-violet-600 text-sm mt-1">for {projectName}</p>
+                <div className="bg-violet-400 p-4 text-center text-white">
+                  <span className="inline-block bg-white/20 text-white text-xs px-2 py-0.5 rounded mb-2">Budget Approval</span>
+                  <h3 className="text-lg font-semibold">{title}</h3>
+                  <p className="text-violet-100 text-sm mt-1">for {projectName}</p>
                 </div>
 
                 {/* Budget Amount */}
-                <div className="bg-violet-50 border-b border-violet-100 p-4 text-center">
-                  <p className="text-xs uppercase tracking-wide text-violet-500 mb-2">Budget for Selected Items</p>
+                <div className="bg-violet-100 p-4 text-center">
+                  <p className="text-xs uppercase tracking-wide text-violet-600 mb-2">Budget for Selected Items</p>
                   {cadSubtotal > 0 && (
-                    <p className="text-2xl font-bold text-gray-900">{formatCurrency(cadSubtotal, 'CAD')} <span className="text-sm font-normal text-gray-500">CAD</span></p>
+                    <p className="text-2xl font-bold text-violet-900">{formatCurrency(cadSubtotal, 'CAD')} <span className="text-sm font-normal text-violet-600">CAD</span></p>
                   )}
                   {usdSubtotal > 0 && (
-                    <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(usdSubtotal, 'USD')} <span className="text-sm font-normal text-gray-500">USD</span></p>
+                    <p className="text-2xl font-bold text-violet-900 mt-1">{formatCurrency(usdSubtotal, 'USD')} <span className="text-sm font-normal text-violet-600">USD</span></p>
                   )}
                   {includeTax && (
-                    <p className="text-xs text-gray-500 mt-1">+ applicable taxes</p>
+                    <p className="text-xs text-violet-500 mt-1">+ applicable taxes</p>
                   )}
-                  <p className="text-[10px] text-gray-400 mt-1">* Delivery fees and duties may apply</p>
+                  <p className="text-[10px] text-violet-400 mt-1">* Delivery fees and duties may apply</p>
                 </div>
 
                 <div className="p-4">

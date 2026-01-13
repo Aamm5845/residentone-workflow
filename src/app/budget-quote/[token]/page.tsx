@@ -219,24 +219,24 @@ export default function BudgetQuoteClientPage() {
       <div className="max-w-3xl mx-auto px-4 py-8">
         {/* Header Card */}
         <Card className="mb-6 overflow-hidden">
-          <div className="bg-violet-100 p-6">
+          <div className="bg-violet-400 p-6 text-white">
             <div className="flex items-center justify-center mb-4">
               {data.companyLogo ? (
                 <img
                   src={data.companyLogo}
                   alt={data.companyName}
-                  className="h-12"
+                  className="h-12 bg-white rounded-lg px-3 py-1"
                 />
               ) : (
-                <span className="text-xl font-bold text-violet-900">{data.companyName}</span>
+                <span className="text-xl font-bold">{data.companyName}</span>
               )}
             </div>
             <div className="text-center">
-              <Badge className="bg-violet-200 text-violet-700 border-0 mb-3">
+              <Badge className="bg-white/20 text-white border-0 mb-3">
                 Budget Approval
               </Badge>
-              <h1 className="text-2xl font-bold text-violet-900 mb-2">{data.title}</h1>
-              <p className="text-violet-600">for {data.projectName}</p>
+              <h1 className="text-2xl font-bold mb-2">{data.title}</h1>
+              <p className="text-violet-100">for {data.projectName}</p>
             </div>
           </div>
         </Card>
@@ -276,18 +276,18 @@ export default function BudgetQuoteClientPage() {
 
         {/* Budget Amount Card */}
         <Card className="mb-6 overflow-hidden">
-          <div className="bg-violet-50 border-b border-violet-100 p-6 text-center">
-            <p className="text-sm uppercase tracking-wide text-violet-500 mb-3">Budget for Selected Items</p>
+          <div className="bg-violet-100 p-6 text-center">
+            <p className="text-sm uppercase tracking-wide text-violet-600 mb-3">Budget for Selected Items</p>
             {data.estimatedTotal > 0 && (
-              <p className="text-4xl font-bold text-gray-900">{formatCurrency(data.estimatedTotal, 'CAD')} <span className="text-lg font-normal text-gray-500">CAD</span></p>
+              <p className="text-4xl font-bold text-violet-900">{formatCurrency(data.estimatedTotal, 'CAD')} <span className="text-lg font-normal text-violet-600">CAD</span></p>
             )}
             {data.estimatedTotalUSD && data.estimatedTotalUSD > 0 && (
-              <p className="text-4xl font-bold text-gray-900 mt-2">{formatCurrency(data.estimatedTotalUSD, 'USD')} <span className="text-lg font-normal text-gray-500">USD</span></p>
+              <p className="text-4xl font-bold text-violet-900 mt-2">{formatCurrency(data.estimatedTotalUSD, 'USD')} <span className="text-lg font-normal text-violet-600">USD</span></p>
             )}
             {data.includeTax && (
-              <p className="text-sm text-gray-500 mt-2">+ applicable taxes</p>
+              <p className="text-sm text-violet-500 mt-2">+ applicable taxes</p>
             )}
-            <p className="text-xs text-gray-400 mt-1">* Delivery fees and duties may apply</p>
+            <p className="text-xs text-violet-400 mt-1">* Delivery fees and duties may apply</p>
           </div>
           {data.expiresAt && !isExpired && (
             <div className="bg-white px-6 py-3 text-center text-sm text-gray-600">
