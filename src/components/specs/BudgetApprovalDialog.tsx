@@ -645,71 +645,87 @@ export default function BudgetApprovalDialog({
                 <p className="text-sm text-gray-500">{clientEmail || 'No email set - add in project settings'}</p>
               </div>
 
-              {/* Preview Card */}
+              {/* Preview Card - Matches actual client page */}
               <div className="border rounded-lg overflow-hidden">
-                <div className="bg-violet-600 text-white p-6 text-center">
-                  <h3 className="text-xl font-semibold">{title}</h3>
-                  <p className="text-violet-200 text-sm mt-1">{projectName}</p>
+                {/* Header */}
+                <div className="bg-gradient-to-r from-violet-600 to-purple-600 text-white p-5 text-center">
+                  <span className="inline-block bg-white/20 text-white text-xs px-2 py-0.5 rounded mb-2">Budget Approval</span>
+                  <h3 className="text-lg font-semibold">{title}</h3>
+                  <p className="text-violet-200 text-sm mt-1">for {projectName}</p>
                 </div>
 
-                <div className="p-6">
+                {/* Budget Amount */}
+                <div className="bg-gradient-to-r from-violet-500 to-purple-500 p-4 text-center text-white">
+                  <p className="text-xs uppercase tracking-wide text-purple-100 mb-2">Budget for Selected Items</p>
+                  {cadSubtotal > 0 && (
+                    <p className="text-2xl font-bold">{formatCurrency(cadSubtotal, 'CAD')} <span className="text-sm font-normal text-purple-200">CAD</span></p>
+                  )}
+                  {usdSubtotal > 0 && (
+                    <p className="text-2xl font-bold mt-1">{formatCurrency(usdSubtotal, 'USD')} <span className="text-sm font-normal text-purple-200">USD</span></p>
+                  )}
+                  {includeTax && (
+                    <p className="text-xs text-purple-200 mt-1">+ applicable taxes</p>
+                  )}
+                  <p className="text-[10px] text-purple-300 mt-1">* Delivery fees and duties may apply</p>
+                </div>
+
+                <div className="p-4">
                   {description && (
                     <p className="text-gray-600 text-sm mb-4">{description}</p>
                   )}
 
-                  <div className="space-y-3">
-                    {Object.entries(itemsBySection).map(([section, items]) => (
-                      <div key={section}>
-                        <p className="text-xs font-medium text-gray-500 uppercase mb-2">{section}</p>
-                        {items.map(item => (
-                          <div key={item.id} className="flex justify-between py-1.5 border-b border-gray-100">
+                  {/* Items by Section */}
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                      <Package className="w-4 h-4 text-purple-600" />
+                      Items for Approval
+                    </p>
+                    <p className="text-xs text-gray-500 mb-2">
+                      This budget covers the items listed below.
+                    </p>
+                    {Object.entries(itemsBySection).map(([section, items]) => {
+                      const sectionTotal = items.reduce((sum, item) => {
+                        const currency = (item as any).rrpCurrency || 'CAD'
+                        if (currency === 'CAD') return sum + calculateItemTotal(item)
+                        return sum
+                      }, 0)
+                      const sectionTotalUSD = items.reduce((sum, item) => {
+                        const currency = (item as any).rrpCurrency || 'CAD'
+                        if (currency === 'USD') return sum + calculateItemTotal(item)
+                        return sum
+                      }, 0)
+                      return (
+                        <div key={section} className="border border-gray-200 rounded-md overflow-hidden">
+                          <div className="flex items-center justify-between px-3 py-2 bg-gray-50">
+                            <span className="text-sm font-medium text-gray-900">{section}</span>
                             <div className="flex items-center gap-2">
-                              <Package className="w-3.5 h-3.5 text-gray-400" />
-                              <span className="text-sm text-gray-700">{item.name}</span>
-                              {item.quantity > 1 && (
-                                <span className="text-xs text-gray-400">x{item.quantity}</span>
+                              {sectionTotal > 0 && (
+                                <span className="text-xs font-medium text-gray-600">{formatCurrency(sectionTotal, 'CAD')} <span className="text-gray-400">CAD</span></span>
                               )}
+                              {sectionTotalUSD > 0 && (
+                                <span className="text-xs font-medium text-gray-600">{formatCurrency(sectionTotalUSD, 'USD')} <span className="text-gray-400">USD</span></span>
+                              )}
+                              <span className="text-xs text-gray-400 bg-gray-200 px-1.5 py-0.5 rounded">{items.length}</span>
                             </div>
-                            <span className="text-sm font-medium text-gray-900">
-                              {formatCurrency(calculateItemTotal(item))}
-                            </span>
                           </div>
-                        ))}
-                      </div>
-                    ))}
+                        </div>
+                      )
+                    })}
+                    <p className="text-[10px] text-gray-400 text-center mt-2">
+                      For detailed pricing and status, check your shared specs link.
+                    </p>
                   </div>
 
-                  <div className="mt-6 pt-4 border-t border-gray-200 space-y-2">
-                    {cadSubtotal > 0 && (
-                      <div className="flex justify-between text-lg font-semibold">
-                        <span>Estimated Total (CAD)</span>
-                        <span className="text-violet-700">
-                          {formatCurrency(cadSubtotal, 'CAD')}
-                          {includeTax && <span className="text-sm font-normal text-gray-500 ml-1">+ tax</span>}
-                        </span>
-                      </div>
-                    )}
-                    {usdSubtotal > 0 && (
-                      <div className="flex justify-between text-lg font-semibold">
-                        <span>Estimated Total (USD)</span>
-                        <span className="text-blue-700">
-                          {formatCurrency(usdSubtotal, 'USD')}
-                          {includeTax && <span className="text-sm font-normal text-gray-500 ml-1">+ tax</span>}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="mt-6 text-center">
-                    <div className="inline-flex gap-3">
-                      <div className="bg-green-100 text-green-700 px-4 py-2 rounded-lg text-sm font-medium">
+                  <div className="mt-4 text-center">
+                    <div className="inline-flex gap-2">
+                      <div className="bg-gradient-to-r from-violet-600 to-purple-600 text-white px-4 py-2 rounded-md text-sm font-medium">
                         Approve Budget
                       </div>
-                      <div className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium">
-                        Ask a Question
+                      <div className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-md text-sm font-medium">
+                        I Have a Question
                       </div>
                     </div>
-                    <p className="text-xs text-gray-400 mt-3">
+                    <p className="text-xs text-gray-400 mt-2">
                       Valid for {expiresInDays} days
                     </p>
                   </div>
@@ -758,15 +774,6 @@ export default function BudgetApprovalDialog({
               <Button variant="outline" onClick={() => setStep('review')}>
                 <ChevronLeft className="w-4 h-4 mr-1" />
                 Back
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleExportExcel}
-                disabled={includedItems.size === 0}
-                className="border-green-200 text-green-700 hover:bg-green-50"
-              >
-                <Download className="w-4 h-4 mr-1" />
-                Export CSV
               </Button>
               <Button
                 variant="outline"
