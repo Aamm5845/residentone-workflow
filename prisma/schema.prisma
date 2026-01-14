@@ -3915,6 +3915,7 @@ model SpecShareLink {
   showPricing    Boolean   @default(false)
   showDetails    Boolean   @default(true)
   showSpecSheets Boolean   @default(false)  // Show spec sheet PDFs/attachments
+  showNotes      Boolean   @default(true)   // Show item notes/description
 
   // Client approval feature
   allowApproval  Boolean   @default(false)  // Allow recipient to approve items

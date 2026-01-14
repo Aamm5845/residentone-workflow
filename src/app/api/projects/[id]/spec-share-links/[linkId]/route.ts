@@ -106,24 +106,22 @@ export async function PATCH(
       showPricing,
       showDetails,
       showSpecSheets,
+      showNotes,
       allowApproval,
       expiresAt,
       active
     } = body
 
-    // If updating itemIds, validate them
-    if (itemIds !== undefined) {
-      if (!Array.isArray(itemIds) || itemIds.length === 0) {
-        return NextResponse.json(
-          { error: 'At least one item must be selected' },
-          { status: 400 }
-        )
-      }
-
+    // If updating itemIds, validate them (empty array is allowed for "all items" mode)
+    if (itemIds !== undefined && Array.isArray(itemIds) && itemIds.length > 0) {
       const validItems = await prisma.roomFFEItem.findMany({
         where: {
           id: { in: itemIds },
-          room: { projectId }
+          section: {
+            instance: {
+              room: { projectId }
+            }
+          }
         },
         select: { id: true }
       })
@@ -146,6 +144,7 @@ export async function PATCH(
         ...(showPricing !== undefined && { showPricing }),
         ...(showDetails !== undefined && { showDetails }),
         ...(showSpecSheets !== undefined && { showSpecSheets }),
+        ...(showNotes !== undefined && { showNotes }),
         ...(allowApproval !== undefined && { allowApproval }),
         ...(expiresAt !== undefined && { expiresAt: expiresAt ? new Date(expiresAt) : null }),
         ...(active !== undefined && { active })

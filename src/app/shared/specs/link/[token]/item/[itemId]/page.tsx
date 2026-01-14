@@ -67,6 +67,7 @@ interface ShareSettings {
   showPricing: boolean
   showDetails: boolean
   showSpecSheets: boolean
+  showNotes: boolean
 }
 
 export default function ItemDetailPage() {
@@ -87,7 +88,8 @@ export default function ItemDetailPage() {
     showBrand: true,
     showPricing: false,
     showDetails: true,
-    showSpecSheets: false
+    showSpecSheets: false,
+    showNotes: true
   })
 
   const [imageLightbox, setImageLightbox] = useState<{
@@ -116,7 +118,9 @@ export default function ItemDetailPage() {
           showSupplier: false,
           showBrand: true,
           showPricing: false,
-          showDetails: true
+          showDetails: true,
+          showSpecSheets: false,
+          showNotes: true
         })
       } catch (err) {
         console.error('Error fetching item:', err)
@@ -273,11 +277,11 @@ export default function ItemDetailPage() {
             </div>
           )}
 
-          {/* Description */}
-          {item.description && (
+          {/* Description / Notes - only show if showNotes is enabled */}
+          {shareSettings.showNotes !== false && item.description && (
             <div>
               <p className="text-gray-700">{item.description}</p>
-              <p className="text-xs text-gray-400 uppercase mt-1">Product Details</p>
+              <p className="text-xs text-gray-400 uppercase mt-1">Notes</p>
             </div>
           )}
         </div>
@@ -372,7 +376,7 @@ export default function ItemDetailPage() {
               </div>
             )}
 
-            {/* Pricing */}
+            {/* Pricing - show when enabled */}
             {shareSettings.showPricing && (item.rrp || item.tradePrice || (item.componentsTotal && item.componentsTotal > 0)) && (
               <div className="mt-8">
                 <h4 className="text-sm font-medium text-gray-500 uppercase mb-4">Pricing</h4>
@@ -391,7 +395,7 @@ export default function ItemDetailPage() {
                   )}
                 </div>
 
-                {/* Components */}
+                {/* Components with pricing */}
                 {item.components && item.components.length > 0 && (
                   <div className="mt-6 pt-4 border-t border-gray-100">
                     <h5 className="text-sm font-medium text-gray-500 uppercase mb-3">Components</h5>
@@ -440,6 +444,21 @@ export default function ItemDetailPage() {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Components without pricing - show when pricing is off but components exist */}
+            {!shareSettings.showPricing && item.components && item.components.length > 0 && (
+              <div className="mt-8">
+                <h4 className="text-sm font-medium text-gray-500 uppercase mb-4">Components</h4>
+                <div className="space-y-3">
+                  {item.components.map((comp) => (
+                    <div key={comp.id} className="flex items-center justify-between text-sm py-2 border-b border-gray-100 last:border-0">
+                      <span className="text-gray-700 font-medium">{comp.name}</span>
+                      <span className="text-gray-500">Qty: {comp.quantity || 1}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>

@@ -52,6 +52,7 @@ interface CreateSpecShareLinkDialogProps {
     showPricing: boolean
     showDetails: boolean
     showSpecSheets: boolean
+    showNotes: boolean
     allowApproval: boolean
     expiresAt: string | null
   } | null
@@ -78,6 +79,7 @@ export default function CreateSpecShareLinkDialog({
   const [showPricing, setShowPricing] = useState(false)
   const [showDetails, setShowDetails] = useState(true)
   const [showSpecSheets, setShowSpecSheets] = useState(false)
+  const [showNotes, setShowNotes] = useState(true)
   const [allowApproval, setAllowApproval] = useState(false)
   const [expiresAt, setExpiresAt] = useState('')
 
@@ -95,6 +97,7 @@ export default function CreateSpecShareLinkDialog({
         setShowPricing(editingLink.showPricing)
         setShowDetails(editingLink.showDetails)
         setShowSpecSheets(editingLink.showSpecSheets || false)
+        setShowNotes(editingLink.showNotes !== false) // Default to true
         setAllowApproval(editingLink.allowApproval || false)
         setExpiresAt(editingLink.expiresAt ? editingLink.expiresAt.split('T')[0] : '')
       } else {
@@ -106,6 +109,7 @@ export default function CreateSpecShareLinkDialog({
         setShowPricing(false)
         setShowDetails(true)
         setShowSpecSheets(false)
+        setShowNotes(true)
         setAllowApproval(false)
         setExpiresAt('')
       }
@@ -227,6 +231,7 @@ export default function CreateSpecShareLinkDialog({
           showPricing,
           showDetails,
           showSpecSheets,
+          showNotes,
           allowApproval,
           expiresAt: expiresAt || null
         })
@@ -482,6 +487,18 @@ export default function CreateSpecShareLinkDialog({
                 <Switch checked={showDetails} onCheckedChange={setShowDetails} />
               </label>
             </div>
+
+            {/* Notes Option */}
+            <label className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-slate-50 mt-3">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-slate-500" />
+                <div>
+                  <span className="text-sm">Notes</span>
+                  <p className="text-xs text-slate-500">Include item notes/descriptions</p>
+                </div>
+              </div>
+              <Switch checked={showNotes} onCheckedChange={setShowNotes} />
+            </label>
 
             {/* Spec Sheets Option */}
             <label className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-slate-50 mt-3">

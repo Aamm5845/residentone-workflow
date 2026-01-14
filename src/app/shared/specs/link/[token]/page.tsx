@@ -74,6 +74,7 @@ interface ShareSettings {
   showBrand: boolean
   showPricing: boolean
   showDetails: boolean
+  showNotes: boolean
   allowApproval: boolean
 }
 
@@ -109,6 +110,7 @@ export default function SharedSpecLinkPage() {
     showBrand: true,
     showPricing: false,
     showDetails: true,
+    showNotes: true,
     allowApproval: false
   })
 
@@ -141,6 +143,7 @@ export default function SharedSpecLinkPage() {
           showBrand: true,
           showPricing: false,
           showDetails: true,
+          showNotes: true,
           allowApproval: false
         })
 
@@ -760,7 +763,7 @@ export default function SharedSpecLinkPage() {
                           </p>
                           <p className="text-xs text-gray-400 truncate mt-0.5">{item.sectionName}</p>
                           <div className="flex items-center gap-2 mt-1">
-                            <p className="text-xs text-gray-500">{item.roomName}</p>
+                            <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">{item.roomName}</span>
                             {item.supplierLink && (
                               <a
                                 href={item.supplierLink}
@@ -776,14 +779,10 @@ export default function SharedSpecLinkPage() {
                           </div>
                         </div>
 
-                        {/* Model Number */}
+                        {/* Model Number - always show */}
                         <div className="min-w-0">
-                          {item.modelNumber && (
-                            <>
-                              <p className="text-sm text-gray-700 truncate">{item.modelNumber}</p>
-                              <p className="text-[10px] text-gray-400 uppercase">Model</p>
-                            </>
-                          )}
+                          <p className="text-sm text-gray-700 truncate">{item.modelNumber || '-'}</p>
+                          <p className="text-[10px] text-gray-400 uppercase">Model</p>
                         </div>
 
                         {/* Brand */}
@@ -818,8 +817,8 @@ export default function SharedSpecLinkPage() {
                           <p className="text-[10px] text-gray-400 uppercase">Lead Time</p>
                         </div>
 
-                        {/* Price - only if pricing is shown (includes components) */}
-                        {shareSettings.showPricing && (
+                        {/* Price column - shows pricing if enabled, or components info without prices */}
+                        {shareSettings.showPricing ? (
                           <div className="text-center">
                             <div className="flex items-center justify-center gap-1">
                               <p className={cn(
@@ -828,7 +827,7 @@ export default function SharedSpecLinkPage() {
                               )}>
                                 {formatCurrency(((item.rrp || 0) * (item.quantity || 1)) + (item.componentsTotal || 0), item.rrpCurrency)}
                               </p>
-                              {/* Component breakdown popover */}
+                              {/* Component breakdown popover with prices */}
                               {item.components && item.components.length > 0 && (
                                 <Popover>
                                   <PopoverTrigger asChild>
@@ -884,6 +883,44 @@ export default function SharedSpecLinkPage() {
                             <p className="text-[10px] text-gray-400 uppercase">
                               {item.rrpCurrency === 'USD' ? 'USD' : 'CAD'}
                             </p>
+                          </div>
+                        ) : item.components && item.components.length > 0 ? (
+                          /* Components without pricing - show name and qty only */
+                          <div className="text-center">
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <button
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="inline-flex items-center gap-1 px-2 py-1 bg-purple-50 hover:bg-purple-100 rounded text-xs text-purple-700 transition-colors"
+                                  title="View components"
+                                >
+                                  <Info className="w-3 h-3" />
+                                  {item.components.length} component{item.components.length > 1 ? 's' : ''}
+                                </button>
+                              </PopoverTrigger>
+                              <PopoverContent
+                                side="left"
+                                align="center"
+                                className="w-56 p-3"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <div className="space-y-2">
+                                  <p className="text-xs font-medium text-gray-500 uppercase">Components</p>
+                                  {item.components.map(comp => (
+                                    <div key={comp.id} className="flex justify-between text-sm">
+                                      <span className="text-gray-700 truncate mr-2">{comp.name}</span>
+                                      <span className="text-gray-500 whitespace-nowrap">
+                                        Qty: {comp.quantity}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                          </div>
+                        ) : (
+                          <div className="text-center">
+                            <span className="text-xs text-gray-400">-</span>
                           </div>
                         )}
 
