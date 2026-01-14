@@ -9,7 +9,8 @@ import {
   Loader2,
   ExternalLink,
   X,
-  Download
+  Download,
+  Image as ImageIcon
 } from 'lucide-react'
 
 interface ComponentItem {
@@ -415,13 +416,20 @@ export default function ItemDetailPage() {
                         const qty = comp.quantity || 1
                         const totalPrice = unitPrice * qty
                         return (
-                          <div key={comp.id} className="flex items-center justify-between text-sm">
-                            <div className="flex items-center gap-2">
-                              <span className="text-gray-700 font-medium">{comp.name}:</span>
+                          <div key={comp.id} className="flex items-center gap-3 text-sm">
+                            <div className="w-12 h-12 rounded bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden shrink-0">
+                              {comp.image ? (
+                                <img src={comp.image} alt={comp.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <ImageIcon className="w-5 h-5 text-gray-300" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-gray-700 font-medium truncate">{comp.name}</p>
                               {comp.price ? (
-                                <span className="text-gray-500">
+                                <p className="text-gray-500 text-xs">
                                   {formatCurrency(unitPrice, item.rrpCurrency)} × {qty}
-                                </span>
+                                </p>
                               ) : null}
                             </div>
                             <span className="text-gray-900 font-medium">
@@ -463,9 +471,18 @@ export default function ItemDetailPage() {
                 <h4 className="text-sm font-medium text-gray-500 uppercase mb-4">Components</h4>
                 <div className="space-y-3">
                   {item.components.map((comp) => (
-                    <div key={comp.id} className="flex items-center justify-between text-sm py-2 border-b border-gray-100 last:border-0">
-                      <span className="text-gray-700 font-medium">{comp.name}</span>
-                      <span className="text-gray-500">Qty: {comp.quantity || 1}</span>
+                    <div key={comp.id} className="flex items-center gap-3 py-2 border-b border-gray-100 last:border-0">
+                      <div className="w-12 h-12 rounded bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden shrink-0">
+                        {comp.image ? (
+                          <img src={comp.image} alt={comp.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <ImageIcon className="w-5 h-5 text-gray-300" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-700 font-medium truncate">{comp.name}</p>
+                        <p className="text-xs text-gray-500">Qty: {comp.quantity || 1}</p>
+                      </div>
                     </div>
                   ))}
                 </div>

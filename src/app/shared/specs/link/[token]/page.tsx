@@ -26,6 +26,7 @@ interface ComponentItem {
   id: string
   name: string
   modelNumber: string | null
+  image: string | null
   price: number | null
   quantity: number
 }
@@ -850,7 +851,7 @@ export default function SharedSpecLinkPage() {
                                   <PopoverContent
                                     side="left"
                                     align="center"
-                                    className="w-64 p-3"
+                                    className="w-80 p-3"
                                     onClick={(e) => e.stopPropagation()}
                                   >
                                     <div className="space-y-2">
@@ -865,12 +866,19 @@ export default function SharedSpecLinkPage() {
                                         </div>
                                       )}
                                       {/* Components */}
-                                      <div className="border-t pt-2 space-y-1.5">
+                                      <div className="border-t pt-2 space-y-2">
                                         <p className="text-xs font-medium text-gray-500">Components</p>
                                         {item.components.map(comp => (
-                                          <div key={comp.id} className="flex justify-between text-sm">
-                                            <span className="text-gray-600 truncate mr-2">{comp.name}</span>
-                                            <span className="text-gray-900 whitespace-nowrap">
+                                          <div key={comp.id} className="flex items-center gap-2">
+                                            <div className="w-8 h-8 rounded bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden shrink-0">
+                                              {comp.image ? (
+                                                <img src={comp.image} alt={comp.name} className="w-full h-full object-cover" />
+                                              ) : (
+                                                <ImageIcon className="w-3 h-3 text-gray-300" />
+                                              )}
+                                            </div>
+                                            <span className="text-sm text-gray-600 truncate flex-1">{comp.name}</span>
+                                            <span className="text-sm text-gray-900 whitespace-nowrap">
                                               {comp.price ? `${formatCurrency(comp.price, item.rrpCurrency)} × ${comp.quantity}` : '-'}
                                             </span>
                                           </div>
@@ -909,17 +917,24 @@ export default function SharedSpecLinkPage() {
                               <PopoverContent
                                 side="left"
                                 align="center"
-                                className="w-56 p-3"
+                                className="w-72 p-3"
                                 onClick={(e) => e.stopPropagation()}
                               >
-                                <div className="space-y-2">
+                                <div className="space-y-3">
                                   <p className="text-xs font-medium text-gray-500 uppercase">Components</p>
                                   {item.components.map(comp => (
-                                    <div key={comp.id} className="flex justify-between text-sm">
-                                      <span className="text-gray-700 truncate mr-2">{comp.name}</span>
-                                      <span className="text-gray-500 whitespace-nowrap">
-                                        Qty: {comp.quantity}
-                                      </span>
+                                    <div key={comp.id} className="flex items-center gap-3">
+                                      <div className="w-10 h-10 rounded bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden shrink-0">
+                                        {comp.image ? (
+                                          <img src={comp.image} alt={comp.name} className="w-full h-full object-cover" />
+                                        ) : (
+                                          <ImageIcon className="w-4 h-4 text-gray-300" />
+                                        )}
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm text-gray-700 truncate">{comp.name}</p>
+                                        <p className="text-xs text-gray-500">Qty: {comp.quantity}</p>
+                                      </div>
                                     </div>
                                   ))}
                                 </div>
