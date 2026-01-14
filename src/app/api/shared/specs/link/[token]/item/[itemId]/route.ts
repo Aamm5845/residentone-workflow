@@ -68,6 +68,20 @@ export async function GET(
         },
         components: {
           orderBy: { order: 'asc' }
+        },
+        // Include linked FFE items for room location
+        specLinks: {
+          select: {
+            id: true,
+            roomName: true,
+            sectionName: true,
+            ffeRequirement: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
         }
       }
     })
@@ -178,7 +192,14 @@ export async function GET(
       // Use centralized pricing calculation for components with markup
       componentsTotal: shareLink.showPricing
         ? calculateComponentsRRP(item.components || [], item.markupPercent || 0)
-        : 0
+        : 0,
+      // Linked FFE items (room locations where this spec is used)
+      linkedFfeItems: (item.specLinks || []).map(link => ({
+        id: link.id,
+        roomName: link.roomName,
+        sectionName: link.sectionName,
+        ffeRequirementName: link.ffeRequirement?.name || null
+      }))
     }
 
     return NextResponse.json({

@@ -10,7 +10,8 @@ import {
   ExternalLink,
   X,
   Download,
-  Image as ImageIcon
+  Image as ImageIcon,
+  MapPin
 } from 'lucide-react'
 
 interface ComponentItem {
@@ -20,6 +21,13 @@ interface ComponentItem {
   image: string | null
   price: number | null
   quantity: number
+}
+
+interface LinkedFfeItem {
+  id: string
+  roomName: string
+  sectionName: string
+  ffeRequirementName: string | null
 }
 
 interface SpecItem {
@@ -55,6 +63,7 @@ interface SpecItem {
   updatedAt: string
   components?: ComponentItem[]
   componentsTotal?: number
+  linkedFfeItems?: LinkedFfeItem[]
 }
 
 interface Navigation {
@@ -536,8 +545,31 @@ export default function ItemDetailPage() {
               <h4 className="text-sm font-medium text-gray-500 uppercase mb-4">Location</h4>
               <div>
                 <p className="text-lg text-gray-900">{item.roomName}</p>
-                <p className="text-xs text-gray-400 uppercase mt-1">Room</p>
+                <p className="text-xs text-gray-400 uppercase mt-1">Source Room</p>
               </div>
+
+              {/* Linked Room Locations */}
+              {item.linkedFfeItems && item.linkedFfeItems.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <p className="text-xs text-gray-500 uppercase mb-3">Used In</p>
+                  <div className="space-y-2">
+                    {item.linkedFfeItems.map((link) => (
+                      <div
+                        key={link.id}
+                        className="flex items-center gap-2 text-sm"
+                      >
+                        <MapPin className="w-4 h-4 text-purple-500 shrink-0" />
+                        <span className="text-gray-700">{link.roomName}</span>
+                        {link.ffeRequirementName && (
+                          <span className="text-gray-400 text-xs">
+                            · {link.ffeRequirementName}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Spec Sheets / Attachments */}

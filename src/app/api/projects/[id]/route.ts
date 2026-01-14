@@ -6,6 +6,17 @@ import { ProjectType, ProjectStatus } from '@prisma/client'
 import type { Session } from 'next-auth'
 
 // Validation schemas
+const contractorSchema = z.object({
+  id: z.string(),
+  businessName: z.string(),
+  contactName: z.string().optional().nullable(),
+  email: z.string().optional().nullable(),
+  phone: z.string().optional().nullable(),
+  address: z.string().optional().nullable(),
+  type: z.string().optional(),
+  specialty: z.string().optional().nullable(),
+})
+
 const updateProjectSchema = z.object({
   name: z.string().min(1, "Project name is required").max(200).optional(),
   description: z.string().optional(),
@@ -23,6 +34,7 @@ const updateProjectSchema = z.object({
   hasFloorplanApproval: z.boolean().optional(),
   hasSpecBook: z.boolean().optional(),
   hasProjectUpdates: z.boolean().optional(),
+  contractors: z.array(contractorSchema).optional(), // Contractors array
 })
 
 const deleteProjectSchema = z.object({
@@ -242,7 +254,7 @@ export async function PUT(
           }
         },
         _count: {
-          select: { 
+          select: {
             rooms: true,
             assets: true,
             approvals: true,
@@ -251,6 +263,47 @@ export async function PUT(
         }
       }
     })
+
+    // Handle contractors update if provided
+    if (validatedData.contractors !== undefined) {
+      // First, deactivate all existing project contractors
+      await prisma.projectContractor.updateMany({
+        where: { projectId: params.id },
+        data: { isActive: false }
+      })
+
+      // Then, create or update project contractor associations
+      for (const contractor of validatedData.contractors) {
+        // Check if association already exists
+        const existingAssociation = await prisma.projectContractor.findFirst({
+          where: {
+            projectId: params.id,
+            contractorId: contractor.id
+          }
+        })
+
+        if (existingAssociation) {
+          // Reactivate existing association
+          await prisma.projectContractor.update({
+            where: { id: existingAssociation.id },
+            data: {
+              isActive: true,
+              role: contractor.type?.toUpperCase() || 'CONTRACTOR'
+            }
+          })
+        } else {
+          // Create new association
+          await prisma.projectContractor.create({
+            data: {
+              projectId: params.id,
+              contractorId: contractor.id,
+              role: contractor.type?.toUpperCase() || 'CONTRACTOR',
+              isActive: true
+            }
+          })
+        }
+      }
+    }
 
     return NextResponse.json(updatedProject)
   } catch (error) {

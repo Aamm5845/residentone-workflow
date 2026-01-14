@@ -14,7 +14,8 @@ import {
   Check,
   CheckCircle2,
   Info,
-  Layers
+  Layers,
+  MapPin
 } from 'lucide-react'
 import {
   Popover,
@@ -30,6 +31,13 @@ interface ComponentItem {
   image: string | null
   price: number | null
   quantity: number
+}
+
+interface LinkedFfeItem {
+  id: string
+  roomName: string
+  sectionName: string
+  ffeRequirementName: string | null
 }
 
 interface SpecItem {
@@ -66,6 +74,7 @@ interface SpecItem {
   clientApprovedAt: string | null
   components?: ComponentItem[]
   componentsTotal?: number
+  linkedFfeItems?: LinkedFfeItem[]
 }
 
 interface CategoryGroup {
@@ -769,8 +778,27 @@ export default function SharedSpecLinkPage() {
                             <p className="text-xs font-mono text-blue-600 mt-0.5">{item.docCode}</p>
                           )}
                           <p className="text-xs text-gray-400 truncate mt-0.5">{item.sectionName}</p>
-                          <div className="flex items-center gap-2 mt-1">
+                          <div className="flex items-center flex-wrap gap-1.5 mt-1">
                             <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">{item.roomName}</span>
+                            {/* Linked room locations */}
+                            {item.linkedFfeItems && item.linkedFfeItems.length > 0 && (
+                              <>
+                                {item.linkedFfeItems.slice(0, 2).map((link) => (
+                                  <span
+                                    key={link.id}
+                                    className="inline-flex items-center gap-0.5 text-xs text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded"
+                                  >
+                                    <MapPin className="w-2.5 h-2.5" />
+                                    {link.roomName}
+                                  </span>
+                                ))}
+                                {item.linkedFfeItems.length > 2 && (
+                                  <span className="text-xs text-purple-500">
+                                    +{item.linkedFfeItems.length - 2} more
+                                  </span>
+                                )}
+                              </>
+                            )}
                             {item.supplierLink && (
                               <a
                                 href={item.supplierLink}

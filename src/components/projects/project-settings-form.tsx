@@ -1151,7 +1151,16 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
               return (
                 <div key={c.id} onClick={() => {
                   if (!added) {
-                    setContractorsList([...contractorsList, { id: c.id, businessName: c.businessName, contactName: c.contactName, email: c.email, type: c.type.toLowerCase(), specialty: c.specialty }])
+                    setContractorsList([...contractorsList, {
+                      id: c.id,
+                      businessName: c.businessName,
+                      contactName: c.contactName,
+                      email: c.email,
+                      phone: c.phone,
+                      address: c.address,
+                      type: c.type.toLowerCase(),
+                      specialty: c.specialty
+                    }])
                     setShowSelectContractorDialog(false)
                   }
                 }} className={`p-3 rounded-lg border cursor-pointer ${added ? 'bg-gray-50 opacity-50' : 'hover:bg-purple-50 hover:border-purple-200'}`}>
