@@ -242,16 +242,12 @@ export default function ItemDetailPage() {
         {/* Product Title */}
         <div className="flex items-start gap-4 mb-4">
           <div className="flex-1">
-            <div className="flex items-center gap-3">
-              <h2 className="text-3xl font-semibold text-gray-900">
-                {item.name}
-              </h2>
-              {item.docCode && (
-                <span className="text-sm font-mono text-blue-700 bg-blue-50 px-2 py-1 rounded">
-                  {item.docCode}
-                </span>
-              )}
-            </div>
+            <h2 className="text-3xl font-semibold text-gray-900">
+              {item.name}
+            </h2>
+            {item.docCode && (
+              <p className="text-sm font-mono text-blue-600 mt-1">{item.docCode}</p>
+            )}
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <div className="w-4 h-4 rounded-full border-2 border-gray-300" />
@@ -409,7 +405,7 @@ export default function ItemDetailPage() {
                 {/* Components with pricing */}
                 {item.components && item.components.length > 0 && (
                   <div className="mt-6 pt-4 border-t border-gray-100">
-                    <h5 className="text-sm font-medium text-gray-500 uppercase mb-3">Components</h5>
+                    <h5 className="text-sm font-medium text-gray-500 uppercase mb-3">Components ({item.components.length})</h5>
                     <div className="space-y-3">
                       {item.components.map((comp) => {
                         const unitPrice = comp.price || 0
@@ -426,8 +422,11 @@ export default function ItemDetailPage() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-gray-700 font-medium truncate">{comp.name}</p>
+                              {comp.modelNumber && (
+                                <p className="text-gray-500 text-xs truncate">{comp.modelNumber}</p>
+                              )}
                               {comp.price ? (
-                                <p className="text-gray-500 text-xs">
+                                <p className="text-gray-400 text-xs">
                                   {formatCurrency(unitPrice, item.rrpCurrency)} × {qty}
                                 </p>
                               ) : null}
@@ -468,7 +467,7 @@ export default function ItemDetailPage() {
             {/* Components without pricing - show when pricing is off but components exist */}
             {!shareSettings.showPricing && item.components && item.components.length > 0 && (
               <div className="mt-8">
-                <h4 className="text-sm font-medium text-gray-500 uppercase mb-4">Components</h4>
+                <h4 className="text-sm font-medium text-gray-500 uppercase mb-4">Components ({item.components.length})</h4>
                 <div className="space-y-3">
                   {item.components.map((comp) => (
                     <div key={comp.id} className="flex items-center gap-3 py-2 border-b border-gray-100 last:border-0">
@@ -481,7 +480,10 @@ export default function ItemDetailPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-gray-700 font-medium truncate">{comp.name}</p>
-                        <p className="text-xs text-gray-500">Qty: {comp.quantity || 1}</p>
+                        {comp.modelNumber && (
+                          <p className="text-xs text-gray-500 truncate">{comp.modelNumber}</p>
+                        )}
+                        <p className="text-xs text-gray-400">Qty: {comp.quantity || 1}</p>
                       </div>
                     </div>
                   ))}

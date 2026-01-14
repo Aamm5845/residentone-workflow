@@ -128,7 +128,7 @@ export async function GET(
     const spec = {
       id: item.id,
       name: item.name,
-      description: item.description,
+      description: shareLink.showNotes !== false ? item.description : null, // Respect showNotes setting
       docCode: item.docCode || null, // Document code
       roomName: room?.name || room?.type?.replace(/_/g, ' ') || 'Room',
       roomType: room?.type,

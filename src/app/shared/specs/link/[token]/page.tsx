@@ -13,7 +13,8 @@ import {
   X,
   Check,
   CheckCircle2,
-  Info
+  Info,
+  Layers
 } from 'lucide-react'
 import {
   Popover,
@@ -760,16 +761,12 @@ export default function SharedSpecLinkPage() {
 
                         {/* Name & Location */}
                         <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-medium text-gray-900 truncate group-hover:text-gray-700">
-                              {item.name}
-                            </p>
-                            {item.docCode && (
-                              <span className="text-[10px] font-mono text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded shrink-0">
-                                {item.docCode}
-                              </span>
-                            )}
-                          </div>
+                          <p className="text-sm font-medium text-gray-900 truncate group-hover:text-gray-700">
+                            {item.name}
+                          </p>
+                          {item.docCode && (
+                            <p className="text-xs font-mono text-blue-600 mt-0.5">{item.docCode}</p>
+                          )}
                           <p className="text-xs text-gray-400 truncate mt-0.5">{item.sectionName}</p>
                           <div className="flex items-center gap-2 mt-1">
                             <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">{item.roomName}</span>
@@ -867,7 +864,7 @@ export default function SharedSpecLinkPage() {
                                       )}
                                       {/* Components */}
                                       <div className="border-t pt-2 space-y-2">
-                                        <p className="text-xs font-medium text-gray-500">Components</p>
+                                        <p className="text-xs font-medium text-gray-500">Components ({item.components.length})</p>
                                         {item.components.map(comp => (
                                           <div key={comp.id} className="flex items-center gap-2">
                                             <div className="w-8 h-8 rounded bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden shrink-0">
@@ -877,7 +874,12 @@ export default function SharedSpecLinkPage() {
                                                 <ImageIcon className="w-3 h-3 text-gray-300" />
                                               )}
                                             </div>
-                                            <span className="text-sm text-gray-600 truncate flex-1">{comp.name}</span>
+                                            <div className="flex-1 min-w-0">
+                                              <p className="text-sm text-gray-600 truncate">{comp.name}</p>
+                                              {comp.modelNumber && (
+                                                <p className="text-xs text-gray-400 truncate">{comp.modelNumber}</p>
+                                              )}
+                                            </div>
                                             <span className="text-sm text-gray-900 whitespace-nowrap">
                                               {comp.price ? `${formatCurrency(comp.price, item.rrpCurrency)} × ${comp.quantity}` : '-'}
                                             </span>
@@ -901,17 +903,16 @@ export default function SharedSpecLinkPage() {
                             </p>
                           </div>
                         ) : item.components && item.components.length > 0 ? (
-                          /* Components without pricing - show name and qty only */
+                          /* Components without pricing - just icon */
                           <div className="text-center">
                             <Popover>
                               <PopoverTrigger asChild>
                                 <button
                                   onClick={(e) => e.stopPropagation()}
-                                  className="inline-flex items-center gap-1 px-2 py-1 bg-purple-50 hover:bg-purple-100 rounded text-xs text-purple-700 transition-colors"
+                                  className="w-6 h-6 rounded-full bg-purple-100 hover:bg-purple-200 flex items-center justify-center transition-colors"
                                   title="View components"
                                 >
-                                  <Info className="w-3 h-3" />
-                                  {item.components.length} component{item.components.length > 1 ? 's' : ''}
+                                  <Layers className="w-3.5 h-3.5 text-purple-600" />
                                 </button>
                               </PopoverTrigger>
                               <PopoverContent
@@ -921,7 +922,7 @@ export default function SharedSpecLinkPage() {
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <div className="space-y-3">
-                                  <p className="text-xs font-medium text-gray-500 uppercase">Components</p>
+                                  <p className="text-xs font-medium text-gray-500 uppercase">Components ({item.components.length})</p>
                                   {item.components.map(comp => (
                                     <div key={comp.id} className="flex items-center gap-3">
                                       <div className="w-10 h-10 rounded bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden shrink-0">
@@ -933,7 +934,10 @@ export default function SharedSpecLinkPage() {
                                       </div>
                                       <div className="flex-1 min-w-0">
                                         <p className="text-sm text-gray-700 truncate">{comp.name}</p>
-                                        <p className="text-xs text-gray-500">Qty: {comp.quantity}</p>
+                                        {comp.modelNumber && (
+                                          <p className="text-xs text-gray-500 truncate">{comp.modelNumber}</p>
+                                        )}
+                                        <p className="text-xs text-gray-400">Qty: {comp.quantity}</p>
                                       </div>
                                     </div>
                                   ))}
