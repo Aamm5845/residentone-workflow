@@ -36,6 +36,7 @@ interface SpecItem {
   id: string
   name: string
   description: string | null
+  notes: string | null
   docCode: string | null
   roomName: string
   sectionName: string

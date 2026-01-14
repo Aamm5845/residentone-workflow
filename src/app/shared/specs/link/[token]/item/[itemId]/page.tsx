@@ -26,6 +26,7 @@ interface SpecItem {
   id: string
   name: string
   description: string | null
+  notes: string | null
   docCode: string | null
   roomName: string
   sectionName: string
@@ -284,11 +285,19 @@ export default function ItemDetailPage() {
             </div>
           )}
 
-          {/* Description / Notes - only show if showNotes is enabled */}
+          {/* Description - only show if showNotes is enabled */}
           {shareSettings.showNotes !== false && item.description && (
             <div>
               <p className="text-gray-700">{item.description}</p>
-              <p className="text-xs text-gray-400 uppercase mt-1">Notes</p>
+              <p className="text-xs text-gray-400 uppercase mt-1">Description</p>
+            </div>
+          )}
+
+          {/* Notes - only show if showNotes is enabled */}
+          {shareSettings.showNotes !== false && item.notes && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <p className="text-gray-700">{item.notes}</p>
+              <p className="text-xs text-amber-600 uppercase mt-1">Notes</p>
             </div>
           )}
         </div>

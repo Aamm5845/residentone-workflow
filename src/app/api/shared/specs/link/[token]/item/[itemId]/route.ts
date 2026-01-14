@@ -129,6 +129,7 @@ export async function GET(
       id: item.id,
       name: item.name,
       description: shareLink.showNotes !== false ? item.description : null, // Respect showNotes setting
+      notes: shareLink.showNotes !== false ? item.notes : null, // Item notes
       docCode: item.docCode || null, // Document code
       roomName: room?.name || room?.type?.replace(/_/g, ' ') || 'Room',
       roomType: room?.type,
