@@ -277,7 +277,7 @@ export default function BudgetQuoteClientPage() {
         {/* Budget Amount Card */}
         <Card className="mb-6 overflow-hidden">
           <div className="bg-violet-100 p-6 text-center">
-            <p className="text-sm uppercase tracking-wide text-violet-600 mb-3">Budget for Selected Items</p>
+            <p className="text-sm uppercase tracking-wide text-violet-600 mb-3">Estimated Budget</p>
             {data.estimatedTotal > 0 && (
               <p className="text-4xl font-bold text-violet-900">{formatCurrency(data.estimatedTotal, 'CAD')} <span className="text-lg font-normal text-violet-600">CAD</span></p>
             )}
@@ -287,10 +287,15 @@ export default function BudgetQuoteClientPage() {
             {data.includeTax && (
               <p className="text-sm text-violet-500 mt-2">+ applicable taxes</p>
             )}
-            <p className="text-xs text-violet-400 mt-1">* Delivery fees and duties may apply</p>
+          </div>
+          <div className="bg-white px-6 py-4 text-center border-t border-violet-200">
+            <p className="text-xs text-gray-500 leading-relaxed">
+              This is an estimate and final pricing may vary. Upon approval, we will send you a detailed invoice with the final pricing for your review before any payment is required.
+            </p>
+            <p className="text-xs text-gray-400 mt-2">* Delivery fees and duties may apply</p>
           </div>
           {data.expiresAt && !isExpired && (
-            <div className="bg-white px-6 py-3 text-center text-sm text-gray-600">
+            <div className="bg-gray-50 px-6 py-3 text-center text-sm text-gray-600 border-t">
               Valid until {formatDate(data.expiresAt)}
             </div>
           )}
@@ -310,10 +315,10 @@ export default function BudgetQuoteClientPage() {
           <CardContent className="pt-6">
             <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <Package className="w-5 h-5 text-purple-600" />
-              Items for Approval
+              Items Included in This Estimate
             </h3>
             <p className="text-xs text-gray-500 mb-3">
-              This budget covers the items listed below. Additional items may be sent for approval separately.
+              The items listed below are included in this budget estimate. Click on a category to view details.
             </p>
             <div className="space-y-2">
               {Object.entries(itemsByCategory).map(([category, items]) => {
@@ -426,13 +431,19 @@ export default function BudgetQuoteClientPage() {
           <DialogHeader>
             <DialogTitle>Approve Budget Estimate</DialogTitle>
             <DialogDescription>
-              By approving, you confirm that you'd like to proceed with this budget estimate of{' '}
+              By approving, you confirm that you'd like to proceed with this budget estimate of approximately{' '}
               <strong>{formatCurrency(data.estimatedTotal)}</strong>
               {data.includeTax ? ' + taxes' : ''}.
             </DialogDescription>
           </DialogHeader>
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 text-sm text-purple-800">
-            A detailed invoice with itemized pricing will be sent to you for final review and payment.
+          <div className="space-y-3">
+            <div className="bg-violet-50 border border-violet-200 rounded-lg p-4 text-sm text-violet-800">
+              <p className="font-medium mb-1">What happens next?</p>
+              <p>Once approved, we will finalize the details and send you a detailed invoice with the exact pricing for your review before any payment is required.</p>
+            </div>
+            <p className="text-xs text-gray-500">
+              Note: Final pricing may vary slightly from this estimate based on availability and shipping costs.
+            </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setApproveDialogOpen(false)}>
