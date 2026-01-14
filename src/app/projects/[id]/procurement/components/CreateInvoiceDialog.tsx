@@ -448,20 +448,30 @@ export default function CreateInvoiceDialog({
           clientName: clientName || null,
           clientEmail: clientEmail || null,
           // Map line items to the format expected by the API
-          lineItems: lineItems.map((item, index) => ({
-            roomFFEItemId: item.roomFFEItemId || null,
-            groupId: item.categoryName || 'From Supplier Quote',
-            itemName: item.displayName,
-            itemDescription: item.displayDescription || null,
-            quantity: item.quantity,
-            unitType: item.unitType,
-            costPrice: item.supplierUnitPrice || 0,
-            markupPercent: defaultMarkup,
-            sellingPrice: item.clientUnitPrice,
-            totalCost: item.supplierTotalPrice || 0,
-            totalPrice: item.clientTotalPrice,
-            order: index
-          }))
+          // For items with RRP (markupValue = 0), use RRP as cost with 0% markup
+          // This prevents the API from adding additional markup
+          lineItems: lineItems.map((item, index) => {
+            // If item has no markup (RRP-based), set cost to the client price
+            // so the API calculation (cost * (1 + 0%)) = RRP
+            const hasRRP = item.markupValue === 0
+            const costPrice = hasRRP ? item.clientUnitPrice : (item.supplierUnitPrice || 0)
+            const markupPercent = hasRRP ? 0 : defaultMarkup
+
+            return {
+              roomFFEItemId: item.roomFFEItemId || null,
+              groupId: item.categoryName || 'From Supplier Quote',
+              itemName: item.displayName,
+              itemDescription: item.displayDescription || null,
+              quantity: item.quantity,
+              unitType: item.unitType,
+              costPrice: costPrice,
+              markupPercent: markupPercent,
+              sellingPrice: item.clientUnitPrice,
+              totalCost: item.supplierTotalPrice || 0,
+              totalPrice: item.clientTotalPrice,
+              order: index
+            }
+          })
         })
       })
 

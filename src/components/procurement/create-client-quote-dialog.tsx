@@ -492,20 +492,30 @@ export default function CreateClientQuoteDialog({
           allowCreditCard: showCreditCardOption,
           lineItems: [
             // Regular product line items
-            ...lineItems.map((item, index) => ({
-              roomFFEItemId: item.itemId,
-              groupId: item.category,
-              itemName: item.name,
-              itemDescription: item.description || null,
-              quantity: item.quantity,
-              unitType: item.unitType,
-              costPrice: item.costPrice,
-              markupPercent: item.markupPercent,
-              sellingPrice: item.sellingPrice,
-              totalCost: item.costPrice * item.quantity,
-              totalPrice: item.totalPrice,
-              order: index
-            })),
+            // For items with RRP, send RRP as cost with 0% markup so final price = RRP exactly
+            // This prevents the API from adding additional markup to items with set retail prices
+            ...lineItems.map((item, index) => {
+              // If item has RRP, use RRP as cost with 0% markup
+              // Otherwise use trade price with the calculated markup
+              const hasRrp = item.hasRrp
+              const costPrice = hasRrp ? item.sellingPrice : item.costPrice
+              const markupPercent = hasRrp ? 0 : item.markupPercent
+
+              return {
+                roomFFEItemId: item.itemId,
+                groupId: item.category,
+                itemName: item.name,
+                itemDescription: item.description || null,
+                quantity: item.quantity,
+                unitType: item.unitType,
+                costPrice: costPrice,
+                markupPercent: markupPercent,
+                sellingPrice: item.sellingPrice,
+                totalCost: hasRrp ? item.sellingPrice * item.quantity : item.costPrice * item.quantity,
+                totalPrice: item.totalPrice,
+                order: index
+              }
+            }),
             // Additional charges as line items
             ...additionalCharges.filter(c => c.amount > 0).map((charge, index) => ({
               roomFFEItemId: null,
