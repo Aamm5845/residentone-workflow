@@ -290,7 +290,7 @@ export default function BudgetQuoteClientPage() {
           </div>
           <div className="bg-white px-6 py-4 text-center border-t border-violet-200">
             <p className="text-xs text-gray-500 leading-relaxed">
-              This is an estimate and final pricing may vary. Upon approval, we will send you a detailed invoice with the final pricing for your review before any payment is required.
+              This is an estimate and final pricing may vary. Once approved, we will send you a detailed invoice for review before placing any orders.
             </p>
             <p className="text-xs text-gray-400 mt-2">* Delivery fees and duties may apply</p>
           </div>
@@ -439,10 +439,10 @@ export default function BudgetQuoteClientPage() {
           <div className="space-y-3">
             <div className="bg-violet-50 border border-violet-200 rounded-lg p-4 text-sm text-violet-800">
               <p className="font-medium mb-1">What happens next?</p>
-              <p>Once approved, we will finalize the details and send you a detailed invoice with the exact pricing for your review before any payment is required.</p>
+              <p>We will send you a detailed invoice for review before placing any orders.</p>
             </div>
             <p className="text-xs text-gray-500">
-              Note: Final pricing may vary slightly from this estimate based on availability and shipping costs.
+              Note: This is an estimate. Final pricing may vary based on availability and shipping.
             </p>
           </div>
           <DialogFooter>
