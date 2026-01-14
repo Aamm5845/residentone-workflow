@@ -121,6 +121,7 @@ export async function GET(
         id: item.id,
         name: item.name,
         description: item.description,
+        docCode: item.docCode || null, // Document code
         roomName: room?.name || room?.type?.replace(/_/g, ' ') || 'Room',
         roomType: room?.type,
         sectionName: item.section?.name || '',
@@ -152,10 +153,10 @@ export async function GET(
         // Approval fields - always include so UI can show status
         clientApproved: item.clientApproved || false,
         clientApprovedAt: item.clientApprovedAt?.toISOString() || null,
-        // Components - show if pricing is shown
+        // Components - always include for name/qty, add pricing only if enabled
         // Apply markup to component prices for RRP display (using centralized pricing)
         markupPercent: shareLink.showPricing ? (item.markupPercent || 0) : 0,
-        components: shareLink.showPricing ? (item.components || []).map(c => {
+        components: (item.components || []).map(c => {
           const basePrice = c.price ? Number(c.price) : null
           const markupPercent = item.markupPercent || 0
           // Apply markup to component price for client-facing RRP
@@ -165,10 +166,11 @@ export async function GET(
             name: c.name,
             modelNumber: c.modelNumber,
             image: c.image,
-            price: priceWithMarkup,
+            // Only include price if pricing is enabled
+            price: shareLink.showPricing ? priceWithMarkup : null,
             quantity: c.quantity || 1
           }
-        }) : [],
+        }),
         // Use centralized pricing calculation for components with markup
         componentsTotal: shareLink.showPricing
           ? calculateComponentsRRP(item.components || [], item.markupPercent || 0)
@@ -190,6 +192,7 @@ export async function GET(
         showPricing: shareLink.showPricing,
         showDetails: shareLink.showDetails,
         showSpecSheets: shareLink.showSpecSheets || false,
+        showNotes: shareLink.showNotes !== false, // Default to true
         allowApproval: shareLink.allowApproval || false
       },
       expiresAt: shareLink.expiresAt,

@@ -34,6 +34,7 @@ interface SpecItem {
   id: string
   name: string
   description: string | null
+  docCode: string | null
   roomName: string
   sectionName: string
   categoryName: string
@@ -758,9 +759,16 @@ export default function SharedSpecLinkPage() {
 
                         {/* Name & Location */}
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate group-hover:text-gray-700">
-                            {item.name}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-gray-900 truncate group-hover:text-gray-700">
+                              {item.name}
+                            </p>
+                            {item.docCode && (
+                              <span className="text-[10px] font-mono text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded shrink-0">
+                                {item.docCode}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-gray-400 truncate mt-0.5">{item.sectionName}</p>
                           <div className="flex items-center gap-2 mt-1">
                             <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">{item.roomName}</span>

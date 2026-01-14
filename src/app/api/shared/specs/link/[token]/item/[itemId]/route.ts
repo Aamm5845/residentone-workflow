@@ -129,6 +129,7 @@ export async function GET(
       id: item.id,
       name: item.name,
       description: item.description,
+      docCode: item.docCode || null, // Document code
       roomName: room?.name || room?.type?.replace(/_/g, ' ') || 'Room',
       roomType: room?.type,
       sectionName: item.section?.name || '',
@@ -156,9 +157,9 @@ export async function GET(
       rrpCurrency: item.rrpCurrency || 'CAD',
       attachments: shareLink.showSpecSheets ? (item.attachments || null) : null,
       updatedAt: item.updatedAt,
-      // Components with markup applied for RRP display
+      // Components - always include for name/qty, add pricing only if enabled
       markupPercent: shareLink.showPricing ? (item.markupPercent || 0) : 0,
-      components: shareLink.showPricing ? (item.components || []).map(c => {
+      components: (item.components || []).map(c => {
         const basePrice = c.price ? Number(c.price) : null
         const markupPercent = item.markupPercent || 0
         // Apply markup to component price for client-facing RRP
@@ -168,10 +169,11 @@ export async function GET(
           name: c.name,
           modelNumber: c.modelNumber,
           image: c.image,
-          price: priceWithMarkup,
+          // Only include price if pricing is enabled
+          price: shareLink.showPricing ? priceWithMarkup : null,
           quantity: c.quantity || 1
         }
-      }) : [],
+      }),
       // Use centralized pricing calculation for components with markup
       componentsTotal: shareLink.showPricing
         ? calculateComponentsRRP(item.components || [], item.markupPercent || 0)
@@ -195,7 +197,8 @@ export async function GET(
         showBrand: shareLink.showBrand,
         showPricing: shareLink.showPricing,
         showDetails: shareLink.showDetails,
-        showSpecSheets: shareLink.showSpecSheets || false
+        showSpecSheets: shareLink.showSpecSheets || false,
+        showNotes: shareLink.showNotes !== false // Default to true
       }
     })
 

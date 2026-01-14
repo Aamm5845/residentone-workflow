@@ -25,6 +25,7 @@ interface SpecItem {
   id: string
   name: string
   description: string | null
+  docCode: string | null
   roomName: string
   sectionName: string
   categoryName: string
@@ -238,10 +239,19 @@ export default function ItemDetailPage() {
         </div>
 
         {/* Product Title */}
-        <div className="flex items-start gap-4 mb-8">
-          <h2 className="text-3xl font-semibold text-gray-900 flex-1">
-            {item.name}
-          </h2>
+        <div className="flex items-start gap-4 mb-4">
+          <div className="flex-1">
+            <div className="flex items-center gap-3">
+              <h2 className="text-3xl font-semibold text-gray-900">
+                {item.name}
+              </h2>
+              {item.docCode && (
+                <span className="text-sm font-mono text-blue-700 bg-blue-50 px-2 py-1 rounded">
+                  {item.docCode}
+                </span>
+              )}
+            </div>
+          </div>
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <div className="w-4 h-4 rounded-full border-2 border-gray-300" />
             <span>{item.specStatus || 'Draft'}</span>
