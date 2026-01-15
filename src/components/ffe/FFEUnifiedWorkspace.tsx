@@ -194,6 +194,13 @@ export default function FFEUnifiedWorkspace({
   const [editDocCodeValue, setEditDocCodeValue] = useState('')
   const [savingDocCode, setSavingDocCode] = useState(false)
 
+  // Doc Code duplicate warning state
+  const [docCodeDuplicateWarning, setDocCodeDuplicateWarning] = useState<{
+    itemId: string
+    docCode: string
+    duplicates: Array<{ id: string; name: string; roomName: string; sectionName: string }>
+  } | null>(null)
+
   // Generate from URL states
   const [showUrlGenerateDialog, setShowUrlGenerateDialog] = useState(false)
   const [urlGenerateItem, setUrlGenerateItem] = useState<{id: string, name: string, sectionId: string} | null>(null)
@@ -1412,25 +1419,47 @@ export default function FFEUnifiedWorkspace({
     }
   }
 
-  const handleUpdateItemDocCode = async (itemId: string) => {
+  const handleUpdateItemDocCode = async (itemId: string, skipDuplicateCheck: boolean = false) => {
     const newDocCode = editDocCodeValue.trim() || null
-    
-    // Close the editor immediately
+
+    // If there's a doc code and we haven't checked for duplicates yet
+    if (newDocCode && !skipDuplicateCheck) {
+      try {
+        const res = await fetch(`/api/projects/${projectId}/check-doc-code?docCode=${encodeURIComponent(newDocCode)}&excludeItemId=${itemId}`)
+        const data = await res.json()
+
+        if (data.isDuplicate && data.duplicates.length > 0) {
+          // Show warning dialog instead of saving immediately
+          setDocCodeDuplicateWarning({
+            itemId,
+            docCode: newDocCode,
+            duplicates: data.duplicates
+          })
+          return // Don't save yet, wait for user confirmation
+        }
+      } catch (error) {
+        console.error('Error checking doc code:', error)
+        // Continue with save if check fails
+      }
+    }
+
+    // Close the editor
     setEditingDocCodeItemId(null)
     setEditDocCodeValue('')
-    
+    setDocCodeDuplicateWarning(null)
+
     // Optimistic update - update local state immediately without reloading
-    setSections(prevSections => 
+    setSections(prevSections =>
       prevSections.map(section => ({
         ...section,
-        items: section.items.map(item => 
-          item.id === itemId 
+        items: section.items.map(item =>
+          item.id === itemId
             ? { ...item, docCode: newDocCode || undefined }
             : item
         )
       }))
     )
-    
+
     try {
       // Update the FFE item's doc code in background
       const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${itemId}`, {
@@ -1439,13 +1468,25 @@ export default function FFEUnifiedWorkspace({
         body: JSON.stringify({ docCode: newDocCode, syncToLinkedSpecs: true })
       })
       if (!response.ok) throw new Error('Failed to update doc code')
-      
+
       toast.success('Doc Code updated')
     } catch (error) {
       toast.error('Failed to update doc code')
       // Revert on error by reloading data
       await loadFFEData()
     }
+  }
+
+  const handleConfirmDuplicateDocCode = () => {
+    if (docCodeDuplicateWarning) {
+      // Save with skipDuplicateCheck = true
+      handleUpdateItemDocCode(docCodeDuplicateWarning.itemId, true)
+    }
+  }
+
+  const handleCancelDuplicateDocCode = () => {
+    // Just close the warning, keep the editor open with current value
+    setDocCodeDuplicateWarning(null)
   }
 
   const handleAIImportItems = async (
@@ -4723,6 +4764,49 @@ export default function FFEUnifiedWorkspace({
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowKeyboardShortcuts(false)}>
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Duplicate Doc Code Warning Dialog */}
+      <Dialog open={!!docCodeDuplicateWarning} onOpenChange={(open) => !open && handleCancelDuplicateDocCode()}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <Info className="w-5 h-5" />
+              Duplicate Doc Code
+            </DialogTitle>
+            <DialogDescription>
+              The doc code <span className="font-mono font-bold text-gray-900">"{docCodeDuplicateWarning?.docCode}"</span> already exists in this project.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600">This code is used by:</p>
+            <div className="max-h-48 overflow-y-auto space-y-2">
+              {docCodeDuplicateWarning?.duplicates.map((dup) => (
+                <div key={dup.id} className="p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-sm font-medium text-gray-900">{dup.name}</p>
+                  <p className="text-xs text-gray-500">{dup.roomName} · {dup.sectionName}</p>
+                </div>
+              ))}
+            </div>
+            <p className="text-sm text-gray-500">
+              You can still use this code if you want duplicate entries.
+            </p>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={handleCancelDuplicateDocCode}>
+              Change Code
+            </Button>
+            <Button
+              variant="default"
+              className="bg-amber-600 hover:bg-amber-700"
+              onClick={handleConfirmDuplicateDocCode}
+            >
+              Use Anyway
             </Button>
           </DialogFooter>
         </DialogContent>

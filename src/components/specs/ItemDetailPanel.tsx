@@ -575,7 +575,15 @@ export function ItemDetailPanel({
   const [saving, setSaving] = useState(false)
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [loadingSuppliers, setLoadingSuppliers] = useState(false)
-  
+
+  // Doc Code duplicate warning state
+  const [docCodeDuplicateWarning, setDocCodeDuplicateWarning] = useState<{
+    docCode: string
+    duplicates: Array<{ id: string; name: string; roomName: string; sectionName: string }>
+  } | null>(null)
+  const [checkingDocCode, setCheckingDocCode] = useState(false)
+  const docCodeCheckTimerRef = useRef<NodeJS.Timeout | null>(null)
+
   // FFE Linking state - cascading selection
   const [selectedFfeRoom, setSelectedFfeRoom] = useState<string>('')
   const [selectedFfeSection, setSelectedFfeSection] = useState<string>('')
@@ -596,6 +604,9 @@ export function ItemDetailPanel({
       // Clear original value refs
       originalFormDataRef.current = null
       originalImagesRef.current = null
+      // Clear doc code duplicate warning
+      setDocCodeDuplicateWarning(null)
+      setCheckingDocCode(false)
     }
   }, [isOpen])
   
@@ -1309,6 +1320,52 @@ export function ItemDetailPanel({
       loadSuppliers()
     }
   }, [isOpen])
+
+  // Check for duplicate doc code when value changes
+  const checkDuplicateDocCode = useCallback(async (docCode: string) => {
+    if (!docCode.trim() || !projectId) {
+      setDocCodeDuplicateWarning(null)
+      return
+    }
+
+    setCheckingDocCode(true)
+    try {
+      const excludeId = item?.id || ''
+      const res = await fetch(`/api/projects/${projectId}/check-doc-code?docCode=${encodeURIComponent(docCode.trim())}&excludeItemId=${excludeId}`)
+      const data = await res.json()
+
+      if (data.isDuplicate && data.duplicates.length > 0) {
+        setDocCodeDuplicateWarning({
+          docCode: docCode.trim(),
+          duplicates: data.duplicates
+        })
+      } else {
+        setDocCodeDuplicateWarning(null)
+      }
+    } catch (error) {
+      console.error('Error checking doc code:', error)
+      setDocCodeDuplicateWarning(null)
+    } finally {
+      setCheckingDocCode(false)
+    }
+  }, [projectId, item?.id])
+
+  // Debounced doc code check
+  useEffect(() => {
+    if (docCodeCheckTimerRef.current) {
+      clearTimeout(docCodeCheckTimerRef.current)
+    }
+
+    docCodeCheckTimerRef.current = setTimeout(() => {
+      checkDuplicateDocCode(formData.docCode)
+    }, 500)
+
+    return () => {
+      if (docCodeCheckTimerRef.current) {
+        clearTimeout(docCodeCheckTimerRef.current)
+      }
+    }
+  }, [formData.docCode, checkDuplicateDocCode])
 
   // Load documents for existing items
   useEffect(() => {
@@ -2050,12 +2107,34 @@ export function ItemDetailPanel({
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Doc Code</Label>
+                    <Label className="flex items-center gap-2">
+                      Doc Code
+                      {checkingDocCode && (
+                        <Loader2 className="w-3 h-3 animate-spin text-gray-400" />
+                      )}
+                    </Label>
                     <Input
                       value={formData.docCode}
                       onChange={(e) => setFormData({ ...formData, docCode: e.target.value })}
                       placeholder="Document code"
+                      className={cn(
+                        docCodeDuplicateWarning && "border-amber-400 focus:ring-amber-200"
+                      )}
                     />
+                    {docCodeDuplicateWarning && (
+                      <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded p-2 space-y-1">
+                        <p className="font-medium">Duplicate code found:</p>
+                        {docCodeDuplicateWarning.duplicates.slice(0, 2).map((dup) => (
+                          <p key={dup.id} className="text-amber-700">
+                            • {dup.name} ({dup.roomName})
+                          </p>
+                        ))}
+                        {docCodeDuplicateWarning.duplicates.length > 2 && (
+                          <p className="text-amber-500">+{docCodeDuplicateWarning.duplicates.length - 2} more</p>
+                        )}
+                        <p className="text-amber-500 italic">You can still use this code if needed.</p>
+                      </div>
+                    )}
                   </div>
                 </div>
 

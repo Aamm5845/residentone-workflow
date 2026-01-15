@@ -1436,12 +1436,19 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: urlInput })
       })
-      
-      if (!fetchRes.ok) {
-        throw new Error('Failed to fetch page content')
-      }
-      
+
       const pageData = await fetchRes.json()
+
+      if (!fetchRes.ok) {
+        const errorMsg = pageData.error || 'Failed to fetch page content'
+        if (pageData.suggestExtension) {
+          toast.error(`${errorMsg}. Try using the Chrome extension instead.`, { duration: 5000 })
+        } else {
+          toast.error(errorMsg)
+        }
+        setExtracting(false)
+        return
+      }
       const pageImages = pageData.images || (pageData.image ? [pageData.image] : [])
       
       // Use AI to extract product info
@@ -1571,10 +1578,19 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: urlGenerateInput })
       })
-      
-      if (!fetchRes.ok) throw new Error('Failed to fetch page content')
-      
+
       const pageData = await fetchRes.json()
+
+      if (!fetchRes.ok) {
+        const errorMsg = pageData.error || 'Failed to fetch page content'
+        if (pageData.suggestExtension) {
+          toast.error(`${errorMsg}. Try using the Chrome extension instead.`, { duration: 5000 })
+        } else {
+          toast.error(errorMsg)
+        }
+        setUrlGenerateExtracting(false)
+        return
+      }
       
       const aiRes = await fetch('/api/ai/extract-product', {
         method: 'POST',
@@ -2619,12 +2635,18 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: item.supplierLink })
       })
-      
-      if (!fetchRes.ok) {
-        throw new Error('Failed to fetch page content')
-      }
-      
+
       const pageData = await fetchRes.json()
+
+      if (!fetchRes.ok) {
+        const errorMsg = pageData.error || 'Failed to fetch page content'
+        if (pageData.suggestExtension) {
+          toast.error(`${errorMsg}. Try using the Chrome extension instead.`, { duration: 5000 })
+        } else {
+          toast.error(errorMsg)
+        }
+        return
+      }
       
       // Use AI to extract product info
       const aiRes = await fetch('/api/ai/extract-product', {

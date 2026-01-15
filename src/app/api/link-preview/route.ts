@@ -64,8 +64,10 @@ export async function POST(request: NextRequest) {
 
       if (!response.ok) {
         let errorMessage = `The website returned an error (${response.status})`
+        let suggestExtension = false
         if (response.status === 403) {
-          errorMessage = 'Website blocked the request - try using the Chrome extension instead'
+          errorMessage = 'Website blocked the request'
+          suggestExtension = true
         } else if (response.status === 404) {
           errorMessage = 'Page not found - check the URL is correct'
         } else if (response.status === 429) {
@@ -73,7 +75,12 @@ export async function POST(request: NextRequest) {
         } else if (response.status >= 500) {
           errorMessage = 'Website is having issues - try again later'
         }
-        return NextResponse.json({ error: errorMessage }, { status: 400 })
+        console.log(`[Link Preview] Website returned ${response.status} for URL: ${url}`)
+        return NextResponse.json({
+          error: errorMessage,
+          suggestExtension,
+          websiteStatus: response.status
+        }, { status: 400 })
       }
 
       const html = await response.text()
