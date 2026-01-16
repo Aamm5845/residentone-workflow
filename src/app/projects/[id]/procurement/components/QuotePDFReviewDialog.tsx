@@ -655,30 +655,11 @@ export default function QuotePDFReviewDialog({
             {/* PDF Embed - Full Height */}
             <div className="flex-1 relative">
               {quoteDocumentUrl ? (
-                <>
-                  {/* Use object tag for better PDF rendering with fallback */}
-                  <object
-                    data={quoteDocumentUrl}
-                    type="application/pdf"
-                    className="w-full h-full"
-                  >
-                    {/* Fallback if object doesn't work */}
-                    <div className="flex flex-col items-center justify-center h-full text-gray-500 p-8">
-                      <FileText className="w-16 h-16 mb-4 text-gray-300" />
-                      <p className="text-lg font-medium mb-2">PDF Preview Unavailable</p>
-                      <p className="text-sm text-gray-400 mb-4 text-center">
-                        Your browser cannot display this PDF inline.
-                      </p>
-                      <Button
-                        variant="default"
-                        onClick={() => window.open(quoteDocumentUrl, '_blank')}
-                      >
-                        <ExternalLink className="w-4 h-4 mr-2" />
-                        Open PDF in New Tab
-                      </Button>
-                    </div>
-                  </object>
-                </>
+                <embed
+                  src={`${quoteDocumentUrl}#toolbar=1&navpanes=0&scrollbar=1&view=FitH`}
+                  type="application/pdf"
+                  className="w-full h-full"
+                />
               ) : (
                 <div className="flex items-center justify-center h-full text-gray-400">
                   <FileText className="w-12 h-12 mr-3" />
