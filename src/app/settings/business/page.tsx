@@ -23,6 +23,7 @@ interface OrganizationSettings {
   businessCountry: string | null
   businessPhone: string | null
   businessEmail: string | null
+  neqNumber: string | null
   gstNumber: string | null
   qstNumber: string | null
   defaultGstRate: number | null
@@ -48,6 +49,7 @@ export default function BusinessSettingsPage() {
     businessCountry: 'Canada',
     businessPhone: '',
     businessEmail: '',
+    neqNumber: '',
     gstNumber: '',
     qstNumber: '',
     defaultGstRate: '5',
@@ -80,6 +82,7 @@ export default function BusinessSettingsPage() {
           businessCountry: data.organization.businessCountry || 'Canada',
           businessPhone: data.organization.businessPhone || '',
           businessEmail: data.organization.businessEmail || '',
+          neqNumber: data.organization.neqNumber || '',
           gstNumber: data.organization.gstNumber || '',
           qstNumber: data.organization.qstNumber || '',
           defaultGstRate: data.organization.defaultGstRate?.toString() || '5',
@@ -299,15 +302,27 @@ export default function BusinessSettingsPage() {
                   <FileText className="w-5 h-5 text-green-600" />
                 </div>
                 <div>
-                  <CardTitle>Tax Registration</CardTitle>
+                  <CardTitle>Business Registration</CardTitle>
                   <CardDescription>
-                    GST and QST numbers for Quebec invoicing
+                    NEQ, GST and QST numbers for Quebec invoicing
                   </CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2 sm:col-span-1">
+                  <Label htmlFor="neqNumber">NEQ (Quebec Business Number)</Label>
+                  <Input
+                    id="neqNumber"
+                    value={formData.neqNumber}
+                    onChange={(e) => handleInputChange('neqNumber', e.target.value)}
+                    placeholder="1234567890"
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Numéro d'entreprise du Québec</p>
+                </div>
+
                 <div>
                   <Label htmlFor="gstNumber">GST Number</Label>
                   <Input

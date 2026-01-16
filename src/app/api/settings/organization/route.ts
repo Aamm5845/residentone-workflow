@@ -45,6 +45,7 @@ export async function GET() {
         businessCountry: true,
         businessPhone: true,
         businessEmail: true,
+        neqNumber: true,
         gstNumber: true,
         qstNumber: true,
         defaultGstRate: true,
@@ -120,6 +121,7 @@ export async function PATCH(request: NextRequest) {
     if (body.businessEmail !== undefined) updateData.businessEmail = body.businessEmail
 
     // Tax Registration Numbers
+    if (body.neqNumber !== undefined) updateData.neqNumber = body.neqNumber
     if (body.gstNumber !== undefined) updateData.gstNumber = body.gstNumber
     if (body.qstNumber !== undefined) updateData.qstNumber = body.qstNumber
 
@@ -158,6 +160,7 @@ export async function PATCH(request: NextRequest) {
         businessCountry: true,
         businessPhone: true,
         businessEmail: true,
+        neqNumber: true,
         gstNumber: true,
         qstNumber: true,
         defaultGstRate: true,

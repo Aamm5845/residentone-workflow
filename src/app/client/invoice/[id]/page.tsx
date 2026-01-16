@@ -111,6 +111,7 @@ interface InvoiceData {
     businessProvince?: string
     businessPostal?: string
     logoUrl?: string
+    neqNumber?: string
     gstNumber?: string
     qstNumber?: string
     wireInstructions?: string
@@ -257,7 +258,7 @@ export default function ClientInvoicePage() {
     <>
       <style dangerouslySetInnerHTML={{ __html: printStyles }} />
       <div className="min-h-screen bg-gray-50 py-8 px-4 print:bg-white print:py-0 print-container">
-        <div className="max-w-2xl mx-auto print:max-w-none">
+        <div className="max-w-4xl mx-auto print:max-w-none">
           {/* Payment Success Message */}
           {paymentStatus === 'success' && (
             <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3 no-print">
@@ -315,11 +316,11 @@ export default function ClientInvoicePage() {
                 </div>
               </div>
 
-              {/* Tax Numbers - for print */}
-              {(invoice.organization?.gstNumber || invoice.organization?.qstNumber) && (
-                <div className="text-xs text-gray-400 mb-4 pb-4 border-b">
+              {/* Business Registration Numbers */}
+              {(invoice.organization?.neqNumber || invoice.organization?.gstNumber || invoice.organization?.qstNumber) && (
+                <div className="text-xs text-gray-500 mb-4 pb-4 border-b flex flex-wrap gap-x-4 gap-y-1">
+                  {invoice.organization.neqNumber && <span>NEQ: {invoice.organization.neqNumber}</span>}
                   {invoice.organization.gstNumber && <span>GST: {invoice.organization.gstNumber}</span>}
-                  {invoice.organization.gstNumber && invoice.organization.qstNumber && <span className="mx-2">•</span>}
                   {invoice.organization.qstNumber && <span>QST: {invoice.organization.qstNumber}</span>}
                 </div>
               )}

@@ -71,6 +71,7 @@ model Organization {
   businessEmail     String?
 
   // Tax Registration Numbers
+  neqNumber         String?       // NEQ - Numéro d'entreprise du Québec (Quebec business number)
   gstNumber         String?       // GST registration number
   qstNumber         String?       // QST registration number (Quebec)
 

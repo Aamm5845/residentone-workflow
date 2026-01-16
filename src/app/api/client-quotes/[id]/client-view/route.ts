@@ -181,6 +181,7 @@ export async function GET(
         businessProvince: true,
         businessPostal: true,
         logoUrl: true,
+        neqNumber: true,
         gstNumber: true,
         qstNumber: true,
         wireInstructions: true,
