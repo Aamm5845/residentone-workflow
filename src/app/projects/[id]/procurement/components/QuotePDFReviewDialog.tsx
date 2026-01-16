@@ -183,6 +183,7 @@ export default function QuotePDFReviewDialog({
   const [showAddComponentDialog, setShowAddComponentDialog] = useState(false)
   const [selectedParentItemId, setSelectedParentItemId] = useState<string>('')
   const [addingComponent, setAddingComponent] = useState(false)
+  const [currentExtraItemIdx, setCurrentExtraItemIdx] = useState<number | null>(null)
   const [componentForm, setComponentForm] = useState<{
     name: string
     modelNumber: string
@@ -196,6 +197,12 @@ export default function QuotePDFReviewDialog({
     quantity: 1,
     notes: ''
   })
+
+  // Track resolved extra items (added as component or added to specs)
+  const [resolvedExtraItems, setResolvedExtraItems] = useState<Record<number, { type: 'component' | 'specs', parentItemName?: string }>>({})
+
+  // Track resolved extra items for Add to All Specs
+  const [currentAddToSpecsIdx, setCurrentAddToSpecsIdx] = useState<number | null>(null)
 
   // Fetch rooms and sections for the project
   const fetchRooms = useCallback(async () => {
@@ -299,7 +306,17 @@ export default function QuotePDFReviewDialog({
 
       if (res.ok) {
         toast.success('Item added to All Specs')
+
+        // Mark this extra item as resolved if it came from an extra item
+        if (currentAddToSpecsIdx !== null) {
+          setResolvedExtraItems(prev => ({
+            ...prev,
+            [currentAddToSpecsIdx]: { type: 'specs' }
+          }))
+        }
+
         setShowAddItemDialog(false)
+        setCurrentAddToSpecsIdx(null)
         setAddItemForm({
           name: '',
           description: '',
@@ -323,7 +340,7 @@ export default function QuotePDFReviewDialog({
   }
 
   // Open add component dialog with pre-filled data from extracted item
-  const openAddComponentDialog = (extractedItem: ExtractedItem) => {
+  const openAddComponentDialog = (extractedItem: ExtractedItem, extraItemIdx?: number) => {
     setComponentForm({
       name: extractedItem.productName || '',
       modelNumber: extractedItem.sku || '',
@@ -332,7 +349,14 @@ export default function QuotePDFReviewDialog({
       notes: extractedItem.description || ''
     })
     setSelectedParentItemId('')
+    setCurrentExtraItemIdx(extraItemIdx ?? null)
     setShowAddComponentDialog(true)
+  }
+
+  // Open add to specs dialog with tracking
+  const openAddItemDialogWithTracking = (extractedItem: ExtractedItem, extraItemIdx?: number) => {
+    setCurrentAddToSpecsIdx(extraItemIdx ?? null)
+    openAddItemDialog(extractedItem)
   }
 
   // Add component to selected parent item
@@ -378,6 +402,15 @@ export default function QuotePDFReviewDialog({
 
       if (res.ok) {
         toast.success(`Component added to "${parentItem.itemName}"`)
+
+        // Mark this extra item as resolved
+        if (currentExtraItemIdx !== null) {
+          setResolvedExtraItems(prev => ({
+            ...prev,
+            [currentExtraItemIdx]: { type: 'component', parentItemName: parentItem.itemName }
+          }))
+        }
+
         setShowAddComponentDialog(false)
         setComponentForm({
           name: '',
@@ -387,6 +420,7 @@ export default function QuotePDFReviewDialog({
           notes: ''
         })
         setSelectedParentItemId('')
+        setCurrentExtraItemIdx(null)
       } else {
         const error = await res.json()
         toast.error(error.error || 'Failed to add component')
@@ -908,94 +942,122 @@ export default function QuotePDFReviewDialog({
                       Extra Items - Not in Original Request ({extraItems.length})
                     </h3>
                     {extraItems.map((match, idx) => (
-                      <div key={idx} className="border border-blue-200 rounded-lg p-4 bg-blue-50">
-                        <div className="mb-2">
-                          {getStatusBadge(match.status, match.confidence)}
-                        </div>
-                        {match.extractedItem && (
-                          <div className="space-y-2">
-                            <p className="font-medium text-gray-900">
-                              {match.extractedItem.productName}
-                            </p>
-                            <div className="flex flex-wrap gap-2 text-xs">
-                              {match.extractedItem.sku && (
-                                <span className="px-2 py-0.5 bg-blue-100 rounded">
-                                  SKU: {match.extractedItem.sku}
-                                </span>
-                              )}
-                              {match.extractedItem.brand && (
-                                <span className="px-2 py-0.5 bg-blue-100 rounded">
-                                  {match.extractedItem.brand}
-                                </span>
+                      (() => {
+                        const isResolved = resolvedExtraItems[idx]
+                        return (
+                          <div key={idx} className={`border rounded-lg p-4 ${
+                            isResolved
+                              ? 'border-emerald-300 bg-emerald-50'
+                              : 'border-blue-200 bg-blue-50'
+                          }`}>
+                            <div className="flex items-center justify-between mb-2">
+                              {isResolved ? (
+                                <Badge className="bg-emerald-600 text-white text-xs">
+                                  <Check className="w-3 h-3 mr-1" />
+                                  {isResolved.type === 'component' ? 'Added as Component' : 'Added to Specs'}
+                                </Badge>
+                              ) : (
+                                getStatusBadge(match.status, match.confidence)
                               )}
                             </div>
-                            <div className="flex items-center gap-4 text-sm">
-                              <div>
-                                <span className="text-gray-500">Qty:</span>
-                                <span className="ml-1 font-bold">{match.extractedItem.quantity || '-'}</span>
-                              </div>
-                              <div>
-                                <span className="text-gray-500">Price:</span>
-                                <span className="ml-1 font-bold">{formatCurrency(match.extractedItem.unitPrice)}</span>
-                              </div>
-                              <div>
-                                <span className="text-gray-500">Total:</span>
-                                <span className="ml-1 font-bold">{formatCurrency(match.extractedItem.totalPrice)}</span>
-                              </div>
-                            </div>
-
-                            {/* Suggested Matches */}
-                            {match.suggestedMatches && match.suggestedMatches.length > 0 && (
-                              <div className="mt-3 p-2 bg-white border rounded">
-                                <p className="text-xs font-medium text-gray-600 mb-2">
-                                  Possible matches from your request:
+                            {match.extractedItem && (
+                              <div className="space-y-2">
+                                <p className="font-medium text-gray-900">
+                                  {match.extractedItem.productName}
                                 </p>
-                                <div className="space-y-1">
-                                  {match.suggestedMatches.map((s, i) => (
-                                    <Button
-                                      key={i}
-                                      variant="ghost"
-                                      size="sm"
-                                      className="w-full justify-start text-left h-auto py-1.5"
-                                      onClick={() => {
-                                        // TODO: Implement linking to RFQ item
-                                        toast.info('Link to: ' + s.itemName)
-                                      }}
-                                    >
-                                      <Link2 className="w-3 h-3 mr-2 text-gray-400" />
-                                      <span className="flex-1 truncate">{s.itemName}</span>
-                                      <span className="text-xs text-gray-400">({s.confidence}%)</span>
-                                    </Button>
-                                  ))}
+                                <div className="flex flex-wrap gap-2 text-xs">
+                                  {match.extractedItem.sku && (
+                                    <span className={`px-2 py-0.5 rounded ${isResolved ? 'bg-emerald-100' : 'bg-blue-100'}`}>
+                                      SKU: {match.extractedItem.sku}
+                                    </span>
+                                  )}
+                                  {match.extractedItem.brand && (
+                                    <span className={`px-2 py-0.5 rounded ${isResolved ? 'bg-emerald-100' : 'bg-blue-100'}`}>
+                                      {match.extractedItem.brand}
+                                    </span>
+                                  )}
                                 </div>
+                                <div className="flex items-center gap-4 text-sm">
+                                  <div>
+                                    <span className="text-gray-500">Qty:</span>
+                                    <span className="ml-1 font-bold">{match.extractedItem.quantity || '-'}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-gray-500">Price:</span>
+                                    <span className="ml-1 font-bold">{formatCurrency(match.extractedItem.unitPrice)}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-gray-500">Total:</span>
+                                    <span className="ml-1 font-bold">{formatCurrency(match.extractedItem.totalPrice)}</span>
+                                  </div>
+                                </div>
+
+                                {/* Show resolution info if resolved */}
+                                {isResolved && (
+                                  <div className="mt-2 p-2 bg-emerald-100 border border-emerald-200 rounded text-sm text-emerald-800">
+                                    {isResolved.type === 'component' ? (
+                                      <p>Added as component to: <span className="font-semibold">{isResolved.parentItemName}</span></p>
+                                    ) : (
+                                      <p>Added to All Specs</p>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Suggested Matches - only show if not resolved */}
+                                {!isResolved && match.suggestedMatches && match.suggestedMatches.length > 0 && (
+                                  <div className="mt-3 p-2 bg-white border rounded">
+                                    <p className="text-xs font-medium text-gray-600 mb-2">
+                                      Possible matches from your request:
+                                    </p>
+                                    <div className="space-y-1">
+                                      {match.suggestedMatches.map((s, i) => (
+                                        <Button
+                                          key={i}
+                                          variant="ghost"
+                                          size="sm"
+                                          className="w-full justify-start text-left h-auto py-1.5"
+                                          onClick={() => {
+                                            toast.info('Link to: ' + s.itemName)
+                                          }}
+                                        >
+                                          <Link2 className="w-3 h-3 mr-2 text-gray-400" />
+                                          <span className="flex-1 truncate">{s.itemName}</span>
+                                          <span className="text-xs text-gray-400">({s.confidence}%)</span>
+                                        </Button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Action Buttons - only show if not resolved */}
+                                {!isResolved && (
+                                  <div className="mt-3 pt-3 border-t border-blue-200 space-y-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="w-full border-blue-300 text-blue-700 hover:bg-blue-100"
+                                      onClick={() => openAddItemDialogWithTracking(match.extractedItem!, idx)}
+                                    >
+                                      <Plus className="w-4 h-4 mr-2" />
+                                      Add to All Specs
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="w-full border-purple-300 text-purple-700 hover:bg-purple-100"
+                                      onClick={() => openAddComponentDialog(match.extractedItem!, idx)}
+                                    >
+                                      <Layers className="w-4 h-4 mr-2" />
+                                      Add as Component
+                                    </Button>
+                                  </div>
+                                )}
                               </div>
                             )}
-
-                            {/* Action Buttons */}
-                            <div className="mt-3 pt-3 border-t border-blue-200 space-y-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="w-full border-blue-300 text-blue-700 hover:bg-blue-100"
-                                onClick={() => openAddItemDialog(match.extractedItem!)}
-                              >
-                                <Plus className="w-4 h-4 mr-2" />
-                                Add to All Specs
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="w-full border-purple-300 text-purple-700 hover:bg-purple-100"
-                                onClick={() => openAddComponentDialog(match.extractedItem!)}
-                              >
-                                <Layers className="w-4 h-4 mr-2" />
-                                Add as Component
-                              </Button>
-                            </div>
                           </div>
-                        )}
-                      </div>
-                    ))}
+                        )
+                      })()
+                    )}
                   </div>
                 )}
 
