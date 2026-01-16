@@ -1152,9 +1152,6 @@ export default function CreateClientQuoteDialog({
                     Send Invoice
                   </Button>
                 </div>
-                <p className="text-xs text-blue-600 mt-2">
-                  Client will receive email with invoice link and Stripe payment option
-                </p>
               </div>
 
               {/* Action Buttons */}
@@ -1244,14 +1241,6 @@ export default function CreateClientQuoteDialog({
               />
             </div>
 
-            <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm text-blue-700">
-              <p className="font-medium">This will send a real email that:</p>
-              <ul className="list-disc list-inside mt-1 space-y-0.5 text-blue-600">
-                <li>Shows exactly what the client sees</li>
-                <li>Contains the live invoice link</li>
-                <li>Includes all payment options</li>
-              </ul>
-            </div>
           </div>
 
           <DialogFooter>

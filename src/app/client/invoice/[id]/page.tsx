@@ -568,10 +568,7 @@ export default function ClientInvoicePage() {
                       <p className="text-xs text-gray-500">No processing fee</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-gray-900">{formatCurrency(invoice.totalAmount)}</span>
-                    <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showWireInfo ? 'rotate-180' : ''}`} />
-                  </div>
+                  <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showWireInfo ? 'rotate-180' : ''}`} />
                 </button>
                 {showWireInfo && (
                   <div className="px-4 pb-4 border-t pt-4">
@@ -612,10 +609,7 @@ export default function ClientInvoicePage() {
                       <p className="text-xs text-gray-500">No processing fee</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-gray-900">{formatCurrency(invoice.totalAmount)}</span>
-                    <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showEtransferInfo ? 'rotate-180' : ''}`} />
-                  </div>
+                  <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showEtransferInfo ? 'rotate-180' : ''}`} />
                 </button>
                 {showEtransferInfo && (
                   <div className="px-4 pb-4 border-t pt-4">
@@ -658,10 +652,7 @@ export default function ClientInvoicePage() {
                       <p className="text-xs text-gray-500">No processing fee</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-gray-900">{formatCurrency(invoice.totalAmount)}</span>
-                    <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showCheckInfo ? 'rotate-180' : ''}`} />
-                  </div>
+                  <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showCheckInfo ? 'rotate-180' : ''}`} />
                 </button>
                 {showCheckInfo && (
                   <div className="px-4 pb-4 border-t pt-4">
