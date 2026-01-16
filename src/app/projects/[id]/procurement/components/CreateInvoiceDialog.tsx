@@ -136,9 +136,6 @@ export default function CreateInvoiceDialog({
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
 
-  // Default markup
-  const [defaultMarkup, setDefaultMarkup] = useState(25)
-
   // Load data when dialog opens
   useEffect(() => {
     if (open && projectId) {
@@ -303,13 +300,12 @@ export default function CreateInvoiceDialog({
           })
         })
     } else {
+      // For quotes, use the price directly without markup (RRP should already be set)
       approvedQuotes
         .filter(quote => selectedQuoteIds.has(quote.id))
         .forEach(quote => {
           quote.lineItems.forEach(li => {
-            const costPrice = li.unitPrice
-            const clientPrice = costPrice * (1 + defaultMarkup / 100)
-            const markupAmount = (clientPrice - costPrice) * li.quantity
+            const price = li.unitPrice
 
             lineItems.push({
               roomFFEItemId: li.roomFFEItemId || '',
@@ -318,12 +314,12 @@ export default function CreateInvoiceDialog({
               categoryName: 'From Supplier Quote',
               quantity: li.quantity,
               unitType: 'units',
-              clientUnitPrice: clientPrice,
-              clientTotalPrice: clientPrice * li.quantity,
-              supplierUnitPrice: costPrice,
+              clientUnitPrice: price,
+              clientTotalPrice: price * li.quantity,
+              supplierUnitPrice: price,
               supplierTotalPrice: li.totalPrice,
-              markupValue: defaultMarkup,
-              markupAmount
+              markupValue: 0,
+              markupAmount: 0
             })
           })
         })
@@ -343,9 +339,7 @@ export default function CreateInvoiceDialog({
     const cadSubtotal = cadItems.reduce((sum, item) => sum + item.clientTotalPrice, 0)
     const usdSubtotal = usdItems.reduce((sum, item) => sum + item.clientTotalPrice, 0)
 
-    const supplierCost = lineItems.reduce((sum, item) => sum + (item.supplierTotalPrice || 0), 0)
-    const subtotal = cadSubtotal + usdSubtotal // Combined for backward compatibility
-    const markup = subtotal - supplierCost
+    const subtotal = cadSubtotal + usdSubtotal
 
     // Tax applies to CAD items only
     const gst = cadSubtotal * 0.05
@@ -353,11 +347,9 @@ export default function CreateInvoiceDialog({
     const total = cadSubtotal + gst + qst
 
     return {
-      supplierCost,
       subtotal,
       cadSubtotal,
       usdSubtotal,
-      markup,
       gst,
       qst,
       total,
@@ -365,7 +357,7 @@ export default function CreateInvoiceDialog({
       cadItemCount: cadItems.length,
       usdItemCount: usdItems.length
     }
-  }, [selectedItemIds, selectedQuoteIds, activeSource, defaultMarkup])
+  }, [selectedItemIds, selectedQuoteIds, activeSource])
 
   const toggleCategory = (category: string) => {
     setExpandedCategories(prev => {
@@ -440,38 +432,28 @@ export default function CreateInvoiceDialog({
           projectId,
           title,
           description: description || null,
-          defaultMarkupPercent: defaultMarkup,
+          defaultMarkupPercent: 0, // No markup - using RRP directly
           validUntil: validUntil || null,
           paymentTerms: paymentTerms || null,
           groupingType: 'category',
           // Bill To information
           clientName: clientName || null,
           clientEmail: clientEmail || null,
-          // Map line items to the format expected by the API
-          // For items with RRP (markupValue = 0), use RRP as cost with 0% markup
-          // This prevents the API from adding additional markup
-          lineItems: lineItems.map((item, index) => {
-            // If item has no markup (RRP-based), set cost to the client price
-            // so the API calculation (cost * (1 + 0%)) = RRP
-            const hasRRP = item.markupValue === 0
-            const costPrice = hasRRP ? item.clientUnitPrice : (item.supplierUnitPrice || 0)
-            const markupPercent = hasRRP ? 0 : defaultMarkup
-
-            return {
-              roomFFEItemId: item.roomFFEItemId || null,
-              groupId: item.categoryName || 'From Supplier Quote',
-              itemName: item.displayName,
-              itemDescription: item.displayDescription || null,
-              quantity: item.quantity,
-              unitType: item.unitType,
-              costPrice: costPrice,
-              markupPercent: markupPercent,
-              sellingPrice: item.clientUnitPrice,
-              totalCost: item.supplierTotalPrice || 0,
-              totalPrice: item.clientTotalPrice,
-              order: index
-            }
-          })
+          // Map line items - use RRP directly with 0% markup
+          lineItems: lineItems.map((item, index) => ({
+            roomFFEItemId: item.roomFFEItemId || null,
+            groupId: item.categoryName || 'From Supplier Quote',
+            itemName: item.displayName,
+            itemDescription: item.displayDescription || null,
+            quantity: item.quantity,
+            unitType: item.unitType,
+            costPrice: item.clientUnitPrice, // Use RRP as cost
+            markupPercent: 0, // No markup
+            sellingPrice: item.clientUnitPrice,
+            totalCost: item.clientTotalPrice,
+            totalPrice: item.clientTotalPrice,
+            order: index
+          }))
         })
       })
 
@@ -751,27 +733,6 @@ export default function CreateInvoiceDialog({
               </TabsContent>
 
               <TabsContent value="quotes" className="mt-0">
-                {/* Markup Input - Prominent when using quotes */}
-                <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-amber-900">Markup Percentage</p>
-                      <p className="text-xs text-amber-700">Applied to supplier prices to calculate client price</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="number"
-                        value={defaultMarkup}
-                        onChange={(e) => setDefaultMarkup(parseFloat(e.target.value) || 0)}
-                        className="w-20 h-9 text-center bg-white"
-                        min={0}
-                        max={200}
-                      />
-                      <span className="text-amber-800 font-medium">%</span>
-                    </div>
-                  </div>
-                </div>
-
                 <ScrollArea className="h-[350px] border rounded-lg">
                   <div className="p-2 space-y-2">
                     {approvedQuotes.length === 0 ? (
@@ -795,7 +756,7 @@ export default function CreateInvoiceDialog({
                               <div className="flex-1">
                                 <div className="flex items-center justify-between">
                                   <p className="font-medium">{quote.supplierName}</p>
-                                  <p className="font-medium">{formatCurrency(quote.totalAmount * (1 + defaultMarkup / 100))}</p>
+                                  <p className="font-medium">{formatCurrency(quote.totalAmount)}</p>
                                 </div>
                                 <div className="flex items-center justify-between text-sm text-gray-500">
                                   <span>{quote.quoteNumber}</span>
@@ -808,7 +769,7 @@ export default function CreateInvoiceDialog({
                                 {quote.lineItems.map(li => (
                                   <div key={li.id} className="flex justify-between text-sm">
                                     <span className="text-gray-600">{li.itemName}</span>
-                                    <span>{formatCurrency(li.unitPrice * (1 + defaultMarkup / 100))} x {li.quantity}</span>
+                                    <span>{formatCurrency(li.unitPrice)} x {li.quantity}</span>
                                   </div>
                                 ))}
                               </div>
@@ -829,18 +790,6 @@ export default function CreateInvoiceDialog({
                   <span className="text-gray-600">Selected Items</span>
                   <span className="font-medium">{totals.itemCount}</span>
                 </div>
-                {activeSource === 'quotes' && totals.supplierCost > 0 && (
-                  <>
-                    <div className="flex justify-between text-sm mt-1 text-gray-500">
-                      <span>Supplier Cost</span>
-                      <span>{formatCurrency(totals.supplierCost)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm text-emerald-600">
-                      <span>Your Markup (+{defaultMarkup}%)</span>
-                      <span>+{formatCurrency(totals.markup)}</span>
-                    </div>
-                  </>
-                )}
                 {/* Show CAD and USD subtotals separately */}
                 {totals.cadSubtotal > 0 && (
                   <div className="flex justify-between text-sm mt-1">
