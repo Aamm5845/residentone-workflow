@@ -4794,11 +4794,12 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                       >
                                         <div className="p-2 border-b bg-gray-50">
                                           <p className="text-xs font-medium text-gray-700">
-                                            Linked Rooms ({uniqueRooms.length})
+                                            All Linked Rooms ({uniqueRooms.length})
                                           </p>
                                         </div>
                                         <div className="max-h-32 overflow-y-auto divide-y">
-                                          {uniqueRooms.slice(1).map((ffeItem, idx) => (
+                                          {/* Show ALL rooms including the first one */}
+                                          {uniqueRooms.map((ffeItem, idx) => (
                                             <div key={idx} className="p-2 text-xs text-gray-700">
                                               {ffeItem.roomName}
                                             </div>
@@ -4843,11 +4844,12 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                         >
                                           <div className="p-2 border-b bg-gray-50">
                                             <p className="text-xs font-medium text-gray-700">
-                                              Linked FFE Items ({uniqueNames.length})
+                                              All Linked FFE Items ({uniqueNames.length})
                                             </p>
                                           </div>
                                           <div className="max-h-48 overflow-y-auto divide-y">
-                                            {uniqueNames.slice(1).map((ffeItem, idx) => (
+                                            {/* Show ALL unique names including the first one */}
+                                            {uniqueNames.map((ffeItem, idx) => (
                                               <a
                                                 key={idx}
                                                 href={`/ffe/${ffeItem.roomId}/workspace?highlight=${ffeItem.ffeItemId}`}

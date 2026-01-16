@@ -108,14 +108,32 @@ export async function PATCH(
         })
       }
 
-      // 3. Update the spec item status to indicate it's unlinked (set to DRAFT or a special status)
-      const updatedSpec = await tx.roomFFEItem.update({
-        where: { id: specId },
-        data: {
-          specStatus: 'DRAFT', // Reset to draft so it shows as needing to be linked
-          updatedById: userId
-        }
+      // 3. Check if there are any remaining links for this spec item
+      const remainingLinks = await tx.fFESpecLink.count({
+        where: { specItemId: specId }
       })
+
+      // 4. Only reset status to DRAFT if there are NO remaining links
+      // Otherwise keep the current status so the item stays visible in All Specs
+      let updatedSpec = specItem
+      if (remainingLinks === 0 && !specItem.ffeRequirementId) {
+        // No more links - reset to draft
+        updatedSpec = await tx.roomFFEItem.update({
+          where: { id: specId },
+          data: {
+            specStatus: 'DRAFT',
+            updatedById: userId
+          }
+        })
+      } else {
+        // Still has other links - just update the timestamp
+        updatedSpec = await tx.roomFFEItem.update({
+          where: { id: specId },
+          data: {
+            updatedById: userId
+          }
+        })
+      }
 
       return updatedSpec
     })
