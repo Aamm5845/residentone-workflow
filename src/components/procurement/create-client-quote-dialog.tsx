@@ -1183,9 +1183,10 @@ export default function CreateClientQuoteDialog({
           )}
         </DialogFooter>
       </DialogContent>
+    </Dialog>
 
-      {/* Test Email Dialog */}
-      <Dialog open={showTestEmailDialog} onOpenChange={setShowTestEmailDialog}>
+    {/* Test Email Dialog */}
+    <Dialog open={showTestEmailDialog} onOpenChange={setShowTestEmailDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
