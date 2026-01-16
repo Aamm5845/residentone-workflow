@@ -498,6 +498,8 @@ export default function QuotePDFReviewDialog({
 
       if (res.ok) {
         toast.success('Match approved')
+        // Notify parent to refresh data so approval persists when dialog is reopened
+        onMatchUpdated?.()
       } else {
         toast.success('Match approved')
       }
@@ -769,13 +771,13 @@ export default function QuotePDFReviewDialog({
                                       </span>
                                     )}
                                   </div>
-                                  <div className="flex items-center gap-3 mt-2 pt-2 border-t border-blue-200 text-sm">
+                                  <div className="flex flex-wrap items-center gap-2 mt-2 pt-2 border-t border-blue-200 text-sm">
                                     <div className="flex items-center gap-1">
                                       <span className="text-gray-500">Qty:</span>
                                       <Input
                                         type="number"
                                         min={1}
-                                        className="w-16 h-7 text-sm px-2"
+                                        className="w-14 h-7 text-sm px-1"
                                         value={editedValues[globalIdx]?.quantity ?? match.extractedItem.quantity ?? ''}
                                         onChange={(e) => handleEditValue(globalIdx, 'quantity', parseInt(e.target.value) || 0)}
                                         disabled={isApproved}
@@ -787,21 +789,21 @@ export default function QuotePDFReviewDialog({
                                         type="number"
                                         min={0}
                                         step={0.01}
-                                        className="w-24 h-7 text-sm px-2"
+                                        className="w-20 h-7 text-sm px-1"
                                         value={editedValues[globalIdx]?.unitPrice ?? match.extractedItem.unitPrice ?? ''}
                                         onChange={(e) => handleEditValue(globalIdx, 'unitPrice', parseFloat(e.target.value) || 0)}
                                         disabled={isApproved}
                                       />
                                     </div>
-                                    <div>
-                                      <span className="text-gray-500">Total:</span>
-                                      <span className="ml-1 font-bold">
-                                        {formatCurrency(
-                                          (editedValues[globalIdx]?.unitPrice ?? match.extractedItem.unitPrice ?? 0) *
-                                          (editedValues[globalIdx]?.quantity ?? match.extractedItem.quantity ?? 1)
-                                        )}
-                                      </span>
-                                    </div>
+                                  </div>
+                                  <div className="text-sm mt-1">
+                                    <span className="text-gray-500">Total:</span>
+                                    <span className="ml-1 font-bold">
+                                      {formatCurrency(
+                                        (editedValues[globalIdx]?.unitPrice ?? match.extractedItem.unitPrice ?? 0) *
+                                        (editedValues[globalIdx]?.quantity ?? match.extractedItem.quantity ?? 1)
+                                      )}
+                                    </span>
                                   </div>
                                   {match.extractedItem.leadTime && (
                                     <p className="text-xs text-gray-600 mt-1">
@@ -1413,16 +1415,6 @@ export default function QuotePDFReviewDialog({
               />
             </div>
 
-            {/* Info Box */}
-            <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-sm text-purple-800">
-              <p className="flex items-start gap-2">
-                <Layers className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                <span>
-                  Components are sub-items that belong to a parent item. The component's price will be
-                  added to the parent item's total cost. Example: LED fixture + transformer + mounting bracket.
-                </span>
-              </p>
-            </div>
           </div>
 
           <DialogFooter>
