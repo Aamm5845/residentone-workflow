@@ -494,16 +494,47 @@ export async function GET(
           hasMismatches: hasAnyMismatches,
           mismatches: allMismatches,
 
-          // AI match summary data
-          aiMatchSummary: aiMatchData ? {
-            matched: aiMatchData.matched || 0,
-            partial: aiMatchData.partial || 0,
-            missing: aiMatchData.missing || 0,
-            extra: aiMatchData.extra || 0,
-            totalRequested: aiMatchData.totalRequested || 0,
-            quantityDiscrepancies: aiMatchData.quantityDiscrepancies || 0,
-            totalDiscrepancy: aiMatchData.totalDiscrepancy || false
-          } : null,
+          // AI match summary data - recalculate based on resolved items
+          aiMatchSummary: aiMatchData ? (() => {
+            // Count resolved extra items
+            const matchResults = aiMatchData.matchResults || []
+            let resolvedExtras = 0
+            let unresolvedExtras = 0
+            let matchedCount = 0
+            let partialCount = 0
+            let missingCount = 0
+
+            for (const result of matchResults) {
+              if (result.status === 'extra') {
+                if ((result as any).resolved) {
+                  resolvedExtras++
+                } else {
+                  unresolvedExtras++
+                }
+              } else if (result.status === 'matched') {
+                matchedCount++
+              } else if (result.status === 'partial') {
+                partialCount++
+              } else if (result.status === 'missing') {
+                missingCount++
+              }
+            }
+
+            // Use recalculated counts if matchResults exists, otherwise fallback to static counts
+            const hasMatchResults = matchResults.length > 0
+
+            return {
+              matched: hasMatchResults ? (matchedCount + resolvedExtras) : (aiMatchData.matched || 0),
+              partial: hasMatchResults ? partialCount : (aiMatchData.partial || 0),
+              missing: hasMatchResults ? missingCount : (aiMatchData.missing || 0),
+              extra: hasMatchResults ? unresolvedExtras : (aiMatchData.extra || 0),
+              totalRequested: aiMatchData.totalRequested || 0,
+              quantityDiscrepancies: aiMatchData.quantityDiscrepancies || 0,
+              totalDiscrepancy: aiMatchData.totalDiscrepancy || false,
+              // Include resolved count for UI
+              resolvedExtras: resolvedExtras
+            }
+          })() : null,
 
           // Full AI extracted data for PDF review
           aiExtractedData: aiMatchData ? {

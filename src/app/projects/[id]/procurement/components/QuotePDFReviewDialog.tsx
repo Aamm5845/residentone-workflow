@@ -723,7 +723,7 @@ export default function QuotePDFReviewDialog({
             <div className="flex-1">
               {quoteDocumentUrl ? (
                 <iframe
-                  src={quoteDocumentUrl}
+                  src={`${quoteDocumentUrl}#toolbar=0&navpanes=0&scrollbar=0`}
                   className="w-full h-full border-0"
                   title="Quote PDF"
                 />
@@ -842,7 +842,7 @@ export default function QuotePDFReviewDialog({
                             {isApproved ? (
                               <Badge className="bg-emerald-600 text-white text-xs">
                                 <Check className="w-3 h-3 mr-1" />
-                                Approved
+                                Matched
                               </Badge>
                             ) : (
                               <Badge variant="outline" className="text-gray-500 text-xs">
