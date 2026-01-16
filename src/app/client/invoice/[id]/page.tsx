@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
-import { Loader2, FileText, Mail, Phone, Calendar, ChevronDown, ChevronUp, Building, Banknote, ExternalLink, CheckCircle } from 'lucide-react'
+import { Loader2, FileText, ChevronDown, Building, Banknote, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 // Print styles - hide payment section and format for full-page printing
@@ -127,7 +127,6 @@ export default function ClientInvoicePage() {
   const [invoice, setInvoice] = useState<InvoiceData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [expandedItem, setExpandedItem] = useState<string | null>(null)
   const [showWireInfo, setShowWireInfo] = useState(false)
   const [showCheckInfo, setShowCheckInfo] = useState(false)
   const [showEtransferInfo, setShowEtransferInfo] = useState(false)
@@ -375,59 +374,7 @@ export default function ClientInvoicePage() {
                           <div className="min-w-0">
                             <p className="font-medium text-gray-900 text-sm">{item.displayName}</p>
                             {item.displayDescription && (
-                              <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{item.displayDescription}</p>
-                            )}
-                            {item.specDetails && (
-                              <button
-                                onClick={() => setExpandedItem(expandedItem === item.id ? null : item.id)}
-                                className="text-xs text-blue-600 hover:text-blue-700 mt-1 inline-flex items-center gap-1"
-                              >
-                                {expandedItem === item.id ? 'Hide details' : 'See details'}
-                                {expandedItem === item.id ? (
-                                  <ChevronUp className="w-3 h-3" />
-                                ) : (
-                                  <ChevronDown className="w-3 h-3" />
-                                )}
-                              </button>
-                            )}
-                            {expandedItem === item.id && item.specDetails && (
-                              <div className="mt-3 p-3 bg-gray-50 rounded-lg text-xs space-y-1.5">
-                                {item.specDetails.manufacturer && (
-                                  <p><span className="text-gray-400">Brand:</span> <span className="text-gray-700">{item.specDetails.manufacturer}</span></p>
-                                )}
-                                {item.specDetails.model && (
-                                  <p><span className="text-gray-400">Model:</span> <span className="text-gray-700">{item.specDetails.model}</span></p>
-                                )}
-                                {item.specDetails.finish && (
-                                  <p><span className="text-gray-400">Finish:</span> <span className="text-gray-700">{item.specDetails.finish}</span></p>
-                                )}
-                                {item.specDetails.dimensions && (
-                                  <p><span className="text-gray-400">Dimensions:</span> <span className="text-gray-700">{item.specDetails.dimensions}</span></p>
-                                )}
-                                {item.specDetails.leadTime && (
-                                  <p><span className="text-gray-400">Lead Time:</span> <span className="text-gray-700">{item.specDetails.leadTime}</span></p>
-                                )}
-                                {item.specDetails.allImages && item.specDetails.allImages.length > 1 && (
-                                  <div className="flex gap-2 pt-2">
-                                    {item.specDetails.allImages.slice(0, 4).map((img, idx) => (
-                                      <img key={idx} src={img} alt="" className="w-12 h-12 rounded object-cover" />
-                                    ))}
-                                  </div>
-                                )}
-                                {item.roomFFEItemId && invoice.projectId && (
-                                  <div className="pt-2 border-t border-gray-200 mt-2">
-                                    <a
-                                      href={`/shared/specs/${invoice.projectId}/item/${item.roomFFEItemId}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-blue-600 hover:text-blue-700 inline-flex items-center gap-1"
-                                    >
-                                      View full item details
-                                      <ExternalLink className="w-3 h-3" />
-                                    </a>
-                                  </div>
-                                )}
-                              </div>
+                              <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{item.displayDescription}</p>
                             )}
                           </div>
                         </div>
