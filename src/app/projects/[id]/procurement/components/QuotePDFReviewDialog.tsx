@@ -1,6 +1,9 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Document, Page, pdfjs } from 'react-pdf'
+import 'react-pdf/dist/Page/AnnotationLayer.css'
+import 'react-pdf/dist/Page/TextLayer.css'
 import {
   Dialog,
   DialogContent,
@@ -40,9 +43,16 @@ import {
   Image as ImageIcon,
   PanelRightClose,
   PanelRightOpen,
-  Layers
+  Layers,
+  ChevronLeft,
+  ChevronRight,
+  ZoomIn,
+  ZoomOut
 } from 'lucide-react'
 import { toast } from 'sonner'
+
+// Set up PDF.js worker
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
 
 interface Room {
   id: string
@@ -200,6 +210,14 @@ export default function QuotePDFReviewDialog({
 
   // Track resolved extra items (added as component or added to specs)
   const [resolvedExtraItems, setResolvedExtraItems] = useState<Record<number, { type: 'component' | 'specs', parentItemName?: string }>>({})
+
+  // PDF viewer state
+  const [numPages, setNumPages] = useState<number>(0)
+  const [pageNumber, setPageNumber] = useState<number>(1)
+  const [pdfScale, setPdfScale] = useState<number>(1.0)
+  const [pdfLoading, setPdfLoading] = useState<boolean>(true)
+  const [pdfError, setPdfError] = useState<string | null>(null)
+  const pdfContainerRef = useRef<HTMLDivElement>(null)
 
   // Track resolved extra items for Add to All Specs
   const [currentAddToSpecsIdx, setCurrentAddToSpecsIdx] = useState<number | null>(null)
@@ -718,15 +736,99 @@ export default function QuotePDFReviewDialog({
 
         <div className="flex h-[calc(95vh-80px)]">
           {/* PDF Viewer - Full width when analysis panel is hidden */}
-          <div className={`${showAnalysisPanel ? 'w-3/5' : 'w-full'} border-r flex flex-col bg-gray-50 transition-all duration-300`}>
-            {/* PDF Embed - Full Height */}
-            <div className="flex-1 relative">
+          <div className={`${showAnalysisPanel ? 'w-3/5' : 'w-full'} border-r flex flex-col bg-gray-100 transition-all duration-300`}>
+            {/* PDF Controls */}
+            {quoteDocumentUrl && (
+              <div className="flex items-center justify-between px-4 py-2 bg-white border-b">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPageNumber(p => Math.max(1, p - 1))}
+                    disabled={pageNumber <= 1}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <span className="text-sm text-gray-600 min-w-[80px] text-center">
+                    {pageNumber} / {numPages || '...'}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPageNumber(p => Math.min(numPages, p + 1))}
+                    disabled={pageNumber >= numPages}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPdfScale(s => Math.max(0.5, s - 0.25))}
+                    disabled={pdfScale <= 0.5}
+                  >
+                    <ZoomOut className="w-4 h-4" />
+                  </Button>
+                  <span className="text-sm text-gray-600 min-w-[50px] text-center">
+                    {Math.round(pdfScale * 100)}%
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPdfScale(s => Math.min(2, s + 0.25))}
+                    disabled={pdfScale >= 2}
+                  >
+                    <ZoomIn className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+            {/* PDF Document */}
+            <div className="flex-1 overflow-auto" ref={pdfContainerRef}>
               {quoteDocumentUrl ? (
-                <embed
-                  src={`${quoteDocumentUrl}#toolbar=1&navpanes=0&scrollbar=1&view=FitH`}
-                  type="application/pdf"
-                  className="w-full h-full"
-                />
+                <Document
+                  file={quoteDocumentUrl}
+                  onLoadSuccess={({ numPages }) => {
+                    setNumPages(numPages)
+                    setPdfLoading(false)
+                    setPdfError(null)
+                  }}
+                  onLoadError={(error) => {
+                    console.error('PDF load error:', error)
+                    setPdfError('Failed to load PDF')
+                    setPdfLoading(false)
+                  }}
+                  loading={
+                    <div className="flex items-center justify-center h-full py-20">
+                      <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+                      <span className="ml-2 text-gray-500">Loading PDF...</span>
+                    </div>
+                  }
+                  error={
+                    <div className="flex flex-col items-center justify-center h-full py-20 text-red-500">
+                      <AlertTriangle className="w-8 h-8 mb-2" />
+                      <span>Failed to load PDF</span>
+                      <Button
+                        variant="link"
+                        size="sm"
+                        onClick={() => window.open(quoteDocumentUrl, '_blank')}
+                        className="mt-2"
+                      >
+                        Open in new tab
+                      </Button>
+                    </div>
+                  }
+                  className="flex justify-center py-4"
+                >
+                  <Page
+                    pageNumber={pageNumber}
+                    scale={pdfScale}
+                    renderTextLayer={true}
+                    renderAnnotationLayer={true}
+                    className="shadow-lg"
+                  />
+                </Document>
               ) : (
                 <div className="flex items-center justify-center h-full text-gray-400">
                   <FileText className="w-12 h-12 mr-3" />
@@ -833,52 +935,39 @@ export default function QuotePDFReviewDialog({
                           key={idx}
                           className={`border rounded-lg p-4 ${
                             isApproved
-                              ? 'bg-emerald-50 border-emerald-300'
-                              : match.status === 'partial'
-                              ? 'bg-amber-50 border-amber-200'
-                              : 'bg-white'
+                              ? 'bg-emerald-50 border-emerald-200'
+                              : 'bg-white border-gray-200'
                           }`}
                         >
-                          <div className="flex items-start justify-between mb-3">
-                            {getStatusBadge(match.status)}
-                            {isApproved && (
+                          {/* Simple status indicator - only show one badge */}
+                          <div className="flex items-center justify-end mb-3">
+                            {isApproved ? (
                               <Badge className="bg-emerald-600 text-white text-xs">
                                 <Check className="w-3 h-3 mr-1" />
                                 Approved
                               </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-gray-500 text-xs">
+                                Needs Review
+                              </Badge>
                             )}
                           </div>
 
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="grid grid-cols-2 gap-3">
                             {/* Left: What Supplier Sent */}
-                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                              <p className="text-xs font-medium text-blue-700 mb-2 uppercase tracking-wide">
-                                Supplier Sent
+                            <div className="border border-gray-200 rounded-lg p-3">
+                              <p className="text-xs font-medium text-gray-500 mb-2">
+                                Supplier Quote
                               </p>
                               {match.extractedItem && (
-                                <div className="space-y-1.5">
-                                  <p className="font-medium text-gray-900">
+                                <div className="space-y-2">
+                                  <p className="font-medium text-gray-900 text-sm">
                                     {match.extractedItem.productName}
                                   </p>
-                                  {match.extractedItem.productNameOriginal &&
-                                   match.extractedItem.productNameOriginal !== match.extractedItem.productName && (
-                                    <p className="text-xs text-gray-500 italic">
-                                      Original: {match.extractedItem.productNameOriginal}
-                                    </p>
+                                  {match.extractedItem.sku && (
+                                    <p className="text-xs text-gray-500">SKU: {match.extractedItem.sku}</p>
                                   )}
-                                  <div className="flex flex-wrap gap-2 text-xs">
-                                    {match.extractedItem.sku && (
-                                      <span className="px-2 py-0.5 bg-blue-100 rounded">
-                                        SKU: {match.extractedItem.sku}
-                                      </span>
-                                    )}
-                                    {match.extractedItem.brand && (
-                                      <span className="px-2 py-0.5 bg-blue-100 rounded">
-                                        {match.extractedItem.brand}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="flex flex-wrap items-center gap-2 mt-2 pt-2 border-t border-blue-200 text-sm">
+                                  <div className="flex flex-wrap items-center gap-2 pt-2 border-t text-sm">
                                     <div className="flex items-center gap-1">
                                       <span className="text-gray-500">Qty:</span>
                                       <Input
@@ -891,7 +980,7 @@ export default function QuotePDFReviewDialog({
                                       />
                                     </div>
                                     <div className="flex items-center gap-1">
-                                      <span className="text-gray-500">Price:</span>
+                                      <span className="text-gray-500">$</span>
                                       <Input
                                         type="number"
                                         min={0}
@@ -903,64 +992,42 @@ export default function QuotePDFReviewDialog({
                                       />
                                     </div>
                                   </div>
-                                  <div className="text-sm mt-1">
-                                    <span className="text-gray-500">Total:</span>
-                                    <span className="ml-1 font-bold">
-                                      {formatCurrency(
-                                        (editedValues[globalIdx]?.unitPrice ?? match.extractedItem.unitPrice ?? 0) *
-                                        (editedValues[globalIdx]?.quantity ?? match.extractedItem.quantity ?? 1)
-                                      )}
-                                    </span>
-                                  </div>
-                                  {match.extractedItem.leadTime && (
-                                    <p className="text-xs text-gray-600 mt-1">
-                                      Lead Time: {match.extractedItem.leadTime}
-                                    </p>
-                                  )}
+                                  <p className="text-sm font-medium">
+                                    Total: {formatCurrency(
+                                      (editedValues[globalIdx]?.unitPrice ?? match.extractedItem.unitPrice ?? 0) *
+                                      (editedValues[globalIdx]?.quantity ?? match.extractedItem.quantity ?? 1)
+                                    )}
+                                  </p>
                                 </div>
                               )}
                             </div>
 
                             {/* Right: What We Requested */}
-                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                              <p className="text-xs font-medium text-gray-600 mb-2 uppercase tracking-wide">
-                                We Requested
+                            <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                              <p className="text-xs font-medium text-gray-500 mb-2">
+                                Our Request
                               </p>
                               {match.rfqItem && (
-                                <div className="space-y-1.5">
-                                  <p className="font-medium text-gray-900">
+                                <div className="space-y-2">
+                                  <p className="font-medium text-gray-900 text-sm">
                                     {match.rfqItem.itemName}
                                   </p>
-                                  <div className="flex flex-wrap gap-2 text-xs">
-                                    {match.rfqItem.sku && (
-                                      <span className="px-2 py-0.5 bg-gray-200 rounded">
-                                        SKU: {match.rfqItem.sku}
-                                      </span>
-                                    )}
-                                    {match.rfqItem.brand && (
-                                      <span className="px-2 py-0.5 bg-gray-200 rounded">
-                                        {match.rfqItem.brand}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="mt-2 pt-2 border-t border-gray-200 text-sm">
-                                    <span className="text-gray-500">Requested Qty:</span>
-                                    <span className="ml-1 font-bold">{match.rfqItem.quantity}</span>
-                                  </div>
+                                  {match.rfqItem.sku && (
+                                    <p className="text-xs text-gray-500">SKU: {match.rfqItem.sku}</p>
+                                  )}
+                                  <p className="text-sm pt-2 border-t">
+                                    Qty: <span className="font-medium">{match.rfqItem.quantity}</span>
+                                  </p>
                                 </div>
                               )}
                             </div>
                           </div>
 
-                          {/* Discrepancies */}
+                          {/* Discrepancies - simplified */}
                           {match.discrepancies && match.discrepancies.length > 0 && (
-                            <div className="mt-3 p-2 bg-amber-100 border border-amber-300 rounded text-sm">
-                              <p className="font-medium text-amber-800 mb-1">Discrepancies:</p>
+                            <div className="mt-3 p-2 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800">
                               {match.discrepancies.map((d, i) => (
-                                <p key={i} className="text-amber-700 flex items-center gap-1">
-                                  <AlertTriangle className="w-3 h-3" />
-                                  {d}
-                                </p>
+                                <p key={i}>• {d}</p>
                               ))}
                             </div>
                           )}
@@ -1011,25 +1078,28 @@ export default function QuotePDFReviewDialog({
                 {extraItems.length > 0 && (
                   <div className="space-y-3">
                     <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                      <AlertTriangle className="w-5 h-5 text-blue-600" />
-                      Extra Items - Not in Original Request ({extraItems.length})
+                      <AlertTriangle className="w-5 h-5 text-orange-500" />
+                      Extra Items ({extraItems.length})
                     </h3>
                     {extraItems.map((match, idx) => {
                       const isResolved = resolvedExtraItems[idx]
                       return (
                         <div key={idx} className={`border rounded-lg p-4 ${
                           isResolved
-                            ? 'border-emerald-300 bg-emerald-50'
-                            : 'border-blue-200 bg-blue-50'
+                            ? 'border-emerald-200 bg-emerald-50'
+                            : 'border-gray-200 bg-white'
                         }`}>
-                            <div className="flex items-center justify-between mb-2">
+                            {/* Simple status - resolved or not */}
+                            <div className="flex items-center justify-end mb-2">
                               {isResolved ? (
                                 <Badge className="bg-emerald-600 text-white text-xs">
                                   <Check className="w-3 h-3 mr-1" />
-                                  {isResolved.type === 'component' ? 'Added as Component' : 'Added to Specs'}
+                                  Resolved
                                 </Badge>
                               ) : (
-                                getStatusBadge(match.status, match.confidence)
+                                <Badge variant="outline" className="text-orange-600 border-orange-300 text-xs">
+                                  Extra
+                                </Badge>
                               )}
                             </div>
                             {match.extractedItem && (
@@ -1037,42 +1107,19 @@ export default function QuotePDFReviewDialog({
                                 <p className="font-medium text-gray-900">
                                   {match.extractedItem.productName}
                                 </p>
-                                <div className="flex flex-wrap gap-2 text-xs">
-                                  {match.extractedItem.sku && (
-                                    <span className={`px-2 py-0.5 rounded ${isResolved ? 'bg-emerald-100' : 'bg-blue-100'}`}>
-                                      SKU: {match.extractedItem.sku}
-                                    </span>
-                                  )}
-                                  {match.extractedItem.brand && (
-                                    <span className={`px-2 py-0.5 rounded ${isResolved ? 'bg-emerald-100' : 'bg-blue-100'}`}>
-                                      {match.extractedItem.brand}
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-4 text-sm">
-                                  <div>
-                                    <span className="text-gray-500">Qty:</span>
-                                    <span className="ml-1 font-bold">{match.extractedItem.quantity || '-'}</span>
-                                  </div>
-                                  <div>
-                                    <span className="text-gray-500">Price:</span>
-                                    <span className="ml-1 font-bold">{formatCurrency(match.extractedItem.unitPrice)}</span>
-                                  </div>
-                                  <div>
-                                    <span className="text-gray-500">Total:</span>
-                                    <span className="ml-1 font-bold">{formatCurrency(match.extractedItem.totalPrice)}</span>
-                                  </div>
+                                <div className="flex items-center gap-4 text-sm text-gray-600">
+                                  <span>Qty: <span className="font-medium text-gray-900">{match.extractedItem.quantity || '-'}</span></span>
+                                  <span>Price: <span className="font-medium text-gray-900">{formatCurrency(match.extractedItem.unitPrice)}</span></span>
+                                  <span>Total: <span className="font-medium text-gray-900">{formatCurrency(match.extractedItem.totalPrice)}</span></span>
                                 </div>
 
-                                {/* Show resolution info if resolved */}
+                                {/* Show resolution info if resolved - simplified */}
                                 {isResolved && (
-                                  <div className="mt-2 p-2 bg-emerald-100 border border-emerald-200 rounded text-sm text-emerald-800">
-                                    {isResolved.type === 'component' ? (
-                                      <p>Added as component to: <span className="font-semibold">{isResolved.parentItemName}</span></p>
-                                    ) : (
-                                      <p>Added to All Specs</p>
-                                    )}
-                                  </div>
+                                  <p className="text-sm text-emerald-700">
+                                    {isResolved.type === 'component'
+                                      ? `→ Component of ${isResolved.parentItemName}`
+                                      : '→ Added to All Specs'}
+                                  </p>
                                 )}
 
                                 {/* Suggested Matches - only show if not resolved */}

@@ -108,6 +108,7 @@
     "react-hot-toast": "^2.6.0",
     "react-image-crop": "^11.0.10",
     "react-markdown": "^10.1.0",
+    "react-pdf": "^10.3.0",
     "recharts": "^3.5.0",
     "resend": "^6.1.0",
     "sharp": "^0.34.4",
