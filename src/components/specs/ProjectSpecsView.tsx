@@ -4766,52 +4766,119 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   })()}
                                 </div>
                               )}
-                              <p className="text-[10px] text-gray-500 uppercase tracking-wide mt-0.5 truncate">{item.roomName}</p>
-                              {/* Show linked FFE items - new many-to-many format */}
+                              {/* Room location - show unique FFE rooms with +N indicator */}
+                              {(() => {
+                                const uniqueRooms = item.linkedFfeItems && item.linkedFfeItems.length > 0
+                                  ? [...new Map(item.linkedFfeItems.map(f => [f.roomName, f])).values()]
+                                  : []
+                                const additionalRoomsCount = uniqueRooms.length - 1
+
+                                if (uniqueRooms.length > 1) {
+                                  return (
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <button
+                                          onClick={(e) => e.stopPropagation()}
+                                          className="inline-flex items-center gap-1 text-[10px] text-gray-500 uppercase tracking-wide mt-0.5 hover:text-gray-700"
+                                        >
+                                          {uniqueRooms[0].roomName}
+                                          <span className="px-1 py-0.5 bg-gray-200 text-gray-600 rounded text-[9px] font-medium normal-case">
+                                            +{additionalRoomsCount}
+                                          </span>
+                                        </button>
+                                      </PopoverTrigger>
+                                      <PopoverContent
+                                        className="w-48 p-0"
+                                        align="start"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <div className="p-2 border-b bg-gray-50">
+                                          <p className="text-xs font-medium text-gray-700">
+                                            Linked Rooms ({uniqueRooms.length})
+                                          </p>
+                                        </div>
+                                        <div className="max-h-32 overflow-y-auto divide-y">
+                                          {uniqueRooms.slice(1).map((ffeItem, idx) => (
+                                            <div key={idx} className="p-2 text-xs text-gray-700">
+                                              {ffeItem.roomName}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </PopoverContent>
+                                    </Popover>
+                                  )
+                                }
+                                return (
+                                  <p className="text-[10px] text-gray-500 uppercase tracking-wide mt-0.5 truncate">
+                                    {uniqueRooms.length > 0 ? uniqueRooms[0].roomName : item.roomName}
+                                  </p>
+                                )
+                              })()}
+                              {/* Show linked FFE items - show unique FFE names with +N indicator */}
                               {item.linkedFfeItems && item.linkedFfeItems.length > 0 ? (
-                                <Popover>
-                                  <PopoverTrigger asChild>
-                                    <button
+                                (() => {
+                                  const uniqueNames = [...new Map(item.linkedFfeItems.map(f => [f.ffeItemName, f])).values()]
+                                  const additionalNamesCount = uniqueNames.length - 1
+                                  const firstItem = uniqueNames[0]
+
+                                  if (additionalNamesCount > 0) {
+                                    return (
+                                      <Popover>
+                                        <PopoverTrigger asChild>
+                                          <button
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="inline-flex items-center gap-1 text-[10px] text-blue-600 hover:text-blue-700 mt-0.5 truncate hover:underline"
+                                          >
+                                            <LinkIcon className="w-2.5 h-2.5 flex-shrink-0" />
+                                            {firstItem.ffeItemName}
+                                            <span className="ml-1 px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[9px] font-medium">
+                                              +{additionalNamesCount}
+                                            </span>
+                                          </button>
+                                        </PopoverTrigger>
+                                        <PopoverContent
+                                          className="w-64 p-0"
+                                          align="start"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <div className="p-2 border-b bg-gray-50">
+                                            <p className="text-xs font-medium text-gray-700">
+                                              Linked FFE Items ({uniqueNames.length})
+                                            </p>
+                                          </div>
+                                          <div className="max-h-48 overflow-y-auto divide-y">
+                                            {uniqueNames.slice(1).map((ffeItem, idx) => (
+                                              <a
+                                                key={idx}
+                                                href={`/ffe/${ffeItem.roomId}/workspace?highlight=${ffeItem.ffeItemId}`}
+                                                className="block p-2 hover:bg-blue-50 transition-colors"
+                                              >
+                                                <p className="text-xs font-medium text-gray-900 truncate">
+                                                  {ffeItem.ffeItemName}
+                                                </p>
+                                                <p className="text-[10px] text-gray-500 truncate">
+                                                  {ffeItem.roomName} · {ffeItem.sectionName}
+                                                </p>
+                                              </a>
+                                            ))}
+                                          </div>
+                                        </PopoverContent>
+                                      </Popover>
+                                    )
+                                  }
+                                  // Single unique name - just show it (even if linked to multiple rooms)
+                                  return (
+                                    <a
+                                      href={`/ffe/${firstItem.roomId}/workspace?highlight=${firstItem.ffeItemId}`}
                                       onClick={(e) => e.stopPropagation()}
-                                      className="inline-flex items-center gap-1 text-[10px] text-blue-600 hover:text-blue-700 mt-0.5 truncate hover:underline"
+                                      className="inline-flex items-center gap-1 text-[10px] text-blue-600 hover:text-blue-700 mt-0.5 truncate"
+                                      title={`FFE: ${firstItem.ffeItemName}`}
                                     >
                                       <LinkIcon className="w-2.5 h-2.5 flex-shrink-0" />
-                                      {item.linkedFfeItems[0].roomName}: {item.linkedFfeItems[0].ffeItemName}
-                                      {item.linkedFfeItems.length > 1 && (
-                                        <span className="ml-1 px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[9px] font-medium">
-                                          +{item.linkedFfeItems.length - 1}
-                                        </span>
-                                      )}
-                                    </button>
-                                  </PopoverTrigger>
-                                  <PopoverContent 
-                                    className="w-64 p-0" 
-                                    align="start"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    <div className="p-2 border-b bg-gray-50">
-                                      <p className="text-xs font-medium text-gray-700">
-                                        Linked FFE Items ({item.linkedFfeItems.length})
-                                      </p>
-                                    </div>
-                                    <div className="max-h-48 overflow-y-auto divide-y">
-                                      {item.linkedFfeItems.map((ffeItem) => (
-                                        <a
-                                          key={ffeItem.linkId}
-                                          href={`/ffe/${ffeItem.roomId}/workspace?highlight=${ffeItem.ffeItemId}`}
-                                          className="block p-2 hover:bg-blue-50 transition-colors"
-                                        >
-                                          <p className="text-xs font-medium text-gray-900 truncate">
-                                            {ffeItem.ffeItemName}
-                                          </p>
-                                          <p className="text-[10px] text-gray-500 truncate">
-                                            {ffeItem.roomName} · {ffeItem.sectionName}
-                                          </p>
-                                        </a>
-                                      ))}
-                                    </div>
-                                  </PopoverContent>
-                                </Popover>
+                                      {firstItem.ffeItemName}
+                                    </a>
+                                  )
+                                })()
                               ) : item.ffeRequirementName && (
                                 /* Legacy one-to-one link fallback */
                                 <a
