@@ -795,10 +795,23 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                           </span>
                         </div>
                       )}
-                      <div className="flex items-center gap-1.5">
+                      <div>
                         <span className="text-gray-600">{quote.supplier.name}</span>
-                        {quote.hasMismatches && (
-                          <AlertTriangle className="w-3.5 h-3.5 text-orange-500 flex-shrink-0" />
+                        {/* Show mismatch summary badges */}
+                        {quote.aiMatchSummary && (quote.aiMatchSummary.extra > 0 || quote.aiMatchSummary.missing > 0) && (
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            {quote.aiMatchSummary.extra > 0 && (
+                              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded font-medium">
+                                <AlertTriangle className="w-2.5 h-2.5" />
+                                {quote.aiMatchSummary.extra} Extra
+                              </span>
+                            )}
+                            {quote.aiMatchSummary.missing > 0 && (
+                              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 bg-red-100 text-red-700 rounded font-medium">
+                                {quote.aiMatchSummary.missing} Missing
+                              </span>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
