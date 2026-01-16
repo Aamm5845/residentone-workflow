@@ -90,8 +90,8 @@ interface SpecItem {
   components?: ComponentItem[] // Component sub-items
 }
 
-// Statuses to exclude from client invoice (client/contractor order items)
-const EXCLUDED_INVOICE_STATUSES = ['CLIENT_TO_ORDER', 'CONTRACTOR_TO_ORDER']
+// Statuses to exclude from client invoice
+const EXCLUDED_INVOICE_STATUSES = ['CLIENT_TO_ORDER', 'CONTRACTOR_TO_ORDER', 'DRAFT', 'HIDDEN']
 
 interface ApprovedQuote {
   id: string

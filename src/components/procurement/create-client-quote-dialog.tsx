@@ -55,12 +55,18 @@ interface SpecItem {
   tradePrice?: number | null
   unitCost?: number | null
   rrp?: number | null
+  rrpCurrency?: string
   // Supplier info
   supplierName?: string
   brand?: string
   // Images
   images?: string[]
+  // Status
+  specStatus?: string | null
 }
+
+// Statuses that should NOT appear in invoice creation
+const EXCLUDED_INVOICE_STATUSES = ['CLIENT_TO_ORDER', 'CONTRACTOR_TO_ORDER', 'DRAFT', 'HIDDEN']
 
 interface LineItem {
   id: string
@@ -70,19 +76,14 @@ interface LineItem {
   category: string
   quantity: number
   unitType: string
-  costPrice: number
-  markupPercent: number
-  sellingPrice: number
+  costPrice: number // Trade price (for internal reference only)
+  sellingPrice: number // RRP - the client-facing price
   totalPrice: number
   roomName?: string
-  hasRrp?: boolean // True if RRP was used (markup is calculated, not editable)
+  currency?: string // CAD or USD
   imageUrl?: string // First image URL
 }
 
-interface CategoryMarkup {
-  categoryName: string
-  markupPercent: number
-}
 
 export default function CreateClientQuoteDialog({
   open,
@@ -110,7 +111,6 @@ export default function CreateClientQuoteDialog({
   const [validUntil, setValidUntil] = useState('')
   const [paymentTerms, setPaymentTerms] = useState('100% upfront')
   const [depositRequired, setDepositRequired] = useState<number | undefined>(undefined)
-  const [defaultMarkup, setDefaultMarkup] = useState(25)
 
   // Additional charges (delivery, duties, custom)
   interface AdditionalCharge {
@@ -124,14 +124,12 @@ export default function CreateClientQuoteDialog({
   const [specItems, setSpecItems] = useState<SpecItem[]>([])
   const [lineItems, setLineItems] = useState<LineItem[]>([])
   const [searchQuery, setSearchQuery] = useState('')
-  const [categoryMarkups, setCategoryMarkups] = useState<CategoryMarkup[]>([])
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
 
   // Load items when dialog opens
   useEffect(() => {
     if (open && projectId) {
       loadSpecItems()
-      loadCategoryMarkups()
       loadProjectClient()
 
       // Set default valid until date (30 days from now)
@@ -170,52 +168,41 @@ export default function CreateClientQuoteDialog({
     }
   }
 
-  // Build line items from preselected items
+  // Build line items from preselected items (only items with RRP and valid status)
   useEffect(() => {
     if (specItems.length > 0 && preselectedItemIds?.length) {
-      const items = specItems.filter(item => preselectedItemIds.includes(item.id))
-      buildLineItems(items)
+      // Filter to only items that can be invoiced:
+      // 1. Must have RRP set
+      // 2. Must not have excluded status
+      const invoiceableItems = specItems.filter(item =>
+        preselectedItemIds.includes(item.id) &&
+        item.rrp && item.rrp > 0 &&
+        !EXCLUDED_INVOICE_STATUSES.includes(item.specStatus || '')
+      )
+
+      buildLineItems(invoiceableItems)
 
       // Auto-generate title - use item name if only one item, otherwise use categories
-      if (items.length === 1) {
+      if (invoiceableItems.length === 1) {
         // Single item: use the item name as title
-        setTitle(items[0].name || 'Item Quote')
-      } else {
+        setTitle(invoiceableItems[0].name || 'Item Quote')
+      } else if (invoiceableItems.length > 0) {
         // Multiple items: use categories
-        const categories = [...new Set(items.map(i => i.category || i.sectionName || 'Items'))]
+        const categories = [...new Set(invoiceableItems.map(i => i.category || i.sectionName || 'Items'))]
         if (categories.length === 1) {
           setTitle(`${categories[0]} Quote`)
         } else if (categories.length <= 3) {
           setTitle(`${categories.join(', ')} Quote`)
         } else {
-          setTitle(`Quote (${items.length} items)`)
+          setTitle(`Quote (${invoiceableItems.length} items)`)
         }
       }
 
       // Expand all categories by default
-      const categories = [...new Set(items.map(i => i.category || i.sectionName || 'Items'))]
+      const categories = [...new Set(invoiceableItems.map(i => i.category || i.sectionName || 'Items'))]
       setExpandedCategories(new Set(categories))
     }
-  }, [specItems, preselectedItemIds, categoryMarkups])
-
-  // Update line items when default markup changes (for items without RRP)
-  useEffect(() => {
-    if (lineItems.length > 0) {
-      setLineItems(prev => prev.map(item => {
-        // Only update items without RRP (those using calculated markup)
-        if (!item.hasRrp) {
-          const sellingPrice = item.costPrice * (1 + defaultMarkup / 100)
-          return {
-            ...item,
-            markupPercent: defaultMarkup,
-            sellingPrice,
-            totalPrice: sellingPrice * item.quantity
-          }
-        }
-        return item
-      }))
-    }
-  }, [defaultMarkup])
+  }, [specItems, preselectedItemIds])
 
   const loadSpecItems = async () => {
     setLoading(true)
@@ -236,49 +223,17 @@ export default function CreateClientQuoteDialog({
     }
   }
 
-  const loadCategoryMarkups = async () => {
-    try {
-      const response = await fetch('/api/settings/category-markups')
-      if (response.ok) {
-        const data = await response.json()
-        setCategoryMarkups(data.markups || [])
-      }
-    } catch (error) {
-      console.error('Error loading category markups:', error)
-    }
-  }
-
-  const getMarkupForCategory = (category: string): number => {
-    const markup = categoryMarkups.find(m => 
-      m.categoryName.toLowerCase() === category.toLowerCase()
-    )
-    return markup?.markupPercent || defaultMarkup
-  }
-
+  // Build line items using RRP only (no markup calculation needed)
+  // Items must have RRP set - this is validated in the filter above
   const buildLineItems = (items: SpecItem[]) => {
     const newLineItems: LineItem[] = items.map(item => {
       const category = item.category || item.sectionName || 'General'
-      const defaultMarkupForCategory = getMarkupForCategory(category)
 
-      // Cost price is always trade price (or unitCost as fallback)
+      // Cost price is trade price (for internal reference only)
       const costPrice = item.tradePrice || item.unitCost || 0
 
-      // If RRP exists, use it as selling price and calculate markup from it
-      // If no RRP, apply markup to trade price
-      let sellingPrice: number
-      let markupPercent: number
-
-      if (item.rrp && item.rrp > 0) {
-        // RRP already includes markup - use it directly
-        sellingPrice = item.rrp
-        // Calculate the actual markup percentage from RRP vs cost
-        markupPercent = costPrice > 0 ? ((item.rrp - costPrice) / costPrice) * 100 : 0
-      } else {
-        // No RRP - apply default markup to cost price
-        markupPercent = defaultMarkupForCategory
-        sellingPrice = costPrice * (1 + markupPercent / 100)
-      }
-
+      // RRP is the client-facing price - already validated to exist
+      const sellingPrice = item.rrp || 0
       const quantity = item.quantity || 1
 
       return {
@@ -290,31 +245,15 @@ export default function CreateClientQuoteDialog({
         quantity,
         unitType: item.unitType || 'units',
         costPrice,
-        markupPercent: Math.round(markupPercent * 100) / 100, // Round to 2 decimals
         sellingPrice,
         totalPrice: sellingPrice * quantity,
         roomName: item.roomName,
-        hasRrp: !!(item.rrp && item.rrp > 0), // Track if RRP was used
+        currency: item.rrpCurrency || 'CAD',
         imageUrl: item.images && item.images.length > 0 ? item.images[0] : undefined
       }
     })
 
     setLineItems(newLineItems)
-  }
-
-  const updateLineItemMarkup = (lineId: string, newMarkup: number) => {
-    setLineItems(prev => prev.map(item => {
-      if (item.id === lineId) {
-        const sellingPrice = item.costPrice * (1 + newMarkup / 100)
-        return {
-          ...item,
-          markupPercent: newMarkup,
-          sellingPrice,
-          totalPrice: sellingPrice * item.quantity
-        }
-      }
-      return item
-    }))
   }
 
   const updateLineItemQuantity = (lineId: string, quantity: number) => {
@@ -330,39 +269,8 @@ export default function CreateClientQuoteDialog({
     }))
   }
 
-  const updateLineItemCostPrice = (lineId: string, costPrice: number) => {
-    setLineItems(prev => prev.map(item => {
-      if (item.id === lineId) {
-        const sellingPrice = costPrice * (1 + item.markupPercent / 100)
-        return {
-          ...item,
-          costPrice,
-          sellingPrice,
-          totalPrice: sellingPrice * item.quantity
-        }
-      }
-      return item
-    }))
-  }
-
   const removeLineItem = (lineId: string) => {
     setLineItems(prev => prev.filter(item => item.id !== lineId))
-  }
-
-  // Apply markup to all items in a category
-  const applyCategoryMarkup = (category: string, markup: number) => {
-    setLineItems(prev => prev.map(item => {
-      if (item.category === category) {
-        const sellingPrice = item.costPrice * (1 + markup / 100)
-        return {
-          ...item,
-          markupPercent: markup,
-          sellingPrice,
-          totalPrice: sellingPrice * item.quantity
-        }
-      }
-      return item
-    }))
   }
 
   // Group line items by category
@@ -446,29 +354,6 @@ export default function CreateClientQuoteDialog({
       return
     }
 
-    // Check for items without RRP (Recommended Retail Price)
-    const itemsWithoutRrp = lineItems.filter(item => !item.hasRrp)
-    if (itemsWithoutRrp.length > 0) {
-      const itemNames = itemsWithoutRrp.slice(0, 3).map(i => i.name).join(', ')
-      const more = itemsWithoutRrp.length > 3 ? ` and ${itemsWithoutRrp.length - 3} more` : ''
-      const confirmed = window.confirm(
-        `${itemsWithoutRrp.length} item(s) do not have RRP pricing set (${itemNames}${more}).\n\n` +
-        `These items are using calculated prices based on trade price + markup.\n` +
-        `It's recommended to set RRP in the spec before creating client invoices.\n\n` +
-        `Continue anyway?`
-      )
-      if (!confirmed) return
-    }
-
-    // Check for items without any pricing
-    const itemsWithoutPrice = lineItems.filter(item => item.costPrice === 0 && item.sellingPrice === 0)
-    if (itemsWithoutPrice.length > 0) {
-      const confirmed = window.confirm(
-        `${itemsWithoutPrice.length} item(s) have no pricing set at all. The client will see these as $0. Continue anyway?`
-      )
-      if (!confirmed) return
-    }
-
     setSaving(true)
     try {
       const response = await fetch('/api/client-quotes', {
@@ -478,7 +363,7 @@ export default function CreateClientQuoteDialog({
           projectId,
           title,
           description: description || null,
-          defaultMarkupPercent: defaultMarkup,
+          defaultMarkupPercent: 0, // No markup - using RRP directly
           validUntil: validUntil || null,
           paymentTerms: paymentTerms || null,
           depositRequired: depositRequired || null,
@@ -491,31 +376,22 @@ export default function CreateClientQuoteDialog({
           // Payment options
           allowCreditCard: showCreditCardOption,
           lineItems: [
-            // Regular product line items
-            // For items with RRP, send RRP as cost with 0% markup so final price = RRP exactly
-            // This prevents the API from adding additional markup to items with set retail prices
-            ...lineItems.map((item, index) => {
-              // If item has RRP, use RRP as cost with 0% markup
-              // Otherwise use trade price with the calculated markup
-              const hasRrp = item.hasRrp
-              const costPrice = hasRrp ? item.sellingPrice : item.costPrice
-              const markupPercent = hasRrp ? 0 : item.markupPercent
-
-              return {
-                roomFFEItemId: item.itemId,
-                groupId: item.category,
-                itemName: item.name,
-                itemDescription: item.description || null,
-                quantity: item.quantity,
-                unitType: item.unitType,
-                costPrice: costPrice,
-                markupPercent: markupPercent,
-                sellingPrice: item.sellingPrice,
-                totalCost: hasRrp ? item.sellingPrice * item.quantity : item.costPrice * item.quantity,
-                totalPrice: item.totalPrice,
-                order: index
-              }
-            }),
+            // All items have RRP - send RRP as cost with 0% markup
+            // This ensures the API stores RRP as the client price without additional markup
+            ...lineItems.map((item, index) => ({
+              roomFFEItemId: item.itemId,
+              groupId: item.category,
+              itemName: item.name,
+              itemDescription: item.description || null,
+              quantity: item.quantity,
+              unitType: item.unitType,
+              costPrice: item.sellingPrice, // RRP as cost
+              markupPercent: 0, // No markup - RRP is final
+              sellingPrice: item.sellingPrice,
+              totalCost: item.totalPrice,
+              totalPrice: item.totalPrice,
+              order: index
+            })),
             // Additional charges as line items
             ...additionalCharges.filter(c => c.amount > 0).map((charge, index) => ({
               roomFFEItemId: null,
@@ -524,10 +400,10 @@ export default function CreateClientQuoteDialog({
               itemDescription: null,
               quantity: 1,
               unitType: 'flat',
-              costPrice: 0, // No cost - all profit
-              markupPercent: 100,
+              costPrice: charge.amount,
+              markupPercent: 0,
               sellingPrice: charge.amount,
-              totalCost: 0,
+              totalCost: charge.amount,
               totalPrice: charge.amount,
               order: lineItems.length + index
             }))
@@ -565,7 +441,6 @@ export default function CreateClientQuoteDialog({
     setValidUntil('')
     setPaymentTerms('100% upfront')
     setDepositRequired(undefined)
-    setDefaultMarkup(25)
     setLineItems([])
     setSearchQuery('')
     setExpandedCategories(new Set())
@@ -718,29 +593,6 @@ export default function CreateClientQuoteDialog({
                 </div>
               </div>
 
-              {/* Only show markup settings if some items don't have RRP */}
-              {lineItems.some(item => !item.hasRrp) && (
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-amber-800">Default Markup for items without RRP</p>
-                      <p className="text-xs text-amber-600">{lineItems.filter(i => !i.hasRrp).length} item(s) need markup applied</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="number"
-                        value={defaultMarkup}
-                        onChange={(e) => setDefaultMarkup(parseFloat(e.target.value) || 0)}
-                        min={0}
-                        max={100}
-                        className="w-20 h-8"
-                      />
-                      <span className="text-amber-700">%</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* Additional Charges Section */}
               <div className="border rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
@@ -856,16 +708,6 @@ export default function CreateClientQuoteDialog({
                       <span className="text-gray-700 font-medium">Total</span>
                       <span className="text-lg font-semibold text-green-600">{formatCurrency(totals.totalRevenue)}</span>
                     </div>
-                    {/* Only show profit if some items don't have RRP */}
-                    {lineItems.some(i => !i.hasRrp) && (
-                      <div className="flex justify-between pt-2 border-t bg-emerald-50 -mx-4 px-4 py-2 mt-2 rounded-b-lg">
-                        <span className="text-emerald-700">Your Profit</span>
-                        <span className="font-semibold text-emerald-700">
-                          {formatCurrency(totals.grossProfit)}
-                          <span className="text-xs text-emerald-500 ml-1">({totals.marginPercent.toFixed(1)}%)</span>
-                        </span>
-                      </div>
-                    )}
                   </div>
                 </div>
               )}
@@ -924,42 +766,22 @@ export default function CreateClientQuoteDialog({
                             <span className="font-medium">{category}</span>
                             <Badge variant="secondary">{items.length}</Badge>
                           </div>
-                          <div className="flex items-center gap-4 text-sm">
-                            <span className="text-gray-500">
-                              Subtotal: <span className="font-medium text-gray-700">
-                                {formatCurrency(items.reduce((sum, i) => sum + i.totalPrice, 0))}
-                              </span>
+                          <span className="text-gray-500 text-sm">
+                            Subtotal: <span className="font-medium text-gray-700">
+                              {formatCurrency(items.reduce((sum, i) => sum + i.totalPrice, 0))}
                             </span>
-                            <div className="flex items-center gap-1">
-                              <Label className="text-xs text-gray-500">Markup:</Label>
-                              <Input
-                                type="number"
-                                className="w-16 h-7 text-xs"
-                                value={items[0]?.markupPercent || defaultMarkup}
-                                onClick={(e) => e.stopPropagation()}
-                                onChange={(e) => {
-                                  e.stopPropagation()
-                                  applyCategoryMarkup(category, parseFloat(e.target.value) || 0)
-                                }}
-                                min={0}
-                                max={200}
-                              />
-                              <span className="text-xs text-gray-500">%</span>
-                            </div>
-                          </div>
+                          </span>
                         </button>
 
-                        {/* Items Table */}
+                        {/* Items Table - simplified, RRP only */}
                         {expandedCategories.has(category) && (
                           <Table>
                             <TableHeader>
                               <TableRow className="text-xs">
-                                <TableHead className="w-[30%]">Item</TableHead>
-                                <TableHead className="text-right w-[12%]">Qty</TableHead>
-                                <TableHead className="text-right w-[15%]">Trade Price</TableHead>
-                                <TableHead className="text-right w-[12%]">Markup</TableHead>
-                                <TableHead className="text-right w-[15%]">Client Price</TableHead>
-                                <TableHead className="text-right w-[15%]">Total</TableHead>
+                                <TableHead className="w-[45%]">Item</TableHead>
+                                <TableHead className="text-right w-[15%]">Qty</TableHead>
+                                <TableHead className="text-right w-[20%]">Price (RRP)</TableHead>
+                                <TableHead className="text-right w-[20%]">Total</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -982,53 +804,8 @@ export default function CreateClientQuoteDialog({
                                       min={1}
                                     />
                                   </TableCell>
-                                  <TableCell className="text-right">
-                                    <div className="relative">
-                                      <DollarSign className="absolute left-1 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
-                                      <Input
-                                        type="number"
-                                        className={cn(
-                                          "w-20 h-7 text-right text-xs pl-5",
-                                          item.costPrice === 0 && "border-orange-300 bg-orange-50"
-                                        )}
-                                        value={item.costPrice || ''}
-                                        onChange={(e) => updateLineItemCostPrice(item.id, parseFloat(e.target.value) || 0)}
-                                        min={0}
-                                        step={0.01}
-                                        placeholder="0.00"
-                                      />
-                                    </div>
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    {item.hasRrp ? (
-                                      // RRP exists - show calculated markup as read-only
-                                      <div className="flex items-center justify-end gap-1">
-                                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                                          {item.markupPercent.toFixed(1)}%
-                                        </span>
-                                      </div>
-                                    ) : (
-                                      // No RRP - allow editing markup
-                                      <div className="flex items-center justify-end gap-1">
-                                        <Input
-                                          type="number"
-                                          className="w-14 h-7 text-right text-xs"
-                                          value={item.markupPercent}
-                                          onChange={(e) => updateLineItemMarkup(item.id, parseFloat(e.target.value) || 0)}
-                                          min={0}
-                                          max={200}
-                                        />
-                                        <span className="text-xs text-gray-400">%</span>
-                                      </div>
-                                    )}
-                                  </TableCell>
                                   <TableCell className="text-right font-medium">
-                                    <div>
-                                      {formatCurrency(item.sellingPrice)}
-                                      {item.hasRrp && (
-                                        <p className="text-[10px] text-blue-500">RRP</p>
-                                      )}
-                                    </div>
+                                    {formatCurrency(item.sellingPrice)}
                                   </TableCell>
                                   <TableCell className="text-right font-medium text-green-600">
                                     {formatCurrency(item.totalPrice)}
@@ -1042,17 +819,6 @@ export default function CreateClientQuoteDialog({
                     ))}
                   </div>
                 </ScrollArea>
-              )}
-
-              {/* Items without pricing warning */}
-              {lineItems.filter(i => i.costPrice === 0).length > 0 && (
-                <div className="flex items-center gap-2 p-3 bg-orange-50 border border-orange-200 rounded-lg text-sm">
-                  <AlertCircle className="w-4 h-4 text-orange-500 flex-shrink-0" />
-                  <span className="text-orange-700">
-                    {lineItems.filter(i => i.costPrice === 0).length} item(s) have no cost price.
-                    Add trade/cost prices before sending to client.
-                  </span>
-                </div>
               )}
             </div>
           )}
