@@ -1125,9 +1125,13 @@ export default function QuotePDFReviewDialog({
         </div>
       </DialogContent>
 
-      {/* Add to All Specs Dialog - modal={false} fixes select dropdown inside nested dialog */}
-      <Dialog open={showAddItemDialog} onOpenChange={setShowAddItemDialog} modal={false}>
-        <DialogContent className="max-w-lg z-[60]">
+      {/* Add to All Specs Dialog */}
+      <Dialog open={showAddItemDialog} onOpenChange={setShowAddItemDialog}>
+        <DialogContent
+          className="max-w-lg z-[60]"
+          onInteractOutside={(e) => e.preventDefault()}
+          onPointerDownOutside={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>Add Item to All Specs</DialogTitle>
           </DialogHeader>
@@ -1280,11 +1284,20 @@ export default function QuotePDFReviewDialog({
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddItemDialog(false)}>
+            <Button
+              variant="outline"
+              onClick={(e) => {
+                e.stopPropagation()
+                setShowAddItemDialog(false)
+              }}
+            >
               Cancel
             </Button>
             <Button
-              onClick={handleAddItem}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleAddItem()
+              }}
               disabled={addingItem || !selectedRoomId || !selectedSectionId || !addItemForm.name.trim()}
             >
               {addingItem ? (
@@ -1304,8 +1317,12 @@ export default function QuotePDFReviewDialog({
       </Dialog>
 
       {/* Add as Component Dialog */}
-      <Dialog open={showAddComponentDialog} onOpenChange={setShowAddComponentDialog} modal={false}>
-        <DialogContent className="max-w-lg z-[60]">
+      <Dialog open={showAddComponentDialog} onOpenChange={setShowAddComponentDialog}>
+        <DialogContent
+          className="max-w-lg z-[60]"
+          onInteractOutside={(e) => e.preventDefault()}
+          onPointerDownOutside={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Layers className="w-5 h-5 text-purple-600" />
@@ -1409,11 +1426,20 @@ export default function QuotePDFReviewDialog({
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddComponentDialog(false)}>
+            <Button
+              variant="outline"
+              onClick={(e) => {
+                e.stopPropagation()
+                setShowAddComponentDialog(false)
+              }}
+            >
               Cancel
             </Button>
             <Button
-              onClick={handleAddComponent}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleAddComponent()
+              }}
               disabled={addingComponent || !selectedParentItemId || !componentForm.name.trim()}
               className="bg-purple-600 hover:bg-purple-700"
             >
