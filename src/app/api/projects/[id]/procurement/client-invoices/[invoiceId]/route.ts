@@ -165,7 +165,7 @@ export async function PATCH(
   }
 }
 
-// DELETE - Delete invoice (only drafts)
+// DELETE - Delete invoice
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; invoiceId: string }> }
@@ -194,18 +194,23 @@ export async function DELETE(
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
     }
 
-    // Only allow deletion of drafts with no payments
-    if (invoice.status !== 'DRAFT') {
-      return NextResponse.json({
-        error: 'Cannot delete a sent invoice'
-      }, { status: 400 })
-    }
-
+    // Prevent deletion of invoices with payment records
     if (invoice.payments.length > 0) {
       return NextResponse.json({
         error: 'Cannot delete an invoice with payment records'
       }, { status: 400 })
     }
+
+    // Delete related records first
+    await prisma.clientQuoteLineItem.deleteMany({
+      where: { clientQuoteId: invoiceId }
+    })
+    await prisma.clientQuoteActivity.deleteMany({
+      where: { clientQuoteId: invoiceId }
+    })
+    await prisma.clientQuoteEmailLog.deleteMany({
+      where: { clientQuoteId: invoiceId }
+    })
 
     await prisma.clientQuote.delete({
       where: { id: invoiceId }

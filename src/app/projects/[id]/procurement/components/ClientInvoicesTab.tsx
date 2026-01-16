@@ -218,11 +218,11 @@ export default function ClientInvoicesTab({ projectId, searchQuery, onCreateInvo
   }
 
   const handleDeleteInvoice = async (invoice: ClientInvoice) => {
-    if (invoice.status !== 'DRAFT') {
-      toast.error('Only draft invoices can be deleted')
-      return
-    }
-    if (!confirm(`Delete invoice ${invoice.invoiceNumber}?`)) return
+    const warningMsg = invoice.status !== 'DRAFT'
+      ? `This invoice has been sent to the client. Are you sure you want to delete ${invoice.invoiceNumber}?`
+      : `Delete invoice ${invoice.invoiceNumber}?`
+
+    if (!confirm(warningMsg)) return
 
     try {
       const res = await fetch(`/api/projects/${projectId}/procurement/client-invoices/${invoice.id}`, {
@@ -234,6 +234,11 @@ export default function ClientInvoicesTab({ projectId, searchQuery, onCreateInvo
     } catch (error) {
       toast.error('Failed to delete invoice')
     }
+  }
+
+  const handleDownloadPDF = (invoice: ClientInvoice) => {
+    // Open client view in new window for printing/saving as PDF
+    window.open(`/client/invoice/${invoice.accessToken}`, '_blank')
   }
 
   if (loading) {
@@ -468,19 +473,17 @@ export default function ClientInvoicesTab({ projectId, searchQuery, onCreateInvo
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => window.open(`/api/projects/${projectId}/procurement/client-invoices/${invoice.id}/pdf`, '_blank')}>
+                            <DropdownMenuItem onClick={() => handleDownloadPDF(invoice)}>
                               <Download className="w-4 h-4 mr-2" />
                               Download PDF
                             </DropdownMenuItem>
-                            {invoice.status === 'DRAFT' && (
-                              <DropdownMenuItem
-                                className="text-red-600"
-                                onClick={() => handleDeleteInvoice(invoice)}
-                              >
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Delete
-                              </DropdownMenuItem>
-                            )}
+                            <DropdownMenuItem
+                              className="text-red-600"
+                              onClick={() => handleDeleteInvoice(invoice)}
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
