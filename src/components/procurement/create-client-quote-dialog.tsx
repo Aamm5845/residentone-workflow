@@ -575,19 +575,47 @@ export default function CreateClientQuoteDialog({
       return
     }
 
-    if (!createdQuote?.id) {
-      toast.error('Please create the invoice first')
+    if (lineItems.length === 0) {
+      toast.error('No items to include in test email')
       return
     }
 
     setSendingTest(true)
     try {
+      // Calculate valid days from validUntil date
+      const validDays = validUntil
+        ? Math.ceil((new Date(validUntil).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+        : 30
+
       const response = await fetch('/api/client-quotes/send-test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          quoteId: createdQuote.id,
-          testEmail: testEmail.trim()
+          testEmail: testEmail.trim(),
+          projectId,
+          title,
+          description: description || null,
+          paymentTerms: paymentTerms || null,
+          validDays,
+          defaultMarkup: 0,
+          allowCreditCard: showCreditCardOption,
+          // Additional fees
+          shippingCost: additionalCharges.find(c => c.name.toLowerCase().includes('delivery'))?.amount || null,
+          customFees: additionalCharges.filter(c => !c.name.toLowerCase().includes('delivery') && c.amount > 0),
+          lineItems: lineItems.map((item, index) => ({
+            roomFFEItemId: item.isComponent ? null : item.itemId,
+            groupId: item.category,
+            itemName: item.name,
+            displayDescription: item.description || null,
+            imageUrl: item.imageUrl || null,
+            isComponent: item.isComponent || false,
+            quantity: item.quantity,
+            unitType: item.unitType,
+            clientUnitPrice: item.sellingPrice,
+            costPrice: item.costPrice,
+            markupPercent: 0,
+            order: index
+          }))
         })
       })
 
