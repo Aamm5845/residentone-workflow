@@ -32,7 +32,10 @@ import {
   AlertTriangle,
   Send,
   Mail,
-  ExternalLink
+  ExternalLink,
+  Truck,
+  Plus,
+  Trash2
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -160,6 +163,10 @@ export default function CreateInvoiceDialog({
   const [testEmail, setTestEmail] = useState('')
   const [sendingTest, setSendingTest] = useState(false)
   const [createdQuote, setCreatedQuote] = useState<{ id: string; accessToken: string; quoteNumber: string } | null>(null)
+
+  // Additional fees
+  const [deliveryFee, setDeliveryFee] = useState<number>(0)
+  const [customFees, setCustomFees] = useState<{ name: string; amount: number }[]>([])
 
   // Load data when dialog opens
   useEffect(() => {
@@ -413,15 +420,23 @@ export default function CreateInvoiceDialog({
 
     const subtotal = cadSubtotal + usdSubtotal
 
-    // Tax applies to CAD items only
-    const gst = cadSubtotal * 0.05
-    const qst = cadSubtotal * 0.09975
-    const total = cadSubtotal + gst + qst
+    // Calculate total custom fees
+    const customFeesTotal = customFees.reduce((sum, fee) => sum + (fee.amount || 0), 0)
+
+    // Taxable amount includes CAD items + delivery + custom fees (all in CAD)
+    const taxableAmount = cadSubtotal + deliveryFee + customFeesTotal
+
+    // Tax applies to CAD items + fees
+    const gst = taxableAmount * 0.05
+    const qst = taxableAmount * 0.09975
+    const total = taxableAmount + gst + qst
 
     return {
       subtotal,
       cadSubtotal,
       usdSubtotal,
+      deliveryFee,
+      customFeesTotal,
       gst,
       qst,
       total,
@@ -429,7 +444,7 @@ export default function CreateInvoiceDialog({
       cadItemCount: cadItems.length,
       usdItemCount: usdItems.length
     }
-  }, [selectedItemIds, selectedQuoteIds, activeSource])
+  }, [selectedItemIds, selectedQuoteIds, activeSource, deliveryFee, customFees])
 
   const toggleCategory = (category: string) => {
     setExpandedCategories(prev => {
@@ -511,6 +526,9 @@ export default function CreateInvoiceDialog({
           // Bill To information
           clientName: clientName || null,
           clientEmail: clientEmail || null,
+          // Additional fees
+          shippingCost: deliveryFee > 0 ? deliveryFee : null,
+          customFees: customFees.filter(f => f.name && f.amount > 0),
           // Map line items - use RRP directly with 0% markup
           lineItems: lineItems.map((item, index) => ({
             roomFFEItemId: item.roomFFEItemId || null,
@@ -579,6 +597,9 @@ export default function CreateInvoiceDialog({
           validDays: validUntil ? Math.ceil((new Date(validUntil).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 30,
           defaultMarkup: 0,
           allowCreditCard: true,
+          // Additional fees
+          shippingCost: deliveryFee > 0 ? deliveryFee : null,
+          customFees: customFees.filter(f => f.name && f.amount > 0),
           lineItems: lineItems.map((item, index) => ({
             roomFFEItemId: item.roomFFEItemId || null,
             groupId: item.categoryName || 'Items',
@@ -636,6 +657,29 @@ export default function CreateInvoiceDialog({
     setShowTestEmailDialog(false)
     setTestEmail('')
     setCreatedQuote(null)
+    setDeliveryFee(0)
+    setCustomFees([])
+  }
+
+  // Custom fees helpers
+  const addCustomFee = () => {
+    setCustomFees(prev => [...prev, { name: '', amount: 0 }])
+  }
+
+  const updateCustomFee = (index: number, field: 'name' | 'amount', value: string | number) => {
+    setCustomFees(prev => {
+      const updated = [...prev]
+      if (field === 'name') {
+        updated[index] = { ...updated[index], name: value as string }
+      } else {
+        updated[index] = { ...updated[index], amount: parseFloat(value as string) || 0 }
+      }
+      return updated
+    })
+  }
+
+  const removeCustomFee = (index: number) => {
+    setCustomFees(prev => prev.filter((_, i) => i !== index))
   }
 
   const formatCurrency = (amount: number) => {
@@ -1042,6 +1086,79 @@ export default function CreateInvoiceDialog({
               </div>
             </div>
 
+            {/* Additional Fees Section */}
+            <div className="border rounded-lg p-4 space-y-4">
+              <h4 className="font-medium flex items-center gap-2">
+                <DollarSign className="w-4 h-4" />
+                Additional Fees
+              </h4>
+
+              {/* Delivery Fee */}
+              <div className="flex items-center gap-3">
+                <Truck className="w-4 h-4 text-gray-400" />
+                <Label htmlFor="deliveryFee" className="min-w-24">Delivery</Label>
+                <div className="relative flex-1 max-w-40">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                  <Input
+                    id="deliveryFee"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={deliveryFee || ''}
+                    onChange={(e) => setDeliveryFee(parseFloat(e.target.value) || 0)}
+                    placeholder="0.00"
+                    className="pl-7"
+                  />
+                </div>
+              </div>
+
+              {/* Custom Fees */}
+              {customFees.map((fee, index) => (
+                <div key={index} className="flex items-center gap-3">
+                  <div className="w-4" />
+                  <Input
+                    value={fee.name}
+                    onChange={(e) => updateCustomFee(index, 'name', e.target.value)}
+                    placeholder="Fee name (e.g., Duties)"
+                    className="flex-1"
+                  />
+                  <div className="relative max-w-40">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={fee.amount || ''}
+                      onChange={(e) => updateCustomFee(index, 'amount', e.target.value)}
+                      placeholder="0.00"
+                      className="pl-7"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeCustomFee(index)}
+                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))}
+
+              {/* Add Custom Fee Button */}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addCustomFee}
+                className="w-full"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Custom Fee (Duties, Handling, etc.)
+              </Button>
+            </div>
+
             {/* Invoice Preview */}
             <div className="border rounded-lg p-4 bg-gray-50">
               <h4 className="font-medium mb-3">Invoice Summary</h4>
@@ -1062,7 +1179,21 @@ export default function CreateInvoiceDialog({
                     <span>US${totals.usdSubtotal.toLocaleString('en-CA', { minimumFractionDigits: 2 })}</span>
                   </div>
                 )}
-                {totals.cadSubtotal > 0 && (
+                {/* Delivery Fee */}
+                {deliveryFee > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Delivery</span>
+                    <span>{formatCurrency(deliveryFee)}</span>
+                  </div>
+                )}
+                {/* Custom Fees */}
+                {customFees.filter(f => f.amount > 0).map((fee, index) => (
+                  <div key={index} className="flex justify-between">
+                    <span className="text-gray-600">{fee.name || 'Custom Fee'}</span>
+                    <span>{formatCurrency(fee.amount)}</span>
+                  </div>
+                ))}
+                {(totals.cadSubtotal > 0 || deliveryFee > 0 || totals.customFeesTotal > 0) && (
                   <>
                     <div className="flex justify-between">
                       <span className="text-gray-600">GST (5%)</span>

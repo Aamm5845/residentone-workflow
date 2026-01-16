@@ -3319,7 +3319,8 @@ model ClientQuote {
   subtotal             Decimal?
   taxRate              Decimal?          @default(0)
   taxAmount            Decimal?
-  shippingCost         Decimal?
+  shippingCost         Decimal?          // Delivery/shipping fee
+  customFees           Json?             // Array of {name: string, amount: number} for duties, handling, etc.
   totalAmount          Decimal?
   currency             String            @default("CAD")
 

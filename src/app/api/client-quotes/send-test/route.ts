@@ -44,6 +44,8 @@ export async function POST(request: NextRequest) {
       validDays,
       defaultMarkup,
       allowCreditCard,
+      shippingCost,
+      customFees,
       gstRate = QUEBEC_TAX_RATES.GST,
       qstRate = QUEBEC_TAX_RATES.QST
     } = body
@@ -116,10 +118,19 @@ export async function POST(request: NextRequest) {
 
     subtotal = Math.round(subtotal * 100) / 100
 
-    // Calculate taxes
+    // Calculate additional fees
+    const deliveryAmount = shippingCost ? parseFloat(shippingCost) : 0
+    const customFeesTotal = customFees && Array.isArray(customFees)
+      ? customFees.reduce((sum: number, fee: any) => sum + (parseFloat(fee.amount) || 0), 0)
+      : 0
+
+    // Taxable base includes items + delivery + custom fees
+    const taxableBase = subtotal + deliveryAmount + customFeesTotal
+
+    // Calculate taxes on taxable base
     const effectiveGstRate = Number(gstRate) || Number(organization?.defaultGstRate) || QUEBEC_TAX_RATES.GST
     const effectiveQstRate = Number(qstRate) || Number(organization?.defaultQstRate) || QUEBEC_TAX_RATES.QST
-    const taxes = calculateQuebecTaxes(subtotal, effectiveGstRate, effectiveQstRate)
+    const taxes = calculateQuebecTaxes(taxableBase, effectiveGstRate, effectiveQstRate)
 
     // Calculate valid until date
     const validUntil = new Date()
@@ -152,6 +163,8 @@ export async function POST(request: NextRequest) {
         paymentTerms: paymentTerms || null,
         status: 'SENT_TO_CLIENT',
         subtotal,
+        shippingCost: deliveryAmount > 0 ? deliveryAmount : null,
+        customFees: customFees && customFees.length > 0 ? customFees : null,
         gstRate: effectiveGstRate,
         gstAmount: taxes.gstAmount,
         qstRate: effectiveQstRate,

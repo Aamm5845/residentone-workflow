@@ -81,6 +81,8 @@ interface InvoiceData {
   validUntil?: string
   paymentTerms?: string
   subtotal: number
+  shippingCost?: number
+  customFees?: { name: string; amount: number }[]
   gstRate?: number
   gstAmount?: number
   qstRate?: number
@@ -454,6 +456,22 @@ export default function ClientInvoicePage() {
                     <span className="text-gray-500">Subtotal</span>
                     <span className="text-gray-700">{formatCurrency(invoice.subtotal)}</span>
                   </div>
+                  {/* Delivery Fee */}
+                  {invoice.shippingCost && invoice.shippingCost > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Delivery</span>
+                      <span className="text-gray-700">{formatCurrency(invoice.shippingCost)}</span>
+                    </div>
+                  )}
+                  {/* Custom Fees */}
+                  {invoice.customFees && invoice.customFees.length > 0 && invoice.customFees.map((fee, index) => (
+                    fee.amount > 0 && (
+                      <div key={index} className="flex justify-between text-sm">
+                        <span className="text-gray-500">{fee.name || 'Additional Fee'}</span>
+                        <span className="text-gray-700">{formatCurrency(fee.amount)}</span>
+                      </div>
+                    )
+                  ))}
                   {hasGstQst ? (
                     <>
                       {invoice.gstAmount && invoice.gstAmount > 0 && (

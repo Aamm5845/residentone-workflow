@@ -198,6 +198,9 @@ export async function GET(
       validUntil: quote.validUntil,
       paymentTerms: quote.paymentTerms,
       subtotal: parseFloat(quote.subtotal?.toString() || '0'),
+      // Additional fees
+      shippingCost: quote.shippingCost ? parseFloat(quote.shippingCost.toString()) : undefined,
+      customFees: quote.customFees as { name: string; amount: number }[] | undefined,
       // Tax breakdown
       gstRate: quote.gstRate ? parseFloat(quote.gstRate.toString()) : undefined,
       gstAmount: quote.gstAmount ? parseFloat(quote.gstAmount.toString()) : undefined,

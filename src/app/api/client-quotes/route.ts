@@ -113,6 +113,9 @@ export async function POST(request: NextRequest) {
       clientAddress,
       // Payment options
       allowCreditCard,
+      // Additional fees
+      shippingCost,
+      customFees,
       lineItems: customLineItems // Optional: override with custom line items
     } = body
 
@@ -295,6 +298,15 @@ export async function POST(request: NextRequest) {
     // Calculate totals - round to 2 decimal places
     const subtotal = Math.round(lineItemsData.reduce((sum, item) => sum + parseFloat(item.clientTotalPrice.toString()), 0) * 100) / 100
 
+    // Calculate additional fees
+    const deliveryAmount = shippingCost ? parseFloat(shippingCost) : 0
+    const customFeesTotal = customFees && Array.isArray(customFees)
+      ? customFees.reduce((sum: number, fee: any) => sum + (parseFloat(fee.amount) || 0), 0)
+      : 0
+
+    // Taxable base includes items + delivery + custom fees
+    const taxableBase = subtotal + deliveryAmount + customFeesTotal
+
     // Get organization tax rates
     const organization = await prisma.organization.findUnique({
       where: { id: orgId },
@@ -307,9 +319,9 @@ export async function POST(request: NextRequest) {
     // Calculate GST and QST - round to 2 decimal places
     const gstRate = organization?.defaultGstRate ? parseFloat(organization.defaultGstRate.toString()) : 5
     const qstRate = organization?.defaultQstRate ? parseFloat(organization.defaultQstRate.toString()) : 9.975
-    const gstAmount = Math.round(subtotal * (gstRate / 100) * 100) / 100
-    const qstAmount = Math.round(subtotal * (qstRate / 100) * 100) / 100
-    const totalAmount = Math.round((subtotal + gstAmount + qstAmount) * 100) / 100
+    const gstAmount = Math.round(taxableBase * (gstRate / 100) * 100) / 100
+    const qstAmount = Math.round(taxableBase * (qstRate / 100) * 100) / 100
+    const totalAmount = Math.round((taxableBase + gstAmount + qstAmount) * 100) / 100
 
     // Create client quote
     const clientQuote = await prisma.clientQuote.create({
@@ -323,6 +335,8 @@ export async function POST(request: NextRequest) {
         groupTitle: groupTitle || null,
         defaultMarkupPercent: markup,
         subtotal,
+        shippingCost: deliveryAmount > 0 ? deliveryAmount : null,
+        customFees: customFees && customFees.length > 0 ? customFees : null,
         gstRate,
         gstAmount,
         qstRate,
