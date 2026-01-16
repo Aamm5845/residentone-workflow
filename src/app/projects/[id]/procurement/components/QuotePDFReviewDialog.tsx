@@ -653,7 +653,7 @@ export default function QuotePDFReviewDialog({
             <div className="flex-1 overflow-auto">
               {quoteDocumentUrl ? (
                 <iframe
-                  src={`${quoteDocumentUrl}#toolbar=1&view=FitH`}
+                  src={`${quoteDocumentUrl}#toolbar=1&navpanes=0&view=FitH`}
                   className="w-full h-full bg-white"
                   style={{
                     minHeight: '100%',
