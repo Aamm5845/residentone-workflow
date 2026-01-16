@@ -34,9 +34,6 @@ import {
   Link2,
   Edit3,
   ExternalLink,
-  ZoomIn,
-  ZoomOut,
-  RotateCw,
   Plus,
   Upload,
   Loader2,
@@ -154,7 +151,6 @@ export default function QuotePDFReviewDialog({
   rfqLineItems,
   onMatchUpdated
 }: QuotePDFReviewDialogProps) {
-  const [pdfScale, setPdfScale] = useState(100)
   const [selectedMatches, setSelectedMatches] = useState<Record<number, string>>({})
   const [approvedMatches, setApprovedMatches] = useState<Set<number>>(new Set())
   const [savingMatch, setSavingMatch] = useState<number | null>(null)
@@ -619,49 +615,14 @@ export default function QuotePDFReviewDialog({
 
         <div className="flex h-[calc(95vh-80px)]">
           {/* PDF Viewer - Full width when analysis panel is hidden */}
-          <div className={`${showAnalysisPanel ? 'w-3/5' : 'w-full'} border-r flex flex-col bg-gray-100 transition-all duration-300`}>
-            {/* PDF Controls */}
-            <div className="flex items-center justify-between p-2 bg-white border-b">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setPdfScale(Math.max(50, pdfScale - 10))}
-                >
-                  <ZoomOut className="w-4 h-4" />
-                </Button>
-                <span className="text-sm text-gray-600 min-w-[60px] text-center">{pdfScale}%</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setPdfScale(Math.min(200, pdfScale + 10))}
-                >
-                  <ZoomIn className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setPdfScale(100)}
-                >
-                  <RotateCw className="w-4 h-4" />
-                </Button>
-              </div>
-              <span className="text-xs text-gray-500">Supplier's Original Quote</span>
-            </div>
-
-            {/* PDF Embed - Full Height */}
-            <div className="flex-1 overflow-auto">
+          <div className={`${showAnalysisPanel ? 'w-3/5' : 'w-full'} border-r flex flex-col bg-gray-50 transition-all duration-300`}>
+            {/* PDF Embed - Full Height using Google Docs Viewer for clean display */}
+            <div className="flex-1">
               {quoteDocumentUrl ? (
                 <iframe
-                  src={`${quoteDocumentUrl}#toolbar=1&navpanes=0&view=FitH`}
-                  className="w-full h-full bg-white"
-                  style={{
-                    minHeight: '100%',
-                    transform: `scale(${pdfScale / 100})`,
-                    transformOrigin: 'top left',
-                    width: `${100 / (pdfScale / 100)}%`,
-                    height: `${100 / (pdfScale / 100)}%`
-                  }}
+                  src={`https://docs.google.com/viewer?url=${encodeURIComponent(quoteDocumentUrl)}&embedded=true`}
+                  className="w-full h-full border-0"
+                  title="Quote PDF"
                 />
               ) : (
                 <div className="flex items-center justify-center h-full text-gray-400">

@@ -426,20 +426,10 @@ export async function GET(
           }
         }
 
-        // Add AI-detected total discrepancy if present
-        if (aiMatchData?.totalDiscrepancy) {
-          const diff = Math.abs((aiMatchData.quoteTotal || 0) - (aiMatchData.calculatedTotal || 0))
-          enhancedMismatches.push({
-            itemName: 'Quote Total Calculation',
-            reasons: [
-              `Quote shows total: $${(aiMatchData.quoteTotal || 0).toFixed(2)}`,
-              `Sum of line items: $${(aiMatchData.calculatedTotal || 0).toFixed(2)}`,
-              `Discrepancy: $${diff.toFixed(2)}`
-            ],
-            type: 'total',
-            severity: 'error'
-          })
-        }
+        // NOTE: We no longer show "total discrepancy" as a mismatch because the difference
+        // between quote total and sum of line items is typically due to taxes (GST/QST)
+        // which are expected and normal. Real mismatches are: extra items, missing items,
+        // quantity differences, and price issues.
 
         // Use enhanced mismatches, fall back to basic mismatches if no enhanced found
         const allMismatches = enhancedMismatches.length > 0 ? enhancedMismatches : mismatches
