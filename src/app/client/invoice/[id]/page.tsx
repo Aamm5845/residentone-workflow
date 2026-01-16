@@ -258,7 +258,7 @@ export default function ClientInvoicePage() {
     <>
       <style dangerouslySetInnerHTML={{ __html: printStyles }} />
       <div className="min-h-screen bg-gray-50 py-8 px-4 print:bg-white print:py-0 print-container">
-        <div className="max-w-4xl mx-auto print:max-w-none">
+        <div className="max-w-6xl mx-auto print:max-w-none">
           {/* Payment Success Message */}
           {paymentStatus === 'success' && (
             <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3 no-print">
@@ -281,10 +281,10 @@ export default function ClientInvoicePage() {
                     <img
                       src={invoice.organization.logoUrl}
                       alt={companyName}
-                      className="h-12 object-contain mb-3"
+                      className="h-20 max-w-[280px] object-contain mb-3"
                     />
                   ) : (
-                    <h2 className="text-xl font-bold text-gray-900 mb-2">{companyName}</h2>
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">{companyName}</h2>
                   )}
                   <div className="text-xs text-gray-500 space-y-0.5">
                     {invoice.organization?.businessAddress && (

@@ -197,12 +197,20 @@ export async function POST(request: NextRequest) {
     const baseUrl = host ? `${protocol}://${host}` : (process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000')
     const quoteUrl = `${baseUrl}/client/invoice/${clientQuote.accessToken}`
 
+    // Convert relative logo URL to absolute URL for email
+    let companyLogo: string | undefined = undefined
+    if (organization?.logoUrl) {
+      companyLogo = organization.logoUrl.startsWith('http')
+        ? organization.logoUrl
+        : `${baseUrl}${organization.logoUrl.startsWith('/') ? '' : '/'}${organization.logoUrl}`
+    }
+
     const emailData = {
       quoteNumber,
       clientName,
       projectName: project.name,
-      companyName: organization?.businessName || organization?.name || 'Your Company',
-      companyLogo: organization?.logoUrl || undefined,
+      companyName: organization?.businessName || organization?.name || 'Meisner Interiors',
+      companyLogo,
       companyPhone: organization?.businessPhone || undefined,
       companyEmail: organization?.businessEmail || undefined,
       quoteUrl,

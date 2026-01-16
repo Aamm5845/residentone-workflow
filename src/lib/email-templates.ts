@@ -751,7 +751,7 @@ export function generateClientQuoteEmailTemplate(data: ClientQuoteEmailData): {
             ${data.companyLogo ? `
             <img src="${data.companyLogo}"
                  alt="${data.companyName}"
-                 style="max-width: 160px; max-height: 50px; height: auto; margin-bottom: 24px;" />
+                 style="max-width: 220px; max-height: 80px; height: auto; margin-bottom: 24px;" />
             ` : `
             <div style="color: #111827; font-size: 22px; font-weight: 700; margin-bottom: 24px;">${data.companyName}</div>
             `}
