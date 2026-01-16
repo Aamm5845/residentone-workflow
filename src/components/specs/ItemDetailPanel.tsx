@@ -2162,59 +2162,59 @@ export function ItemDetailPanel({
                   {components.length > 0 && (
                     <div className="space-y-2">
                       {components.map((comp) => (
-                        <div key={comp.id} className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200">
-                          {/* Component Image */}
-                          {comp.image ? (
-                            <img src={comp.image} alt={comp.name} className="w-10 h-10 rounded object-cover" />
-                          ) : (
-                            <div className="w-10 h-10 rounded bg-gray-100 flex items-center justify-center">
-                              <Package className="w-5 h-5 text-gray-400" />
+                        <div key={comp.id} className="p-3 bg-white rounded-lg border border-gray-200">
+                          <div className="flex items-start gap-3">
+                            {/* Component Image */}
+                            <div className="flex-shrink-0">
+                              {comp.image ? (
+                                <img src={comp.image} alt={comp.name} className="w-10 h-10 rounded object-cover" />
+                              ) : (
+                                <div className="w-10 h-10 rounded bg-gray-100 flex items-center justify-center">
+                                  <Package className="w-5 h-5 text-gray-400" />
+                                </div>
+                              )}
                             </div>
-                          )}
 
-                          {/* Component Info */}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">{comp.name}</p>
-                            {comp.modelNumber && (
-                              <p className="text-xs text-gray-500 truncate">{comp.modelNumber}</p>
-                            )}
+                            {/* Component Info - takes remaining space */}
+                            <div className="flex-1 min-w-0 overflow-hidden">
+                              <p className="text-sm font-medium text-gray-900 break-words">{comp.name}</p>
+                              {comp.modelNumber && (
+                                <p className="text-xs text-gray-500 truncate">{comp.modelNumber}</p>
+                              )}
+                            </div>
+
+                            {/* Actions - fixed width, always visible */}
+                            <div className="flex-shrink-0 flex items-center gap-1">
+                              <button
+                                onClick={() => setEditingComponent(comp)}
+                                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                title="Edit component"
+                              >
+                                <Edit className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteComponent(comp.id)}
+                                disabled={savingComponent}
+                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                                title="Delete component"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </div>
 
-                          {/* Quantity & Price */}
-                          <div className="text-right">
+                          {/* Price row - separate line */}
+                          <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between">
+                            <span className="text-xs text-gray-500">
+                              Qty: {comp.quantity || 1} {comp.price ? `× $${comp.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''}
+                            </span>
                             {comp.price ? (
-                              <>
-                                <p className="text-sm font-medium text-gray-900">
-                                  ${(comp.price * (comp.quantity || 1)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </p>
-                                {comp.quantity > 1 && (
-                                  <p className="text-xs text-gray-500">
-                                    {comp.quantity} x ${comp.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                  </p>
-                                )}
-                              </>
+                              <span className="text-sm font-medium text-gray-900">
+                                ${(comp.price * (comp.quantity || 1)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
                             ) : (
-                              <p className="text-xs text-gray-400">No price</p>
+                              <span className="text-xs text-gray-400">No price</span>
                             )}
-                          </div>
-
-                          {/* Actions */}
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => setEditingComponent(comp)}
-                              className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                              title="Edit component"
-                            >
-                              <Edit className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteComponent(comp.id)}
-                              disabled={savingComponent}
-                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
-                              title="Delete component"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
                           </div>
                         </div>
                       ))}
