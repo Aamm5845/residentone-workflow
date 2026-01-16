@@ -652,14 +652,33 @@ export default function QuotePDFReviewDialog({
         <div className="flex h-[calc(95vh-80px)]">
           {/* PDF Viewer - Full width when analysis panel is hidden */}
           <div className={`${showAnalysisPanel ? 'w-3/5' : 'w-full'} border-r flex flex-col bg-gray-50 transition-all duration-300`}>
-            {/* PDF Embed - Full Height using Google Docs Viewer for clean display */}
-            <div className="flex-1">
+            {/* PDF Embed - Full Height */}
+            <div className="flex-1 relative">
               {quoteDocumentUrl ? (
-                <iframe
-                  src={`https://docs.google.com/viewer?url=${encodeURIComponent(quoteDocumentUrl)}&embedded=true`}
-                  className="w-full h-full border-0"
-                  title="Quote PDF"
-                />
+                <>
+                  {/* Use object tag for better PDF rendering with fallback */}
+                  <object
+                    data={quoteDocumentUrl}
+                    type="application/pdf"
+                    className="w-full h-full"
+                  >
+                    {/* Fallback if object doesn't work */}
+                    <div className="flex flex-col items-center justify-center h-full text-gray-500 p-8">
+                      <FileText className="w-16 h-16 mb-4 text-gray-300" />
+                      <p className="text-lg font-medium mb-2">PDF Preview Unavailable</p>
+                      <p className="text-sm text-gray-400 mb-4 text-center">
+                        Your browser cannot display this PDF inline.
+                      </p>
+                      <Button
+                        variant="default"
+                        onClick={() => window.open(quoteDocumentUrl, '_blank')}
+                      >
+                        <ExternalLink className="w-4 h-4 mr-2" />
+                        Open PDF in New Tab
+                      </Button>
+                    </div>
+                  </object>
+                </>
               ) : (
                 <div className="flex items-center justify-center h-full text-gray-400">
                   <FileText className="w-12 h-12 mr-3" />
