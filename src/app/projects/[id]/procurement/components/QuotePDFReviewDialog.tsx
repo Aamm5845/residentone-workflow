@@ -309,10 +309,35 @@ export default function QuotePDFReviewDialog({
 
         // Mark this extra item as resolved if it came from an extra item
         if (currentAddToSpecsIdx !== null) {
+          // Update local state immediately
           setResolvedExtraItems(prev => ({
             ...prev,
             [currentAddToSpecsIdx]: { type: 'specs' }
           }))
+
+          // Persist to database if we have the data
+          if (aiExtractedData?.matchResults) {
+            const extraItemsWithIndices = aiExtractedData.matchResults.map((m, i) => ({ match: m, globalIdx: i }))
+              .filter(({ match }) => match.status === 'extra')
+            const globalIdx = extraItemsWithIndices[currentAddToSpecsIdx]?.globalIdx
+
+            if (globalIdx !== undefined) {
+              try {
+                await fetch(`/api/projects/${projectId}/procurement/supplier-quotes/update-match`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    quoteId,
+                    matchIndex: globalIdx,
+                    action: 'resolve_extra',
+                    resolveType: 'specs'
+                  })
+                })
+              } catch (err) {
+                console.error('Failed to persist resolved status:', err)
+              }
+            }
+          }
         }
 
         setShowAddItemDialog(false)
@@ -403,12 +428,38 @@ export default function QuotePDFReviewDialog({
       if (res.ok) {
         toast.success(`Component added to "${parentItem.itemName}"`)
 
-        // Mark this extra item as resolved
+        // Mark this extra item as resolved and persist to database
         if (currentExtraItemIdx !== null) {
+          // Update local state immediately
           setResolvedExtraItems(prev => ({
             ...prev,
             [currentExtraItemIdx]: { type: 'component', parentItemName: parentItem.itemName }
           }))
+
+          // Persist to database if we have the data
+          if (aiExtractedData?.matchResults) {
+            const extraItemsWithIndices = aiExtractedData.matchResults.map((m, i) => ({ match: m, globalIdx: i }))
+              .filter(({ match }) => match.status === 'extra')
+            const globalIdx = extraItemsWithIndices[currentExtraItemIdx]?.globalIdx
+
+            if (globalIdx !== undefined) {
+              try {
+                await fetch(`/api/projects/${projectId}/procurement/supplier-quotes/update-match`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    quoteId,
+                    matchIndex: globalIdx,
+                    action: 'resolve_extra',
+                    resolveType: 'component',
+                    parentItemName: parentItem.itemName
+                  })
+                })
+              } catch (err) {
+                console.error('Failed to persist resolved status:', err)
+              }
+            }
+          }
         }
 
         setShowAddComponentDialog(false)
@@ -437,12 +488,16 @@ export default function QuotePDFReviewDialog({
   const selectedRoom = rooms.find(r => r.id === selectedRoomId)
   const sections = selectedRoom?.sections || []
 
-  // Initialize selected matches, approved status, and editable values from current matchResults
+  // Initialize selected matches, approved status, editable values, and resolved extra items from current matchResults
   useEffect(() => {
     if (aiExtractedData?.matchResults) {
       const initialMatches: Record<number, string> = {}
       const initialApproved = new Set<number>()
       const initialEdited: Record<number, { unitPrice?: number; quantity?: number }> = {}
+      const initialResolved: Record<number, { type: 'component' | 'specs', parentItemName?: string }> = {}
+
+      // Track extra item local index
+      let extraItemLocalIdx = 0
 
       aiExtractedData.matchResults.forEach((match, idx) => {
         if (match.rfqItem?.id) {
@@ -459,11 +514,23 @@ export default function QuotePDFReviewDialog({
             quantity: match.extractedItem.quantity
           }
         }
+        // Restore resolved status for extra items
+        if (match.status === 'extra') {
+          const resolved = (match as any).resolved
+          if (resolved) {
+            initialResolved[extraItemLocalIdx] = {
+              type: resolved.type,
+              parentItemName: resolved.parentItemName
+            }
+          }
+          extraItemLocalIdx++
+        }
       })
 
       setSelectedMatches(initialMatches)
       setApprovedMatches(initialApproved)
       setEditedValues(initialEdited)
+      setResolvedExtraItems(initialResolved)
     }
   }, [aiExtractedData])
 
@@ -475,34 +542,34 @@ export default function QuotePDFReviewDialog({
     }).format(amount)
   }
 
-  const getStatusBadge = (status: string, confidence: number) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case 'matched':
         return (
           <Badge className="bg-emerald-100 text-emerald-700 text-xs">
             <CheckCircle2 className="w-3 h-3 mr-1" />
-            Matched ({confidence}%)
+            Matched
           </Badge>
         )
       case 'partial':
         return (
-          <Badge className="bg-amber-100 text-amber-700 text-xs">
-            <HelpCircle className="w-3 h-3 mr-1" />
-            Partial ({confidence}%)
+          <Badge className="bg-emerald-100 text-emerald-700 text-xs">
+            <CheckCircle2 className="w-3 h-3 mr-1" />
+            Matched
           </Badge>
         )
       case 'missing':
         return (
           <Badge className="bg-red-100 text-red-700 text-xs">
             <XCircle className="w-3 h-3 mr-1" />
-            Missing from Quote
+            Missing
           </Badge>
         )
       case 'extra':
         return (
-          <Badge className="bg-blue-100 text-blue-700 text-xs">
+          <Badge className="bg-orange-100 text-orange-700 text-xs">
             <AlertTriangle className="w-3 h-3 mr-1" />
-            Extra Item
+            Extra
           </Badge>
         )
       default:
@@ -675,24 +742,30 @@ export default function QuotePDFReviewDialog({
             <ScrollArea className="flex-1">
               <div className="p-4 space-y-6">
                 {/* Summary Stats */}
-                <div className="grid grid-cols-4 gap-3">
-                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-center">
-                    <p className="text-2xl font-bold text-emerald-700">{matchedItems.length}</p>
-                    <p className="text-xs text-emerald-600">Matched</p>
-                  </div>
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
-                    <p className="text-2xl font-bold text-blue-700">{extraItems.length}</p>
-                    <p className="text-xs text-blue-600">Extra Items</p>
-                  </div>
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
-                    <p className="text-2xl font-bold text-red-700">{missingItems.length}</p>
-                    <p className="text-xs text-red-600">Missing</p>
-                  </div>
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-center">
-                    <p className="text-2xl font-bold text-gray-700">{extractedItems.length}</p>
-                    <p className="text-xs text-gray-600">Total Extracted</p>
-                  </div>
-                </div>
+                {(() => {
+                  const resolvedCount = Object.keys(resolvedExtraItems).length
+                  const unresolvedExtras = extraItems.length - resolvedCount
+                  return (
+                    <div className="grid grid-cols-4 gap-3">
+                      <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-center">
+                        <p className="text-2xl font-bold text-emerald-700">{matchedItems.length + resolvedCount}</p>
+                        <p className="text-xs text-emerald-600">Matched</p>
+                      </div>
+                      <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-center">
+                        <p className="text-2xl font-bold text-orange-700">{unresolvedExtras}</p>
+                        <p className="text-xs text-orange-600">Extra Items</p>
+                      </div>
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+                        <p className="text-2xl font-bold text-red-700">{missingItems.length}</p>
+                        <p className="text-xs text-red-600">Missing</p>
+                      </div>
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-center">
+                        <p className="text-2xl font-bold text-gray-700">{extractedItems.length}</p>
+                        <p className="text-xs text-gray-600">Total Extracted</p>
+                      </div>
+                    </div>
+                  )
+                })()}
 
                 {/* Supplier Info Summary */}
                 {supplierInfo && (
@@ -767,7 +840,7 @@ export default function QuotePDFReviewDialog({
                           }`}
                         >
                           <div className="flex items-start justify-between mb-3">
-                            {getStatusBadge(match.status, match.confidence)}
+                            {getStatusBadge(match.status)}
                             {isApproved && (
                               <Badge className="bg-emerald-600 text-white text-xs">
                                 <Check className="w-3 h-3 mr-1" />
@@ -1069,7 +1142,7 @@ export default function QuotePDFReviewDialog({
                     {missingItems.map((match, idx) => (
                       <div key={idx} className="border border-red-200 rounded-lg p-4 bg-red-50">
                         <div className="mb-2">
-                          {getStatusBadge(match.status, match.confidence)}
+                          {getStatusBadge(match.status)}
                         </div>
                         {match.rfqItem && (
                           <div className="space-y-2">

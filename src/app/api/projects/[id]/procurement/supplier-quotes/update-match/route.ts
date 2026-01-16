@@ -124,6 +124,15 @@ export async function POST(
     } else if (action === 'reject') {
       matchResults[matchIndex].rejected = true
       matchResults[matchIndex].rfqItem = undefined
+    } else if (action === 'resolve_extra') {
+      // Mark an extra item as resolved (added as component or to specs)
+      const { resolveType, parentItemName } = body
+      matchResults[matchIndex].resolved = {
+        type: resolveType, // 'component' or 'specs'
+        parentItemName: parentItemName || null,
+        resolvedAt: new Date().toISOString(),
+        resolvedBy: (session.user as any).id
+      }
     }
 
     // Update the access log with new match results
