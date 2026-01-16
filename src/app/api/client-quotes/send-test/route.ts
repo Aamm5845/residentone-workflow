@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
         title: title || `Invoice for ${project.name}`,
         description: description || '',
         paymentTerms: paymentTerms || null,
-        status: 'SENT_TO_CLIENT',
+        status: 'DRAFT',
         subtotal,
         shippingCost: deliveryAmount > 0 ? deliveryAmount : null,
         customFees: customFees && customFees.length > 0 ? customFees : null,
@@ -177,8 +177,6 @@ export async function POST(request: NextRequest) {
         allowCreditCard: allowCreditCard !== false,
         clientName,
         clientEmail: testEmail,
-        sentToClientAt: new Date(),
-        sentById: userId,
         createdById: userId,
         updatedById: userId,
         lineItems: {
