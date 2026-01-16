@@ -1,9 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { Document, Page, pdfjs } from 'react-pdf'
-import 'react-pdf/dist/Page/AnnotationLayer.css'
-import 'react-pdf/dist/Page/TextLayer.css'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -43,16 +40,9 @@ import {
   Image as ImageIcon,
   PanelRightClose,
   PanelRightOpen,
-  Layers,
-  ChevronLeft,
-  ChevronRight,
-  ZoomIn,
-  ZoomOut
+  Layers
 } from 'lucide-react'
 import { toast } from 'sonner'
-
-// Set up PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
 
 interface Room {
   id: string
@@ -210,14 +200,6 @@ export default function QuotePDFReviewDialog({
 
   // Track resolved extra items (added as component or added to specs)
   const [resolvedExtraItems, setResolvedExtraItems] = useState<Record<number, { type: 'component' | 'specs', parentItemName?: string }>>({})
-
-  // PDF viewer state
-  const [numPages, setNumPages] = useState<number>(0)
-  const [pageNumber, setPageNumber] = useState<number>(1)
-  const [pdfScale, setPdfScale] = useState<number>(1.0)
-  const [pdfLoading, setPdfLoading] = useState<boolean>(true)
-  const [pdfError, setPdfError] = useState<string | null>(null)
-  const pdfContainerRef = useRef<HTMLDivElement>(null)
 
   // Track resolved extra items for Add to All Specs
   const [currentAddToSpecsIdx, setCurrentAddToSpecsIdx] = useState<number | null>(null)
@@ -737,98 +719,14 @@ export default function QuotePDFReviewDialog({
         <div className="flex h-[calc(95vh-80px)]">
           {/* PDF Viewer - Full width when analysis panel is hidden */}
           <div className={`${showAnalysisPanel ? 'w-3/5' : 'w-full'} border-r flex flex-col bg-gray-100 transition-all duration-300`}>
-            {/* PDF Controls */}
-            {quoteDocumentUrl && (
-              <div className="flex items-center justify-between px-4 py-2 bg-white border-b">
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPageNumber(p => Math.max(1, p - 1))}
-                    disabled={pageNumber <= 1}
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </Button>
-                  <span className="text-sm text-gray-600 min-w-[80px] text-center">
-                    {pageNumber} / {numPages || '...'}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPageNumber(p => Math.min(numPages, p + 1))}
-                    disabled={pageNumber >= numPages}
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPdfScale(s => Math.max(0.5, s - 0.25))}
-                    disabled={pdfScale <= 0.5}
-                  >
-                    <ZoomOut className="w-4 h-4" />
-                  </Button>
-                  <span className="text-sm text-gray-600 min-w-[50px] text-center">
-                    {Math.round(pdfScale * 100)}%
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPdfScale(s => Math.min(2, s + 0.25))}
-                    disabled={pdfScale >= 2}
-                  >
-                    <ZoomIn className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-            {/* PDF Document */}
-            <div className="flex-1 overflow-auto" ref={pdfContainerRef}>
+            {/* PDF Embed */}
+            <div className="flex-1">
               {quoteDocumentUrl ? (
-                <Document
-                  file={quoteDocumentUrl}
-                  onLoadSuccess={({ numPages }) => {
-                    setNumPages(numPages)
-                    setPdfLoading(false)
-                    setPdfError(null)
-                  }}
-                  onLoadError={(error) => {
-                    console.error('PDF load error:', error)
-                    setPdfError('Failed to load PDF')
-                    setPdfLoading(false)
-                  }}
-                  loading={
-                    <div className="flex items-center justify-center h-full py-20">
-                      <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
-                      <span className="ml-2 text-gray-500">Loading PDF...</span>
-                    </div>
-                  }
-                  error={
-                    <div className="flex flex-col items-center justify-center h-full py-20 text-red-500">
-                      <AlertTriangle className="w-8 h-8 mb-2" />
-                      <span>Failed to load PDF</span>
-                      <Button
-                        variant="link"
-                        size="sm"
-                        onClick={() => window.open(quoteDocumentUrl, '_blank')}
-                        className="mt-2"
-                      >
-                        Open in new tab
-                      </Button>
-                    </div>
-                  }
-                  className="flex justify-center py-4"
-                >
-                  <Page
-                    pageNumber={pageNumber}
-                    scale={pdfScale}
-                    renderTextLayer={true}
-                    renderAnnotationLayer={true}
-                    className="shadow-lg"
-                  />
-                </Document>
+                <iframe
+                  src={quoteDocumentUrl}
+                  className="w-full h-full border-0"
+                  title="Quote PDF"
+                />
               ) : (
                 <div className="flex items-center justify-center h-full text-gray-400">
                   <FileText className="w-12 h-12 mr-3" />
