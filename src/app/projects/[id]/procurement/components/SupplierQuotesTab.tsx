@@ -52,8 +52,11 @@ import {
 import CreateInvoiceDialog from './CreateInvoiceDialog'
 import CreateBudgetQuoteDialog from './CreateBudgetQuoteDialog'
 import QuotePDFReviewDialog from './QuotePDFReviewDialog'
+import ManualQuoteUploadDialog from './ManualQuoteUploadDialog'
+import ManualQuoteReviewDialog from './ManualQuoteReviewDialog'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
+import { Upload, Loader2 } from 'lucide-react'
 
 interface SupplierQuotesTabProps {
   projectId: string
@@ -273,10 +276,72 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
   const [pdfReviewOpen, setPdfReviewOpen] = useState(false)
   const [pdfReviewQuote, setPdfReviewQuote] = useState<SupplierQuote | null>(null)
 
+  // Manual Quote Upload dialog state
+  const [manualUploadOpen, setManualUploadOpen] = useState(false)
+  const [manualReviewOpen, setManualReviewOpen] = useState(false)
+  const [manualQuoteData, setManualQuoteData] = useState<any>(null)
+  const [allSpecItems, setAllSpecItems] = useState<any[]>([])
+  const [processingManualQuote, setProcessingManualQuote] = useState(false)
+
   // Open PDF review dialog
   const openPdfReview = (quote: SupplierQuote) => {
     setPdfReviewQuote(quote)
     setPdfReviewOpen(true)
+  }
+
+  // Handle manual quote upload completion - trigger AI analysis
+  const handleManualQuoteUpload = async (uploadData: {
+    fileUrl: string
+    fileType: string
+    supplierId: string
+    supplierName: string
+  }) => {
+    setProcessingManualQuote(true)
+    setManualUploadOpen(false)
+
+    try {
+      // Call the AI extraction API
+      const res = await fetch(`/api/projects/${projectId}/procurement/manual-quote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(uploadData)
+      })
+
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.message || 'Failed to analyze quote')
+      }
+
+      const data = await res.json()
+
+      // Fetch all spec items for the matching dialog
+      const specRes = await fetch(`/api/projects/${projectId}/ffe-specs`)
+      if (specRes.ok) {
+        const specData = await specRes.json()
+        const items = specData.items || []
+        setAllSpecItems(items.map((item: any) => ({
+          id: item.id,
+          name: item.name,
+          quantity: item.quantity,
+          sku: item.sku,
+          brand: item.brand,
+          imageUrl: item.images?.[0],
+          roomName: item.roomName,
+          existingSupplierId: item.supplierId,
+          existingSupplierName: item.supplierName,
+          existingTradePrice: item.tradePrice ? Number(item.tradePrice) : undefined
+        })))
+      }
+
+      setManualQuoteData(data)
+      setManualReviewOpen(true)
+
+    } catch (error: any) {
+      console.error('Error processing manual quote:', error)
+      toast.error(error.message || 'Failed to analyze quote')
+    } finally {
+      setProcessingManualQuote(false)
+    }
   }
 
   const fetchQuotes = useCallback(async () => {
@@ -632,6 +697,25 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                   Clear filters
                 </Button>
               )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-blue-600 border-blue-200 hover:bg-blue-50"
+                onClick={() => setManualUploadOpen(true)}
+                disabled={processingManualQuote}
+              >
+                {processingManualQuote ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4 mr-1.5" />
+                    Upload Quote
+                  </>
+                )}
+              </Button>
               <Button
                 variant="ghost"
                 size="sm"
@@ -1645,6 +1729,31 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
           onMatchUpdated={fetchQuotes}
         />
       )}
+
+      {/* Manual Quote Upload Dialog */}
+      <ManualQuoteUploadDialog
+        open={manualUploadOpen}
+        onOpenChange={setManualUploadOpen}
+        projectId={projectId}
+        onUploadComplete={handleManualQuoteUpload}
+      />
+
+      {/* Manual Quote Review Dialog */}
+      <ManualQuoteReviewDialog
+        open={manualReviewOpen}
+        onOpenChange={(open) => {
+          setManualReviewOpen(open)
+          if (!open) setManualQuoteData(null)
+        }}
+        projectId={projectId}
+        data={manualQuoteData}
+        allSpecItems={allSpecItems}
+        onApproveComplete={() => {
+          setManualReviewOpen(false)
+          setManualQuoteData(null)
+          fetchQuotes()
+        }}
+      />
     </div>
   )
 }
