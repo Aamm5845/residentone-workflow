@@ -29,10 +29,14 @@ import {
   ShieldX,
   FileText,
   DollarSign,
-  AlertTriangle
+  AlertTriangle,
+  Send,
+  Mail,
+  ExternalLink
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { calculateItemRRPTotal } from '@/lib/pricing'
 
 interface CreateInvoiceDialogProps {
   open: boolean
@@ -46,6 +50,16 @@ interface CreateInvoiceDialogProps {
     quoteNumber: string
   }
   source?: 'specs' | 'quotes'
+}
+
+interface ComponentItem {
+  id: string
+  name: string
+  modelNumber?: string
+  image?: string
+  price?: number | null
+  priceWithMarkup?: number | null
+  quantity: number
 }
 
 interface SpecItem {
@@ -67,6 +81,9 @@ interface SpecItem {
   clientApprovedAt?: string
   clientApprovedVia?: string
   specStatus?: string | null
+  componentsTotal?: number // Total price of components (with markup)
+  markupPercent?: number  // Markup percentage for components
+  components?: ComponentItem[] // Component sub-items
 }
 
 // Statuses to exclude from client invoice (client/contractor order items)
@@ -103,6 +120,8 @@ interface LineItem {
   markupValue?: number
   markupAmount?: number
   currency?: string // CAD or USD
+  imageUrl?: string // Image for display (especially for components)
+  isComponent?: boolean // Flag for component items
 }
 
 export default function CreateInvoiceDialog({
@@ -135,6 +154,12 @@ export default function CreateInvoiceDialog({
   const [selectedQuoteIds, setSelectedQuoteIds] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
+
+  // Test email state
+  const [showTestEmailDialog, setShowTestEmailDialog] = useState(false)
+  const [testEmail, setTestEmail] = useState('')
+  const [sendingTest, setSendingTest] = useState(false)
+  const [createdQuote, setCreatedQuote] = useState<{ id: string; accessToken: string; quoteNumber: string } | null>(null)
 
   // Load data when dialog opens
   useEffect(() => {
@@ -269,19 +294,36 @@ export default function CreateInvoiceDialog({
     return item.rrp && item.clientApproved && !EXCLUDED_INVOICE_STATUSES.includes(item.specStatus || '')
   }
 
+  // Calculate item total using centralized pricing (includes components with markup)
+  // Matches Budget Quote logic exactly
+  const calculateItemTotal = (item: SpecItem): number => {
+    // Use RRP or fall back to tradePrice (same as Budget Quote)
+    const rrpToUse = item.rrp ?? item.tradePrice ?? 0
+
+    // Use centralized pricing calculation that includes components
+    return calculateItemRRPTotal({
+      rrp: rrpToUse,
+      quantity: item.quantity || 1,
+      componentsTotal: item.componentsTotal,
+      markupPercent: item.markupPercent
+    })
+  }
+
   // Build line items for invoice
   const buildLineItems = (): LineItem[] => {
     const lineItems: LineItem[] = []
 
     if (activeSource === 'specs') {
-      // For approved budget items, use RRP directly - no markup applied
-      // This matches exactly the approved budget price
+      // For approved budget items, add main item and each component as separate line items
+      // This shows all items (including components) with picture, price, and name
       invoiceableSpecItems
         .filter(item => selectedItemIds.has(item.id))
         .forEach(item => {
-          const clientPrice = item.rrp || 0
+          // Get base RRP (without components, they'll be separate line items)
+          const baseRrp = item.rrp ?? item.tradePrice ?? 0
           const costPrice = item.tradePrice || 0
 
+          // Add main item (without components total - components will be separate)
           lineItems.push({
             roomFFEItemId: item.id,
             displayName: item.name,
@@ -290,14 +332,44 @@ export default function CreateInvoiceDialog({
             roomName: item.roomName,
             quantity: item.quantity || 1,
             unitType: item.unitType || 'units',
-            clientUnitPrice: clientPrice,
-            clientTotalPrice: clientPrice * (item.quantity || 1),
+            clientUnitPrice: baseRrp,
+            clientTotalPrice: baseRrp * (item.quantity || 1),
             supplierUnitPrice: costPrice,
             supplierTotalPrice: costPrice * (item.quantity || 1),
-            markupValue: 0, // No markup for approved budget items
+            markupValue: 0,
             markupAmount: 0,
-            currency: item.rrpCurrency || 'CAD'
+            currency: item.rrpCurrency || 'CAD',
+            imageUrl: item.images?.[0] || undefined,
+            isComponent: false
           })
+
+          // Add each component as a separate line item with its own image and price
+          if (item.components && item.components.length > 0) {
+            item.components.forEach(comp => {
+              // Use price with markup for client-facing price
+              const compPrice = comp.priceWithMarkup ?? comp.price ?? 0
+              const compTotal = compPrice * (comp.quantity || 1)
+
+              lineItems.push({
+                roomFFEItemId: item.id, // Link to parent item
+                displayName: `↳ ${comp.name}`, // Indent to show it's a component
+                displayDescription: comp.modelNumber || undefined,
+                categoryName: item.category || item.sectionName,
+                roomName: item.roomName,
+                quantity: comp.quantity || 1,
+                unitType: 'units',
+                clientUnitPrice: compPrice,
+                clientTotalPrice: compTotal,
+                supplierUnitPrice: comp.price || 0,
+                supplierTotalPrice: (comp.price || 0) * (comp.quantity || 1),
+                markupValue: 0,
+                markupAmount: 0,
+                currency: item.rrpCurrency || 'CAD',
+                imageUrl: comp.image || undefined, // Component's own image
+                isComponent: true
+              })
+            })
+          }
         })
     } else {
       // For quotes, use the price directly without markup (RRP should already be set)
@@ -445,6 +517,8 @@ export default function CreateInvoiceDialog({
             groupId: item.categoryName || 'From Supplier Quote',
             itemName: item.displayName,
             itemDescription: item.displayDescription || null,
+            imageUrl: item.imageUrl || null,
+            isComponent: item.isComponent || false,
             quantity: item.quantity,
             unitType: item.unitType,
             costPrice: item.clientUnitPrice, // Use RRP as cost
@@ -473,6 +547,84 @@ export default function CreateInvoiceDialog({
     }
   }
 
+  // Send test email - creates real invoice and sends to test email
+  const handleSendTest = async () => {
+    if (!testEmail.trim()) {
+      toast.error('Please enter a test email address')
+      return
+    }
+
+    if (!title.trim()) {
+      toast.error('Please enter an invoice title')
+      return
+    }
+
+    const lineItems = buildLineItems()
+    if (lineItems.length === 0) {
+      toast.error('Please select at least one item')
+      return
+    }
+
+    setSendingTest(true)
+    try {
+      const res = await fetch('/api/client-quotes/send-test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          testEmail: testEmail.trim(),
+          projectId,
+          title,
+          description: description || null,
+          paymentTerms: paymentTerms || null,
+          validDays: validUntil ? Math.ceil((new Date(validUntil).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 30,
+          defaultMarkup: 0,
+          allowCreditCard: true,
+          lineItems: lineItems.map((item, index) => ({
+            roomFFEItemId: item.roomFFEItemId || null,
+            groupId: item.categoryName || 'Items',
+            itemName: item.displayName,
+            displayDescription: item.displayDescription || null,
+            imageUrl: item.imageUrl || null,
+            isComponent: item.isComponent || false,
+            quantity: item.quantity,
+            unitType: item.unitType,
+            clientUnitPrice: item.clientUnitPrice,
+            costPrice: item.supplierUnitPrice || item.clientUnitPrice,
+            markupPercent: 0,
+            order: index
+          }))
+        })
+      })
+
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || 'Failed to send test email')
+      }
+
+      const data = await res.json()
+      setCreatedQuote({
+        id: data.quoteId,
+        accessToken: data.accessToken,
+        quoteNumber: data.quoteNumber
+      })
+      toast.success(`Test email sent to ${testEmail.trim()}`)
+      setShowTestEmailDialog(false)
+      setTestEmail('')
+    } catch (error: any) {
+      console.error('Error sending test email:', error)
+      toast.error(error.message || 'Failed to send test email')
+    } finally {
+      setSendingTest(false)
+    }
+  }
+
+  // View invoice as client would see it
+  const handleViewAsClient = () => {
+    if (createdQuote?.id) {
+      window.open(`/client/invoice/${createdQuote.id}`, '_blank')
+    }
+  }
+
   const resetForm = () => {
     setStep(1)
     setTitle('')
@@ -481,6 +633,9 @@ export default function CreateInvoiceDialog({
     setSelectedQuoteIds(new Set())
     setSearchQuery('')
     setExpandedCategories(new Set())
+    setShowTestEmailDialog(false)
+    setTestEmail('')
+    setCreatedQuote(null)
   }
 
   const formatCurrency = (amount: number) => {
@@ -949,6 +1104,22 @@ export default function CreateInvoiceDialog({
               <Button variant="outline" onClick={() => setStep(1)}>
                 Back
               </Button>
+              <div className="flex-1" />
+              {/* Test Email and View as Client buttons */}
+              <Button
+                variant="outline"
+                onClick={() => setShowTestEmailDialog(true)}
+                disabled={saving || !canProceed}
+              >
+                <Mail className="w-4 h-4 mr-2" />
+                Send Test
+              </Button>
+              {createdQuote && (
+                <Button variant="outline" onClick={handleViewAsClient}>
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  View as Client
+                </Button>
+              )}
               <Button onClick={handleCreate} disabled={saving || !canProceed}>
                 {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Create Invoice
@@ -957,6 +1128,69 @@ export default function CreateInvoiceDialog({
           )}
         </DialogFooter>
       </DialogContent>
+
+      {/* Test Email Dialog */}
+      <Dialog open={showTestEmailDialog} onOpenChange={setShowTestEmailDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="w-5 h-5" />
+              Send Test Email
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Send a test invoice to preview exactly what the client will receive, including the payment link.
+            </p>
+
+            <div className="space-y-2">
+              <Label htmlFor="test-email">Email Address</Label>
+              <Input
+                id="test-email"
+                type="email"
+                placeholder="test@example.com"
+                value={testEmail}
+                onChange={(e) => setTestEmail(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && testEmail.trim()) {
+                    handleSendTest()
+                  }
+                }}
+              />
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-xs text-blue-700">
+                This will create a real invoice in the system and send the email with a working payment link.
+                Use this to verify the client experience before sending to the actual client.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTestEmailDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSendTest}
+              disabled={sendingTest || !testEmail.trim()}
+            >
+              {sendingTest ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4 mr-2" />
+                  Send Test
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   )
 }

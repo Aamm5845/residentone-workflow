@@ -3397,6 +3397,8 @@ model ClientQuoteLineItem {
   displayDescription  String?
   categoryName        String?
   roomName            String?
+  imageUrl            String?  // Image URL for display (especially for components)
+  isComponent         Boolean  @default(false)  // Flag for component items
 
   // Quantity
   quantity            Int      @default(1)

@@ -20,11 +20,10 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid access token' }, { status: 400 })
     }
 
-    console.log('[Client Invoice View] Fetching invoice with token:', id)
+    console.log('[Client Invoice View] Fetching invoice with ID/token:', id)
 
-    // Get the client quote - this is a public endpoint for clients
-    // SECURITY: Only allow access via accessToken, not by ID (to prevent enumeration attacks)
-    const quote = await prisma.clientQuote.findFirst({
+    // Get the client quote - try accessToken first (client access), then by ID (internal preview)
+    let quote = await prisma.clientQuote.findFirst({
       where: {
         accessToken: id
       },
@@ -80,8 +79,67 @@ export async function GET(
       }
     })
 
+    // If not found by accessToken, try by ID (internal preview)
     if (!quote) {
-      console.error('[Client Invoice View] Invoice not found for ID:', id)
+      quote = await prisma.clientQuote.findFirst({
+        where: {
+          id: id
+        },
+        include: {
+          project: {
+            select: {
+              name: true,
+              client: {
+                select: {
+                  name: true,
+                  email: true,
+                  phone: true
+                }
+              }
+            }
+          },
+          lineItems: {
+            include: {
+              roomFFEItem: {
+                select: {
+                  id: true,
+                  name: true,
+                  images: true,
+                  description: true,
+                  brand: true,
+                  modelNumber: true,
+                  finish: true,
+                  width: true,
+                  height: true,
+                  depth: true,
+                  length: true,
+                  leadTime: true,
+                  notes: true,
+                  section: {
+                    select: {
+                      name: true,
+                      instance: {
+                        select: {
+                          room: {
+                            select: {
+                              name: true
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            orderBy: { order: 'asc' }
+          }
+        }
+      })
+    }
+
+    if (!quote) {
+      console.error('[Client Invoice View] Invoice not found for ID/token:', id)
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
     }
 
@@ -153,9 +211,10 @@ export async function GET(
       // Payment options
       allowCreditCard: quote.allowCreditCard !== false, // Default to true for backwards compatibility
       lineItems: quote.lineItems.map(item => {
-        // Get first image from roomFFEItem if available
-        const images = item.roomFFEItem?.images as string[] | null
-        const imageUrl = images && images.length > 0 ? images[0] : null
+        // Get image: prefer stored imageUrl (for components), fall back to roomFFEItem.images
+        const roomFFEImages = item.roomFFEItem?.images as string[] | null
+        const imageUrl = (item as any).imageUrl || (roomFFEImages && roomFFEImages.length > 0 ? roomFFEImages[0] : null)
+        const isComponent = (item as any).isComponent || false
 
         return {
           id: item.id,
@@ -168,8 +227,9 @@ export async function GET(
           clientTotalPrice: parseFloat(item.clientTotalPrice?.toString() || '0'),
           categoryName: item.categoryName || item.roomName,
           imageUrl,
-          // Spec details for client viewing
-          specDetails: item.roomFFEItem ? {
+          isComponent,
+          // Spec details for client viewing (not shown for components)
+          specDetails: item.roomFFEItem && !isComponent ? {
             brand: item.roomFFEItem.brand,
             model: item.roomFFEItem.modelNumber,
             finish: item.roomFFEItem.finish,
@@ -183,7 +243,7 @@ export async function GET(
             notes: item.roomFFEItem.notes,
             room: (item.roomFFEItem.section as any)?.instance?.room?.name,
             section: item.roomFFEItem.section?.name,
-            allImages: images
+            allImages: roomFFEImages
           } : null
         }
       }),

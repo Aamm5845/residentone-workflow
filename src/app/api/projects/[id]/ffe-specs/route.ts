@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { calculateComponentsRRP } from '@/lib/pricing'
 
 export const dynamic = 'force-dynamic'
 
@@ -131,7 +132,7 @@ export async function GET(
       ]
     }
 
-    // Get all FFE items that are spec items
+    // Get all FFE items that are spec items (including components)
     const items = await prisma.roomFFEItem.findMany({
       where: whereClause,
       select: {
@@ -144,6 +145,7 @@ export async function GET(
         tradePrice: true,
         rrp: true,
         rrpCurrency: true,
+        markupPercent: true,
         supplierName: true,
         supplierLink: true,
         brand: true,
@@ -161,7 +163,20 @@ export async function GET(
         isSpecItem: true,
         clientApproved: true,
         clientApprovedAt: true,
-        clientApprovedVia: true
+        clientApprovedVia: true,
+        // Include components for pricing
+        components: {
+          select: {
+            id: true,
+            name: true,
+            modelNumber: true,
+            image: true,
+            price: true,
+            quantity: true,
+            order: true
+          },
+          orderBy: { order: 'asc' }
+        }
       },
       orderBy: [
         { sectionId: 'asc' },
@@ -176,17 +191,23 @@ export async function GET(
       const roomId = instanceId ? instanceRoomMap.get(instanceId) : null
       const roomName = roomId ? roomNameMap.get(roomId) : 'Unknown'
 
+      // Calculate components total with markup (for pricing)
+      const markupPercent = item.markupPercent ? Number(item.markupPercent) : 0
+      const componentsTotal = calculateComponentsRRP(item.components || [], markupPercent)
+
       return {
         id: item.id,
         name: item.name,
         description: item.description,
         category: sectionName, // Category comes from section name
+        sectionName: sectionName,
         quantity: item.quantity || 1,
         unitType: item.unitType,
         unitCost: item.unitCost ? Number(item.unitCost) : null,
         tradePrice: item.tradePrice ? Number(item.tradePrice) : null,
         rrp: item.rrp ? Number(item.rrp) : null,
         rrpCurrency: item.rrpCurrency || 'CAD',
+        markupPercent: markupPercent,
         supplierName: item.supplierName,
         supplierLink: item.supplierLink,
         brand: item.brand,
@@ -204,7 +225,18 @@ export async function GET(
         isSpecItem: item.isSpecItem,
         clientApproved: item.clientApproved,
         clientApprovedAt: item.clientApprovedAt,
-        clientApprovedVia: item.clientApprovedVia
+        clientApprovedVia: item.clientApprovedVia,
+        // Components with pricing for invoice display
+        components: (item.components || []).map(c => ({
+          id: c.id,
+          name: c.name,
+          modelNumber: c.modelNumber,
+          image: c.image,
+          price: c.price ? Number(c.price) : null,
+          priceWithMarkup: c.price ? Number(c.price) * (1 + markupPercent / 100) : null,
+          quantity: c.quantity || 1
+        })),
+        componentsTotal: componentsTotal
       }
     })
 

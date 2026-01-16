@@ -277,6 +277,8 @@ export async function POST(request: NextRequest) {
           displayDescription: item.itemDescription || null,
           categoryName: item.categoryName || item.groupId || null,
           roomName: item.roomName || null,
+          imageUrl: item.imageUrl || null,
+          isComponent: item.isComponent || false,
           quantity: quantity,
           unitType: item.unitType || 'units',
           supplierUnitPrice: costPrice,
