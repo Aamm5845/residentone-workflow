@@ -133,6 +133,11 @@ export default function CreateClientQuoteDialog({
   }
   const [additionalCharges, setAdditionalCharges] = useState<AdditionalCharge[]>([])
 
+  // Test email state
+  const [showTestEmailDialog, setShowTestEmailDialog] = useState(false)
+  const [testEmail, setTestEmail] = useState('')
+  const [sendingTest, setSendingTest] = useState(false)
+
   // Step 2: Items & Pricing
   const [specItems, setSpecItems] = useState<SpecItem[]>([])
   const [lineItems, setLineItems] = useState<LineItem[]>([])
@@ -563,6 +568,45 @@ export default function CreateClientQuoteDialog({
     }
   }
 
+  // Send test email to preview exactly what client will receive
+  const handleSendTestEmail = async () => {
+    if (!testEmail.trim()) {
+      toast.error('Please enter a test email address')
+      return
+    }
+
+    if (!createdQuote?.id) {
+      toast.error('Please create the invoice first')
+      return
+    }
+
+    setSendingTest(true)
+    try {
+      const response = await fetch('/api/client-quotes/send-test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          quoteId: createdQuote.id,
+          testEmail: testEmail.trim()
+        })
+      })
+
+      if (response.ok) {
+        toast.success(`Test email sent to ${testEmail.trim()}`)
+        setShowTestEmailDialog(false)
+        setTestEmail('')
+      } else {
+        const error = await response.json()
+        toast.error(error.error || 'Failed to send test email')
+      }
+    } catch (error) {
+      console.error('Error sending test email:', error)
+      toast.error('Failed to send test email')
+    } finally {
+      setSendingTest(false)
+    }
+  }
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-CA', {
       style: 'currency',
@@ -571,6 +615,7 @@ export default function CreateClientQuoteDialog({
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
@@ -1085,7 +1130,11 @@ export default function CreateClientQuoteDialog({
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center justify-center gap-3">
+              <div className="flex items-center justify-center gap-3 flex-wrap">
+                <Button variant="outline" onClick={() => setShowTestEmailDialog(true)}>
+                  <Mail className="w-4 h-4 mr-2" />
+                  Send Test Email
+                </Button>
                 <Button variant="outline" onClick={handlePrintQuote}>
                   <Printer className="w-4 h-4 mr-2" />
                   Print / Download PDF
@@ -1134,7 +1183,72 @@ export default function CreateClientQuoteDialog({
           )}
         </DialogFooter>
       </DialogContent>
-    </Dialog>
+
+      {/* Test Email Dialog */}
+      <Dialog open={showTestEmailDialog} onOpenChange={setShowTestEmailDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="w-5 h-5" />
+              Send Test Email
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Send a test invoice to preview exactly what the client will receive, including the payment link.
+            </p>
+
+            <div className="space-y-2">
+              <Label htmlFor="test-email">Email Address</Label>
+              <Input
+                id="test-email"
+                type="email"
+                placeholder="your@email.com"
+                value={testEmail}
+                onChange={(e) => setTestEmail(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && testEmail.trim()) {
+                    handleSendTestEmail()
+                  }
+                }}
+              />
+            </div>
+
+            <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm text-blue-700">
+              <p className="font-medium">This will send a real email that:</p>
+              <ul className="list-disc list-inside mt-1 space-y-0.5 text-blue-600">
+                <li>Shows exactly what the client sees</li>
+                <li>Contains the live invoice link</li>
+                <li>Includes all payment options</li>
+              </ul>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTestEmailDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSendTestEmail}
+              disabled={sendingTest || !testEmail.trim()}
+            >
+              {sendingTest ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4 mr-2" />
+                  Send Test
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 
