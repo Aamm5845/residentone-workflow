@@ -634,6 +634,13 @@ export async function PATCH(
             },
             rfq: {
               select: { projectId: true, orgId: true }
+            },
+            // Include AI match data for PDF quotes
+            accessLogs: {
+              where: { action: 'AI_MATCH' },
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+              select: { metadata: true }
             }
           }
         }
@@ -723,40 +730,95 @@ export async function PATCH(
         ? Number(quote.supplierRFQ.supplier.markupPercent)
         : 25  // Default 25% markup if not configured
 
-      console.log(`[Approve Quote] Processing ${quote.lineItems.length} line items for quote ${quote.id}`)
+      console.log(`[Approve Quote] Processing quote ${quote.id}`)
+
+      // Check for AI match data (for PDF quotes analyzed by AI)
+      const aiMatchLog = quote.supplierRFQ.accessLogs?.[0]
+      const aiMatchData = aiMatchLog?.metadata as any
+      const matchResults = aiMatchData?.matchResults || []
+
+      // Get items to update from AI match results or fall back to line items
+      const itemsToUpdate: Array<{
+        rfqLineItemId: string
+        unitPrice: number
+        quantity: number
+        leadTime?: string
+        currency?: string
+      }> = []
+
+      if (matchResults.length > 0) {
+        // Use AI match results - these have the approved matches with correct prices
+        console.log(`[Approve Quote] Using AI match results (${matchResults.length} items)`)
+
+        for (const match of matchResults) {
+          // Only process matched/partial items that have an rfqItem
+          if ((match.status === 'matched' || match.status === 'partial') && match.rfqItem?.id) {
+            const extractedItem = match.extractedItem || {}
+            // Use edited price if available, otherwise use extracted price
+            const unitPrice = extractedItem.unitPrice
+
+            if (unitPrice && unitPrice > 0) {
+              itemsToUpdate.push({
+                rfqLineItemId: match.rfqItem.id,
+                unitPrice: unitPrice,
+                quantity: extractedItem.quantity || match.rfqItem.quantity || 1,
+                leadTime: extractedItem.leadTime,
+                currency: 'CAD'
+              })
+            }
+          }
+        }
+      } else {
+        // Fall back to quote line items (for manually entered quotes)
+        console.log(`[Approve Quote] Using quote line items (${quote.lineItems.length} items)`)
+
+        for (const lineItem of quote.lineItems) {
+          if (lineItem.rfqLineItemId && lineItem.unitPrice) {
+            itemsToUpdate.push({
+              rfqLineItemId: lineItem.rfqLineItemId,
+              unitPrice: Number(lineItem.unitPrice),
+              quantity: lineItem.quantity,
+              leadTime: lineItem.leadTime || undefined,
+              currency: lineItem.currency || 'CAD'
+            })
+          }
+        }
+      }
+
+      console.log(`[Approve Quote] ${itemsToUpdate.length} items to update with trade prices`)
 
       // Fetch all RFQ line items to get the roomFFEItemId mapping
-      // This is more reliable than relying on the nested relation
-      const rfqLineItemIds = quote.lineItems.map(li => li.rfqLineItemId).filter(Boolean)
+      const rfqLineItemIds = itemsToUpdate.map(item => item.rfqLineItemId).filter(Boolean)
       const rfqLineItems = await prisma.rFQLineItem.findMany({
         where: { id: { in: rfqLineItemIds } },
         select: { id: true, roomFFEItemId: true }
       })
       const rfqLineItemMap = new Map(rfqLineItems.map(li => [li.id, li.roomFFEItemId]))
 
-      console.log(`[Approve Quote] Found ${rfqLineItems.length} RFQ line items for ${rfqLineItemIds.length} quote line items`)
+      console.log(`[Approve Quote] Found ${rfqLineItems.length} RFQ line items with roomFFEItemIds`)
 
-      for (const lineItem of quote.lineItems) {
-        // Get roomFFEItemId from the map (more reliable than nested relation)
-        const roomFFEItemId = rfqLineItemMap.get(lineItem.rfqLineItemId) || lineItem.rfqLineItem?.roomFFEItemId
-        console.log(`[Approve Quote] Line item ${lineItem.id}: rfqLineItemId=${lineItem.rfqLineItemId}, roomFFEItemId=${roomFFEItemId}, unitPrice=${lineItem.unitPrice}`)
+      // Update each item
+      for (const item of itemsToUpdate) {
+        const roomFFEItemId = rfqLineItemMap.get(item.rfqLineItemId)
 
-        if (roomFFEItemId && lineItem.unitPrice) {
-          const tradePrice = Number(lineItem.unitPrice)
+        if (roomFFEItemId) {
+          const tradePrice = item.unitPrice
 
           // Calculate RRP with markup: tradePrice * (1 + markupPercent/100)
           const rrp = tradePrice * (1 + supplierMarkup / 100)
+
+          console.log(`[Approve Quote] Updating item ${roomFFEItemId}: tradePrice=$${tradePrice}, rrp=$${rrp}`)
 
           // Update the RoomFFEItem with trade price, RRP, lead time, and status
           await prisma.roomFFEItem.update({
             where: { id: roomFFEItemId },
             data: {
-              specStatus: 'QUOTE_APPROVED',  // Update status to Quote Approved
-              tradePrice: lineItem.unitPrice,
-              tradePriceCurrency: lineItem.currency || 'CAD',
+              specStatus: 'QUOTE_APPROVED',  // Update status from QUOTE_RECEIVED to QUOTE_APPROVED
+              tradePrice: tradePrice,
+              tradePriceCurrency: item.currency || 'CAD',
               rrp: rrp,  // RRP with markup applied
-              rrpCurrency: lineItem.currency || 'CAD',
-              ...(lineItem.leadTime ? { leadTime: lineItem.leadTime } : {}),
+              rrpCurrency: item.currency || 'CAD',
+              ...(item.leadTime ? { leadTime: item.leadTime } : {}),
               // Update supplier info
               ...(quote.supplierRFQ.supplierId ? { supplierId: quote.supplierRFQ.supplierId } : {}),
               supplierName: supplierName
@@ -774,7 +836,7 @@ export async function PATCH(
               actorType: 'user',
               metadata: {
                 quoteId: quote.id,
-                tradePrice: lineItem.unitPrice,
+                tradePrice: tradePrice,
                 rrp: rrp,
                 markupPercent: supplierMarkup,
                 supplierId: quote.supplierRFQ.supplierId,
@@ -782,6 +844,8 @@ export async function PATCH(
               }
             }
           })
+        } else {
+          console.log(`[Approve Quote] No roomFFEItemId found for rfqLineItemId ${item.rfqLineItemId}`)
         }
       }
     }
