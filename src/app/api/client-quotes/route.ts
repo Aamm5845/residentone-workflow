@@ -274,7 +274,7 @@ export async function POST(request: NextRequest) {
         const supplierTotal = Math.round(costPrice * quantity * 100) / 100
 
         return {
-          roomFFEItemId: item.roomFFEItemId,
+          roomFFEItemId: item.roomFFEItemId || null, // Allow null for manual/component items
           groupId: item.groupId || null,
           displayName: item.itemName,
           displayDescription: item.itemDescription || null,

@@ -6,6 +6,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -700,6 +701,9 @@ export default function CreateInvoiceDialog({
           <DialogTitle>
             {step === 1 ? 'Select Items for Invoice' : 'Invoice Details'}
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            Create a new client invoice by selecting items and entering details
+          </DialogDescription>
         </DialogHeader>
 
         {loading ? (

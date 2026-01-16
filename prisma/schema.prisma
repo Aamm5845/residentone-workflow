@@ -3391,7 +3391,7 @@ model ClientQuoteLineItem {
   id                  String   @id @default(cuid())
   clientQuoteId       String
   supplierQuoteId     String?
-  roomFFEItemId       String
+  roomFFEItemId       String?  // Optional - may not link to spec item for manual entries
 
   // Display info (client sees this)
   displayName         String
@@ -3430,7 +3430,7 @@ model ClientQuoteLineItem {
 
   clientQuote         ClientQuote    @relation(fields: [clientQuoteId], references: [id], onDelete: Cascade)
   supplierQuote       SupplierQuote? @relation(fields: [supplierQuoteId], references: [id])
-  roomFFEItem         RoomFFEItem    @relation("ClientQuoteLineItems", fields: [roomFFEItemId], references: [id])
+  roomFFEItem         RoomFFEItem?   @relation("ClientQuoteLineItems", fields: [roomFFEItemId], references: [id])
   orderItems          OrderItem[]
 
   @@index([clientQuoteId])
