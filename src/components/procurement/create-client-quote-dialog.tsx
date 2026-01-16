@@ -42,6 +42,16 @@ interface CreateClientQuoteDialogProps {
   preselectedItemIds?: string[]  // Pre-select items (from bulk quote or per-item quote)
 }
 
+// Component sub-item (e.g., faucet for a sink)
+interface ComponentItem {
+  id: string
+  name: string
+  image?: string
+  price?: number | null
+  priceWithMarkup?: number | null // RRP for component
+  quantity: number
+}
+
 interface SpecItem {
   id: string
   name: string
@@ -63,6 +73,8 @@ interface SpecItem {
   images?: string[]
   // Status
   specStatus?: string | null
+  // Components
+  components?: ComponentItem[]
 }
 
 // Statuses that should NOT appear in invoice creation
@@ -81,7 +93,8 @@ interface LineItem {
   totalPrice: number
   roomName?: string
   currency?: string // CAD or USD
-  imageUrl?: string // First image URL
+  imageUrl?: string // Image URL
+  isComponent?: boolean // True if this is a component of another item
 }
 
 
@@ -225,8 +238,11 @@ export default function CreateClientQuoteDialog({
 
   // Build line items using RRP only (no markup calculation needed)
   // Items must have RRP set - this is validated in the filter above
+  // Components are added as separate line items with their own qty, price, image
   const buildLineItems = (items: SpecItem[]) => {
-    const newLineItems: LineItem[] = items.map(item => {
+    const newLineItems: LineItem[] = []
+
+    items.forEach(item => {
       const category = item.category || item.sectionName || 'General'
 
       // Cost price is trade price (for internal reference only)
@@ -236,7 +252,8 @@ export default function CreateClientQuoteDialog({
       const sellingPrice = item.rrp || 0
       const quantity = item.quantity || 1
 
-      return {
+      // Add main item
+      newLineItems.push({
         id: `line-${item.id}`,
         itemId: item.id,
         name: item.name,
@@ -249,7 +266,34 @@ export default function CreateClientQuoteDialog({
         totalPrice: sellingPrice * quantity,
         roomName: item.roomName,
         currency: item.rrpCurrency || 'CAD',
-        imageUrl: item.images && item.images.length > 0 ? item.images[0] : undefined
+        imageUrl: item.images && item.images.length > 0 ? item.images[0] : undefined,
+        isComponent: false
+      })
+
+      // Add each component as a separate line item
+      if (item.components && item.components.length > 0) {
+        item.components.forEach(comp => {
+          // Use priceWithMarkup (RRP) for client-facing price, fallback to price
+          const compPrice = comp.priceWithMarkup ?? comp.price ?? 0
+          const compQty = comp.quantity || 1
+
+          newLineItems.push({
+            id: `line-${item.id}-comp-${comp.id}`,
+            itemId: item.id, // Parent item ID
+            name: comp.name,
+            description: undefined,
+            category,
+            quantity: compQty,
+            unitType: 'units',
+            costPrice: comp.price || 0, // Trade price
+            sellingPrice: compPrice, // RRP
+            totalPrice: compPrice * compQty,
+            roomName: item.roomName,
+            currency: item.rrpCurrency || 'CAD',
+            imageUrl: comp.image || undefined,
+            isComponent: true
+          })
+        })
       }
     })
 
@@ -299,8 +343,9 @@ export default function CreateClientQuoteDialog({
     const gstAmount = subtotal * (gstRate / 100)
     const qstAmount = subtotal * (qstRate / 100)
     const totalRevenue = subtotal + gstAmount + qstAmount
-    const grossProfit = subtotal - totalCost // Profit before taxes (charges are pure profit)
-    const marginPercent = subtotal > 0 ? (grossProfit / subtotal) * 100 : 0
+    // Profit is from items only - shipping/charges are pass-through, not profit
+    const grossProfit = itemsSubtotal - totalCost
+    const marginPercent = itemsSubtotal > 0 ? (grossProfit / itemsSubtotal) * 100 : 0
 
     return {
       totalCost,
@@ -376,10 +421,10 @@ export default function CreateClientQuoteDialog({
           // Payment options
           allowCreditCard: showCreditCardOption,
           lineItems: [
-            // All items have RRP - send RRP as cost with 0% markup
-            // This ensures the API stores RRP as the client price without additional markup
+            // All items (including components) have RRP - send as separate line items
+            // Components appear as standard items with their own qty, price, image
             ...lineItems.map((item, index) => ({
-              roomFFEItemId: item.itemId,
+              roomFFEItemId: item.isComponent ? null : item.itemId, // Components don't link to spec item
               groupId: item.category,
               itemName: item.name,
               itemDescription: item.description || null,
@@ -390,6 +435,8 @@ export default function CreateClientQuoteDialog({
               sellingPrice: item.sellingPrice,
               totalCost: item.totalPrice,
               totalPrice: item.totalPrice,
+              imageUrl: item.imageUrl || null,
+              isComponent: item.isComponent || false,
               order: index
             })),
             // Additional charges as line items
@@ -773,26 +820,45 @@ export default function CreateClientQuoteDialog({
                           </span>
                         </button>
 
-                        {/* Items Table - simplified, RRP only */}
+                        {/* Items Table - with images, components shown as standard items */}
                         {expandedCategories.has(category) && (
                           <Table>
                             <TableHeader>
                               <TableRow className="text-xs">
-                                <TableHead className="w-[45%]">Item</TableHead>
-                                <TableHead className="text-right w-[15%]">Qty</TableHead>
-                                <TableHead className="text-right w-[20%]">Price (RRP)</TableHead>
+                                <TableHead className="w-[50%]">Item</TableHead>
+                                <TableHead className="text-right w-[12%]">Qty</TableHead>
+                                <TableHead className="text-right w-[18%]">Price (RRP)</TableHead>
                                 <TableHead className="text-right w-[20%]">Total</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
                               {items.map((item) => (
-                                <TableRow key={item.id} className="text-sm">
+                                <TableRow key={item.id} className={cn("text-sm", item.isComponent && "bg-gray-50")}>
                                   <TableCell>
-                                    <div>
-                                      <p className="font-medium truncate">{item.name}</p>
-                                      {item.roomName && (
-                                        <p className="text-xs text-gray-400">{item.roomName}</p>
+                                    <div className="flex items-center gap-2">
+                                      {/* Item image */}
+                                      {item.imageUrl ? (
+                                        <div className="w-10 h-10 rounded overflow-hidden bg-gray-100 flex-shrink-0">
+                                          <img
+                                            src={item.imageUrl}
+                                            alt={item.name}
+                                            className="w-full h-full object-cover"
+                                          />
+                                        </div>
+                                      ) : (
+                                        <div className="w-10 h-10 rounded bg-gray-100 flex items-center justify-center flex-shrink-0">
+                                          <Package className="w-4 h-4 text-gray-300" />
+                                        </div>
                                       )}
+                                      <div className="min-w-0">
+                                        <p className={cn("font-medium truncate", item.isComponent && "text-gray-600")}>
+                                          {item.isComponent && <span className="text-gray-400 mr-1">↳</span>}
+                                          {item.name}
+                                        </p>
+                                        {item.roomName && !item.isComponent && (
+                                          <p className="text-xs text-gray-400">{item.roomName}</p>
+                                        )}
+                                      </div>
                                     </div>
                                   </TableCell>
                                   <TableCell className="text-right">
