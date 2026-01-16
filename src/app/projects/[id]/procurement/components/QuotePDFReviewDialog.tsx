@@ -960,15 +960,14 @@ export default function QuotePDFReviewDialog({
                       <AlertTriangle className="w-5 h-5 text-blue-600" />
                       Extra Items - Not in Original Request ({extraItems.length})
                     </h3>
-                    {extraItems.map((match, idx) => (
-                      (() => {
-                        const isResolved = resolvedExtraItems[idx]
-                        return (
-                          <div key={idx} className={`border rounded-lg p-4 ${
-                            isResolved
-                              ? 'border-emerald-300 bg-emerald-50'
-                              : 'border-blue-200 bg-blue-50'
-                          }`}>
+                    {extraItems.map((match, idx) => {
+                      const isResolved = resolvedExtraItems[idx]
+                      return (
+                        <div key={idx} className={`border rounded-lg p-4 ${
+                          isResolved
+                            ? 'border-emerald-300 bg-emerald-50'
+                            : 'border-blue-200 bg-blue-50'
+                        }`}>
                             <div className="flex items-center justify-between mb-2">
                               {isResolved ? (
                                 <Badge className="bg-emerald-600 text-white text-xs">
@@ -1073,10 +1072,9 @@ export default function QuotePDFReviewDialog({
                                 )}
                               </div>
                             )}
-                          </div>
-                        )
-                      })()
-                    )}
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
 
