@@ -191,7 +191,10 @@ export async function POST(request: NextRequest) {
     })
 
     // Generate and send email - exactly like client would see
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+    // Use request origin or fallback to env variable
+    const host = request.headers.get('host') || ''
+    const protocol = host.includes('localhost') ? 'http' : 'https'
+    const baseUrl = host ? `${protocol}://${host}` : (process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000')
     const quoteUrl = `${baseUrl}/client/invoice/${clientQuote.accessToken}`
 
     const emailData = {

@@ -797,6 +797,29 @@ export default function CreateClientQuoteDialog({
                 )}
               </div>
 
+              {/* Payment Options */}
+              <div className="border rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <CreditCard className="w-4 h-4 text-gray-500" />
+                  <h4 className="font-medium text-gray-700">Payment Options</h4>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Checkbox
+                    id="showCreditCardStep1"
+                    checked={showCreditCardOption}
+                    onCheckedChange={(checked) => setShowCreditCardOption(checked === true)}
+                  />
+                  <Label htmlFor="showCreditCardStep1" className="text-sm text-gray-700 cursor-pointer">
+                    Allow credit card payments (Stripe)
+                  </Label>
+                </div>
+                <p className="text-xs text-gray-500 mt-2 ml-7">
+                  {showCreditCardOption
+                    ? 'Client will see credit card option with 3% processing fee'
+                    : 'Client will only see e-Transfer and wire transfer options'}
+                </p>
+              </div>
+
               {/* Summary Preview */}
               {lineItems.length > 0 && (
                 <div className="mt-6 p-4 bg-gray-50 rounded-lg">
@@ -1095,29 +1118,6 @@ export default function CreateClientQuoteDialog({
                     />
                   </div>
                 </div>
-              </div>
-
-              {/* Payment Options */}
-              <div className="border rounded-lg p-4 bg-gray-50">
-                <div className="flex items-center gap-2 mb-3">
-                  <CreditCard className="w-5 h-5 text-gray-600" />
-                  <h4 className="font-medium text-gray-900">Payment Options</h4>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Checkbox
-                    id="showCreditCard"
-                    checked={showCreditCardOption}
-                    onCheckedChange={(checked) => setShowCreditCardOption(checked === true)}
-                  />
-                  <Label htmlFor="showCreditCard" className="text-sm text-gray-700 cursor-pointer">
-                    Allow credit card payments (Stripe)
-                  </Label>
-                </div>
-                <p className="text-xs text-gray-500 mt-2 ml-7">
-                  {showCreditCardOption
-                    ? 'Client will see credit card option with 3% processing fee'
-                    : 'Client will only see e-Transfer and wire transfer options'}
-                </p>
               </div>
 
               {/* Send to Client Section */}

@@ -40,7 +40,10 @@ import {
   Plus,
   Upload,
   Loader2,
-  Image as ImageIcon
+  Image as ImageIcon,
+  PanelRightClose,
+  PanelRightOpen,
+  Layers
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -158,6 +161,9 @@ export default function QuotePDFReviewDialog({
   // Editable values for matched items (price, quantity)
   const [editedValues, setEditedValues] = useState<Record<number, { unitPrice?: number; quantity?: number }>>({})
 
+  // Panel visibility state
+  const [showAnalysisPanel, setShowAnalysisPanel] = useState(true)
+
   // Add to All Specs dialog state
   const [showAddItemDialog, setShowAddItemDialog] = useState(false)
   const [rooms, setRooms] = useState<Room[]>([])
@@ -175,6 +181,24 @@ export default function QuotePDFReviewDialog({
     unitPrice: 0,
     supplierName: '',
     imageUrl: ''
+  })
+
+  // Add as Component dialog state
+  const [showAddComponentDialog, setShowAddComponentDialog] = useState(false)
+  const [selectedParentItemId, setSelectedParentItemId] = useState<string>('')
+  const [addingComponent, setAddingComponent] = useState(false)
+  const [componentForm, setComponentForm] = useState<{
+    name: string
+    modelNumber: string
+    price: number
+    quantity: number
+    notes: string
+  }>({
+    name: '',
+    modelNumber: '',
+    price: 0,
+    quantity: 1,
+    notes: ''
   })
 
   // Fetch rooms and sections for the project
@@ -299,6 +323,83 @@ export default function QuotePDFReviewDialog({
       toast.error('Failed to add item')
     } finally {
       setAddingItem(false)
+    }
+  }
+
+  // Open add component dialog with pre-filled data from extracted item
+  const openAddComponentDialog = (extractedItem: ExtractedItem) => {
+    setComponentForm({
+      name: extractedItem.productName || '',
+      modelNumber: extractedItem.sku || '',
+      price: extractedItem.unitPrice || 0,
+      quantity: extractedItem.quantity || 1,
+      notes: extractedItem.description || ''
+    })
+    setSelectedParentItemId('')
+    setShowAddComponentDialog(true)
+  }
+
+  // Add component to selected parent item
+  const handleAddComponent = async () => {
+    if (!selectedParentItemId || !componentForm.name.trim()) {
+      toast.error('Please select a parent item and enter component name')
+      return
+    }
+
+    // Find the parent RFQ item to get the roomId
+    const parentItem = rfqLineItems.find(item => item.id === selectedParentItemId)
+    if (!parentItem) {
+      toast.error('Parent item not found')
+      return
+    }
+
+    setAddingComponent(true)
+    try {
+      // We need to get the roomFFEItem info for the parent to get the roomId
+      // The rfqLineItem should have roomFFEItemId which links to the spec item
+      const rfqItemRes = await fetch(`/api/projects/${projectId}/procurement/rfq-line-item/${selectedParentItemId}`)
+      if (!rfqItemRes.ok) {
+        throw new Error('Failed to fetch RFQ item details')
+      }
+      const rfqItemData = await rfqItemRes.json()
+
+      if (!rfqItemData.roomFFEItemId || !rfqItemData.roomId) {
+        toast.error('Cannot find room info for this item. Component cannot be added.')
+        return
+      }
+
+      const res = await fetch(`/api/ffe/v2/rooms/${rfqItemData.roomId}/items/${rfqItemData.roomFFEItemId}/components`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: componentForm.name,
+          modelNumber: componentForm.modelNumber || null,
+          price: componentForm.price || null,
+          quantity: componentForm.quantity || 1,
+          notes: componentForm.notes || null
+        })
+      })
+
+      if (res.ok) {
+        toast.success(`Component added to "${parentItem.itemName}"`)
+        setShowAddComponentDialog(false)
+        setComponentForm({
+          name: '',
+          modelNumber: '',
+          price: 0,
+          quantity: 1,
+          notes: ''
+        })
+        setSelectedParentItemId('')
+      } else {
+        const error = await res.json()
+        toast.error(error.error || 'Failed to add component')
+      }
+    } catch (error) {
+      console.error('Error adding component:', error)
+      toast.error('Failed to add component')
+    } finally {
+      setAddingComponent(false)
     }
   }
 
@@ -484,22 +585,41 @@ export default function QuotePDFReviewDialog({
                 </p>
               )}
             </div>
-            {quoteDocumentUrl && (
+            <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => window.open(quoteDocumentUrl, '_blank')}
+                onClick={() => setShowAnalysisPanel(!showAnalysisPanel)}
               >
-                <ExternalLink className="w-4 h-4 mr-2" />
-                Open PDF in New Tab
+                {showAnalysisPanel ? (
+                  <>
+                    <PanelRightClose className="w-4 h-4 mr-2" />
+                    Hide Analysis
+                  </>
+                ) : (
+                  <>
+                    <PanelRightOpen className="w-4 h-4 mr-2" />
+                    Show Analysis
+                  </>
+                )}
               </Button>
-            )}
+              {quoteDocumentUrl && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open(quoteDocumentUrl, '_blank')}
+                >
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Open PDF in New Tab
+                </Button>
+              )}
+            </div>
           </div>
         </DialogHeader>
 
         <div className="flex h-[calc(95vh-80px)]">
-          {/* Left: PDF Viewer */}
-          <div className="w-1/2 border-r flex flex-col bg-gray-100">
+          {/* PDF Viewer - Full width when analysis panel is hidden */}
+          <div className={`${showAnalysisPanel ? 'w-3/5' : 'w-full'} border-r flex flex-col bg-gray-100 transition-all duration-300`}>
             {/* PDF Controls */}
             <div className="flex items-center justify-between p-2 bg-white border-b">
               <div className="flex items-center gap-2">
@@ -529,13 +649,19 @@ export default function QuotePDFReviewDialog({
               <span className="text-xs text-gray-500">Supplier's Original Quote</span>
             </div>
 
-            {/* PDF Embed */}
-            <div className="flex-1 overflow-auto p-4">
+            {/* PDF Embed - Full Height */}
+            <div className="flex-1 overflow-auto">
               {quoteDocumentUrl ? (
                 <iframe
-                  src={`${quoteDocumentUrl}#toolbar=0&view=FitH`}
-                  className="w-full h-full bg-white rounded-lg shadow-sm"
-                  style={{ transform: `scale(${pdfScale / 100})`, transformOrigin: 'top left' }}
+                  src={`${quoteDocumentUrl}#toolbar=1&view=FitH`}
+                  className="w-full h-full bg-white"
+                  style={{
+                    minHeight: '100%',
+                    transform: `scale(${pdfScale / 100})`,
+                    transformOrigin: 'top left',
+                    width: `${100 / (pdfScale / 100)}%`,
+                    height: `${100 / (pdfScale / 100)}%`
+                  }}
                 />
               ) : (
                 <div className="flex items-center justify-center h-full text-gray-400">
@@ -546,8 +672,9 @@ export default function QuotePDFReviewDialog({
             </div>
           </div>
 
-          {/* Right: AI Extracted Data with Match Comparison */}
-          <div className="w-1/2 flex flex-col">
+          {/* Right: AI Extracted Data with Match Comparison - Collapsible */}
+          {showAnalysisPanel && (
+          <div className="w-2/5 flex flex-col transition-all duration-300">
             <ScrollArea className="flex-1">
               <div className="p-4 space-y-6">
                 {/* Summary Stats */}
@@ -881,8 +1008,8 @@ export default function QuotePDFReviewDialog({
                               </div>
                             )}
 
-                            {/* Add to All Specs Button */}
-                            <div className="mt-3 pt-3 border-t border-blue-200">
+                            {/* Action Buttons */}
+                            <div className="mt-3 pt-3 border-t border-blue-200 space-y-2">
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -891,6 +1018,15 @@ export default function QuotePDFReviewDialog({
                               >
                                 <Plus className="w-4 h-4 mr-2" />
                                 Add to All Specs
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full border-purple-300 text-purple-700 hover:bg-purple-100"
+                                onClick={() => openAddComponentDialog(match.extractedItem!)}
+                              >
+                                <Layers className="w-4 h-4 mr-2" />
+                                Add as Component
                               </Button>
                             </div>
                           </div>
@@ -1024,6 +1160,7 @@ export default function QuotePDFReviewDialog({
               </div>
             </div>
           </div>
+          )}
         </div>
       </DialogContent>
 
@@ -1198,6 +1335,136 @@ export default function QuotePDFReviewDialog({
                 <>
                   <Plus className="w-4 h-4 mr-2" />
                   Add Item
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add as Component Dialog */}
+      <Dialog open={showAddComponentDialog} onOpenChange={setShowAddComponentDialog} modal={false}>
+        <DialogContent className="max-w-lg z-[60]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Layers className="w-5 h-5 text-purple-600" />
+              Add as Component
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Parent Item Selection */}
+            <div>
+              <Label className="mb-2 block font-medium">
+                Add this component to which item? *
+              </Label>
+              <p className="text-xs text-gray-500 mb-2">
+                Select the parent item that this component belongs to
+              </p>
+              <Select value={selectedParentItemId} onValueChange={setSelectedParentItemId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select parent item..." />
+                </SelectTrigger>
+                <SelectContent position="popper" className="z-[70]">
+                  {rfqLineItems.map(item => (
+                    <SelectItem key={item.id} value={item.id}>
+                      <div className="flex items-center gap-2">
+                        {item.imageUrl && (
+                          <img src={item.imageUrl} alt="" className="w-6 h-6 rounded object-cover" />
+                        )}
+                        <span>{item.itemName}</span>
+                        {item.sku && <span className="text-xs text-gray-400">({item.sku})</span>}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Component Name */}
+            <div>
+              <Label className="mb-2 block">Component Name *</Label>
+              <Input
+                value={componentForm.name}
+                onChange={(e) => setComponentForm(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="e.g., Transformer, Mounting Bracket"
+              />
+            </div>
+
+            {/* Model Number */}
+            <div>
+              <Label className="mb-2 block">Model / SKU</Label>
+              <Input
+                value={componentForm.modelNumber}
+                onChange={(e) => setComponentForm(prev => ({ ...prev, modelNumber: e.target.value }))}
+                placeholder="Model number or SKU"
+              />
+            </div>
+
+            {/* Price & Quantity */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="mb-2 block">Unit Price</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={componentForm.price}
+                  onChange={(e) => setComponentForm(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
+                />
+              </div>
+              <div>
+                <Label className="mb-2 block">Quantity</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={componentForm.quantity}
+                  onChange={(e) => setComponentForm(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
+                />
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div>
+              <Label className="mb-2 block">Notes</Label>
+              <Textarea
+                value={componentForm.notes}
+                onChange={(e) => setComponentForm(prev => ({ ...prev, notes: e.target.value }))}
+                placeholder="Optional notes about this component"
+                rows={2}
+              />
+            </div>
+
+            {/* Info Box */}
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-sm text-purple-800">
+              <p className="flex items-start gap-2">
+                <Layers className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <span>
+                  Components are sub-items that belong to a parent item. The component's price will be
+                  added to the parent item's total cost. Example: LED fixture + transformer + mounting bracket.
+                </span>
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddComponentDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddComponent}
+              disabled={addingComponent || !selectedParentItemId || !componentForm.name.trim()}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              {addingComponent ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <Layers className="w-4 h-4 mr-2" />
+                  Add Component
                 </>
               )}
             </Button>
