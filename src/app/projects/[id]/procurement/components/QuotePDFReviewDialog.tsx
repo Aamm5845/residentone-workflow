@@ -598,16 +598,16 @@ export default function QuotePDFReviewDialog({
       setApprovedMatches(prev => new Set([...prev, matchIndex]))
 
       if (res.ok) {
-        toast.success('Match approved')
-        // Notify parent to refresh data so approval persists when dialog is reopened
+        toast.success('Match confirmed')
+        // Notify parent to refresh data so confirmation persists when dialog is reopened
         onMatchUpdated?.()
       } else {
-        toast.success('Match approved')
+        toast.success('Match confirmed')
       }
     } catch (error) {
-      // Still show approval locally even on error
+      // Still show confirmation locally even on error
       setApprovedMatches(prev => new Set([...prev, matchIndex]))
-      toast.success('Match approved')
+      toast.success('Match confirmed')
     } finally {
       setSavingMatch(null)
     }
@@ -951,7 +951,7 @@ export default function QuotePDFReviewDialog({
                             {!isApproved && (
                               <Button
                                 size="sm"
-                                className="bg-emerald-600 hover:bg-emerald-700"
+                                className="bg-blue-600 hover:bg-blue-700"
                                 onClick={() => handleApproveMatch(globalIdx, selectedRfqId || match.rfqItem?.id || '')}
                                 disabled={savingMatch === globalIdx}
                               >
@@ -960,7 +960,7 @@ export default function QuotePDFReviewDialog({
                                 ) : (
                                   <>
                                     <Check className="w-4 h-4 mr-1" />
-                                    Approve Match
+                                    Confirm Match
                                   </>
                                 )}
                               </Button>
@@ -1133,7 +1133,7 @@ export default function QuotePDFReviewDialog({
             {/* Footer Actions */}
             <div className="p-4 border-t bg-gray-50 flex items-center justify-between">
               <div className="text-sm text-gray-500">
-                {approvedMatches.size} of {matchedItems.length} matches approved
+                {approvedMatches.size} of {matchedItems.length} matches confirmed
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => onOpenChange(false)}>

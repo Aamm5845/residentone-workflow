@@ -7,11 +7,13 @@ import { put } from '@vercel/blob'
 
 // Validation schema
 const uploadSchema = z.object({
-  imageType: z.enum(['avatar', 'project-cover', 'spec-item', 'general']).optional().default('general'),
+  imageType: z.enum(['avatar', 'project-cover', 'spec-item', 'quote-document', 'general']).optional().default('general'),
 })
 
 const MAX_FILE_SIZE = 4 * 1024 * 1024 // 4MB
+const MAX_FILE_SIZE_QUOTE = 10 * 1024 * 1024 // 10MB for quote documents
 const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+const ALLOWED_TYPES_QUOTE = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf']
 
 export async function POST(request: NextRequest) {
   
@@ -47,15 +49,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
 
-    if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json({ 
-        error: 'File too large. Maximum size is 4MB' 
+    // Use different limits for quote documents (PDF support, larger size)
+    const isQuoteDocument = imageType === 'quote-document'
+    const maxSize = isQuoteDocument ? MAX_FILE_SIZE_QUOTE : MAX_FILE_SIZE
+    const allowedTypes = isQuoteDocument ? ALLOWED_TYPES_QUOTE : ALLOWED_TYPES
+
+    if (file.size > maxSize) {
+      return NextResponse.json({
+        error: `File too large. Maximum size is ${isQuoteDocument ? '10MB' : '4MB'}`
       }, { status: 400 })
     }
 
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      return NextResponse.json({ 
-        error: 'Invalid file type. Only JPEG, PNG, and WebP are allowed' 
+    if (!allowedTypes.includes(file.type)) {
+      return NextResponse.json({
+        error: isQuoteDocument
+          ? 'Invalid file type. Only JPEG, PNG, WebP, and PDF are allowed'
+          : 'Invalid file type. Only JPEG, PNG, and WebP are allowed'
       }, { status: 400 })
     }
 
@@ -101,6 +110,23 @@ export async function POST(request: NextRequest) {
       // Case 2a: Spec item images (cropped from renderings) → Blob only (instant CDN)
       if (imageType === 'spec-item') {
         const blobFileName = `spec-items/${projectId || 'general'}/${timestamp}_${Math.random().toString(36).slice(2)}.${fileExtension}`
+        const blob = await put(blobFileName, file, { access: 'public', contentType: file.type })
+
+        return NextResponse.json({
+          success: true,
+          url: blob.url,
+          path: blob.pathname || blob.url,
+          fileName,
+          originalName: file.name,
+          size: file.size,
+          type: file.type,
+          storage: 'blob',
+        })
+      }
+
+      // Case 2c: Quote documents (PDFs/images from suppliers) → Blob only
+      if (imageType === 'quote-document') {
+        const blobFileName = `quote-documents/${projectId || 'general'}/${timestamp}_${Math.random().toString(36).slice(2)}.${fileExtension}`
         const blob = await put(blobFileName, file, { access: 'public', contentType: file.type })
 
         return NextResponse.json({
