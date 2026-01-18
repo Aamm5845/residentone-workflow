@@ -40,7 +40,10 @@ import {
   Image as ImageIcon,
   PanelRightClose,
   PanelRightOpen,
-  Layers
+  Layers,
+  ZoomIn,
+  ZoomOut,
+  RotateCw
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -159,6 +162,9 @@ export default function QuotePDFReviewDialog({
 
   // Panel visibility state
   const [showAnalysisPanel, setShowAnalysisPanel] = useState(true)
+
+  // PDF viewer zoom state
+  const [pdfScale, setPdfScale] = useState(100)
 
   // Add to All Specs dialog state
   const [showAddItemDialog, setShowAddItemDialog] = useState(false)
@@ -717,20 +723,59 @@ export default function QuotePDFReviewDialog({
         </DialogHeader>
 
         <div className="flex h-[calc(95vh-80px)]">
-          {/* PDF Viewer - Full width when analysis panel is hidden */}
-          <div className={`${showAnalysisPanel ? 'w-3/5' : 'w-full'} border-r flex flex-col bg-gray-100 transition-all duration-300`}>
-            {/* PDF Embed */}
-            <div className="flex-1">
+          {/* PDF Viewer - 50% width with zoom controls */}
+          <div className={`${showAnalysisPanel ? 'w-1/2' : 'w-full'} border-r flex flex-col bg-gray-100 transition-all duration-300`}>
+            {/* Zoom Controls */}
+            <div className="flex items-center justify-between p-2 bg-white border-b">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setPdfScale(Math.max(50, pdfScale - 10))}
+                >
+                  <ZoomOut className="w-4 h-4" />
+                </Button>
+                <span className="text-sm text-gray-600 min-w-[60px] text-center">{pdfScale}%</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setPdfScale(Math.min(200, pdfScale + 10))}
+                >
+                  <ZoomIn className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setPdfScale(100)}
+                >
+                  <RotateCw className="w-4 h-4" />
+                </Button>
+              </div>
+              <span className="text-xs text-gray-500">Quote Document</span>
+            </div>
+
+            {/* PDF/Image Display */}
+            <div className="flex-1 overflow-auto p-4">
               {quoteDocumentUrl ? (
-                <iframe
-                  src={`${quoteDocumentUrl}#toolbar=0&navpanes=0&scrollbar=0`}
-                  className="w-full h-full border-0"
-                  title="Quote PDF"
-                />
+                quoteDocumentUrl.endsWith('.pdf') || quoteDocumentUrl.includes('application/pdf') ? (
+                  <iframe
+                    src={`${quoteDocumentUrl}#toolbar=0&view=FitH`}
+                    className="w-full h-full bg-white rounded-lg shadow-sm"
+                    style={{ transform: `scale(${pdfScale / 100})`, transformOrigin: 'top left' }}
+                    title="Quote PDF"
+                  />
+                ) : (
+                  <img
+                    src={quoteDocumentUrl}
+                    alt="Quote document"
+                    className="max-w-full rounded-lg shadow-sm"
+                    style={{ transform: `scale(${pdfScale / 100})`, transformOrigin: 'top left' }}
+                  />
+                )
               ) : (
                 <div className="flex items-center justify-center h-full text-gray-400">
                   <FileText className="w-12 h-12 mr-3" />
-                  <span>No PDF document available</span>
+                  <span>No document available</span>
                 </div>
               )}
             </div>
@@ -738,7 +783,7 @@ export default function QuotePDFReviewDialog({
 
           {/* Right: AI Extracted Data with Match Comparison - Collapsible */}
           {showAnalysisPanel && (
-          <div className="w-2/5 flex flex-col transition-all duration-300">
+          <div className="w-1/2 flex flex-col transition-all duration-300">
             <ScrollArea className="flex-1">
               <div className="p-4 space-y-6">
                 {/* Summary Stats */}

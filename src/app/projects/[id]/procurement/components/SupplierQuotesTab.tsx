@@ -289,59 +289,23 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
     setPdfReviewOpen(true)
   }
 
-  // Handle manual quote upload completion - trigger AI analysis
+  // Handle manual quote analysis completion - receives data from dialog
+  const handleAnalysisComplete = (analysisData: any, specItems: any[]) => {
+    setAllSpecItems(specItems)
+    setManualQuoteData(analysisData)
+    setManualReviewOpen(true)
+  }
+
+  // Legacy handler for backwards compatibility (no longer triggers analysis)
   const handleManualQuoteUpload = async (uploadData: {
     fileUrl: string
     fileType: string
     supplierId: string
     supplierName: string
   }) => {
-    setProcessingManualQuote(true)
-    setManualUploadOpen(false)
-
-    try {
-      // Call the AI extraction API
-      const res = await fetch(`/api/projects/${projectId}/procurement/manual-quote`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(uploadData)
-      })
-
-      if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.message || 'Failed to analyze quote')
-      }
-
-      const data = await res.json()
-
-      // Fetch all spec items for the matching dialog
-      const specRes = await fetch(`/api/projects/${projectId}/ffe-specs`)
-      if (specRes.ok) {
-        const specData = await specRes.json()
-        const items = specData.items || []
-        setAllSpecItems(items.map((item: any) => ({
-          id: item.id,
-          name: item.name,
-          quantity: item.quantity,
-          sku: item.sku,
-          brand: item.brand,
-          imageUrl: item.images?.[0],
-          roomName: item.roomName,
-          existingSupplierId: item.supplierId,
-          existingSupplierName: item.supplierName,
-          existingTradePrice: item.tradePrice ? Number(item.tradePrice) : undefined
-        })))
-      }
-
-      setManualQuoteData(data)
-      setManualReviewOpen(true)
-
-    } catch (error: any) {
-      console.error('Error processing manual quote:', error)
-      toast.error(error.message || 'Failed to analyze quote')
-    } finally {
-      setProcessingManualQuote(false)
-    }
+    // This is now handled by the dialog directly via onAnalysisComplete
+    // Keeping for backwards compatibility but it shouldn't be called
+    console.warn('Legacy handleManualQuoteUpload called - should use onAnalysisComplete')
   }
 
   const fetchQuotes = useCallback(async () => {
@@ -1749,6 +1713,7 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
         onOpenChange={setManualUploadOpen}
         projectId={projectId}
         onUploadComplete={handleManualQuoteUpload}
+        onAnalysisComplete={handleAnalysisComplete}
       />
 
       {/* Manual Quote Review Dialog */}
