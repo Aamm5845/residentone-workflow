@@ -117,6 +117,7 @@ export default function FloorplanApprovalWorkspace({
   const [showRevisionNotes, setShowRevisionNotes] = useState(false)
   const [revisionItems, setRevisionItems] = useState<RevisionItem[]>([])
   const [newRevisionText, setNewRevisionText] = useState('')
+  const [isEditingRevisions, setIsEditingRevisions] = useState(false)
   const [emailAnalytics, setEmailAnalytics] = useState<any>(null)
   const [loadingAnalytics, setLoadingAnalytics] = useState(false)
   
@@ -459,6 +460,66 @@ export default function FloorplanApprovalWorkspace({
   // Remove a revision item
   const removeRevisionItem = (id: string) => {
     setRevisionItems(revisionItems.filter(item => item.id !== id))
+  }
+
+  // Start editing existing revisions
+  const startEditingRevisions = () => {
+    if (currentVersion?.revisionItems) {
+      setRevisionItems([...currentVersion.revisionItems])
+    }
+    setIsEditingRevisions(true)
+    setShowRevisionNotes(true)
+  }
+
+  // Save updated revisions
+  const saveUpdatedRevisions = async () => {
+    if (!currentVersion || revisionItems.length === 0) return
+
+    setLoading(true)
+    try {
+      // Build the clientMessage from revision items
+      const revisionMessage = revisionItems.map((item, idx) => `${idx + 1}. ${item.text}`).join('\n')
+
+      const response = await fetch(`/api/projects/${project.id}/floorplan-approvals`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          versionId: currentVersion.id,
+          action: 'update_revision_items',
+          revisionItems: revisionItems,
+          clientMessage: revisionMessage
+        })
+      })
+
+      if (response.ok) {
+        const updatedResponse = await fetch(`/api/projects/${project.id}/floorplan-approvals`)
+        if (updatedResponse.ok) {
+          const updatedData = await updatedResponse.json()
+          setVersions(updatedData.versions || [])
+          setCurrentVersion(updatedData.currentVersion || null)
+        }
+        toast.success('Revisions updated successfully!')
+        setShowRevisionNotes(false)
+        setIsEditingRevisions(false)
+        setRevisionItems([])
+        setNewRevisionText('')
+      } else {
+        const error = await response.json()
+        toast.error(`Failed to update revisions: ${error.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      toast.error('Failed to update revisions. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Cancel editing revisions
+  const cancelEditingRevisions = () => {
+    setShowRevisionNotes(false)
+    setIsEditingRevisions(false)
+    setRevisionItems([])
+    setNewRevisionText('')
   }
 
   // Loading state
@@ -1029,9 +1090,13 @@ export default function FloorplanApprovalWorkspace({
                   {showRevisionNotes && (
                     <div className="border-t border-gray-200 pt-3 mt-3 space-y-3">
                       <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                        <h5 className="text-sm font-semibold text-amber-900 mb-2">Revision Items</h5>
+                        <h5 className="text-sm font-semibold text-amber-900 mb-2">
+                          {isEditingRevisions ? 'Edit Revision Items' : 'Revision Items'}
+                        </h5>
                         <p className="text-xs text-amber-700 mb-3">
-                          Add each revision needed. They will be numbered automatically.
+                          {isEditingRevisions
+                            ? 'Add, edit, or remove revision items. They will be renumbered automatically.'
+                            : 'Add each revision needed. They will be numbered automatically.'}
                         </p>
 
                         {/* List of revision items */}
@@ -1082,20 +1147,27 @@ export default function FloorplanApprovalWorkspace({
                       </div>
 
                       <div className="flex space-x-2">
+                        {isEditingRevisions ? (
+                          <Button
+                            onClick={saveUpdatedRevisions}
+                            disabled={loading || revisionItems.length === 0}
+                            className="flex-1 bg-amber-600 hover:bg-amber-700 text-white"
+                          >
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            {loading ? 'Saving...' : `Save ${revisionItems.length} Revision${revisionItems.length !== 1 ? 's' : ''}`}
+                          </Button>
+                        ) : (
+                          <Button
+                            onClick={() => handleClientDecision('REVISION_REQUESTED')}
+                            disabled={loading || revisionItems.length === 0}
+                            className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                          >
+                            <XCircle className="w-4 h-4 mr-2" />
+                            Submit {revisionItems.length} Revision{revisionItems.length !== 1 ? 's' : ''}
+                          </Button>
+                        )}
                         <Button
-                          onClick={() => handleClientDecision('REVISION_REQUESTED')}
-                          disabled={loading || revisionItems.length === 0}
-                          className="flex-1 bg-red-600 hover:bg-red-700 text-white"
-                        >
-                          <XCircle className="w-4 h-4 mr-2" />
-                          Submit {revisionItems.length} Revision{revisionItems.length !== 1 ? 's' : ''}
-                        </Button>
-                        <Button
-                          onClick={() => {
-                            setShowRevisionNotes(false)
-                            setRevisionItems([])
-                            setNewRevisionText('')
-                          }}
+                          onClick={cancelEditingRevisions}
                           disabled={loading}
                           variant="outline"
                         >
@@ -1129,11 +1201,22 @@ export default function FloorplanApprovalWorkspace({
                       )}
                     </div>
                   )}
-                  {currentVersion.clientDecision === 'REVISION_REQUESTED' && (
+                  {currentVersion.clientDecision === 'REVISION_REQUESTED' && !showRevisionNotes && (
                     <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <XCircle className="w-5 h-5 text-red-600" />
-                        <span className="font-semibold text-red-900">Revision Requested</span>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center space-x-2">
+                          <XCircle className="w-5 h-5 text-red-600" />
+                          <span className="font-semibold text-red-900">Revision Requested</span>
+                        </div>
+                        <Button
+                          onClick={startEditingRevisions}
+                          variant="outline"
+                          size="sm"
+                          className="border-red-300 text-red-600 hover:bg-red-100"
+                        >
+                          <Edit2 className="w-3 h-3 mr-1" />
+                          Edit
+                        </Button>
                       </div>
 
                       {/* Show revision items as a list */}

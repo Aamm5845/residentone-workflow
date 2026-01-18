@@ -456,8 +456,18 @@ export async function PATCH(
           }, { status: 400 })
         }
         updateData.revisionItems = revisionItems
+        // Also update clientMessage if provided (for backwards compatibility)
+        if (clientMessage) {
+          updateData.clientMessage = clientMessage
+        }
         const completedCount = revisionItems.filter((i: any) => i.completed).length
-        activityMessage = `Updated revision progress: ${completedCount}/${revisionItems.length} completed`
+        const totalItems = revisionItems.length
+        // Different message depending on whether items were added/removed or just marked
+        if (version.revisionItems && JSON.stringify(version.revisionItems) !== JSON.stringify(revisionItems.map((i: any) => ({ ...i, completed: (version.revisionItems as any[])?.find((v: any) => v.id === i.id)?.completed ?? i.completed })))) {
+          activityMessage = `Updated revision items (${totalItems} total, ${completedCount} completed)`
+        } else {
+          activityMessage = `Updated revision progress: ${completedCount}/${totalItems} completed`
+        }
         activityType = 'revision_items_updated'
         break
 
