@@ -6,10 +6,10 @@ import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { 
-  ArrowLeft, 
-  Upload, 
-  FileText, 
+import {
+  ArrowLeft,
+  Upload,
+  FileText,
   FileImage,
   Trash2,
   Loader2,
@@ -28,7 +28,9 @@ import {
   Link2,
   ExternalLink,
   X,
-  FileBox
+  FileBox,
+  CheckSquare,
+  Square
 } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'react-hot-toast'
@@ -49,6 +51,13 @@ interface FloorplanDrawingsWorkspaceProps {
   } | null
 }
 
+interface RevisionItem {
+  id: string
+  text: string
+  completed: boolean
+  completedAt?: string
+}
+
 interface FloorplanVersion {
   id: string
   version: string
@@ -59,6 +68,7 @@ interface FloorplanVersion {
   clientDecision?: string | null
   clientMessage?: string | null
   clientDecidedAt?: string | null
+  revisionItems?: RevisionItem[] | null
   createdAt: string
   updatedAt?: string
   assets: Array<{
@@ -405,6 +415,45 @@ export default function FloorplanDrawingsWorkspace({
     }
   }
 
+  // Toggle revision item completion
+  const toggleRevisionItem = async (versionId: string, itemId: string, currentCompleted: boolean) => {
+    try {
+      const version = versions.find(v => v.id === versionId)
+      if (!version?.revisionItems) return
+
+      const updatedItems = version.revisionItems.map(item =>
+        item.id === itemId
+          ? { ...item, completed: !currentCompleted, completedAt: !currentCompleted ? new Date().toISOString() : undefined }
+          : item
+      )
+
+      const response = await fetch(`/api/projects/${project.id}/floorplan-approvals`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          versionId,
+          action: 'update_revision_items',
+          revisionItems: updatedItems
+        })
+      })
+
+      if (response.ok) {
+        // Update local state optimistically
+        setVersions(versions.map(v =>
+          v.id === versionId ? { ...v, revisionItems: updatedItems } : v
+        ))
+        const completedCount = updatedItems.filter(i => i.completed).length
+        toast.success(`Revision ${!currentCompleted ? 'completed' : 'unmarked'} (${completedCount}/${updatedItems.length})`)
+      } else {
+        const error = await response.json()
+        toast.error(`Failed: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error updating revision:', error)
+      toast.error('Failed to update revision')
+    }
+  }
+
   if (isInitialLoading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -579,18 +628,64 @@ export default function FloorplanDrawingsWorkspace({
                   {/* Version Content (Expanded) */}
                   {isExpanded && (
                     <div className="p-6 border-t border-gray-200">
-                      {/* Revision Notes Alert - show if revisions were requested */}
-                      {version.status === 'REVISION_REQUESTED' && version.clientMessage && (
+                      {/* Revision Checklist - show if revisions were requested */}
+                      {version.status === 'REVISION_REQUESTED' && (version.revisionItems?.length || version.clientMessage) && (
                         <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
                           <div className="flex items-start space-x-3">
                             <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                             <div className="flex-1">
-                              <h5 className="font-semibold text-red-900 mb-2">Revisions Requested</h5>
-                              <pre className="text-sm text-red-700 whitespace-pre-wrap font-sans leading-relaxed bg-red-100 p-3 rounded border border-red-200">
+                              {version.revisionItems && version.revisionItems.length > 0 ? (
+                                <>
+                                  <div className="flex items-center justify-between mb-3">
+                                    <h5 className="font-semibold text-red-900">Revisions Requested</h5>
+                                    <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full">
+                                      {version.revisionItems.filter(i => i.completed).length}/{version.revisionItems.length} completed
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-red-600 mb-3">Click each revision to mark as done:</p>
+                                  <div className="space-y-2">
+                                    {version.revisionItems.map((item, index) => (
+                                      <button
+                                        key={item.id}
+                                        onClick={() => toggleRevisionItem(version.id, item.id, item.completed)}
+                                        className={`w-full flex items-start space-x-3 p-3 rounded-lg border transition-all text-left ${
+                                          item.completed
+                                            ? 'bg-green-50 border-green-300 hover:bg-green-100'
+                                            : 'bg-white border-red-200 hover:bg-red-50'
+                                        }`}
+                                      >
+                                        {item.completed ? (
+                                          <CheckSquare className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                                        ) : (
+                                          <Square className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                                        )}
+                                        <div className="flex-1">
+                                          <span className={`text-sm ${
+                                            item.completed ? 'text-green-700 line-through' : 'text-gray-800'
+                                          }`}>
+                                            <span className="font-medium mr-2">{index + 1}.</span>
+                                            {item.text}
+                                          </span>
+                                          {item.completed && item.completedAt && (
+                                            <p className="text-xs text-green-600 mt-1">
+                                              Completed {new Date(item.completedAt).toLocaleDateString()}
+                                            </p>
+                                          )}
+                                        </div>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <h5 className="font-semibold text-red-900 mb-2">Revisions Requested</h5>
+                                  <pre className="text-sm text-red-700 whitespace-pre-wrap font-sans leading-relaxed bg-red-100 p-3 rounded border border-red-200">
 {version.clientMessage}
-                              </pre>
+                                  </pre>
+                                </>
+                              )}
                               {version.clientDecidedAt && (
-                                <p className="text-xs text-red-600 mt-2">
+                                <p className="text-xs text-red-600 mt-3">
                                   Requested on {new Date(version.clientDecidedAt).toLocaleDateString()}
                                 </p>
                               )}

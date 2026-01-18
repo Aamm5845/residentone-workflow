@@ -747,6 +747,7 @@ model FloorplanApprovalVersion {
   clientDecision      ApprovalStatus?             @default(PENDING)
   clientDecidedAt     DateTime?
   clientMessage       String?
+  revisionItems       Json?                       // Array of {id, text, completed, completedAt}
   notes               String?
   followUpSentAt      DateTime?
   // TODO: Uncomment after running `prisma db push` on production

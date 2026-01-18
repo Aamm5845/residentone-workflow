@@ -158,6 +158,7 @@ export async function GET(
           clientDecision: v.clientDecision,
           clientDecidedAt: v.clientDecidedAt,
           clientMessage: v.clientMessage,
+          revisionItems: v.revisionItems,
           notes: v.notes,
           createdAt: v.createdAt,
           updatedAt: v.updatedAt,
@@ -330,14 +331,15 @@ export async function PATCH(
     }
 
     const data = await request.json()
-    const { 
-      versionId, 
-      action, 
+    const {
+      versionId,
+      action,
       notes,
       clientMessage,
       followUpNotes,
       approveByAaron,
-      clientDecision
+      clientDecision,
+      revisionItems
     } = data
 
     if (!versionId) {
@@ -433,12 +435,30 @@ export async function PATCH(
         updateData.clientDecision = clientDecision
         updateData.clientDecidedAt = new Date()
         updateData.clientMessage = clientMessage || null
+        // Save structured revision items if provided
+        if (revisionItems && Array.isArray(revisionItems)) {
+          updateData.revisionItems = revisionItems
+        }
         updateData.status = clientDecision === 'APPROVED' ? 'CLIENT_APPROVED' : 'REVISION_REQUESTED'
         activityMessage = `Client ${clientDecision.toLowerCase().replace('_', ' ')}`
-        if (clientMessage) {
+        if (revisionItems?.length) {
+          activityMessage += ` with ${revisionItems.length} revision item(s)`
+        } else if (clientMessage) {
           activityMessage += `: ${clientMessage}`
         }
         activityType = 'client_decision'
+        break
+
+      case 'update_revision_items':
+        if (!revisionItems || !Array.isArray(revisionItems)) {
+          return NextResponse.json({
+            error: 'Revision items array is required'
+          }, { status: 400 })
+        }
+        updateData.revisionItems = revisionItems
+        const completedCount = revisionItems.filter((i: any) => i.completed).length
+        activityMessage = `Updated revision progress: ${completedCount}/${revisionItems.length} completed`
+        activityType = 'revision_items_updated'
         break
 
       case 'update_notes':
@@ -630,13 +650,29 @@ export async function PATCH(
 
           console.log(`[Email] Sending Floorplan Revision notification to Sami for ${projectName}...`)
 
-          // Format revision notes for email (convert line breaks to <br> tags)
-          const formattedRevisionNotes = (clientMessage || 'No specific notes provided')
-            .split('\n')
-            .map((line: string) => line.trim())
-            .filter((line: string) => line.length > 0)
-            .map((line: string) => `<li style="margin: 4px 0; color: #dc2626;">${line.replace(/^[-•*]\s*/, '').replace(/^\d+\.\s*/, '')}</li>`)
-            .join('')
+          // Format revision notes for email - use revisionItems if available, otherwise parse clientMessage
+          let formattedRevisionNotes = ''
+          let plainTextRevisions = ''
+
+          if (revisionItems && Array.isArray(revisionItems) && revisionItems.length > 0) {
+            formattedRevisionNotes = revisionItems
+              .map((item: any, idx: number) => `<li style="margin: 4px 0; color: #dc2626;">${idx + 1}. ${item.text}</li>`)
+              .join('')
+            plainTextRevisions = revisionItems
+              .map((item: any, idx: number) => `${idx + 1}. ${item.text}`)
+              .join('\n')
+          } else if (clientMessage) {
+            formattedRevisionNotes = clientMessage
+              .split('\n')
+              .map((line: string) => line.trim())
+              .filter((line: string) => line.length > 0)
+              .map((line: string) => `<li style="margin: 4px 0; color: #dc2626;">${line.replace(/^[-•*]\s*/, '').replace(/^\d+\.\s*/, '')}</li>`)
+              .join('')
+            plainTextRevisions = clientMessage
+          } else {
+            formattedRevisionNotes = '<li style="margin: 4px 0; color: #dc2626;">No specific notes provided</li>'
+            plainTextRevisions = 'No specific notes provided'
+          }
 
           await sendEmail({
             to: sami.email,
@@ -699,7 +735,7 @@ export async function PATCH(
     </div>
 </body>
 </html>`,
-            text: `Hi ${sami.name},\n\n${requestedByName} has requested revisions for the floorplan ${version.version}.\n\nProject: ${projectName}\nVersion: ${version.version}\n\nRevisions Needed:\n${clientMessage || 'No specific notes provided'}\n\nPlease review the revisions and make the necessary changes to the floorplan.\n\nView the floorplan: ${projectUrl}\n\nBest regards,\nThe Team`
+            text: `Hi ${sami.name},\n\n${requestedByName} has requested revisions for the floorplan ${version.version}.\n\nProject: ${projectName}\nVersion: ${version.version}\n\nRevisions Needed:\n${plainTextRevisions}\n\nPlease review the revisions and make the necessary changes to the floorplan.\n\nView the floorplan: ${projectUrl}\n\nBest regards,\nThe Team`
           })
 
           console.log(`[Email] Floorplan Revision notification sent to Sami`)
@@ -731,6 +767,7 @@ export async function PATCH(
         clientDecision: updatedVersion.clientDecision,
         clientDecidedAt: updatedVersion.clientDecidedAt,
         clientMessage: updatedVersion.clientMessage,
+        revisionItems: updatedVersion.revisionItems,
         notes: updatedVersion.notes,
         createdAt: updatedVersion.createdAt,
         updatedAt: updatedVersion.updatedAt

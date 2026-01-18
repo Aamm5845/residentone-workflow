@@ -12,9 +12,9 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog'
-import { 
-  ArrowLeft, 
-  User, 
+import {
+  ArrowLeft,
+  User,
   Mail,
   Eye,
   EyeOff,
@@ -28,7 +28,9 @@ import {
   Info,
   RefreshCw,
   Edit2,
-  MessageSquare
+  MessageSquare,
+  Plus,
+  Trash2
 } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import Link from 'next/link'
@@ -41,6 +43,13 @@ interface FloorplanApprovalWorkspaceProps {
   project: any
 }
 
+interface RevisionItem {
+  id: string
+  text: string
+  completed: boolean
+  completedAt?: string
+}
+
 interface FloorplanApprovalVersion {
   id: string
   version: string
@@ -51,6 +60,7 @@ interface FloorplanApprovalVersion {
   clientDecision?: 'PENDING' | 'APPROVED' | 'REVISION_REQUESTED'
   clientDecidedAt?: string
   clientMessage?: string
+  revisionItems?: RevisionItem[]
   notes?: string
   createdAt: string
   updatedAt?: string
@@ -105,7 +115,8 @@ export default function FloorplanApprovalWorkspace({
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [isInitialLoading, setIsInitialLoading] = useState(true)
   const [showRevisionNotes, setShowRevisionNotes] = useState(false)
-  const [revisionNotes, setRevisionNotes] = useState('')
+  const [revisionItems, setRevisionItems] = useState<RevisionItem[]>([])
+  const [newRevisionText, setNewRevisionText] = useState('')
   const [emailAnalytics, setEmailAnalytics] = useState<any>(null)
   const [loadingAnalytics, setLoadingAnalytics] = useState(false)
   
@@ -381,16 +392,28 @@ export default function FloorplanApprovalWorkspace({
       return
     }
 
+    // For revision requests, require at least one revision item
+    if (decision === 'REVISION_REQUESTED' && revisionItems.length === 0 && !clientMessage) {
+      toast.error('Please add at least one revision item')
+      return
+    }
+
     setLoading(true)
     try {
+      // Build the clientMessage from revision items for backwards compatibility
+      const revisionMessage = revisionItems.length > 0
+        ? revisionItems.map((item, idx) => `${idx + 1}. ${item.text}`).join('\n')
+        : clientMessage || null
+
       const response = await fetch(`/api/projects/${project.id}/floorplan-approvals`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           versionId: currentVersion.id,
           action: 'client_decision',
           clientDecision: decision,
-          clientMessage: clientMessage || (decision === 'REVISION_REQUESTED' ? revisionNotes : null)
+          clientMessage: revisionMessage,
+          revisionItems: decision === 'REVISION_REQUESTED' ? revisionItems : null
         })
       })
 
@@ -407,7 +430,8 @@ export default function FloorplanApprovalWorkspace({
         } else {
           toast.success('Revision request recorded successfully!')
           setShowRevisionNotes(false)
-          setRevisionNotes('')
+          setRevisionItems([])
+          setNewRevisionText('')
         }
       } else {
         const error = await response.json()
@@ -418,6 +442,23 @@ export default function FloorplanApprovalWorkspace({
     } finally {
       setLoading(false)
     }
+  }
+
+  // Add a new revision item
+  const addRevisionItem = () => {
+    if (!newRevisionText.trim()) return
+    const newItem: RevisionItem = {
+      id: `rev-${Date.now()}`,
+      text: newRevisionText.trim(),
+      completed: false
+    }
+    setRevisionItems([...revisionItems, newItem])
+    setNewRevisionText('')
+  }
+
+  // Remove a revision item
+  const removeRevisionItem = (id: string) => {
+    setRevisionItems(revisionItems.filter(item => item.id !== id))
   }
 
   // Loading state
@@ -984,40 +1025,76 @@ export default function FloorplanApprovalWorkspace({
                     </>
                   )}
 
-                  {/* Revision Notes Input */}
+                  {/* Revision Items Input */}
                   {showRevisionNotes && (
                     <div className="border-t border-gray-200 pt-3 mt-3 space-y-3">
                       <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                        <h5 className="text-sm font-semibold text-amber-900 mb-2">Revision Notes</h5>
+                        <h5 className="text-sm font-semibold text-amber-900 mb-2">Revision Items</h5>
                         <p className="text-xs text-amber-700 mb-3">
-                          List all revisions needed. Use bullet points (• or -) or numbers (1. 2. 3.) for clarity.
+                          Add each revision needed. They will be numbered automatically.
                         </p>
-                        <Textarea
-                          value={revisionNotes}
-                          onChange={(e) => setRevisionNotes(e.target.value)}
-                          placeholder="List revisions needed, e.g.:
-1. Adjust kitchen island dimensions
-2. Move bathroom door to the left
-3. Add window in living room
-• Verify bedroom closet size
-• Check hallway width..."
-                          className="min-h-[180px] font-mono text-sm"
-                          rows={8}
-                        />
+
+                        {/* List of revision items */}
+                        {revisionItems.length > 0 && (
+                          <div className="space-y-2 mb-4">
+                            {revisionItems.map((item, index) => (
+                              <div key={item.id} className="flex items-start space-x-2 bg-white border border-amber-200 rounded-lg p-2">
+                                <span className="flex-shrink-0 w-6 h-6 bg-amber-100 text-amber-800 rounded-full flex items-center justify-center text-sm font-medium">
+                                  {index + 1}
+                                </span>
+                                <span className="flex-1 text-sm text-gray-800 pt-0.5">{item.text}</span>
+                                <button
+                                  onClick={() => removeRevisionItem(item.id)}
+                                  className="flex-shrink-0 p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
+                                  title="Remove revision"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Add new revision input */}
+                        <div className="flex space-x-2">
+                          <Input
+                            value={newRevisionText}
+                            onChange={(e) => setNewRevisionText(e.target.value)}
+                            placeholder="Type a revision and press Enter or click Add..."
+                            className="flex-1"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                addRevisionItem()
+                              }
+                            }}
+                          />
+                          <Button
+                            onClick={addRevisionItem}
+                            disabled={!newRevisionText.trim()}
+                            variant="outline"
+                            className="border-amber-300 text-amber-700 hover:bg-amber-100"
+                          >
+                            <Plus className="w-4 h-4 mr-1" />
+                            Add
+                          </Button>
+                        </div>
                       </div>
+
                       <div className="flex space-x-2">
                         <Button
                           onClick={() => handleClientDecision('REVISION_REQUESTED')}
-                          disabled={loading || !revisionNotes.trim()}
+                          disabled={loading || revisionItems.length === 0}
                           className="flex-1 bg-red-600 hover:bg-red-700 text-white"
                         >
                           <XCircle className="w-4 h-4 mr-2" />
-                          Submit Revision Request
+                          Submit {revisionItems.length} Revision{revisionItems.length !== 1 ? 's' : ''}
                         </Button>
                         <Button
                           onClick={() => {
                             setShowRevisionNotes(false)
-                            setRevisionNotes('')
+                            setRevisionItems([])
+                            setNewRevisionText('')
                           }}
                           disabled={loading}
                           variant="outline"
@@ -1058,7 +1135,34 @@ export default function FloorplanApprovalWorkspace({
                         <XCircle className="w-5 h-5 text-red-600" />
                         <span className="font-semibold text-red-900">Revision Requested</span>
                       </div>
-                      {currentVersion.clientMessage && (
+
+                      {/* Show revision items as a list */}
+                      {currentVersion.revisionItems && currentVersion.revisionItems.length > 0 ? (
+                        <div className="bg-red-100 p-3 rounded mt-2 border border-red-200">
+                          <p className="text-xs font-semibold text-red-800 mb-2">
+                            Revisions Needed ({currentVersion.revisionItems.filter(i => i.completed).length}/{currentVersion.revisionItems.length} completed):
+                          </p>
+                          <div className="space-y-2">
+                            {currentVersion.revisionItems.map((item, index) => (
+                              <div
+                                key={item.id}
+                                className={`flex items-start space-x-2 p-2 rounded ${
+                                  item.completed ? 'bg-green-50 border border-green-200' : 'bg-white border border-red-200'
+                                }`}
+                              >
+                                <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium ${
+                                  item.completed ? 'bg-green-500 text-white' : 'bg-red-100 text-red-800'
+                                }`}>
+                                  {item.completed ? '✓' : index + 1}
+                                </span>
+                                <span className={`flex-1 text-sm ${item.completed ? 'text-green-700 line-through' : 'text-red-700'}`}>
+                                  {item.text}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : currentVersion.clientMessage && (
                         <div className="bg-red-100 p-3 rounded mt-2 border border-red-200">
                           <p className="text-xs font-semibold text-red-800 mb-2">Revisions Needed:</p>
                           <pre className="text-sm text-red-700 whitespace-pre-wrap font-sans leading-relaxed">
@@ -1066,6 +1170,7 @@ export default function FloorplanApprovalWorkspace({
                           </pre>
                         </div>
                       )}
+
                       {currentVersion.clientDecidedAt && (
                         <p className="text-xs text-red-600 mt-2">
                           Requested on {new Date(currentVersion.clientDecidedAt).toLocaleDateString()}
