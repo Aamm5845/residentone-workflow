@@ -607,6 +607,113 @@ export async function PATCH(
       }
     }
 
+    // Send email notification to Sami when floorplan revision is requested
+    if (action === 'client_decision' && clientDecision === 'REVISION_REQUESTED') {
+      try {
+        const sami = await prisma.user.findFirst({
+          where: {
+            email: 'sami@meisnerinteriors.com'
+          },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            emailNotificationsEnabled: true
+          }
+        })
+
+        if (sami && sami.emailNotificationsEnabled) {
+          const baseUrl = getBaseUrl()
+          const projectName = version.project.name
+          const projectUrl = `${baseUrl}/projects/${version.projectId}/floorplan/drawings`
+          const requestedByName = session.user.name || 'A team member'
+
+          console.log(`[Email] Sending Floorplan Revision notification to Sami for ${projectName}...`)
+
+          // Format revision notes for email (convert line breaks to <br> tags)
+          const formattedRevisionNotes = (clientMessage || 'No specific notes provided')
+            .split('\n')
+            .map((line: string) => line.trim())
+            .filter((line: string) => line.length > 0)
+            .map((line: string) => `<li style="margin: 4px 0; color: #dc2626;">${line.replace(/^[-•*]\s*/, '').replace(/^\d+\.\s*/, '')}</li>`)
+            .join('')
+
+          await sendEmail({
+            to: sami.email,
+            subject: `${projectName} - Floorplan Revision Requested`,
+            html: `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Floorplan Revision Requested</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; line-height: 1.6;">
+    <div style="max-width: 640px; margin: 0 auto; background: white;">
+        <div style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); padding: 40px 32px; text-align: center;">
+            <img src="${baseUrl}/meisnerinteriorlogo.png"
+                 alt="Meisner Interiors"
+                 style="max-width: 200px; height: auto; margin-bottom: 24px; background-color: white; padding: 16px; border-radius: 8px;" />
+            <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 600; letter-spacing: -0.025em;">Floorplan Revision Requested</h1>
+            <p style="margin: 8px 0 0 0; color: #fecaca; font-size: 16px; font-weight: 400;">${projectName}</p>
+        </div>
+
+        <div style="padding: 40px 32px;">
+            <p style="margin: 0 0 24px 0; color: #1e293b; font-size: 16px;">Hi ${sami.name},</p>
+
+            <p style="margin: 0 0 16px 0; color: #475569; font-size: 15px; line-height: 1.7;">
+                <strong>${requestedByName}</strong> has requested revisions for the floorplan <strong>${version.version}</strong>.
+            </p>
+
+            <div style="background: #fef2f2; border-left: 4px solid #dc2626; padding: 20px; margin: 24px 0; border-radius: 6px;">
+                <p style="margin: 0 0 8px 0; color: #991b1b; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Revisions Needed</p>
+                <p style="margin: 0 0 8px 0; color: #1e293b; font-size: 15px;"><strong>Project:</strong> ${projectName}</p>
+                <p style="margin: 0 0 16px 0; color: #1e293b; font-size: 15px;"><strong>Version:</strong> ${version.version}</p>
+                <ul style="margin: 0; padding-left: 20px; list-style-type: disc;">
+                    ${formattedRevisionNotes}
+                </ul>
+            </div>
+
+            <p style="margin: 24px 0 0 0; color: #475569; font-size: 15px; line-height: 1.7;">
+                Please review the revisions and make the necessary changes to the floorplan.
+            </p>
+
+            <div style="text-align: center; margin: 32px 0;">
+                <a href="${projectUrl}"
+                   style="background: #dc2626; color: white; padding: 16px 32px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 600; display: inline-block; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);"
+                   target="_blank">View Floorplan</a>
+            </div>
+        </div>
+
+        <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px; text-align: center;">
+            <div style="color: #1e293b; font-size: 14px; font-weight: 600; margin-bottom: 12px;">Meisner Interiors Team</div>
+            <div style="margin-bottom: 12px;">
+                <a href="mailto:projects@meisnerinteriors.com"
+                   style="color: #dc2626; text-decoration: none; font-size: 13px; margin: 0 8px;">projects@meisnerinteriors.com</a>
+                <span style="color: #cbd5e1;">•</span>
+                <a href="tel:+15147976957"
+                   style="color: #dc2626; text-decoration: none; font-size: 13px; margin: 0 8px;">514-797-6957</a>
+            </div>
+            <p style="margin: 0; color: #94a3b8; font-size: 11px;">&copy; 2025 Meisner Interiors. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>`,
+            text: `Hi ${sami.name},\n\n${requestedByName} has requested revisions for the floorplan ${version.version}.\n\nProject: ${projectName}\nVersion: ${version.version}\n\nRevisions Needed:\n${clientMessage || 'No specific notes provided'}\n\nPlease review the revisions and make the necessary changes to the floorplan.\n\nView the floorplan: ${projectUrl}\n\nBest regards,\nThe Team`
+          })
+
+          console.log(`[Email] Floorplan Revision notification sent to Sami`)
+        } else if (sami && !sami.emailNotificationsEnabled) {
+          console.log(`[Email] Skipping notification to Sami (email notifications disabled)`)
+        } else {
+          console.log(`[Email] Sami user not found in database`)
+        }
+      } catch (emailError) {
+        console.error('[Email] Failed to send Floorplan Revision notification to Sami:', emailError)
+        // Don't fail the main operation if email notification fails
+      }
+    }
+
     return NextResponse.json({
       success: true,
       version: {

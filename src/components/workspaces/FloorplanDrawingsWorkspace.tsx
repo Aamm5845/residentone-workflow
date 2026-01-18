@@ -56,6 +56,9 @@ interface FloorplanVersion {
   notes?: string
   sourceFilePath?: string | null
   sourceFileName?: string | null
+  clientDecision?: string | null
+  clientMessage?: string | null
+  clientDecidedAt?: string | null
   createdAt: string
   updatedAt?: string
   assets: Array<{
@@ -576,6 +579,26 @@ export default function FloorplanDrawingsWorkspace({
                   {/* Version Content (Expanded) */}
                   {isExpanded && (
                     <div className="p-6 border-t border-gray-200">
+                      {/* Revision Notes Alert - show if revisions were requested */}
+                      {version.status === 'REVISION_REQUESTED' && version.clientMessage && (
+                        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+                          <div className="flex items-start space-x-3">
+                            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                            <div className="flex-1">
+                              <h5 className="font-semibold text-red-900 mb-2">Revisions Requested</h5>
+                              <pre className="text-sm text-red-700 whitespace-pre-wrap font-sans leading-relaxed bg-red-100 p-3 rounded border border-red-200">
+{version.clientMessage}
+                              </pre>
+                              {version.clientDecidedAt && (
+                                <p className="text-xs text-red-600 mt-2">
+                                  Requested on {new Date(version.clientDecidedAt).toLocaleDateString()}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Source CAD File Section */}
                       <div className="mb-6 border border-gray-200 rounded-lg p-4 bg-gray-50">
                         <div className="flex items-center justify-between mb-2">

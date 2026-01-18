@@ -987,14 +987,22 @@ export default function FloorplanApprovalWorkspace({
                   {/* Revision Notes Input */}
                   {showRevisionNotes && (
                     <div className="border-t border-gray-200 pt-3 mt-3 space-y-3">
-                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
                         <h5 className="text-sm font-semibold text-amber-900 mb-2">Revision Notes</h5>
+                        <p className="text-xs text-amber-700 mb-3">
+                          List all revisions needed. Use bullet points (• or -) or numbers (1. 2. 3.) for clarity.
+                        </p>
                         <Textarea
                           value={revisionNotes}
                           onChange={(e) => setRevisionNotes(e.target.value)}
-                          placeholder="Describe what revisions are needed..."
-                          className="min-h-[80px]"
-                          rows={3}
+                          placeholder="List revisions needed, e.g.:
+1. Adjust kitchen island dimensions
+2. Move bathroom door to the left
+3. Add window in living room
+• Verify bedroom closet size
+• Check hallway width..."
+                          className="min-h-[180px] font-mono text-sm"
+                          rows={8}
                         />
                       </div>
                       <div className="flex space-x-2">
@@ -1004,7 +1012,7 @@ export default function FloorplanApprovalWorkspace({
                           className="flex-1 bg-red-600 hover:bg-red-700 text-white"
                         >
                           <XCircle className="w-4 h-4 mr-2" />
-                          Submit
+                          Submit Revision Request
                         </Button>
                         <Button
                           onClick={() => {
@@ -1051,9 +1059,12 @@ export default function FloorplanApprovalWorkspace({
                         <span className="font-semibold text-red-900">Revision Requested</span>
                       </div>
                       {currentVersion.clientMessage && (
-                        <p className="text-sm text-red-700 bg-red-100 p-2 rounded mt-2">
-                          {currentVersion.clientMessage}
-                        </p>
+                        <div className="bg-red-100 p-3 rounded mt-2 border border-red-200">
+                          <p className="text-xs font-semibold text-red-800 mb-2">Revisions Needed:</p>
+                          <pre className="text-sm text-red-700 whitespace-pre-wrap font-sans leading-relaxed">
+                            {currentVersion.clientMessage}
+                          </pre>
+                        </div>
                       )}
                       {currentVersion.clientDecidedAt && (
                         <p className="text-xs text-red-600 mt-2">
