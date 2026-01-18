@@ -53,43 +53,43 @@ model PasswordResetToken {
 }
 
 model Organization {
-  id           String        @id @default(cuid())
-  name         String
-  slug         String        @unique
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Business Profile for invoicing
-  logoUrl           String?
-  businessName      String?       // Legal business name (may differ from "name")
-  businessAddress   String?
-  businessCity      String?
-  businessProvince  String?
-  businessPostal    String?
-  businessCountry   String?       @default("Canada")
-  businessPhone     String?
-  businessEmail     String?
+  logoUrl          String?
+  businessName     String? // Legal business name (may differ from "name")
+  businessAddress  String?
+  businessCity     String?
+  businessProvince String?
+  businessPostal   String?
+  businessCountry  String? @default("Canada")
+  businessPhone    String?
+  businessEmail    String?
 
   // Tax Registration Numbers
-  neqNumber         String?       // NEQ - Numéro d'entreprise du Québec (Quebec business number)
-  gstNumber         String?       // GST registration number
-  qstNumber         String?       // QST registration number (Quebec)
+  neqNumber String? // NEQ - Numéro d'entreprise du Québec (Quebec business number)
+  gstNumber String? // GST registration number
+  qstNumber String? // QST registration number (Quebec)
 
   // Default Tax Rates
-  defaultGstRate    Decimal?      @default(5.0)     // GST 5%
-  defaultQstRate    Decimal?      @default(9.975)   // QST 9.975%
+  defaultGstRate Decimal? @default(5.0) // GST 5%
+  defaultQstRate Decimal? @default(9.975) // QST 9.975%
 
   // Payment Instructions
-  wireInstructions  String?       @db.Text
-  checkInstructions String?       @db.Text
-  etransferEmail    String?       // Email for Interac e-Transfer
+  wireInstructions  String? @db.Text
+  checkInstructions String? @db.Text
+  etransferEmail    String? // Email for Interac e-Transfer
 
   clients        Client[]
   contractors    Contractor[]
   projects       Project[]
   tags           Tag[]
   users          User[]
-  chatMessages   ChatMessage[] @relation("OrgChatMessages")
+  chatMessages   ChatMessage[]  @relation("OrgChatMessages")
   savedAddresses SavedAddress[]
   programaItems  ProgramaItem[] @relation("OrgProgramaItems")
   budgetQuotes   BudgetQuote[]  @relation("BudgetQuoteOrg")
@@ -97,20 +97,20 @@ model Organization {
 
 // Shipping address phonebook - saved addresses for quick selection
 model SavedAddress {
-  id        String   @id @default(cuid())
-  orgId     String
-  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  id    String       @id @default(cuid())
+  orgId String
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
 
-  name          String    // e.g., "Office", "Warehouse", "Client Showroom"
-  street        String
-  city          String
-  province      String
-  postalCode    String
-  country       String    @default("Canada")
+  name       String // e.g., "Office", "Warehouse", "Client Showroom"
+  street     String
+  city       String
+  province   String
+  postalCode String
+  country    String @default("Canada")
 
-  isDefault     Boolean   @default(false)  // Default shipping address
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  isDefault Boolean  @default(false) // Default shipping address
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([orgId])
 }
@@ -213,6 +213,7 @@ model User {
   supplierQuotesReviewed      SupplierQuote[]             @relation("QuoteReviewedBy")
   supplierQuotesAccepted      SupplierQuote[]             @relation("QuoteAcceptedBy")
   matchApprovedLineItems      SupplierQuoteLineItem[]     @relation("MatchApprovedBy")
+  quoteLineItemsAcceptedBy    SupplierQuoteLineItem[]     @relation("QuoteLineAcceptedBy")
   clientQuotesSentBy          ClientQuote[]               @relation("ClientQuoteSentBy")
   clientQuotesCreatedBy       ClientQuote[]               @relation("ClientQuoteCreatedBy")
   clientQuotesUpdatedBy       ClientQuote[]               @relation("ClientQuoteUpdatedBy")
@@ -352,7 +353,7 @@ model Project {
 
 // Client Sources - files received from clients (measurements, architect plans, etc.)
 model ProjectSource {
-  id          String              @id @default(cuid())
+  id          String         @id @default(cuid())
   projectId   String
   category    SourceCategory
   title       String
@@ -363,12 +364,12 @@ model ProjectSource {
   fileSize    Int?
   mimeType    String?
   uploadedBy  String
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-  
-  project     Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  uploadedByUser User             @relation("UploadedSourceFiles", fields: [uploadedBy], references: [id])
-  
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  project        Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  uploadedByUser User    @relation("UploadedSourceFiles", fields: [uploadedBy], references: [id])
+
   @@index([projectId])
   @@index([category])
   @@index([projectId, category])
@@ -747,7 +748,7 @@ model FloorplanApprovalVersion {
   clientDecision      ApprovalStatus?             @default(PENDING)
   clientDecidedAt     DateTime?
   clientMessage       String?
-  revisionItems       Json?                       // Array of {id, text, completed, completedAt}
+  revisionItems       Json? // Array of {id, text, completed, completedAt}
   notes               String?
   followUpSentAt      DateTime?
   // TODO: Uncomment after running `prisma db push` on production
@@ -920,43 +921,43 @@ model ChatMessageReaction {
 }
 
 model Asset {
-  id                      String                   @id @default(cuid())
-  title                   String
-  filename                String?
-  url                     String
-  type                    AssetType
-  size                    Int?
-  mimeType                String?
-  provider                String?
-  metadata                String?
-  description             String?
-  userDescription         String?
-  uploadedBy              String
-  orgId                   String
-  projectId               String?
-  roomId                  String?
-  stageId                 String?
-  sectionId               String?
-  ffeItemId               String?
-  approvalId              String?
-  commentId               String?
-  renderingVersionId      String?
-  createdAt               DateTime                 @default(now())
-  updatedAt               DateTime                 @updatedAt
-  drawingChecklistItemId  String?
-  approval                Approval?                @relation(fields: [approvalId], references: [id], onDelete: Cascade)
-  drawingChecklistItem    DrawingChecklistItem?    @relation("DrawingChecklistAssets", fields: [drawingChecklistItemId], references: [id], onDelete: Cascade)
-  ffeItem                 FFEItem?                 @relation("FFEItemAssets", fields: [ffeItemId], references: [id], onDelete: Cascade)
-  project                 Project?                 @relation("ProjectAssets", fields: [projectId], references: [id], onDelete: Cascade)
-  renderingVersion        RenderingVersion?        @relation("RenderingAssets", fields: [renderingVersionId], references: [id], onDelete: Cascade)
-  room                    Room?                    @relation("RoomAssets", fields: [roomId], references: [id], onDelete: Cascade)
-  section                 DesignSection?           @relation("SectionAssets", fields: [sectionId], references: [id], onDelete: Cascade)
-  stage                   Stage?                   @relation("StageAssets", fields: [stageId], references: [id], onDelete: Cascade)
-  uploadedByUser          User                      @relation("UploadedByUser", fields: [uploadedBy], references: [id])
-  assetPin                AssetPin?
-  assetTags               AssetTag[]
-  clientApprovalAssets    ClientApprovalAsset[]
-  floorplanApprovalAssets FloorplanApprovalAsset[]
+  id                       String                    @id @default(cuid())
+  title                    String
+  filename                 String?
+  url                      String
+  type                     AssetType
+  size                     Int?
+  mimeType                 String?
+  provider                 String?
+  metadata                 String?
+  description              String?
+  userDescription          String?
+  uploadedBy               String
+  orgId                    String
+  projectId                String?
+  roomId                   String?
+  stageId                  String?
+  sectionId                String?
+  ffeItemId                String?
+  approvalId               String?
+  commentId                String?
+  renderingVersionId       String?
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+  drawingChecklistItemId   String?
+  approval                 Approval?                 @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+  drawingChecklistItem     DrawingChecklistItem?     @relation("DrawingChecklistAssets", fields: [drawingChecklistItemId], references: [id], onDelete: Cascade)
+  ffeItem                  FFEItem?                  @relation("FFEItemAssets", fields: [ffeItemId], references: [id], onDelete: Cascade)
+  project                  Project?                  @relation("ProjectAssets", fields: [projectId], references: [id], onDelete: Cascade)
+  renderingVersion         RenderingVersion?         @relation("RenderingAssets", fields: [renderingVersionId], references: [id], onDelete: Cascade)
+  room                     Room?                     @relation("RoomAssets", fields: [roomId], references: [id], onDelete: Cascade)
+  section                  DesignSection?            @relation("SectionAssets", fields: [sectionId], references: [id], onDelete: Cascade)
+  stage                    Stage?                    @relation("StageAssets", fields: [stageId], references: [id], onDelete: Cascade)
+  uploadedByUser           User                      @relation("UploadedByUser", fields: [uploadedBy], references: [id])
+  assetPin                 AssetPin?
+  assetTags                AssetTag[]
+  clientApprovalAssets     ClientApprovalAsset[]
+  floorplanApprovalAssets  FloorplanApprovalAsset[]
   floorplanChatAttachments FloorplanChatAttachment[] @relation("FloorplanChatAssets")
 }
 
@@ -1079,8 +1080,8 @@ model RenderingVersion {
   customName            String?
   status                RenderingVersionStatus @default(IN_PROGRESS)
   pushedToClientAt      DateTime?
-  sourceFilePath        String?                // Dropbox path to source Max file
-  sourceFileName        String?                // Name of the source file
+  sourceFilePath        String? // Dropbox path to source Max file
+  sourceFileName        String? // Name of the source file
   createdById           String
   updatedById           String?
   completedById         String?
@@ -1430,7 +1431,7 @@ model RoomFFEInstance {
   actualCompletionDate DateTime?
   notes                String?
   metadata             Json?
-  programaLink         String?           // Link to Programa.design schedule for this room's FFE items
+  programaLink         String? // Link to Programa.design schedule for this room's FFE items
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
   createdById          String
@@ -1447,22 +1448,22 @@ model RoomFFEInstance {
 }
 
 model RoomFFESection {
-  id                String          @id @default(cuid())
+  id                String            @id @default(cuid())
   instanceId        String
   templateSectionId String?
-  presetId          String?         // Link to FFESectionPreset
+  presetId          String? // Link to FFESectionPreset
   name              String
   description       String?
-  docCodePrefix     String?         // Doc code prefix for items (e.g., "PL" for Plumbing)
-  order             Int             @default(0)
-  isExpanded        Boolean         @default(true)
-  isCompleted       Boolean         @default(false)
+  docCodePrefix     String? // Doc code prefix for items (e.g., "PL" for Plumbing)
+  order             Int               @default(0)
+  isExpanded        Boolean           @default(true)
+  isCompleted       Boolean           @default(false)
   completedAt       DateTime?
   notes             String?
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-  items             RoomFFEItem[]   @relation("RoomFFESectionItems")
-  instance          RoomFFEInstance @relation("RoomFFEInstanceSections", fields: [instanceId], references: [id], onDelete: Cascade)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  items             RoomFFEItem[]     @relation("RoomFFESectionItems")
+  instance          RoomFFEInstance   @relation("RoomFFEInstanceSections", fields: [instanceId], references: [id], onDelete: Cascade)
   preset            FFESectionPreset? @relation(fields: [presetId], references: [id])
 
   @@index([instanceId, order])
@@ -1473,15 +1474,15 @@ model RoomFFESection {
 model FFESectionPreset {
   id            String   @id @default(cuid())
   orgId         String
-  name          String           // e.g., "Plumbing"
-  docCodePrefix String           // e.g., "PL" (1-3 uppercase letters)
+  name          String // e.g., "Plumbing"
+  docCodePrefix String // e.g., "PL" (1-3 uppercase letters)
   description   String?
   order         Int      @default(0)
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  sections      RoomFFESection[]
+  sections RoomFFESection[]
 
   @@unique([orgId, name])
   @@unique([orgId, docCodePrefix])
@@ -1489,90 +1490,113 @@ model FFESectionPreset {
 }
 
 model RoomFFEItem {
-  id               String              @id @default(cuid())
-  sectionId        String
-  templateItemId   String?
-  libraryProductId String?             // Link to Product Library
-  name             String
-  description      String?
-  state            FFEItemState        @default(PENDING)
-  visibility       FFEItemVisibility   @default(HIDDEN)
-  specStatus       FFESpecStatus       @default(DRAFT)
-  clientApproved   Boolean             @default(false)  // Client approval flag for ordering
-  clientApprovedAt DateTime?           // When client approved this item
-  clientApprovedVia String?            // How approved: "share_link", "portal", etc.
-  isRequired       Boolean             @default(false)
-  isCustom         Boolean             @default(false)
-  order            Int                 @default(0)
-  quantity         Int                 @default(1)
-  unitType         String?             @default("units") // Unit type: units, SF, SY, LF, etc.
-  unitCost         Decimal?
-  totalCost        Decimal?
-  tradePrice       Decimal?
-  rrp              Decimal?
-  tradeDiscount    Decimal?            // Percentage discount
-  markupPercent    Decimal?            // Markup percentage for client pricing (from supplier default, can override)
-  currency         String?             @default("CAD") // Currency: CAD or USD (legacy)
-  rrpCurrency      String?             @default("CAD") // RRP currency: CAD or USD
+  id                 String            @id @default(cuid())
+  sectionId          String
+  templateItemId     String?
+  libraryProductId   String? // Link to Product Library
+  name               String
+  description        String?
+  state              FFEItemState      @default(PENDING)
+  visibility         FFEItemVisibility @default(HIDDEN)
+  specStatus         FFESpecStatus     @default(DRAFT)
+  clientApproved     Boolean           @default(false) // Client approval flag for ordering
+  clientApprovedAt   DateTime? // When client approved this item
+  clientApprovedVia  String? // How approved: "share_link", "portal", etc.
+  isRequired         Boolean           @default(false)
+  isCustom           Boolean           @default(false)
+  order              Int               @default(0)
+  quantity           Int               @default(1)
+  unitType           String?           @default("units") // Unit type: units, SF, SY, LF, etc.
+  unitCost           Decimal?
+  totalCost          Decimal?
+  tradePrice         Decimal?
+  rrp                Decimal?
+  tradeDiscount      Decimal? // Percentage discount
+  markupPercent      Decimal? // Markup percentage for client pricing (from supplier default, can override)
+  currency           String?           @default("CAD") // Currency: CAD or USD (legacy)
+  rrpCurrency        String?           @default("CAD") // RRP currency: CAD or USD
   tradePriceCurrency String?           @default("CAD") // Trade price currency: CAD or USD
-  supplierName     String?
-  supplierLink     String?
-  supplierId       String?             // Link to Supplier from phonebook
-  modelNumber      String?
+  supplierName       String?
+  supplierLink       String?
+  supplierId         String? // Link to Supplier from phonebook
+  modelNumber        String?
+
+  // === PROCUREMENT TRACKING ===
+  // Tracks which quote was accepted for this item (when multiple quotes exist)
+  acceptedQuoteLineItemId String?           @unique // The SupplierQuoteLineItem that was accepted
+  // Payment tracking at item level
+  paymentStatus           ItemPaymentStatus @default(NOT_INVOICED)
+  paidAmount              Decimal? // Total amount paid for this item
+  paidAt                  DateTime? // When last payment was received
+
   // Additional spec fields
-  brand            String?
-  sku              String?
-  docCode          String?             // Document code (separate from SKU)
-  color            String?
-  finish           String?
-  material         String?
-  leadTime         String?
-  width            String?
-  height           String?
-  depth            String?
-  length           String?
-  images           String[]
-  notes            String?
-  completedAt      DateTime?
-  completedById    String?
-  attachments      Json?
-  customFields     Json?
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
-  createdById      String
-  updatedById      String
-  
+  brand         String?
+  sku           String?
+  docCode       String? // Document code (separate from SKU)
+  color         String?
+  finish        String?
+  material      String?
+  leadTime      String?
+  width         String?
+  height        String?
+  depth         String?
+  length        String?
+  images        String[]
+  notes         String?
+  completedAt   DateTime?
+  completedById String?
+  attachments   Json?
+  customFields  Json?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  createdById   String
+  updatedById   String
+
   // NEW: FFE Workspace <-> All Specs linking
   // For FFE Workspace items (requirements): ffeRequirementId is null, isSpecItem is false
   // For All Specs items (products): ffeRequirementId points to the requirement, isSpecItem is true
-  ffeRequirementId String?             // Links spec item back to its FFE requirement
-  isSpecItem       Boolean             @default(false)  // True if this is an actual product spec
-  isOption         Boolean             @default(false)  // True if this is an option (multiple products for same FFE item)
-  optionNumber     Int?                // Option number (1, 2, 3, etc.) when multiple options exist
-  
+  ffeRequirementId String? // Links spec item back to its FFE requirement
+  isSpecItem       Boolean @default(false) // True if this is an actual product spec
+  isOption         Boolean @default(false) // True if this is an option (multiple products for same FFE item)
+  optionNumber     Int? // Option number (1, 2, 3, etc.) when multiple options exist
+
   // Relations
-  section          RoomFFESection      @relation("RoomFFESectionItems", fields: [sectionId], references: [id], onDelete: Cascade)
-  templateItem     FFETemplateItem?    @relation("RoomFFEItemTemplate", fields: [templateItemId], references: [id])
-  libraryProduct   ProductLibraryItem? @relation("RoomItemToLibraryProduct", fields: [libraryProductId], references: [id])
-  supplier         Supplier?           @relation("SupplierFFEItems", fields: [supplierId], references: [id])
-  createdBy        User                @relation("RoomFFEItemCreatedBy", fields: [createdById], references: [id])
-  updatedBy        User                @relation("RoomFFEItemUpdatedBy", fields: [updatedById], references: [id])
+  section        RoomFFESection      @relation("RoomFFESectionItems", fields: [sectionId], references: [id], onDelete: Cascade)
+  templateItem   FFETemplateItem?    @relation("RoomFFEItemTemplate", fields: [templateItemId], references: [id])
+  libraryProduct ProductLibraryItem? @relation("RoomItemToLibraryProduct", fields: [libraryProductId], references: [id])
+  supplier       Supplier?           @relation("SupplierFFEItems", fields: [supplierId], references: [id])
+  createdBy      User                @relation("RoomFFEItemCreatedBy", fields: [createdById], references: [id])
+  updatedBy      User                @relation("RoomFFEItemUpdatedBy", fields: [updatedById], references: [id])
 
   // Self-relation for FFE requirement <-> Spec items (legacy one-to-one)
-  ffeRequirement   RoomFFEItem?        @relation("FFERequirementSpecs", fields: [ffeRequirementId], references: [id], onDelete: SetNull)
-  linkedSpecs      RoomFFEItem[]       @relation("FFERequirementSpecs")
-  
+  ffeRequirement RoomFFEItem?  @relation("FFERequirementSpecs", fields: [ffeRequirementId], references: [id], onDelete: SetNull)
+  linkedSpecs    RoomFFEItem[] @relation("FFERequirementSpecs")
+
   // Many-to-many relations for FFE items <-> Spec items via FFESpecLink
-  specLinks        FFESpecLink[]       @relation("SpecItemLinks")      // When this is a spec item: links to FFE requirements
-  ffeLinks         FFESpecLink[]       @relation("FFERequirementLinks") // When this is an FFE requirement: links from spec items
+  specLinks FFESpecLink[] @relation("SpecItemLinks") // When this is a spec item: links to FFE requirements
+  ffeLinks  FFESpecLink[] @relation("FFERequirementLinks") // When this is an FFE requirement: links from spec items
 
   // RFQ system relations
   rfqLineItems         RFQLineItem[]         @relation("RFQLineItems")
   clientQuoteLineItems ClientQuoteLineItem[] @relation("ClientQuoteLineItems")
   orderItems           OrderItem[]           @relation("OrderItems")
 
+  // Procurement quote tracking
+  acceptedQuoteLineItem SupplierQuoteLineItem?  @relation("AcceptedQuoteForItem", fields: [acceptedQuoteLineItemId], references: [id])
+  allQuoteLineItems     SupplierQuoteLineItem[] @relation("ItemQuoteLineItems") // All quotes for this item
+
   // Documents directly attached to this item
-  documents            RFQDocument[]         @relation("SpecItemDocuments")
+  documents RFQDocument[] @relation("SpecItemDocuments")
+
+  // Activity tracking for item
+  quoteRequests ItemQuoteRequest[] @relation("ItemQuoteRequests")
+  activities    ItemActivity[]     @relation("ItemActivities")
+
+  // Programa import links
+  programaLinks ProgramaItem[] @relation("ProgramaLinkedItem")
+
+  // Item components (sub-items like transformer for a light fixture)
+  components ItemComponent[] @relation("ItemComponents")
 
   @@index([sectionId, order])
   @@index([state])
@@ -1584,36 +1608,34 @@ model RoomFFEItem {
   @@index([ffeRequirementId])
   @@index([isSpecItem])
   @@index([supplierId])
-
-  // Activity tracking for item
-  quoteRequests    ItemQuoteRequest[] @relation("ItemQuoteRequests")
-  activities       ItemActivity[]     @relation("ItemActivities")
-
-  // Programa import links
-  programaLinks    ProgramaItem[]     @relation("ProgramaLinkedItem")
-
-  // Item components (sub-items like transformer for a light fixture)
-  components       ItemComponent[]    @relation("ItemComponents")
+  @@index([paymentStatus])
+  @@index([acceptedQuoteLineItemId])
 }
 
 // Item components - sub-items that belong to a parent spec item
 // Example: LED fixture ($100) + transformer ($50) + mounting bracket ($25)
 // The main item shows "LED Fixture" but total price includes all components
 model ItemComponent {
-  id          String      @id @default(cuid())
-  itemId      String      // Parent RoomFFEItem
-  name        String      // Component name (e.g., "Transformer")
-  modelNumber String?     // Component model number
-  image       String?     // Component image URL
-  price       Decimal?    // Component price (uses parent's currency)
-  quantity    Int         @default(1)
-  order       Int         @default(0)
+  id          String   @id @default(cuid())
+  itemId      String // Parent RoomFFEItem
+  name        String // Component name (e.g., "Transformer")
+  modelNumber String? // Component model number
+  image       String? // Component image URL
+  price       Decimal? // Component price (uses parent's currency)
+  quantity    Int      @default(1)
+  order       Int      @default(0)
   notes       String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // === COMPONENT QUOTE TRACKING ===
+  // Components can have their own quotes (e.g., transformer from different supplier)
+  quotedPrice             Decimal? // Price from the accepted quote
+  quotedAt                DateTime? // When this component was quoted
+  acceptedQuoteLineItemId String? // Links to the quote line item for this component
 
   // Relation to parent item
-  item        RoomFFEItem @relation("ItemComponents", fields: [itemId], references: [id], onDelete: Cascade)
+  item RoomFFEItem @relation("ItemComponents", fields: [itemId], references: [id], onDelete: Cascade)
 
   @@index([itemId])
   @@index([itemId, order])
@@ -1622,38 +1644,38 @@ model ItemComponent {
 // Tracks quote requests sent for a specific item to a specific supplier
 // Prevents duplicate sends and tracks status
 model ItemQuoteRequest {
-  id            String              @id @default(cuid())
-  itemId        String              // RoomFFEItem id
-  supplierId    String?             // Supplier id (null for one-time vendors)
-  rfqId         String?             // RFQ id if sent via RFQ
-  supplierRfqId String?             // SupplierRFQ id for tracking
+  id            String  @id @default(cuid())
+  itemId        String // RoomFFEItem id
+  supplierId    String? // Supplier id (null for one-time vendors)
+  rfqId         String? // RFQ id if sent via RFQ
+  supplierRfqId String? // SupplierRFQ id for tracking
 
   // One-time vendor info
-  vendorEmail   String?
-  vendorName    String?
+  vendorEmail String?
+  vendorName  String?
 
   // Status tracking
-  status        QuoteRequestStatus  @default(SENT)
-  sentAt        DateTime            @default(now())
-  sentById      String
+  status   QuoteRequestStatus @default(SENT)
+  sentAt   DateTime           @default(now())
+  sentById String
 
   // Response tracking
-  respondedAt   DateTime?
-  quoteAmount   Decimal?            // Quote amount if provided
-  quoteId       String?             // SupplierQuote id if quote received
+  respondedAt DateTime?
+  quoteAmount Decimal? // Quote amount if provided
+  quoteId     String? // SupplierQuote id if quote received
 
   // Override tracking
-  isResend      Boolean             @default(false)
-  previousRequestId String?         // Links to previous request if resent
+  isResend          Boolean @default(false)
+  previousRequestId String? // Links to previous request if resent
 
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  item          RoomFFEItem         @relation("ItemQuoteRequests", fields: [itemId], references: [id], onDelete: Cascade)
-  supplier      Supplier?           @relation("SupplierQuoteRequests", fields: [supplierId], references: [id])
-  rfq           RFQ?                @relation("RFQQuoteRequests", fields: [rfqId], references: [id])
-  sentBy        User                @relation("QuoteRequestSentBy", fields: [sentById], references: [id])
+  item     RoomFFEItem @relation("ItemQuoteRequests", fields: [itemId], references: [id], onDelete: Cascade)
+  supplier Supplier?   @relation("SupplierQuoteRequests", fields: [supplierId], references: [id])
+  rfq      RFQ?        @relation("RFQQuoteRequests", fields: [rfqId], references: [id])
+  sentBy   User        @relation("QuoteRequestSentBy", fields: [sentById], references: [id])
 
   @@unique([itemId, supplierId, isResend]) // One active request per item-supplier unless resent
   @@index([itemId])
@@ -1673,23 +1695,23 @@ enum QuoteRequestStatus {
 
 // Tracks all activity related to an item (quotes, status changes, client responses, etc.)
 model ItemActivity {
-  id          String            @id @default(cuid())
+  id          String           @id @default(cuid())
   itemId      String
   type        ItemActivityType
-  title       String            // Short title (e.g., "Quote Requested")
-  description String?           // Detailed description
-  metadata    Json?             // Additional data (supplier info, quote amount, etc.)
+  title       String // Short title (e.g., "Quote Requested")
+  description String? // Detailed description
+  metadata    Json? // Additional data (supplier info, quote amount, etc.)
 
   // Actor tracking
-  actorId     String?           // User who performed the action (null for system/supplier actions)
-  actorName   String?           // Name for display (supplier name, client name, etc.)
-  actorType   String            @default("user") // "user", "supplier", "client", "system"
+  actorId   String? // User who performed the action (null for system/supplier actions)
+  actorName String? // Name for display (supplier name, client name, etc.)
+  actorType String  @default("user") // "user", "supplier", "client", "system"
 
-  createdAt   DateTime          @default(now())
+  createdAt DateTime @default(now())
 
   // Relations
-  item        RoomFFEItem       @relation("ItemActivities", fields: [itemId], references: [id], onDelete: Cascade)
-  actor       User?             @relation("ItemActivityActor", fields: [actorId], references: [id])
+  item  RoomFFEItem @relation("ItemActivities", fields: [itemId], references: [id], onDelete: Cascade)
+  actor User?       @relation("ItemActivityActor", fields: [actorId], references: [id])
 
   @@index([itemId])
   @@index([itemId, createdAt])
@@ -1697,25 +1719,26 @@ model ItemActivity {
 }
 
 enum ItemActivityType {
-  QUOTE_REQUESTED       // Quote request sent to supplier
-  QUOTE_RECEIVED        // Supplier submitted a quote
-  QUOTE_DECLINED        // Supplier declined to quote
-  QUOTE_VIEWED          // Supplier viewed the request
-  STATUS_CHANGED        // Item status changed
-  ITEM_SELECTED         // Item selected for project
-  PRICE_UPDATED         // Price was updated
-  CLIENT_APPROVED       // Client approved the item
-  CLIENT_UNAPPROVED     // Client approval was removed
-  CLIENT_REJECTED       // Client requested changes
-  ADDED_TO_ORDER        // Item added to purchase order
-  ORDERED               // Item ordered from supplier
-  SHIPPED               // Item shipped
-  DELIVERED             // Item delivered
-  NOTE_ADDED            // Note added to item
-  DOCUMENT_UPLOADED     // Document attached
-  SENT_TO_CLIENT_QUOTE  // Item sent to client via quote
-  CLIENT_QUOTE_VIEWED   // Client viewed the quote
-  CLIENT_QUOTE_PAID     // Client paid for item via quote
+  QUOTE_REQUESTED // Quote request sent to supplier
+  QUOTE_RECEIVED // Supplier submitted a quote
+  QUOTE_ACCEPTED // Quote was accepted for this item
+  QUOTE_DECLINED // Supplier declined to quote
+  QUOTE_VIEWED // Supplier viewed the request
+  STATUS_CHANGED // Item status changed
+  ITEM_SELECTED // Item selected for project
+  PRICE_UPDATED // Price was updated
+  CLIENT_APPROVED // Client approved the item
+  CLIENT_UNAPPROVED // Client approval was removed
+  CLIENT_REJECTED // Client requested changes
+  ADDED_TO_ORDER // Item added to purchase order
+  ORDERED // Item ordered from supplier
+  SHIPPED // Item shipped
+  DELIVERED // Item delivered
+  NOTE_ADDED // Note added to item
+  DOCUMENT_UPLOADED // Document attached
+  SENT_TO_CLIENT_QUOTE // Item sent to client via quote
+  CLIENT_QUOTE_VIEWED // Client viewed the quote
+  CLIENT_QUOTE_PAID // Client paid for item via quote
 }
 
 model FFEChangeLog {
@@ -1741,18 +1764,18 @@ model FFEChangeLog {
 // Many-to-many join table: Links FFE requirements to spec items (products)
 // One product in AllSpec can be linked to multiple FFE requirements from different rooms
 model FFESpecLink {
-  id               String      @id @default(cuid())
-  specItemId       String      // The product in AllSpec
-  ffeRequirementId String      // The FFE requirement from FFE Workspace
-  roomId           String      // Room where the FFE requirement is from (for display)
-  roomName         String?     // Room name (denormalized for quick display)
-  sectionName      String?     // Section name (denormalized for quick display)
-  createdAt        DateTime    @default(now())
+  id               String   @id @default(cuid())
+  specItemId       String // The product in AllSpec
+  ffeRequirementId String // The FFE requirement from FFE Workspace
+  roomId           String // Room where the FFE requirement is from (for display)
+  roomName         String? // Room name (denormalized for quick display)
+  sectionName      String? // Section name (denormalized for quick display)
+  createdAt        DateTime @default(now())
   createdById      String
-  
-  specItem         RoomFFEItem @relation("SpecItemLinks", fields: [specItemId], references: [id], onDelete: Cascade)
-  ffeRequirement   RoomFFEItem @relation("FFERequirementLinks", fields: [ffeRequirementId], references: [id], onDelete: Cascade)
-  createdBy        User        @relation("FFESpecLinkCreatedBy", fields: [createdById], references: [id])
+
+  specItem       RoomFFEItem @relation("SpecItemLinks", fields: [specItemId], references: [id], onDelete: Cascade)
+  ffeRequirement RoomFFEItem @relation("FFERequirementLinks", fields: [ffeRequirementId], references: [id], onDelete: Cascade)
+  createdBy      User        @relation("FFESpecLinkCreatedBy", fields: [createdById], references: [id])
 
   @@unique([specItemId, ffeRequirementId])
   @@index([specItemId])
@@ -1778,13 +1801,13 @@ model FFESectionLibrary {
 
 model ProductCategory {
   id          String               @id @default(cuid())
-  orgId       String?              // null = global/default category
+  orgId       String? // null = global/default category
   name        String
   slug        String
   description String?
-  icon        String?              // Lucide icon name
-  color       String?              // Hex color for UI
-  parentId    String?              // For subcategories
+  icon        String? // Lucide icon name
+  color       String? // Hex color for UI
+  parentId    String? // For subcategories
   order       Int                  @default(0)
   isDefault   Boolean              @default(false) // Pre-seeded categories
   isActive    Boolean              @default(true)
@@ -1804,9 +1827,9 @@ model ProductCategory {
 model SupplierCategory {
   id        String   @id @default(cuid())
   orgId     String
-  name      String   // Category name (e.g. "Plumbing", "Lighting")
-  icon      String?  // Icon name (optional, e.g. "Wrench", "Lightbulb")
-  color     String?  // Color code (optional, e.g. "blue", "amber")
+  name      String // Category name (e.g. "Plumbing", "Lighting")
+  icon      String? // Icon name (optional, e.g. "Wrench", "Lightbulb")
+  color     String? // Color code (optional, e.g. "blue", "amber")
   isDefault Boolean  @default(false) // System default categories
   isActive  Boolean  @default(true)
   sortOrder Int      @default(0)
@@ -1821,40 +1844,40 @@ model SupplierCategory {
 }
 
 model Supplier {
-  id          String   @id @default(cuid())
-  orgId       String
-  name        String   // Business name (required)
-  contactName String   // Contact person name (required)
-  email       String   // Primary contact email (required)
-  emails      Json?    // Additional emails as array: ["email1@example.com", "email2@example.com"]
-  category    String?  // Legacy category field (deprecated)
-  categoryId  String?  // Reference to SupplierCategory
-  currency    String   @default("CAD") // Currency for prices: CAD or USD
-  logo        String?  // Logo URL (optional)
-  phone       String?  // Phone (optional)
-  address     String?  // Address (optional)
-  website     String?  // Website (optional)
-  notes       String?  // Notes (optional)
+  id            String   @id @default(cuid())
+  orgId         String
+  name          String // Business name (required)
+  contactName   String // Contact person name (required)
+  email         String // Primary contact email (required)
+  emails        Json? // Additional emails as array: ["email1@example.com", "email2@example.com"]
+  category      String? // Legacy category field (deprecated)
+  categoryId    String? // Reference to SupplierCategory
+  currency      String   @default("CAD") // Currency for prices: CAD or USD
+  logo          String? // Logo URL (optional)
+  phone         String? // Phone (optional)
+  address       String? // Address (optional)
+  website       String? // Website (optional)
+  notes         String? // Notes (optional)
   markupPercent Decimal? // Fixed markup percentage for this supplier (overrides category markup)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  createdById String
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  createdById   String
 
   // Portal access fields
   hasPortalAccess Boolean   @default(false)
-  portalPassword  String?   // Hashed password for portal login
+  portalPassword  String? // Hashed password for portal login
   portalLastLogin DateTime?
   portalEnabled   Boolean   @default(true)
 
   // Relations
-  supplierCategory  SupplierCategory? @relation(fields: [categoryId], references: [id])
-  supplierRFQs      SupplierRFQ[]
-  orders            Order[]
-  messages          SupplierMessage[]
-  shopDrawings      SupplierShopDrawing[]
-  quoteRequests     ItemQuoteRequest[]  @relation("SupplierQuoteRequests")
-  ffeItems          RoomFFEItem[]       @relation("SupplierFFEItems")
+  supplierCategory SupplierCategory?     @relation(fields: [categoryId], references: [id])
+  supplierRFQs     SupplierRFQ[]
+  orders           Order[]
+  messages         SupplierMessage[]
+  shopDrawings     SupplierShopDrawing[]
+  quoteRequests    ItemQuoteRequest[]    @relation("SupplierQuoteRequests")
+  ffeItems         RoomFFEItem[]         @relation("SupplierFFEItems")
 
   @@index([orgId])
   @@index([orgId, isActive])
@@ -1864,55 +1887,55 @@ model Supplier {
 }
 
 model ProductLibraryItem {
-  id             String              @id @default(cuid())
-  orgId          String
-  categoryId     String?
-  name           String
-  description    String?
-  brand          String?
-  sku            String?
-  modelNumber    String?
+  id              String               @id @default(cuid())
+  orgId           String
+  categoryId      String?
+  name            String
+  description     String?
+  brand           String?
+  sku             String?
+  modelNumber     String?
   // Specifications
-  color          String?
-  finish         String?
-  material       String?
+  color           String?
+  finish          String?
+  material        String?
   // Dimensions
-  width          String?
-  height         String?
-  depth          String?
-  length         String?
-  dimensionUnit  String?             @default("cm")
+  width           String?
+  height          String?
+  depth           String?
+  length          String?
+  dimensionUnit   String?              @default("cm")
   // Pricing
-  rrp            Decimal?
-  tradePrice     Decimal?
-  currency       String?             @default("USD")
+  rrp             Decimal?
+  tradePrice      Decimal?
+  currency        String?              @default("USD")
   // Supplier info
-  supplierName   String?
-  supplierPhone  String?
-  supplierEmail  String?
+  supplierName    String?
+  supplierPhone   String?
+  supplierEmail   String?
   supplierAddress String?
-  supplierLink   String?
-  leadTime       String?
-  isTaxable      Boolean?            @default(true)
+  supplierLink    String?
+  leadTime        String?
+  isTaxable       Boolean?             @default(true)
   // Media
-  images         String[]            // Array of image URLs
-  thumbnailUrl   String?             // Primary image for display
-  attachments    Json?               // PDFs, spec sheets, etc.
+  images          String[] // Array of image URLs
+  thumbnailUrl    String? // Primary image for display
+  attachments     Json? // PDFs, spec sheets, etc.
   // Metadata
-  tags           String[]
-  customFields   Json?
-  notes          String?
-  status         ProductLibraryStatus @default(ACTIVE)
+  tags            String[]
+  customFields    Json?
+  notes           String?
+  status          ProductLibraryStatus @default(ACTIVE)
   // Tracking
-  usageCount     Int                 @default(0) // How many times added to rooms
-  lastUsedAt     DateTime?
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
-  createdById    String
-  updatedById    String
+  usageCount      Int                  @default(0) // How many times added to rooms
+  lastUsedAt      DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  createdById     String
+  updatedById     String
   // Relations
-  category       ProductCategory?    @relation("ProductToCategory", fields: [categoryId], references: [id])
-  roomItems      RoomFFEItem[]       @relation("RoomItemToLibraryProduct")
+  category        ProductCategory?     @relation("ProductToCategory", fields: [categoryId], references: [id])
+  roomItems       RoomFFEItem[]        @relation("RoomItemToLibraryProduct")
 
   @@index([orgId])
   @@index([categoryId])
@@ -2549,29 +2572,29 @@ enum FFEStatus {
 
 enum FFESpecStatus {
   // === PROCUREMENT WORKFLOW (auto-updated) ===
-  DRAFT              // Starting status
-  SELECTED           // Item confirmed for project
-  RFQ_SENT           // RFQ sent to supplier(s)
-  QUOTE_RECEIVED     // Quote received from supplier
-  QUOTE_APPROVED     // Quote approved, ready for invoicing
-  BUDGET_SENT        // Budget quote sent to client for approval
-  BUDGET_APPROVED    // Client approved budget, ready for detailed invoice
+  DRAFT // Starting status
+  SELECTED // Item confirmed for project
+  RFQ_SENT // RFQ sent to supplier(s)
+  QUOTE_RECEIVED // Quote received from supplier
+  QUOTE_APPROVED // Quote approved, ready for invoicing
+  BUDGET_SENT // Budget quote sent to client for approval
+  BUDGET_APPROVED // Client approved budget, ready for detailed invoice
   INVOICED_TO_CLIENT // Invoice sent to client
-  CLIENT_PAID        // Client paid (or deposit paid)
-  ORDERED            // PO created, ordered from supplier
-  SHIPPED            // Shipped from supplier
-  RECEIVED           // Received at warehouse/site
-  DELIVERED          // Delivered to client
-  INSTALLED          // Installed at location
-  CLOSED             // Completed/Closed
+  CLIENT_PAID // Client paid (or deposit paid)
+  ORDERED // PO created, ordered from supplier
+  SHIPPED // Shipped from supplier
+  RECEIVED // Received at warehouse/site
+  DELIVERED // Delivered to client
+  INSTALLED // Installed at location
+  CLOSED // Completed/Closed
 
   // === MANUAL STATUSES ===
-  HIDDEN             // Hidden from view
-  CLIENT_TO_ORDER    // Client will order themselves (not us)
+  HIDDEN // Hidden from view
+  CLIENT_TO_ORDER // Client will order themselves (not us)
   CONTRACTOR_TO_ORDER // Contractor will order (no price/approval needed, considered done)
-  NEED_SAMPLE        // Need sample before proceeding
-  ISSUE              // There's a problem to resolve
-  ARCHIVED           // Item archived, unlinked from FFE
+  NEED_SAMPLE // Need sample before proceeding
+  ISSUE // There's a problem to resolve
+  ARCHIVED // Item archived, unlinked from FFE
 
   // === LEGACY STATUSES (kept for existing data) ===
   OPTION
@@ -2591,6 +2614,15 @@ enum FFESpecStatus {
   NEED_TO_ORDER
   IN_PRODUCTION
   COMPLETED
+}
+
+// Payment tracking status for individual items
+enum ItemPaymentStatus {
+  NOT_INVOICED // No client quote/invoice sent yet
+  INVOICED // Client quote sent, awaiting payment
+  DEPOSIT_PAID // Partial payment received
+  FULLY_PAID // Full payment received
+  REFUNDED // Payment was refunded
 }
 
 enum ProductLibraryStatus {
@@ -2751,8 +2783,8 @@ enum MessageType {
 }
 
 enum ChatType {
-  PHASE    // Message in a project phase chat
-  GENERAL  // General team chat (not tied to any project)
+  PHASE // Message in a project phase chat
+  GENERAL // General team chat (not tied to any project)
 }
 
 enum AssignmentStatus {
@@ -2849,7 +2881,7 @@ enum ClientQuoteStatus {
   REVISION_REQUESTED
   REJECTED
   EXPIRED
-  PAID              // Invoice has been paid (fully or partially)
+  PAID // Invoice has been paid (fully or partially)
 }
 
 enum PaymentStatus {
@@ -2919,17 +2951,17 @@ model TimeEntry {
   description String?
   startTime   DateTime
   endTime     DateTime?
-  duration    Int?            // Total minutes (calculated on stop, excludes pauses)
+  duration    Int? // Total minutes (calculated on stop, excludes pauses)
   status      TimeEntryStatus @default(RUNNING)
   isManual    Boolean         @default(false)
   isBillable  Boolean         @default(true)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
-  user    User     @relation("UserTimeEntries", fields: [userId], references: [id], onDelete: Cascade)
-  project Project? @relation("ProjectTimeEntries", fields: [projectId], references: [id], onDelete: SetNull)
-  room    Room?    @relation("RoomTimeEntries", fields: [roomId], references: [id], onDelete: SetNull)
-  stage   Stage?   @relation("StageTimeEntries", fields: [stageId], references: [id], onDelete: SetNull)
+  user    User            @relation("UserTimeEntries", fields: [userId], references: [id], onDelete: Cascade)
+  project Project?        @relation("ProjectTimeEntries", fields: [projectId], references: [id], onDelete: SetNull)
+  room    Room?           @relation("RoomTimeEntries", fields: [roomId], references: [id], onDelete: SetNull)
+  stage   Stage?          @relation("StageTimeEntries", fields: [stageId], references: [id], onDelete: SetNull)
   pauses  TimePause[]
   edits   TimeEntryEdit[]
 
@@ -2945,7 +2977,7 @@ model TimePause {
   timeEntryId String
   pausedAt    DateTime  @default(now())
   resumedAt   DateTime?
-  duration    Int?      // Pause duration in minutes (calculated on resume)
+  duration    Int? // Pause duration in minutes (calculated on resume)
   createdAt   DateTime  @default(now())
 
   timeEntry TimeEntry @relation(fields: [timeEntryId], references: [id], onDelete: Cascade)
@@ -2957,9 +2989,9 @@ model TimeEntryEdit {
   id            String   @id @default(cuid())
   timeEntryId   String
   editedById    String
-  field         String   // Which field was changed
-  previousValue String?  // JSON string of previous value
-  newValue      String?  // JSON string of new value
+  field         String // Which field was changed
+  previousValue String? // JSON string of previous value
+  newValue      String? // JSON string of new value
   reason        String?
   createdAt     DateTime @default(now())
 
@@ -2977,7 +3009,7 @@ model UserTimeSettings {
   autoStopMinutes  Int      @default(0) // 0 = disabled
   weekStartsOn     Int      @default(0) // 0 = Sunday, 1 = Monday, etc.
   dailyTargetHours Float    @default(8)
-  recentProjects   Json?    // Array of {projectId, roomId, stageId, description}
+  recentProjects   Json? // Array of {projectId, roomId, stageId, description}
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -2988,7 +3020,7 @@ model UserTimeSettings {
 
 // Floorplan Chat Models
 model FloorplanChatMessage {
-  id              String                    @id @default(cuid())
+  id              String    @id @default(cuid())
   projectId       String
   authorId        String
   content         String
@@ -2996,13 +3028,13 @@ model FloorplanChatMessage {
   imageUrl        String?
   imageFileName   String?
   editedAt        DateTime?
-  createdAt       DateTime                  @default(now())
-  updatedAt       DateTime                  @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  project       Project                      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  author        User                         @relation("FloorplanChatAuthor", fields: [authorId], references: [id])
-  parentMessage FloorplanChatMessage?        @relation("FloorplanChatReplies", fields: [parentMessageId], references: [id], onDelete: SetNull)
-  replies       FloorplanChatMessage[]       @relation("FloorplanChatReplies")
+  project       Project                   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  author        User                      @relation("FloorplanChatAuthor", fields: [authorId], references: [id])
+  parentMessage FloorplanChatMessage?     @relation("FloorplanChatReplies", fields: [parentMessageId], references: [id], onDelete: SetNull)
+  replies       FloorplanChatMessage[]    @relation("FloorplanChatReplies")
   mentions      FloorplanChatMention[]
   reactions     FloorplanChatReaction[]
   attachments   FloorplanChatAttachment[]
@@ -3065,40 +3097,40 @@ model FloorplanChatAttachment {
 
 // Request for Quote - Sent to one or more suppliers
 model RFQ {
-  id               String    @id @default(cuid())
-  orgId            String
-  projectId        String
-  rfqNumber        String    // Auto-generated: RFQ-2024-0001
-  title            String
-  description      String?
-  status           RFQStatus @default(DRAFT)
+  id          String    @id @default(cuid())
+  orgId       String
+  projectId   String
+  rfqNumber   String // Auto-generated: RFQ-2024-0001
+  title       String
+  description String?
+  status      RFQStatus @default(DRAFT)
 
   // Grouping - allows grouping items by category for bulk RFQ
-  groupingType     String?   // 'category' | 'individual' | 'custom'
-  categoryFilter   String?   // e.g., 'Plumbing', 'Electrical'
+  groupingType   String? // 'category' | 'individual' | 'custom'
+  categoryFilter String? // e.g., 'Plumbing', 'Electrical'
 
   // Timing
   validUntil       DateTime?
   responseDeadline DateTime?
 
   // Tracking
-  sentAt           DateTime?
-  sentById         String?
+  sentAt   DateTime?
+  sentById String?
 
-  createdById      String
-  updatedById      String
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  createdById String
+  updatedById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   // Relations
-  project          Project       @relation("ProjectRFQs", fields: [projectId], references: [id], onDelete: Cascade)
-  sentBy           User?         @relation("RFQSentBy", fields: [sentById], references: [id])
-  createdBy        User          @relation("RFQCreatedBy", fields: [createdById], references: [id])
-  updatedBy        User          @relation("RFQUpdatedBy", fields: [updatedById], references: [id])
-  lineItems        RFQLineItem[]
-  supplierRFQs     SupplierRFQ[]
-  documents        RFQDocument[]
-  activities       RFQActivity[]
+  project           Project            @relation("ProjectRFQs", fields: [projectId], references: [id], onDelete: Cascade)
+  sentBy            User?              @relation("RFQSentBy", fields: [sentById], references: [id])
+  createdBy         User               @relation("RFQCreatedBy", fields: [createdById], references: [id])
+  updatedBy         User               @relation("RFQUpdatedBy", fields: [updatedById], references: [id])
+  lineItems         RFQLineItem[]
+  supplierRFQs      SupplierRFQ[]
+  documents         RFQDocument[]
+  activities        RFQActivity[]
   itemQuoteRequests ItemQuoteRequest[] @relation("RFQQuoteRequests")
 
   @@unique([orgId, rfqNumber])
@@ -3110,29 +3142,29 @@ model RFQ {
 
 // Line items in an RFQ - links to RoomFFEItem specs
 model RFQLineItem {
-  id               String   @id @default(cuid())
-  rfqId            String
-  roomFFEItemId    String   // Link to spec item (isSpecItem=true)
+  id            String @id @default(cuid())
+  rfqId         String
+  roomFFEItemId String // Link to spec item (isSpecItem=true)
 
   // Copied data for reference (in case spec changes)
-  itemName         String
-  itemDescription  String?
-  quantity         Int      @default(1)
-  unitType         String?  @default("units")
-  specifications   Json?    // Dimensions, color, finish, etc.
+  itemName        String
+  itemDescription String?
+  quantity        Int     @default(1)
+  unitType        String? @default("units")
+  specifications  Json? // Dimensions, color, finish, etc.
 
   // Optional target pricing for negotiation
   targetUnitPrice  Decimal?
   targetTotalPrice Decimal?
 
-  notes            String?
-  order            Int      @default(0)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  notes     String?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  rfq              RFQ                     @relation(fields: [rfqId], references: [id], onDelete: Cascade)
-  roomFFEItem      RoomFFEItem             @relation("RFQLineItems", fields: [roomFFEItemId], references: [id])
-  quoteLineItems   SupplierQuoteLineItem[]
+  rfq            RFQ                     @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  roomFFEItem    RoomFFEItem             @relation("RFQLineItems", fields: [roomFFEItemId], references: [id])
+  quoteLineItems SupplierQuoteLineItem[]
 
   @@index([rfqId])
   @@index([roomFFEItemId])
@@ -3140,15 +3172,15 @@ model RFQLineItem {
 
 // Tracks RFQ sent to specific supplier
 model SupplierRFQ {
-  id             String    @id @default(cuid())
-  rfqId          String
-  supplierId     String?   // Null for one-time vendors
+  id         String  @id @default(cuid())
+  rfqId      String
+  supplierId String? // Null for one-time vendors
 
   // One-time vendor info (when supplierId is null)
-  vendorName     String?
-  vendorEmail    String?
-  vendorPhone    String?
-  vendorCompany  String?
+  vendorName    String?
+  vendorEmail   String?
+  vendorPhone   String?
+  vendorCompany String?
 
   // Access token for supplier portal
   accessToken    String    @unique @default(cuid())
@@ -3166,19 +3198,19 @@ model SupplierRFQ {
   declineReason  String?
 
   // Custom shipping address (if different from project)
-  shippingAddress Json?    // { street, city, province, postalCode, country }
+  shippingAddress Json? // { street, city, province, postalCode, country }
 
   // Content visibility settings for supplier portal
-  includeSpecSheet Boolean  @default(true)  // Show spec sheets/documents in portal
-  includeNotes     Boolean  @default(true)  // Show item notes in portal
+  includeSpecSheet Boolean @default(true) // Show spec sheets/documents in portal
+  includeNotes     Boolean @default(true) // Show item notes in portal
 
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  rfq            RFQ               @relation(fields: [rfqId], references: [id], onDelete: Cascade)
-  supplier       Supplier?         @relation(fields: [supplierId], references: [id])
-  quotes         SupplierQuote[]
-  accessLogs     SupplierAccessLog[]
+  rfq        RFQ                 @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  supplier   Supplier?           @relation(fields: [supplierId], references: [id])
+  quotes     SupplierQuote[]
+  accessLogs SupplierAccessLog[]
 
   @@unique([rfqId, supplierId])
   @@index([rfqId])
@@ -3188,15 +3220,15 @@ model SupplierRFQ {
 
 // Supplier access logging
 model SupplierAccessLog {
-  id            String      @id @default(cuid())
+  id            String   @id @default(cuid())
   supplierRFQId String
   ipAddress     String?
   userAgent     String?
-  action        String      // 'VIEW', 'DOWNLOAD', 'SUBMIT_QUOTE', etc.
+  action        String // 'VIEW', 'DOWNLOAD', 'SUBMIT_QUOTE', etc.
   metadata      Json?
-  createdAt     DateTime    @default(now())
+  createdAt     DateTime @default(now())
 
-  supplierRFQ   SupplierRFQ @relation(fields: [supplierRFQId], references: [id], onDelete: Cascade)
+  supplierRFQ SupplierRFQ @relation(fields: [supplierRFQId], references: [id], onDelete: Cascade)
 
   @@index([supplierRFQId])
   @@index([createdAt])
@@ -3204,23 +3236,23 @@ model SupplierAccessLog {
 
 // Quote submitted by supplier
 model SupplierQuote {
-  id                String              @id @default(cuid())
-  supplierRFQId     String
-  quoteNumber       String              // Supplier's quote reference
-  version           Int                 @default(1)
+  id            String @id @default(cuid())
+  supplierRFQId String
+  quoteNumber   String // Supplier's quote reference
+  version       Int    @default(1)
 
-  status            SupplierQuoteStatus @default(PENDING)
+  status SupplierQuoteStatus @default(PENDING)
 
   // Pricing Summary
-  subtotal          Decimal?
-  taxAmount         Decimal?
-  shippingCost      Decimal?
-  totalAmount       Decimal?
-  currency          String              @default("CAD")
+  subtotal     Decimal?
+  taxAmount    Decimal?
+  shippingCost Decimal?
+  totalAmount  Decimal?
+  currency     String   @default("CAD")
 
   // Deposit
-  depositRequired   Decimal?            // Deposit amount required before production/shipping
-  depositPercent    Decimal?            // Deposit as percentage of total
+  depositRequired Decimal? // Deposit amount required before production/shipping
+  depositPercent  Decimal? // Deposit as percentage of total
 
   // Terms
   validUntil        DateTime?
@@ -3229,28 +3261,28 @@ model SupplierQuote {
   estimatedLeadTime String?
 
   // Notes
-  supplierNotes     String?
-  internalNotes     String?
+  supplierNotes String?
+  internalNotes String?
 
   // Document
-  quoteDocumentUrl  String?             // Uploaded quote document (PDF, etc.)
+  quoteDocumentUrl String? // Uploaded quote document (PDF, etc.)
 
   // Tracking
-  submittedAt       DateTime?
-  reviewedAt        DateTime?
-  reviewedById      String?
-  acceptedAt        DateTime?
-  acceptedById      String?
+  submittedAt  DateTime?
+  reviewedAt   DateTime?
+  reviewedById String?
+  acceptedAt   DateTime?
+  acceptedById String?
 
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  supplierRFQ       SupplierRFQ                @relation(fields: [supplierRFQId], references: [id], onDelete: Cascade)
-  reviewedBy        User?                      @relation("QuoteReviewedBy", fields: [reviewedById], references: [id])
-  acceptedBy        User?                      @relation("QuoteAcceptedBy", fields: [acceptedById], references: [id])
-  lineItems         SupplierQuoteLineItem[]
-  documents         RFQDocument[]              @relation("SupplierQuoteDocuments")
-  clientQuoteLines  ClientQuoteLineItem[]
+  supplierRFQ      SupplierRFQ             @relation(fields: [supplierRFQId], references: [id], onDelete: Cascade)
+  reviewedBy       User?                   @relation("QuoteReviewedBy", fields: [reviewedById], references: [id])
+  acceptedBy       User?                   @relation("QuoteAcceptedBy", fields: [acceptedById], references: [id])
+  lineItems        SupplierQuoteLineItem[]
+  documents        RFQDocument[]           @relation("SupplierQuoteDocuments")
+  clientQuoteLines ClientQuoteLineItem[]
 
   @@index([supplierRFQId])
   @@index([status])
@@ -3259,132 +3291,162 @@ model SupplierQuote {
 
 // Individual line item in supplier quote
 model SupplierQuoteLineItem {
-  id                  String   @id @default(cuid())
-  supplierQuoteId     String
-  rfqLineItemId       String
+  id              String @id @default(cuid())
+  supplierQuoteId String
+  rfqLineItemId   String
+
+  // === DIRECT ITEM LINK ===
+  // Direct link to RoomFFEItem (in addition to going through RFQLineItem)
+  // This enables tracking all quotes for an item directly
+  roomFFEItemId String?
 
   // Pricing
-  unitPrice           Decimal
-  quantity            Int
-  totalPrice          Decimal
-  currency            String   @default("CAD")
+  unitPrice  Decimal
+  quantity   Int
+  totalPrice Decimal
+  currency   String  @default("CAD")
 
   // Availability
-  availability        String?  // 'IN_STOCK', 'BACKORDER', 'SPECIAL_ORDER'
-  leadTimeWeeks       Int?
-  leadTimeNotes       String?
-  leadTime            String?  // Human-readable: 'in-stock', '2-4-weeks', etc.
+  availability  String? // 'IN_STOCK', 'BACKORDER', 'SPECIAL_ORDER'
+  leadTimeWeeks Int?
+  leadTimeNotes String?
+  leadTime      String? // Human-readable: 'in-stock', '2-4-weeks', etc.
 
   // Product info
-  itemName            String?  // Item name from supplier's quote
+  itemName            String? // Item name from supplier's quote
   supplierSKU         String?
   supplierModelNumber String?
-  alternateProduct    Boolean  @default(false)
+  alternateProduct    Boolean @default(false)
   alternateNotes      String?
 
   // Match verification
-  matchApproved       Boolean  @default(false)
-  matchApprovedAt     DateTime?
-  matchApprovedById   String?
+  matchApproved     Boolean   @default(false)
+  matchApprovedAt   DateTime?
+  matchApprovedById String?
+
+  // === QUOTE ACCEPTANCE ===
+  // When this quote line is selected as THE quote for an item
+  isAccepted   Boolean   @default(false)
+  acceptedAt   DateTime?
+  acceptedById String?
+
+  // === QUOTE VERSIONING ===
+  // Track revisions from the same supplier
+  quoteVersion      Int     @default(1)
+  isLatestVersion   Boolean @default(true)
+  previousVersionId String? // Links to previous quote version from same supplier
 
   // Approved markup (set when quote is accepted)
-  approvedMarkupPercent Decimal?  // Markup % approved when accepting quote
+  approvedMarkupPercent Decimal? // Markup % approved when accepting quote
 
-  notes               String?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  supplierQuote       SupplierQuote @relation(fields: [supplierQuoteId], references: [id], onDelete: Cascade)
-  rfqLineItem         RFQLineItem   @relation(fields: [rfqLineItemId], references: [id])
-  matchApprovedBy     User?         @relation("MatchApprovedBy", fields: [matchApprovedById], references: [id])
+  // Relations
+  supplierQuote   SupplierQuote @relation(fields: [supplierQuoteId], references: [id], onDelete: Cascade)
+  rfqLineItem     RFQLineItem   @relation(fields: [rfqLineItemId], references: [id])
+  matchApprovedBy User?         @relation("MatchApprovedBy", fields: [matchApprovedById], references: [id])
+  acceptedBy      User?         @relation("QuoteLineAcceptedBy", fields: [acceptedById], references: [id])
+
+  // Direct item relation
+  roomFFEItem    RoomFFEItem? @relation("ItemQuoteLineItems", fields: [roomFFEItemId], references: [id])
+  acceptedByItem RoomFFEItem? @relation("AcceptedQuoteForItem") // Reverse of RoomFFEItem.acceptedQuoteLineItem
+
+  // Self-reference for quote versioning
+  previousVersion SupplierQuoteLineItem?  @relation("QuoteLineVersions", fields: [previousVersionId], references: [id])
+  newerVersions   SupplierQuoteLineItem[] @relation("QuoteLineVersions")
 
   @@index([supplierQuoteId])
   @@index([rfqLineItemId])
+  @@index([roomFFEItemId])
+  @@index([isAccepted])
+  @@index([isLatestVersion])
 }
 
 // Quote sent to client (with markup applied)
 model ClientQuote {
-  id                   String            @id @default(cuid())
-  orgId                String
-  projectId            String
-  quoteNumber          String            // CQ-2024-0001
-  version              Int               @default(1)
+  id          String @id @default(cuid())
+  orgId       String
+  projectId   String
+  quoteNumber String // CQ-2024-0001
+  version     Int    @default(1)
 
-  title                String
-  description          String?
-  status               ClientQuoteStatus @default(DRAFT)
+  title       String
+  description String?
+  status      ClientQuoteStatus @default(DRAFT)
 
   // Grouping
-  groupingType         String?           // 'category' | 'room' | 'custom'
-  groupTitle           String?
+  groupingType String? // 'category' | 'room' | 'custom'
+  groupTitle   String?
 
   // Pricing Summary (after markup)
-  subtotal             Decimal?
-  taxRate              Decimal?          @default(0)
-  taxAmount            Decimal?
-  shippingCost         Decimal?          // Delivery/shipping fee
-  customFees           Json?             // Array of {name: string, amount: number} for duties, handling, etc.
-  totalAmount          Decimal?
-  currency             String            @default("CAD")
+  subtotal     Decimal?
+  taxRate      Decimal? @default(0)
+  taxAmount    Decimal?
+  shippingCost Decimal? // Delivery/shipping fee
+  customFees   Json? // Array of {name: string, amount: number} for duties, handling, etc.
+  totalAmount  Decimal?
+  currency     String   @default("CAD")
 
   // GST/QST Tax Breakdown
-  gstRate              Decimal?          @default(5.0)
-  gstAmount            Decimal?
-  qstRate              Decimal?          @default(9.975)
-  qstAmount            Decimal?
+  gstRate   Decimal? @default(5.0)
+  gstAmount Decimal?
+  qstRate   Decimal? @default(9.975)
+  qstAmount Decimal?
 
   // Default markup for this quote
-  defaultMarkupPercent Decimal?          @default(25)
+  defaultMarkupPercent Decimal? @default(25)
 
   // Terms
-  validUntil           DateTime?
-  paymentTerms         String?
-  depositRequired      Decimal?
-  depositAmount        Decimal?
+  validUntil      DateTime?
+  paymentTerms    String?
+  depositRequired Decimal?
+  depositAmount   Decimal?
 
   // Client Info Snapshot (for invoice)
-  clientName           String?
-  clientEmail          String?
-  clientPhone          String?
-  clientAddress        String?
+  clientName    String?
+  clientEmail   String?
+  clientPhone   String?
+  clientAddress String?
 
   // Payment Method
-  selectedPaymentMethod String?          // CREDIT_CARD, WIRE, CHECK, CASH
-  ccSurchargePercent    Decimal?         @default(3.0)
+  selectedPaymentMethod String? // CREDIT_CARD, WIRE, CHECK, CASH
+  ccSurchargePercent    Decimal? @default(3.0)
   ccSurchargeAmount     Decimal?
-  allowCreditCard       Boolean          @default(true)
+  allowCreditCard       Boolean  @default(true)
 
   // Email tracking
-  sentToClientAt       DateTime?
-  sentById             String?
-  emailOpenedAt        DateTime?
+  sentToClientAt DateTime?
+  sentById       String?
+  emailOpenedAt  DateTime?
 
   // Client response
-  clientDecision       String?
-  clientDecidedAt      DateTime?
-  clientMessage        String?
+  clientDecision  String?
+  clientDecidedAt DateTime?
+  clientMessage   String?
 
   // Access
-  accessToken          String            @unique @default(cuid())
+  accessToken String @unique @default(cuid())
 
   // Dropbox integration
-  dropboxPdfPath       String?           // Path to invoice PDF in Dropbox
-  dropboxPdfUrl        String?           // Shared link for the PDF
+  dropboxPdfPath String? // Path to invoice PDF in Dropbox
+  dropboxPdfUrl  String? // Shared link for the PDF
 
-  createdById          String
-  updatedById          String
-  createdAt            DateTime          @default(now())
-  updatedAt            DateTime          @updatedAt
+  createdById String
+  updatedById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  project              Project                @relation("ProjectClientQuotes", fields: [projectId], references: [id], onDelete: Cascade)
-  sentBy               User?                  @relation("ClientQuoteSentBy", fields: [sentById], references: [id])
-  createdBy            User                   @relation("ClientQuoteCreatedBy", fields: [createdById], references: [id])
-  updatedBy            User                   @relation("ClientQuoteUpdatedBy", fields: [updatedById], references: [id])
-  lineItems            ClientQuoteLineItem[]
-  documents            RFQDocument[]          @relation("ClientQuoteDocuments")
-  payments             Payment[]
-  emailLogs            ClientQuoteEmailLog[]
-  activities           ClientQuoteActivity[]
+  project    Project               @relation("ProjectClientQuotes", fields: [projectId], references: [id], onDelete: Cascade)
+  sentBy     User?                 @relation("ClientQuoteSentBy", fields: [sentById], references: [id])
+  createdBy  User                  @relation("ClientQuoteCreatedBy", fields: [createdById], references: [id])
+  updatedBy  User                  @relation("ClientQuoteUpdatedBy", fields: [updatedById], references: [id])
+  lineItems  ClientQuoteLineItem[]
+  documents  RFQDocument[]         @relation("ClientQuoteDocuments")
+  payments   Payment[]
+  emailLogs  ClientQuoteEmailLog[]
+  activities ClientQuoteActivity[]
 
   @@unique([orgId, quoteNumber])
   @@index([orgId])
@@ -3395,50 +3457,50 @@ model ClientQuote {
 
 // Line item in client quote
 model ClientQuoteLineItem {
-  id                  String   @id @default(cuid())
-  clientQuoteId       String
-  supplierQuoteId     String?
-  roomFFEItemId       String?  // Optional - may not link to spec item for manual entries
+  id              String  @id @default(cuid())
+  clientQuoteId   String
+  supplierQuoteId String?
+  roomFFEItemId   String? // Optional - may not link to spec item for manual entries
 
   // Display info (client sees this)
-  displayName         String
-  displayDescription  String?
-  categoryName        String?
-  roomName            String?
-  imageUrl            String?  // Image URL for display (especially for components)
-  isComponent         Boolean  @default(false)  // Flag for component items
+  displayName        String
+  displayDescription String?
+  categoryName       String?
+  roomName           String?
+  imageUrl           String? // Image URL for display (especially for components)
+  isComponent        Boolean @default(false) // Flag for component items
 
   // Quantity
-  quantity            Int      @default(1)
-  unitType            String?  @default("units")
+  quantity Int     @default(1)
+  unitType String? @default("units")
 
   // Pricing - what client sees (markup applied)
-  clientUnitPrice     Decimal
-  clientTotalPrice    Decimal
+  clientUnitPrice  Decimal
+  clientTotalPrice Decimal
 
   // Hidden pricing - what designer paid
-  supplierUnitPrice   Decimal?
-  supplierTotalPrice  Decimal?
+  supplierUnitPrice  Decimal?
+  supplierTotalPrice Decimal?
 
   // Markup
-  markupType          String?  @default("PERCENTAGE")
-  markupValue         Decimal?
-  markupAmount        Decimal?
+  markupType   String?  @default("PERCENTAGE")
+  markupValue  Decimal?
+  markupAmount Decimal?
 
   // Grouping
-  groupId             String?
-  groupName           String?
-  order               Int      @default(0)
+  groupId   String?
+  groupName String?
+  order     Int     @default(0)
 
-  notes               String?
-  internalNotes       String?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  notes         String?
+  internalNotes String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  clientQuote         ClientQuote    @relation(fields: [clientQuoteId], references: [id], onDelete: Cascade)
-  supplierQuote       SupplierQuote? @relation(fields: [supplierQuoteId], references: [id])
-  roomFFEItem         RoomFFEItem?   @relation("ClientQuoteLineItems", fields: [roomFFEItemId], references: [id])
-  orderItems          OrderItem[]
+  clientQuote   ClientQuote    @relation(fields: [clientQuoteId], references: [id], onDelete: Cascade)
+  supplierQuote SupplierQuote? @relation(fields: [supplierQuoteId], references: [id])
+  roomFFEItem   RoomFFEItem?   @relation("ClientQuoteLineItems", fields: [roomFFEItemId], references: [id])
+  orderItems    OrderItem[]
 
   @@index([clientQuoteId])
   @@index([roomFFEItemId])
@@ -3461,33 +3523,33 @@ model CategoryMarkup {
 
 // Email logs for client quotes
 model ClientQuoteEmailLog {
-  id              String      @id @default(cuid())
+  id              String    @id @default(cuid())
   clientQuoteId   String
   to              String
   subject         String
   htmlContent     String
-  sentAt          DateTime    @default(now())
+  sentAt          DateTime  @default(now())
   openedAt        DateTime?
   clickedAt       DateTime?
-  trackingPixelId String      @unique
+  trackingPixelId String    @unique
 
-  clientQuote     ClientQuote @relation(fields: [clientQuoteId], references: [id], onDelete: Cascade)
+  clientQuote ClientQuote @relation(fields: [clientQuoteId], references: [id], onDelete: Cascade)
 
   @@index([clientQuoteId])
 }
 
 // Activity log for client quotes
 model ClientQuoteActivity {
-  id            String      @id @default(cuid())
+  id            String   @id @default(cuid())
   clientQuoteId String
   type          String
   message       String
   userId        String?
   metadata      Json?
-  createdAt     DateTime    @default(now())
+  createdAt     DateTime @default(now())
 
-  clientQuote   ClientQuote @relation(fields: [clientQuoteId], references: [id], onDelete: Cascade)
-  user          User?       @relation("ClientQuoteActivityUser", fields: [userId], references: [id])
+  clientQuote ClientQuote @relation(fields: [clientQuoteId], references: [id], onDelete: Cascade)
+  user        User?       @relation("ClientQuoteActivityUser", fields: [userId], references: [id])
 
   @@index([clientQuoteId])
   @@index([createdAt])
@@ -3495,56 +3557,56 @@ model ClientQuoteActivity {
 
 // Budget Quote - simplified estimate sent to client for bulk approval
 model BudgetQuote {
-  id                String   @id @default(cuid())
-  orgId             String
-  projectId         String
-  token             String   @unique @default(cuid())  // Public access token
+  id        String @id @default(cuid())
+  orgId     String
+  projectId String
+  token     String @unique @default(cuid()) // Public access token
 
   // Display
-  title             String            // e.g., "Tiles – Main Floor"
-  description       String?           // What's included text
+  title       String // e.g., "Tiles – Main Floor"
+  description String? // What's included text
 
   // Items
-  itemIds           String[]          // Array of RoomFFEItem IDs
-  supplierQuoteIds  String[]          // Array of SupplierQuote IDs (if created from quotes)
+  itemIds          String[] // Array of RoomFFEItem IDs
+  supplierQuoteIds String[] // Array of SupplierQuote IDs (if created from quotes)
 
   // Pricing
-  estimatedTotal    Decimal           // Total estimate
-  markupPercent     Decimal?          // Markup applied (if any)
-  currency          String   @default("CAD")
-  includeTax        Boolean  @default(true)  // Show "+ tax" message
+  estimatedTotal Decimal // Total estimate
+  markupPercent  Decimal? // Markup applied (if any)
+  currency       String   @default("CAD")
+  includeTax     Boolean  @default(true) // Show "+ tax" message
 
   // Included services (displayed as bullet points)
-  includedServices  String[]          // e.g., ["Material selection", "Supplier coordination"]
+  includedServices String[] // e.g., ["Material selection", "Supplier coordination"]
 
   // Status
-  status            String   @default("PENDING")  // PENDING, APPROVED, QUESTION_ASKED, EXPIRED
+  status String @default("PENDING") // PENDING, APPROVED, QUESTION_ASKED, EXPIRED
 
   // Client response
-  clientApproved    Boolean  @default(false)
-  clientApprovedAt  DateTime?
-  clientQuestion    String?           // If they asked a question
-  clientQuestionAt  DateTime?
-  clientEmail       String?           // For sending response
+  clientApproved   Boolean   @default(false)
+  clientApprovedAt DateTime?
+  clientQuestion   String? // If they asked a question
+  clientQuestionAt DateTime?
+  clientEmail      String? // For sending response
 
   // Email tracking
-  sentAt            DateTime?
-  sentToEmail       String?
-  emailOpenedAt     DateTime?
-  viewedAt          DateTime?   // When client viewed the portal
+  sentAt        DateTime?
+  sentToEmail   String?
+  emailOpenedAt DateTime?
+  viewedAt      DateTime? // When client viewed the portal
 
   // Validity
-  expiresAt         DateTime?
+  expiresAt DateTime?
 
   // Audit
-  createdById       String
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   // Relations
-  org               Organization @relation("BudgetQuoteOrg", fields: [orgId], references: [id])
-  project           Project      @relation("BudgetQuoteProject", fields: [projectId], references: [id])
-  createdBy         User         @relation("BudgetQuoteCreatedBy", fields: [createdById], references: [id])
+  org       Organization @relation("BudgetQuoteOrg", fields: [orgId], references: [id])
+  project   Project      @relation("BudgetQuoteProject", fields: [projectId], references: [id])
+  createdBy User         @relation("BudgetQuoteCreatedBy", fields: [createdById], references: [id])
 
   @@index([orgId])
   @@index([projectId])
@@ -3554,49 +3616,49 @@ model BudgetQuote {
 
 // Payment tracking
 model Payment {
-  id              String        @id @default(cuid())
-  orgId           String
-  clientQuoteId   String
+  id            String @id @default(cuid())
+  orgId         String
+  clientQuoteId String
 
   // Amount
-  amount          Decimal
-  currency        String        @default("CAD")
+  amount   Decimal
+  currency String  @default("CAD")
 
   // Payment info
-  method          PaymentMethod
-  status          PaymentStatus @default(PENDING)
+  method PaymentMethod
+  status PaymentStatus @default(PENDING)
 
   // External references
-  stripePaymentId   String?
-  stripeChargeId    String?
+  stripePaymentId    String?
+  stripeChargeId     String?
   nuveiTransactionId String?
-  achTransactionId  String?
-  checkNumber       String?
-  wireReference     String?
+  achTransactionId   String?
+  checkNumber        String?
+  wireReference      String?
 
   // Tracking
-  paidAt          DateTime?
-  confirmedAt     DateTime?
-  confirmedById   String?
+  paidAt        DateTime?
+  confirmedAt   DateTime?
+  confirmedById String?
 
   // Reconciliation
-  reconciled      Boolean       @default(false)
+  reconciled      Boolean   @default(false)
   reconciledAt    DateTime?
   reconciledById  String?
   reconciledNotes String?
 
-  notes           String?
-  metadata        Json?
+  notes    String?
+  metadata Json?
 
-  createdById     String?       // Optional for webhook-created payments
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  createdById String? // Optional for webhook-created payments
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  clientQuote     ClientQuote   @relation(fields: [clientQuoteId], references: [id], onDelete: Cascade)
-  confirmedBy     User?         @relation("PaymentConfirmedBy", fields: [confirmedById], references: [id])
-  reconciledBy    User?         @relation("PaymentReconciledBy", fields: [reconciledById], references: [id])
-  createdBy       User?         @relation("PaymentCreatedBy", fields: [createdById], references: [id])
-  documents       RFQDocument[] @relation("PaymentDocuments")
+  clientQuote  ClientQuote   @relation(fields: [clientQuoteId], references: [id], onDelete: Cascade)
+  confirmedBy  User?         @relation("PaymentConfirmedBy", fields: [confirmedById], references: [id])
+  reconciledBy User?         @relation("PaymentReconciledBy", fields: [reconciledById], references: [id])
+  createdBy    User?         @relation("PaymentCreatedBy", fields: [createdById], references: [id])
+  documents    RFQDocument[] @relation("PaymentDocuments")
 
   @@index([orgId])
   @@index([clientQuoteId])
@@ -3606,25 +3668,25 @@ model Payment {
 
 // Order placed with supplier after payment
 model Order {
-  id               String      @id @default(cuid())
-  orgId            String
-  projectId        String
+  id        String @id @default(cuid())
+  orgId     String
+  projectId String
 
-  orderNumber      String      // PO-2024-0001
+  orderNumber      String // PO-2024-0001
   supplierOrderRef String?
 
-  supplierId       String?
-  vendorName       String?
-  vendorEmail      String?
+  supplierId  String?
+  vendorName  String?
+  vendorEmail String?
 
-  status           OrderStatus @default(PENDING_PAYMENT)
+  status OrderStatus @default(PENDING_PAYMENT)
 
   // Amounts
-  subtotal         Decimal?
-  taxAmount        Decimal?
-  shippingCost     Decimal?
-  totalAmount      Decimal?
-  currency         String      @default("CAD")
+  subtotal     Decimal?
+  taxAmount    Decimal?
+  shippingCost Decimal?
+  totalAmount  Decimal?
+  currency     String   @default("CAD")
 
   // Dates
   orderedAt        DateTime?
@@ -3635,36 +3697,36 @@ model Order {
   actualDelivery   DateTime?
 
   // Shipping
-  shippingMethod   String?
-  trackingNumber   String?
-  trackingUrl      String?
-  shippingCarrier  String?
-  shippingAddress  String?
+  shippingMethod  String?
+  trackingNumber  String?
+  trackingUrl     String?
+  shippingCarrier String?
+  shippingAddress String?
 
   // Supplier Payment Tracking
-  supplierPaidAt        DateTime?  // When we paid the supplier
-  supplierPaymentMethod String?    // How we paid (wire, check, credit, etc.)
-  supplierPaymentRef    String?    // Reference number/confirmation
-  supplierPaymentAmount Decimal?   // Amount paid to supplier
-  supplierPaymentNotes  String?    // Any notes about the payment
+  supplierPaidAt        DateTime? // When we paid the supplier
+  supplierPaymentMethod String? // How we paid (wire, check, credit, etc.)
+  supplierPaymentRef    String? // Reference number/confirmation
+  supplierPaymentAmount Decimal? // Amount paid to supplier
+  supplierPaymentNotes  String? // Any notes about the payment
 
-  notes            String?
-  internalNotes    String?
+  notes         String?
+  internalNotes String?
 
-  createdById      String
-  updatedById      String
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
+  createdById String
+  updatedById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  project          Project              @relation("ProjectOrders", fields: [projectId], references: [id], onDelete: Cascade)
-  supplier         Supplier?            @relation(fields: [supplierId], references: [id])
-  createdBy        User                 @relation("OrderCreatedBy", fields: [createdById], references: [id])
-  updatedBy        User                 @relation("OrderUpdatedBy", fields: [updatedById], references: [id])
-  items            OrderItem[]
-  documents        RFQDocument[]        @relation("OrderDocuments")
-  activities       OrderActivity[]
-  deliveries       Delivery[]
-  messages         SupplierMessage[]
+  project    Project           @relation("ProjectOrders", fields: [projectId], references: [id], onDelete: Cascade)
+  supplier   Supplier?         @relation(fields: [supplierId], references: [id])
+  createdBy  User              @relation("OrderCreatedBy", fields: [createdById], references: [id])
+  updatedBy  User              @relation("OrderUpdatedBy", fields: [updatedById], references: [id])
+  items      OrderItem[]
+  documents  RFQDocument[]     @relation("OrderDocuments")
+  activities OrderActivity[]
+  deliveries Delivery[]
+  messages   SupplierMessage[]
 
   @@unique([orgId, orderNumber])
   @@index([orgId])
@@ -3675,37 +3737,37 @@ model Order {
 
 // Individual items in an order
 model OrderItem {
-  id                    String      @id @default(cuid())
+  id                    String  @id @default(cuid())
   orderId               String
   clientQuoteLineItemId String?
   roomFFEItemId         String
 
   // Item info
-  name                  String
-  description           String?
-  quantity              Int
-  unitType              String?
+  name        String
+  description String?
+  quantity    Int
+  unitType    String?
 
   // Pricing
-  unitPrice             Decimal
-  totalPrice            Decimal
+  unitPrice  Decimal
+  totalPrice Decimal
 
   // Status tracking
-  status                OrderStatus @default(PENDING_PAYMENT)
+  status OrderStatus @default(PENDING_PAYMENT)
 
   // Delivery tracking
-  expectedDelivery      DateTime?
-  actualDelivery        DateTime?
-  deliveryId            String?
+  expectedDelivery DateTime?
+  actualDelivery   DateTime?
+  deliveryId       String?
 
-  notes                 String?
-  createdAt             DateTime    @default(now())
-  updatedAt             DateTime    @updatedAt
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  order                 Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  clientQuoteLineItem   ClientQuoteLineItem? @relation(fields: [clientQuoteLineItemId], references: [id])
-  roomFFEItem           RoomFFEItem          @relation("OrderItems", fields: [roomFFEItemId], references: [id])
-  delivery              Delivery?            @relation(fields: [deliveryId], references: [id])
+  order               Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  clientQuoteLineItem ClientQuoteLineItem? @relation(fields: [clientQuoteLineItemId], references: [id])
+  roomFFEItem         RoomFFEItem          @relation("OrderItems", fields: [roomFFEItemId], references: [id])
+  delivery            Delivery?            @relation(fields: [deliveryId], references: [id])
 
   @@index([orderId])
   @@index([roomFFEItemId])
@@ -3714,30 +3776,30 @@ model OrderItem {
 
 // Delivery tracking
 model Delivery {
-  id             String    @id @default(cuid())
-  orderId        String
+  id      String @id @default(cuid())
+  orderId String
 
   deliveryNumber String?
   carrier        String?
   trackingNumber String?
   trackingUrl    String?
 
-  status         String    @default("PENDING")
+  status String @default("PENDING")
 
-  expectedDate   DateTime?
-  actualDate     DateTime?
+  expectedDate DateTime?
+  actualDate   DateTime?
 
-  recipientName  String?
-  signedBy       String?
+  recipientName String?
+  signedBy      String?
 
-  notes          String?
+  notes String?
 
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  order          Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  items          OrderItem[]
-  documents      RFQDocument[]  @relation("DeliveryDocuments")
+  order     Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  items     OrderItem[]
+  documents RFQDocument[] @relation("DeliveryDocuments")
 
   @@index([orderId])
   @@index([trackingNumber])
@@ -3753,8 +3815,8 @@ model OrderActivity {
   metadata  Json?
   createdAt DateTime @default(now())
 
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  user      User?    @relation("OrderActivityUser", fields: [userId], references: [id])
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user  User? @relation("OrderActivityUser", fields: [userId], references: [id])
 
   @@index([orderId])
   @@index([createdAt])
@@ -3762,49 +3824,49 @@ model OrderActivity {
 
 // Documents for RFQ system
 model RFQDocument {
-  id                String          @id @default(cuid())
-  orgId             String
+  id    String @id @default(cuid())
+  orgId String
 
   // Link to various entities (one or more can be set)
-  rfqId             String?
-  supplierQuoteId   String?
-  clientQuoteId     String?
-  paymentId         String?
-  orderId           String?
-  deliveryId        String?
-  specItemId        String?           // Direct link to a spec item (RoomFFEItem)
+  rfqId           String?
+  supplierQuoteId String?
+  clientQuoteId   String?
+  paymentId       String?
+  orderId         String?
+  deliveryId      String?
+  specItemId      String? // Direct link to a spec item (RoomFFEItem)
 
   // Document info
-  type              RFQDocumentType
-  title             String
-  description       String?
+  type        RFQDocumentType
+  title       String
+  description String?
 
   // File info
-  fileName          String
-  fileUrl           String
-  fileSize          Int?
-  mimeType          String?
+  fileName String
+  fileUrl  String
+  fileSize Int?
+  mimeType String?
 
   // Storage provider
-  provider          String?
-  dropboxPath       String?
+  provider    String?
+  dropboxPath String?
 
   // Visibility
-  visibleToClient   Boolean         @default(false)
-  visibleToSupplier Boolean         @default(false)
+  visibleToClient   Boolean @default(false)
+  visibleToSupplier Boolean @default(false)
 
-  uploadedById      String
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  uploadedById String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  rfq               RFQ?            @relation(fields: [rfqId], references: [id], onDelete: Cascade)
-  supplierQuote     SupplierQuote?  @relation("SupplierQuoteDocuments", fields: [supplierQuoteId], references: [id], onDelete: Cascade)
-  clientQuote       ClientQuote?    @relation("ClientQuoteDocuments", fields: [clientQuoteId], references: [id], onDelete: Cascade)
-  payment           Payment?        @relation("PaymentDocuments", fields: [paymentId], references: [id], onDelete: Cascade)
-  order             Order?          @relation("OrderDocuments", fields: [orderId], references: [id], onDelete: Cascade)
-  delivery          Delivery?       @relation("DeliveryDocuments", fields: [deliveryId], references: [id], onDelete: Cascade)
-  specItem          RoomFFEItem?    @relation("SpecItemDocuments", fields: [specItemId], references: [id], onDelete: Cascade)
-  uploadedBy        User            @relation("RFQDocumentUploadedBy", fields: [uploadedById], references: [id])
+  rfq           RFQ?           @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  supplierQuote SupplierQuote? @relation("SupplierQuoteDocuments", fields: [supplierQuoteId], references: [id], onDelete: Cascade)
+  clientQuote   ClientQuote?   @relation("ClientQuoteDocuments", fields: [clientQuoteId], references: [id], onDelete: Cascade)
+  payment       Payment?       @relation("PaymentDocuments", fields: [paymentId], references: [id], onDelete: Cascade)
+  order         Order?         @relation("OrderDocuments", fields: [orderId], references: [id], onDelete: Cascade)
+  delivery      Delivery?      @relation("DeliveryDocuments", fields: [deliveryId], references: [id], onDelete: Cascade)
+  specItem      RoomFFEItem?   @relation("SpecItemDocuments", fields: [specItemId], references: [id], onDelete: Cascade)
+  uploadedBy    User           @relation("RFQDocumentUploadedBy", fields: [uploadedById], references: [id])
 
   @@index([orgId])
   @@index([rfqId])
@@ -3825,8 +3887,8 @@ model RFQActivity {
   metadata  Json?
   createdAt DateTime @default(now())
 
-  rfq       RFQ      @relation(fields: [rfqId], references: [id], onDelete: Cascade)
-  user      User?    @relation("RFQActivityUser", fields: [userId], references: [id])
+  rfq  RFQ   @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  user User? @relation("RFQActivityUser", fields: [userId], references: [id])
 
   @@index([rfqId])
   @@index([createdAt])
@@ -3834,21 +3896,21 @@ model RFQActivity {
 
 // Supplier messaging (integrated with main messaging)
 model SupplierMessage {
-  id           String    @id @default(cuid())
-  orgId        String
-  supplierId   String
-  projectId    String?
-  orderId      String?
+  id         String  @id @default(cuid())
+  orgId      String
+  supplierId String
+  projectId  String?
+  orderId    String?
 
   // Message content
-  content      String
-  attachments  Json?
+  content     String
+  attachments Json?
 
   // Direction
-  direction    String    // 'INBOUND' | 'OUTBOUND'
+  direction String // 'INBOUND' | 'OUTBOUND'
 
   // Sender info
-  senderType   String    // 'SUPPLIER' | 'TEAM'
+  senderType   String // 'SUPPLIER' | 'TEAM'
   senderUserId String?
   senderName   String?
 
@@ -3856,15 +3918,15 @@ model SupplierMessage {
   readAt       DateTime?
   readByUserId String?
 
-  isDeleted    Boolean   @default(false)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  isDeleted Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  supplier     Supplier  @relation(fields: [supplierId], references: [id])
-  project      Project?  @relation("ProjectSupplierMessages", fields: [projectId], references: [id])
-  order        Order?    @relation(fields: [orderId], references: [id])
-  senderUser   User?     @relation("SupplierMessageSender", fields: [senderUserId], references: [id])
-  readByUser   User?     @relation("SupplierMessageReadBy", fields: [readByUserId], references: [id])
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+  project    Project? @relation("ProjectSupplierMessages", fields: [projectId], references: [id])
+  order      Order?   @relation(fields: [orderId], references: [id])
+  senderUser User?    @relation("SupplierMessageSender", fields: [senderUserId], references: [id])
+  readByUser User?    @relation("SupplierMessageReadBy", fields: [readByUserId], references: [id])
 
   @@index([orgId])
   @@index([supplierId])
@@ -3874,19 +3936,19 @@ model SupplierMessage {
 
 // Shop drawings uploaded by suppliers
 model SupplierShopDrawing {
-  id           String            @id @default(cuid())
-  orgId        String
-  supplierId   String
-  projectId    String
-  orderId      String?
+  id         String  @id @default(cuid())
+  orgId      String
+  supplierId String
+  projectId  String
+  orderId    String?
 
   // File info
-  title        String
-  description  String?
-  fileName     String
-  fileUrl      String
-  fileSize     Int?
-  version      Int               @default(1)
+  title       String
+  description String?
+  fileName    String
+  fileUrl     String
+  fileSize    Int?
+  version     Int     @default(1)
 
   // Review workflow
   status       ShopDrawingStatus @default(PENDING)
@@ -3895,12 +3957,12 @@ model SupplierShopDrawing {
   reviewNotes  String?
 
   // Tracking
-  uploadedAt   DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
+  uploadedAt DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  supplier     Supplier          @relation(fields: [supplierId], references: [id])
-  project      Project           @relation("ProjectShopDrawings", fields: [projectId], references: [id])
-  reviewedBy   User?             @relation("ShopDrawingReviewedBy", fields: [reviewedById], references: [id])
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+  project    Project  @relation("ProjectShopDrawings", fields: [projectId], references: [id])
+  reviewedBy User?    @relation("ShopDrawingReviewedBy", fields: [reviewedById], references: [id])
 
   @@index([supplierId])
   @@index([projectId])
@@ -3909,32 +3971,32 @@ model SupplierShopDrawing {
 
 // Spec Share Links - shareable links for specs with customizable visibility
 model SpecShareLink {
-  id             String    @id @default(cuid())
-  projectId      String
+  id        String @id @default(cuid())
+  projectId String
 
   // Link identification
-  token          String    @unique @default(cuid())
-  name           String?   // e.g., "Client", "Contractor", "Architect"
+  token String  @unique @default(cuid())
+  name  String? // e.g., "Client", "Contractor", "Architect"
 
   // Item selection - array of RoomFFEItem IDs to share
-  itemIds        String[]
+  itemIds String[]
 
   // Visibility settings
-  showSupplier   Boolean   @default(false)
-  showBrand      Boolean   @default(true)
-  showPricing    Boolean   @default(false)
-  showDetails    Boolean   @default(true)
-  showSpecSheets Boolean   @default(false)  // Show spec sheet PDFs/attachments
-  showNotes      Boolean   @default(true)   // Show item notes/description
+  showSupplier   Boolean @default(false)
+  showBrand      Boolean @default(true)
+  showPricing    Boolean @default(false)
+  showDetails    Boolean @default(true)
+  showSpecSheets Boolean @default(false) // Show spec sheet PDFs/attachments
+  showNotes      Boolean @default(true) // Show item notes/description
 
   // Client approval feature
-  allowApproval  Boolean   @default(false)  // Allow recipient to approve items
+  allowApproval Boolean @default(false) // Allow recipient to approve items
 
   // Expiry (optional - null means no expiry)
-  expiresAt      DateTime?
+  expiresAt DateTime?
 
   // Status
-  active         Boolean   @default(true)
+  active Boolean @default(true)
 
   // Tracking
   viewedAt       DateTime?
@@ -3942,13 +4004,13 @@ model SpecShareLink {
   accessCount    Int       @default(0)
 
   // Audit
-  createdById    String
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   // Relations
-  project        Project   @relation("ProjectSpecShareLinks", fields: [projectId], references: [id], onDelete: Cascade)
-  createdBy      User      @relation("SpecShareLinkCreatedBy", fields: [createdById], references: [id])
+  project   Project @relation("ProjectSpecShareLinks", fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy User    @relation("SpecShareLinkCreatedBy", fields: [createdById], references: [id])
 
   @@index([projectId])
   @@index([token])
@@ -3957,78 +4019,78 @@ model SpecShareLink {
 
 // Programa Import - Temporary import from Excel for linking to FFE items
 model ProgramaItem {
-  id                   String    @id @default(cuid())
-  orgId                String
+  id    String @id @default(cuid())
+  orgId String
 
   // Category/Section from Excel
-  category             String
+  category String
 
   // Product Info
-  name                 String    // Product Name
-  description          String?   // Product Description
-  details              String?   // Product Details (rooms)
-  brand                String?
-  sku                  String?
-  docCode              String?
+  name        String // Product Name
+  description String? // Product Description
+  details     String? // Product Details (rooms)
+  brand       String?
+  sku         String?
+  docCode     String?
 
   // Appearance
-  color                String?
-  finish               String?
-  material             String?
+  color    String?
+  finish   String?
+  material String?
 
   // Dimensions
-  width                String?
-  length               String?
-  height               String?
-  depth                String?
+  width  String?
+  length String?
+  height String?
+  depth  String?
 
   // Pricing
-  quantity             Int       @default(0)
-  rrp                  Decimal?
-  tradePrice           Decimal?
-  tradeDiscount        Decimal?
-  totalCost            Decimal?
-  markup               Decimal?
-  clientPriceExc       Decimal?
-  taxAmount            Decimal?
-  clientPriceInc       Decimal?
-  clientDiscount       Decimal?
-  profit               Decimal?
+  quantity       Int      @default(0)
+  rrp            Decimal?
+  tradePrice     Decimal?
+  tradeDiscount  Decimal?
+  totalCost      Decimal?
+  markup         Decimal?
+  clientPriceExc Decimal?
+  taxAmount      Decimal?
+  clientPriceInc Decimal?
+  clientDiscount Decimal?
+  profit         Decimal?
 
   // Supplier Info
-  supplierCompanyName  String?
-  supplierName         String?
-  supplierEmail        String?
-  supplierPhone        String?
-  supplierAddress      String?
-  websiteUrl           String?
+  supplierCompanyName String?
+  supplierName        String?
+  supplierEmail       String?
+  supplierPhone       String?
+  supplierAddress     String?
+  websiteUrl          String?
 
   // Status & Notes
-  status               String?   @default("draft")
-  importantInfo        String?
-  notes                String?
-  leadTime             String?
+  status        String? @default("draft")
+  importantInfo String?
+  notes         String?
+  leadTime      String?
 
   // Image
-  imageUrl             String?
+  imageUrl String?
 
   // Link tracking - which FFE item this is linked to
-  linkedRoomFFEItemId  String?
-  linkedAt             DateTime?
-  linkedById           String?
+  linkedRoomFFEItemId String?
+  linkedAt            DateTime?
+  linkedById          String?
 
   // Import tracking
-  importBatchId        String?   // To group items from same import
-  rowNumber            Int?      // Original row in Excel
+  importBatchId String? // To group items from same import
+  rowNumber     Int? // Original row in Excel
 
   // Audit
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  organization         Organization @relation("OrgProgramaItems", fields: [orgId], references: [id], onDelete: Cascade)
-  linkedRoomFFEItem    RoomFFEItem? @relation("ProgramaLinkedItem", fields: [linkedRoomFFEItemId], references: [id])
-  linkedBy             User?        @relation("ProgramaLinkedBy", fields: [linkedById], references: [id])
+  organization      Organization @relation("OrgProgramaItems", fields: [orgId], references: [id], onDelete: Cascade)
+  linkedRoomFFEItem RoomFFEItem? @relation("ProgramaLinkedItem", fields: [linkedRoomFFEItemId], references: [id])
+  linkedBy          User?        @relation("ProgramaLinkedBy", fields: [linkedById], references: [id])
 
   @@index([orgId])
   @@index([category])

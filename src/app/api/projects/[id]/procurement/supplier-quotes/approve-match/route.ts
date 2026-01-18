@@ -47,7 +47,8 @@ export async function POST(
         rfqLineItem: {
           select: {
             id: true,
-            itemName: true
+            itemName: true,
+            roomFFEItemId: true // Get the spec item ID
           }
         }
       }
@@ -63,22 +64,38 @@ export async function POST(
       return NextResponse.json({ error: 'Line item not found' }, { status: 404 })
     }
 
-    // Update the line item to mark the match as approved
+    const roomFFEItemId = lineItem.rfqLineItem?.roomFFEItemId
+
+    // Update the line item to mark the match as approved and set direct link
     const updatedLineItem = await prisma.supplierQuoteLineItem.update({
       where: { id: lineItemId },
       data: {
         matchApproved: true,
         matchApprovedAt: new Date(),
-        matchApprovedById: userId
+        matchApprovedById: userId,
+        roomFFEItemId // Set direct link to spec item
       }
     })
+
+    // Update the RoomFFEItem status to QUOTE_RECEIVED
+    if (roomFFEItemId) {
+      await prisma.roomFFEItem.update({
+        where: { id: roomFFEItemId },
+        data: {
+          specStatus: 'QUOTE_RECEIVED',
+          tradePrice: lineItem.unitPrice,
+          updatedById: userId
+        }
+      })
+    }
 
     return NextResponse.json({
       success: true,
       lineItem: {
         id: updatedLineItem.id,
         matchApproved: updatedLineItem.matchApproved,
-        matchApprovedAt: updatedLineItem.matchApprovedAt
+        matchApprovedAt: updatedLineItem.matchApprovedAt,
+        roomFFEItemId
       }
     })
 

@@ -100,6 +100,12 @@ export async function POST(
       })
 
       if (matchingLineItem && reviewedMatch.rfqItemId) {
+        // Get the RFQ line item to get the roomFFEItemId
+        const rfqLineItem = await prisma.rFQLineItem.findUnique({
+          where: { id: reviewedMatch.rfqItemId },
+          select: { roomFFEItemId: true }
+        })
+
         // Update the line item to mark match as approved and link to RFQ item
         updatePromises.push(
           prisma.supplierQuoteLineItem.update({
@@ -109,6 +115,7 @@ export async function POST(
               matchApprovedAt: now,
               matchApprovedById: userId,
               rfqLineItemId: reviewedMatch.rfqItemId,
+              roomFFEItemId: rfqLineItem?.roomFFEItemId, // Direct link to spec item
               // Update price/quantity if provided
               ...(reviewedMatch.unitPrice !== undefined && { unitPrice: reviewedMatch.unitPrice }),
               ...(reviewedMatch.quantity !== undefined && { quotedQuantity: reviewedMatch.quantity }),
@@ -116,6 +123,20 @@ export async function POST(
             }
           })
         )
+
+        // Update the RoomFFEItem status to QUOTE_RECEIVED if it has a direct link
+        if (rfqLineItem?.roomFFEItemId) {
+          updatePromises.push(
+            prisma.roomFFEItem.update({
+              where: { id: rfqLineItem.roomFFEItemId },
+              data: {
+                specStatus: 'QUOTE_RECEIVED',
+                tradePrice: reviewedMatch.unitPrice ?? matchingLineItem.unitPrice,
+                updatedById: userId
+              }
+            })
+          )
+        }
       }
     }
 

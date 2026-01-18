@@ -234,6 +234,7 @@ export async function POST(
           lineItems: {
             create: mainItems.map(item => ({
               rfqLineItemId: lineItemMap.get(item.specItemId)!,
+              roomFFEItemId: item.specItemId, // Direct link to spec item
               unitPrice: item.unitPrice,
               quantity: item.quantity,
               totalPrice: item.unitPrice * item.quantity,
@@ -241,7 +242,10 @@ export async function POST(
               itemName: specItemMap.get(item.specItemId)?.name || 'Unknown',
               matchApproved: true,
               matchApprovedAt: new Date(),
-              matchApprovedById: userId
+              matchApprovedById: userId,
+              isAccepted: true, // Mark as accepted since it's a manual link
+              acceptedAt: new Date(),
+              acceptedById: userId
             }))
           }
         },
@@ -250,27 +254,36 @@ export async function POST(
         }
       })
 
-      // 5. Update RoomFFEItems with trade prices and supplier info (main items only)
+      // 5. Create a map of specItemId to quoteLineItemId for setting acceptedQuoteLineItemId
+      const quoteLineItemMap = new Map(
+        quote.lineItems.map(li => [li.roomFFEItemId, li.id])
+      )
+
+      // 6. Update RoomFFEItems with trade prices, supplier info, and accepted quote reference
       for (const item of mainItems) {
+        const quoteLineItemId = quoteLineItemMap.get(item.specItemId)
         await tx.roomFFEItem.update({
           where: { id: item.specItemId },
           data: {
             tradePrice: item.unitPrice,
             supplierId,
             supplierName: supplier.name,
-            specStatus: 'QUOTE_RECEIVED',
+            specStatus: 'QUOTE_APPROVED', // QUOTE_APPROVED since it's being accepted
+            acceptedQuoteLineItemId: quoteLineItemId, // Link to the accepted quote
             updatedById: userId
           }
         })
       }
 
-      // 6. Update ItemComponent prices
+      // 7. Update ItemComponent prices and quote tracking
       for (const comp of componentItems) {
         if (comp.componentId) {
           await tx.itemComponent.update({
             where: { id: comp.componentId },
             data: {
-              price: comp.unitPrice
+              price: comp.unitPrice,
+              quotedPrice: comp.unitPrice,
+              quotedAt: new Date()
             }
           })
         }
