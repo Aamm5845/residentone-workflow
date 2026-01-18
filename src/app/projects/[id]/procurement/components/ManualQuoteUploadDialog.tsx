@@ -42,6 +42,14 @@ interface Supplier {
   logo?: string | null
 }
 
+interface Component {
+  id: string
+  name: string
+  price?: number
+  quantity: number
+  modelNumber?: string
+}
+
 interface SpecItem {
   id: string
   name: string
@@ -52,6 +60,7 @@ interface SpecItem {
   roomName?: string
   existingTradePrice?: number
   existingSupplierName?: string
+  components?: Component[]
 }
 
 interface ManualQuoteUploadDialogProps {
@@ -76,6 +85,9 @@ interface SelectedItem {
   specItemId: string
   unitPrice: number
   quantity: number
+  isComponent?: boolean
+  parentItemId?: string
+  componentId?: string
 }
 
 export default function ManualQuoteUploadDialog({
@@ -106,6 +118,7 @@ export default function ManualQuoteUploadDialog({
   const [selectedItems, setSelectedItems] = useState<Record<string, SelectedItem>>({})
   const [searchQuery, setSearchQuery] = useState('')
   const [saving, setSaving] = useState(false)
+  const [selectedRoom, setSelectedRoom] = useState<string>('all')
 
   // Fetch suppliers when dialog opens
   useEffect(() => {
@@ -131,6 +144,7 @@ export default function ManualQuoteUploadDialog({
       setAnalysisProgress('')
       setSelectedItems({})
       setSearchQuery('')
+      setSelectedRoom('all')
     }
   }, [open])
 
@@ -166,7 +180,14 @@ export default function ManualQuoteUploadDialog({
           imageUrl: item.images?.[0],
           roomName: item.roomName,
           existingTradePrice: item.tradePrice ? Number(item.tradePrice) : undefined,
-          existingSupplierName: item.supplierName
+          existingSupplierName: item.supplierName,
+          components: (item.components || []).map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            price: c.price ? Number(c.price) : undefined,
+            quantity: c.quantity || 1,
+            modelNumber: c.modelNumber
+          }))
         })))
       }
     } catch (error) {
@@ -345,18 +366,61 @@ export default function ManualQuoteUploadDialog({
     onOpenChange(false)
   }
 
-  const toggleItemSelection = (item: SpecItem) => {
+  const toggleItemSelection = (item: SpecItem, includeComponents = true) => {
     setSelectedItems(prev => {
+      const newState = { ...prev }
+
       if (prev[item.id]) {
-        const { [item.id]: removed, ...rest } = prev
+        // Deselecting - remove item and its components
+        delete newState[item.id]
+        if (includeComponents && item.components) {
+          item.components.forEach(comp => {
+            const compKey = `${item.id}-comp-${comp.id}`
+            delete newState[compKey]
+          })
+        }
+      } else {
+        // Selecting - add item and its components
+        newState[item.id] = {
+          specItemId: item.id,
+          unitPrice: item.existingTradePrice || 0,
+          quantity: item.quantity
+        }
+        if (includeComponents && item.components) {
+          item.components.forEach(comp => {
+            const compKey = `${item.id}-comp-${comp.id}`
+            newState[compKey] = {
+              specItemId: item.id,
+              unitPrice: comp.price || 0,
+              quantity: comp.quantity || 1,
+              isComponent: true,
+              parentItemId: item.id,
+              componentId: comp.id
+            }
+          })
+        }
+      }
+
+      return newState
+    })
+  }
+
+  const toggleComponentSelection = (item: SpecItem, comp: Component) => {
+    const compKey = `${item.id}-comp-${comp.id}`
+    setSelectedItems(prev => {
+      if (prev[compKey]) {
+        const { [compKey]: removed, ...rest } = prev
         return rest
       }
       return {
         ...prev,
-        [item.id]: {
+        [compKey]: {
           specItemId: item.id,
-          unitPrice: item.existingTradePrice || 0,
-          quantity: item.quantity
+          unitPrice: comp.price || 0,
+          quantity: comp.quantity || 1,
+          isComponent: true,
+          parentItemId: item.id,
+          componentId: comp.id
         }
       }
     })
@@ -378,8 +442,15 @@ export default function ManualQuoteUploadDialog({
 
   const selectedSupplier = suppliers.find(s => s.id === selectedSupplierId)
 
-  // Filter spec items by search
+  // Get unique room names for filter
+  const roomNames = Array.from(new Set(specItems.map(item => item.roomName).filter(Boolean))) as string[]
+
+  // Filter spec items by search and room
   const filteredSpecItems = specItems.filter(item => {
+    // Room filter
+    if (selectedRoom !== 'all' && item.roomName !== selectedRoom) return false
+
+    // Search filter
     if (!searchQuery) return true
     const query = searchQuery.toLowerCase()
     return (
@@ -389,6 +460,18 @@ export default function ManualQuoteUploadDialog({
       item.roomName?.toLowerCase().includes(query)
     )
   })
+
+  // Group items by room for display
+  const itemsByRoom = filteredSpecItems.reduce((acc, item) => {
+    const room = item.roomName || 'Uncategorized'
+    if (!acc[room]) acc[room] = []
+    acc[room].push(item)
+    return acc
+  }, {} as Record<string, SpecItem[]>)
+
+  // Count selected items (excluding components in count for display)
+  const selectedMainItemsCount = Object.values(selectedItems).filter(i => !i.isComponent).length
+  const selectedComponentsCount = Object.values(selectedItems).filter(i => i.isComponent).length
 
   const formatCurrency = (amount: number | undefined) => {
     if (amount === undefined || amount === null) return '-'
@@ -560,16 +643,31 @@ export default function ManualQuoteUploadDialog({
               {/* Manual Link: Item Selection */}
               {mode === 'manual' && uploadedFile && selectedSupplierId && (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label>Select Items to Link ({Object.keys(selectedItems).length} selected)</Label>
-                    <div className="relative">
-                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <Input
-                        placeholder="Search items..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-8 h-8 w-48 text-sm"
-                      />
+                  <div className="flex items-center justify-between gap-3">
+                    <Label className="flex-shrink-0">
+                      Select Items ({selectedMainItemsCount} items{selectedComponentsCount > 0 ? ` + ${selectedComponentsCount} components` : ''})
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <Select value={selectedRoom} onValueChange={setSelectedRoom}>
+                        <SelectTrigger className="h-8 w-36 text-sm">
+                          <SelectValue placeholder="All Rooms" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Rooms</SelectItem>
+                          {roomNames.map(room => (
+                            <SelectItem key={room} value={room}>{room}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <Input
+                          placeholder="Search..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="pl-8 h-8 w-36 text-sm"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -578,36 +676,51 @@ export default function ManualQuoteUploadDialog({
                       <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
                     </div>
                   ) : (
-                    <ScrollArea className="h-[300px] border rounded-lg">
-                      <div className="p-2 space-y-2">
-                        {filteredSpecItems.map(item => {
-                          const isSelected = !!selectedItems[item.id]
-                          return (
-                            <div
-                              key={item.id}
-                              className={`p-3 rounded-lg border transition-colors ${
-                                isSelected
-                                  ? 'border-emerald-300 bg-emerald-50'
-                                  : 'border-gray-200 hover:border-gray-300'
-                              }`}
-                            >
-                              <div className="flex items-start gap-3">
-                                <Checkbox
-                                  checked={isSelected}
-                                  onCheckedChange={() => toggleItemSelection(item)}
-                                  className="mt-1"
-                                />
-                                {item.imageUrl && (
-                                  <img
-                                    src={item.imageUrl}
-                                    alt=""
-                                    className="w-12 h-12 rounded object-cover flex-shrink-0"
-                                  />
-                                )}
+                    <ScrollArea className="h-[350px] border rounded-lg">
+                      <div className="p-2 space-y-4">
+                        {Object.entries(itemsByRoom).map(([roomName, items]) => (
+                          <div key={roomName}>
+                            <div className="sticky top-0 bg-gray-100 px-2 py-1.5 rounded-md mb-2 flex items-center gap-2">
+                              <Package className="w-4 h-4 text-gray-500" />
+                              <span className="font-medium text-sm text-gray-700">{roomName}</span>
+                              <span className="text-xs text-gray-500">({items.length})</span>
+                            </div>
+                            <div className="space-y-2">
+                              {items.map(item => {
+                                const isSelected = !!selectedItems[item.id]
+                                const hasComponents = item.components && item.components.length > 0
+                                return (
+                                  <div key={item.id} className="space-y-1">
+                                    <div
+                                      className={`p-3 rounded-lg border transition-colors ${
+                                        isSelected
+                                          ? 'border-emerald-300 bg-emerald-50'
+                                          : 'border-gray-200 hover:border-gray-300'
+                                      }`}
+                                    >
+                                      <div className="flex items-start gap-3">
+                                        <Checkbox
+                                          checked={isSelected}
+                                          onCheckedChange={() => toggleItemSelection(item)}
+                                          className="mt-1"
+                                        />
+                                        {item.imageUrl && (
+                                          <img
+                                            src={item.imageUrl}
+                                            alt=""
+                                            className="w-12 h-12 rounded object-cover flex-shrink-0"
+                                          />
+                                        )}
                                 <div className="flex-1 min-w-0">
-                                  <p className="font-medium text-gray-900 text-sm">{item.name}</p>
+                                  <p className="font-medium text-gray-900 text-sm">
+                                    {item.name}
+                                    {hasComponents && (
+                                      <span className="ml-2 text-xs font-normal text-blue-600">
+                                        +{item.components!.length} component{item.components!.length > 1 ? 's' : ''}
+                                      </span>
+                                    )}
+                                  </p>
                                   <div className="flex flex-wrap gap-2 text-xs text-gray-500 mt-1">
-                                    {item.roomName && <span className="bg-gray-100 px-1.5 py-0.5 rounded">{item.roomName}</span>}
                                     {item.sku && <span>SKU: {item.sku}</span>}
                                     {item.brand && <span>{item.brand}</span>}
                                   </div>
@@ -648,9 +761,69 @@ export default function ManualQuoteUploadDialog({
                                 )}
                               </div>
                             </div>
-                          )
-                        })}
-                        {filteredSpecItems.length === 0 && (
+
+                                    {/* Components display - indented under parent */}
+                                    {isSelected && hasComponents && (
+                                      <div className="ml-6 space-y-1">
+                                        {item.components!.map(comp => {
+                                          const compKey = `${item.id}-comp-${comp.id}`
+                                          const isCompSelected = !!selectedItems[compKey]
+                                          return (
+                                            <div
+                                              key={comp.id}
+                                              className={`p-2 rounded-lg border transition-colors ${
+                                                isCompSelected
+                                                  ? 'border-blue-300 bg-blue-50'
+                                                  : 'border-gray-200 bg-gray-50'
+                                              }`}
+                                            >
+                                              <div className="flex items-center gap-2">
+                                                <Checkbox
+                                                  checked={isCompSelected}
+                                                  onCheckedChange={() => toggleComponentSelection(item, comp)}
+                                                  className="h-4 w-4"
+                                                />
+                                                <div className="flex-1 min-w-0">
+                                                  <p className="text-sm text-gray-700">
+                                                    <span className="text-blue-600 mr-1">↳</span>
+                                                    {comp.name}
+                                                    {comp.modelNumber && <span className="text-xs text-gray-400 ml-1">({comp.modelNumber})</span>}
+                                                  </p>
+                                                </div>
+                                                {isCompSelected && (
+                                                  <div className="flex items-center gap-1">
+                                                    <Label className="text-xs text-gray-500">$</Label>
+                                                    <Input
+                                                      type="number"
+                                                      min={0}
+                                                      step={0.01}
+                                                      placeholder="Price"
+                                                      value={selectedItems[compKey]?.unitPrice || ''}
+                                                      onChange={(e) => {
+                                                        const price = parseFloat(e.target.value) || 0
+                                                        setSelectedItems(prev => ({
+                                                          ...prev,
+                                                          [compKey]: { ...prev[compKey], unitPrice: price }
+                                                        }))
+                                                      }}
+                                                      className="w-20 h-6 text-xs"
+                                                      onClick={(e) => e.stopPropagation()}
+                                                    />
+                                                  </div>
+                                                )}
+                                              </div>
+                                            </div>
+                                          )
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                        {Object.keys(itemsByRoom).length === 0 && (
                           <div className="text-center py-8 text-gray-500">
                             <Package className="w-8 h-8 mx-auto mb-2 text-gray-300" />
                             <p className="text-sm">No items found</p>

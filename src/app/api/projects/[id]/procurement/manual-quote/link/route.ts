@@ -9,6 +9,9 @@ interface LinkItem {
   specItemId: string
   unitPrice: number
   quantity: number
+  isComponent?: boolean
+  parentItemId?: string
+  componentId?: string
 }
 
 /**
@@ -65,8 +68,14 @@ export async function POST(
       return NextResponse.json({ error: 'Supplier not found' }, { status: 404 })
     }
 
+    // Separate main items from components
+    const mainItems = items.filter(i => !i.isComponent)
+    const componentItems = items.filter(i => i.isComponent)
+
+    // Get unique spec item IDs (from main items only)
+    const specItemIds = [...new Set(mainItems.map(i => i.specItemId))]
+
     // Get the spec items to verify they exist
-    const specItemIds = items.map(i => i.specItemId)
     const specItems = await prisma.roomFFEItem.findMany({
       where: {
         id: { in: specItemIds },
@@ -87,18 +96,32 @@ export async function POST(
       }
     })
 
-    if (specItems.length !== items.length) {
+    if (specItems.length !== specItemIds.length) {
       return NextResponse.json(
         { error: 'Some spec items were not found' },
         { status: 400 }
       )
     }
 
+    // Verify component items exist
+    const componentIds = componentItems.map(c => c.componentId).filter(Boolean) as string[]
+    if (componentIds.length > 0) {
+      const existingComponents = await prisma.itemComponent.findMany({
+        where: { id: { in: componentIds } },
+        select: { id: true }
+      })
+      if (existingComponents.length !== componentIds.length) {
+        return NextResponse.json(
+          { error: 'Some components were not found' },
+          { status: 400 }
+        )
+      }
+    }
+
     // Create item map for quick lookup
     const specItemMap = new Map(specItems.map(s => [s.id, s]))
-    const itemPriceMap = new Map(items.map(i => [i.specItemId, i]))
 
-    // Calculate totals
+    // Calculate totals (main items + components)
     let subtotal = 0
     items.forEach(item => {
       subtotal += item.unitPrice * item.quantity
@@ -190,7 +213,7 @@ export async function POST(
         })
       }
 
-      // 4. Create SupplierQuote
+      // 4. Create SupplierQuote (only for main items, not components)
       const existingQuotes = await tx.supplierQuote.count({
         where: { supplierRFQId: supplierRFQ.id }
       })
@@ -209,7 +232,7 @@ export async function POST(
           acceptedAt: new Date(),
           acceptedById: userId,
           lineItems: {
-            create: items.map(item => ({
+            create: mainItems.map(item => ({
               rfqLineItemId: lineItemMap.get(item.specItemId)!,
               unitPrice: item.unitPrice,
               quantity: item.quantity,
@@ -227,8 +250,8 @@ export async function POST(
         }
       })
 
-      // 5. Update RoomFFEItems with trade prices and supplier info
-      for (const item of items) {
+      // 5. Update RoomFFEItems with trade prices and supplier info (main items only)
+      for (const item of mainItems) {
         await tx.roomFFEItem.update({
           where: { id: item.specItemId },
           data: {
@@ -241,17 +264,30 @@ export async function POST(
         })
       }
 
-      // 6. Create activity log
+      // 6. Update ItemComponent prices
+      for (const comp of componentItems) {
+        if (comp.componentId) {
+          await tx.itemComponent.update({
+            where: { id: comp.componentId },
+            data: {
+              price: comp.unitPrice
+            }
+          })
+        }
+      }
+
+      // 7. Create activity log
       await tx.rFQActivity.create({
         data: {
           rfqId: rfq.id,
           type: 'QUOTE_RECEIVED',
-          message: `Manual quote linked from ${supplier.name} (${items.length} items)`,
+          message: `Manual quote linked from ${supplier.name} (${mainItems.length} items${componentItems.length > 0 ? ` + ${componentItems.length} components` : ''})`,
           metadata: {
             quoteId: quote.id,
             supplierId,
             supplierName: supplier.name,
-            itemCount: items.length,
+            itemCount: mainItems.length,
+            componentCount: componentItems.length,
             total: subtotal,
             isManualLink: true
           },
@@ -259,14 +295,15 @@ export async function POST(
         }
       })
 
-      return { rfq, supplierRFQ, quote }
+      return { rfq, supplierRFQ, quote, componentCount: componentItems.length }
     })
 
     return NextResponse.json({
       success: true,
       quoteId: result.quote.id,
       rfqId: result.rfq.id,
-      itemsLinked: items.length,
+      itemsLinked: mainItems.length,
+      componentsLinked: componentItems.length,
       total: subtotal
     })
 
