@@ -88,7 +88,7 @@ export async function GET(
         const rfqNumber = quote.supplierRFQ.rfq.rfqNumber
         const total = quote.totalAmount ? Number(quote.totalAmount) : 0
         const formattedTotal = formatCurrency(total)
-        const leadTime = quote.leadTimeDays ? `${quote.leadTimeDays} days` : ''
+        const leadTime = quote.estimatedLeadTime || ''
 
         // Check if there are mismatches
         const hasMismatches = quote.lineItems.some(li =>
@@ -102,7 +102,7 @@ export async function GET(
           priority: hasMismatches ? 'warning' : 'normal',
           title: `Supplier quote received`,
           description: supplierName,
-          meta: `${rfqNumber} • ${quote.lineItems.length} items • ${formattedTotal}${leadTime ? ` • ${leadTime} lead time` : ''}`,
+          meta: `${rfqNumber} • ${quote.lineItems.length} items • ${formattedTotal}${leadTime ? ` • ${leadTime}` : ''}`,
           actionLabel: 'Review Quote',
           actionHref: `/projects/${projectId}/procurement?tab=supplier-quotes&quoteId=${quote.id}`,
           createdAt: quote.submittedAt ? formatRelativeTime(quote.submittedAt) : 'Recently',
@@ -153,7 +153,7 @@ export async function GET(
       const declinedRFQs = await prisma.supplierRFQ.findMany({
         where: {
           rfqId: { in: rfqIds },
-          status: 'DECLINED',
+          responseStatus: 'DECLINED',
           updatedAt: {
             gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // Last 7 days
           }
