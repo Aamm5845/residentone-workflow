@@ -1714,6 +1714,10 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
         projectId={projectId}
         onUploadComplete={handleManualQuoteUpload}
         onAnalysisComplete={handleAnalysisComplete}
+        onManualLinkComplete={() => {
+          fetchQuotes()
+          toast.success('Quote linked successfully')
+        }}
       />
 
       {/* Manual Quote Review Dialog */}

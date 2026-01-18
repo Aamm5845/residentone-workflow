@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -10,6 +10,9 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import { Checkbox } from '@/components/ui/checkbox'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Select,
   SelectContent,
@@ -24,7 +27,11 @@ import {
   Building2,
   X,
   AlertCircle,
-  Sparkles
+  Sparkles,
+  Link2,
+  Package,
+  Check,
+  Search
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -33,6 +40,18 @@ interface Supplier {
   name: string
   email: string
   logo?: string | null
+}
+
+interface SpecItem {
+  id: string
+  name: string
+  quantity: number
+  sku?: string
+  brand?: string
+  imageUrl?: string
+  roomName?: string
+  existingTradePrice?: number
+  existingSupplierName?: string
 }
 
 interface ManualQuoteUploadDialogProps {
@@ -45,8 +64,18 @@ interface ManualQuoteUploadDialogProps {
     supplierId: string
     supplierName: string
   }) => void
-  // New: callback when analysis is complete with data ready for review
+  // Callback when AI analysis is complete
   onAnalysisComplete?: (analysisData: any, specItems: any[]) => void
+  // Callback when manual link is complete
+  onManualLinkComplete?: () => void
+}
+
+type UploadMode = 'ai' | 'manual'
+
+interface SelectedItem {
+  specItemId: string
+  unitPrice: number
+  quantity: number
 }
 
 export default function ManualQuoteUploadDialog({
@@ -54,20 +83,54 @@ export default function ManualQuoteUploadDialog({
   onOpenChange,
   projectId,
   onUploadComplete,
-  onAnalysisComplete
+  onAnalysisComplete,
+  onManualLinkComplete
 }: ManualQuoteUploadDialogProps) {
+  // Common state
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [loadingSuppliers, setLoadingSuppliers] = useState(false)
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>('')
   const [uploadedFile, setUploadedFile] = useState<{ url: string; type: string; name: string } | null>(null)
   const [uploading, setUploading] = useState(false)
+
+  // Mode selection
+  const [mode, setMode] = useState<UploadMode>('ai')
+
+  // AI Analysis state
   const [analyzing, setAnalyzing] = useState(false)
   const [analysisProgress, setAnalysisProgress] = useState('')
+
+  // Manual Link state
+  const [specItems, setSpecItems] = useState<SpecItem[]>([])
+  const [loadingSpecs, setLoadingSpecs] = useState(false)
+  const [selectedItems, setSelectedItems] = useState<Record<string, SelectedItem>>({})
+  const [searchQuery, setSearchQuery] = useState('')
+  const [saving, setSaving] = useState(false)
 
   // Fetch suppliers when dialog opens
   useEffect(() => {
     if (open && suppliers.length === 0) {
       fetchSuppliers()
+    }
+  }, [open])
+
+  // Fetch spec items when manual mode is selected
+  useEffect(() => {
+    if (open && mode === 'manual' && specItems.length === 0) {
+      fetchSpecItems()
+    }
+  }, [open, mode])
+
+  // Reset state when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setMode('ai')
+      setSelectedSupplierId('')
+      setUploadedFile(null)
+      setAnalyzing(false)
+      setAnalysisProgress('')
+      setSelectedItems({})
+      setSearchQuery('')
     }
   }, [open])
 
@@ -87,18 +150,43 @@ export default function ManualQuoteUploadDialog({
     }
   }
 
+  const fetchSpecItems = useCallback(async () => {
+    setLoadingSpecs(true)
+    try {
+      const res = await fetch(`/api/projects/${projectId}/ffe-specs`)
+      if (res.ok) {
+        const data = await res.json()
+        const items = data.items || []
+        setSpecItems(items.map((item: any) => ({
+          id: item.id,
+          name: item.name,
+          quantity: item.quantity || 1,
+          sku: item.sku,
+          brand: item.brand,
+          imageUrl: item.images?.[0],
+          roomName: item.roomName,
+          existingTradePrice: item.tradePrice ? Number(item.tradePrice) : undefined,
+          existingSupplierName: item.supplierName
+        })))
+      }
+    } catch (error) {
+      console.error('Error fetching spec items:', error)
+      toast.error('Failed to load spec items')
+    } finally {
+      setLoadingSpecs(false)
+    }
+  }, [projectId])
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Validate file type
     const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp']
     if (!validTypes.includes(file.type)) {
       toast.error('Please upload a PDF or image file')
       return
     }
 
-    // Validate file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
       toast.error('File too large. Maximum 10MB.')
       return
@@ -136,7 +224,7 @@ export default function ManualQuoteUploadDialog({
     }
   }
 
-  const handleProceed = async () => {
+  const handleAIAnalysis = async () => {
     if (!uploadedFile || !selectedSupplierId) {
       toast.error('Please select a supplier and upload a quote document')
       return
@@ -148,13 +236,11 @@ export default function ManualQuoteUploadDialog({
       return
     }
 
-    // If we have the new callback, do the analysis in this dialog
     if (onAnalysisComplete) {
       setAnalyzing(true)
       setAnalysisProgress('Extracting line items from quote...')
 
       try {
-        // Call the AI extraction API
         const res = await fetch(`/api/projects/${projectId}/procurement/manual-quote`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -174,13 +260,12 @@ export default function ManualQuoteUploadDialog({
         setAnalysisProgress('Matching items to your specs...')
         const analysisData = await res.json()
 
-        // Fetch all spec items for the matching dialog
         const specRes = await fetch(`/api/projects/${projectId}/ffe-specs`)
-        let specItems: any[] = []
+        let fetchedSpecItems: any[] = []
         if (specRes.ok) {
           const specData = await specRes.json()
           const items = specData.items || []
-          specItems = items.map((item: any) => ({
+          fetchedSpecItems = items.map((item: any) => ({
             id: item.id,
             name: item.name,
             quantity: item.quantity,
@@ -194,9 +279,8 @@ export default function ManualQuoteUploadDialog({
           }))
         }
 
-        // Close dialog and pass data to parent
         handleClose()
-        onAnalysisComplete(analysisData, specItems)
+        onAnalysisComplete(analysisData, fetchedSpecItems)
 
       } catch (error: any) {
         console.error('Error analyzing quote:', error)
@@ -204,31 +288,119 @@ export default function ManualQuoteUploadDialog({
         setAnalyzing(false)
         setAnalysisProgress('')
       }
-    } else {
-      // Legacy callback - just pass the upload data
-      onUploadComplete({
-        fileUrl: uploadedFile.url,
-        fileType: uploadedFile.type,
-        supplierId: selectedSupplierId,
-        supplierName: selectedSupplier.name
+    }
+  }
+
+  const handleManualLink = async () => {
+    if (!uploadedFile || !selectedSupplierId) {
+      toast.error('Please select a supplier and upload a quote document')
+      return
+    }
+
+    const selectedSupplier = suppliers.find(s => s.id === selectedSupplierId)
+    if (!selectedSupplier) {
+      toast.error('Please select a valid supplier')
+      return
+    }
+
+    const itemsToLink = Object.values(selectedItems)
+    if (itemsToLink.length === 0) {
+      toast.error('Please select at least one item to link')
+      return
+    }
+
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/projects/${projectId}/procurement/manual-quote/link`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileUrl: uploadedFile.url,
+          fileType: uploadedFile.type,
+          supplierId: selectedSupplierId,
+          supplierName: selectedSupplier.name,
+          items: itemsToLink
+        })
       })
+
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || 'Failed to link quote')
+      }
+
+      toast.success(`Quote linked to ${itemsToLink.length} items`)
+      handleClose()
+      onManualLinkComplete?.()
+
+    } catch (error: any) {
+      console.error('Error linking quote:', error)
+      toast.error(error.message || 'Failed to link quote')
+    } finally {
+      setSaving(false)
     }
   }
 
   const handleClose = () => {
-    if (analyzing) return // Don't allow close while analyzing
-    setSelectedSupplierId('')
-    setUploadedFile(null)
-    setAnalyzing(false)
-    setAnalysisProgress('')
+    if (analyzing || saving) return
     onOpenChange(false)
+  }
+
+  const toggleItemSelection = (item: SpecItem) => {
+    setSelectedItems(prev => {
+      if (prev[item.id]) {
+        const { [item.id]: removed, ...rest } = prev
+        return rest
+      }
+      return {
+        ...prev,
+        [item.id]: {
+          specItemId: item.id,
+          unitPrice: item.existingTradePrice || 0,
+          quantity: item.quantity
+        }
+      }
+    })
+  }
+
+  const updateItemPrice = (itemId: string, price: number) => {
+    setSelectedItems(prev => ({
+      ...prev,
+      [itemId]: { ...prev[itemId], unitPrice: price }
+    }))
+  }
+
+  const updateItemQuantity = (itemId: string, quantity: number) => {
+    setSelectedItems(prev => ({
+      ...prev,
+      [itemId]: { ...prev[itemId], quantity }
+    }))
   }
 
   const selectedSupplier = suppliers.find(s => s.id === selectedSupplierId)
 
+  // Filter spec items by search
+  const filteredSpecItems = specItems.filter(item => {
+    if (!searchQuery) return true
+    const query = searchQuery.toLowerCase()
+    return (
+      item.name.toLowerCase().includes(query) ||
+      item.sku?.toLowerCase().includes(query) ||
+      item.brand?.toLowerCase().includes(query) ||
+      item.roomName?.toLowerCase().includes(query)
+    )
+  })
+
+  const formatCurrency = (amount: number | undefined) => {
+    if (amount === undefined || amount === null) return '-'
+    return new Intl.NumberFormat('en-CA', {
+      style: 'currency',
+      currency: 'CAD'
+    }).format(amount)
+  }
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className={mode === 'manual' && uploadedFile && selectedSupplierId ? "sm:max-w-4xl max-h-[90vh]" : "sm:max-w-lg"}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Upload className="w-5 h-5" />
@@ -236,7 +408,7 @@ export default function ManualQuoteUploadDialog({
           </DialogTitle>
         </DialogHeader>
 
-        {/* Analyzing State - Full overlay */}
+        {/* Analyzing State */}
         {analyzing ? (
           <div className="py-12 flex flex-col items-center justify-center">
             <div className="relative mb-6">
@@ -254,6 +426,46 @@ export default function ManualQuoteUploadDialog({
         ) : (
           <>
             <div className="space-y-5 py-2">
+              {/* Mode Selection */}
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setMode('ai')}
+                  className={`p-4 rounded-lg border-2 text-left transition-all ${
+                    mode === 'ai'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Sparkles className={`w-5 h-5 ${mode === 'ai' ? 'text-blue-600' : 'text-gray-400'}`} />
+                    <span className={`font-medium ${mode === 'ai' ? 'text-blue-900' : 'text-gray-700'}`}>
+                      AI Analysis
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    AI extracts items and matches to your specs automatically
+                  </p>
+                </button>
+                <button
+                  onClick={() => setMode('manual')}
+                  className={`p-4 rounded-lg border-2 text-left transition-all ${
+                    mode === 'manual'
+                      ? 'border-emerald-500 bg-emerald-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Link2 className={`w-5 h-5 ${mode === 'manual' ? 'text-emerald-600' : 'text-gray-400'}`} />
+                    <span className={`font-medium ${mode === 'manual' ? 'text-emerald-900' : 'text-gray-700'}`}>
+                      Manual Link
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Select items manually and enter prices yourself
+                  </p>
+                </button>
+              </div>
+
               {/* Supplier Selection */}
               <div className="space-y-2">
                 <Label>Select Supplier *</Label>
@@ -345,33 +557,175 @@ export default function ManualQuoteUploadDialog({
                 )}
               </div>
 
-              {/* Info */}
-              <div className="flex items-start gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
-                <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                <div className="text-blue-800">
-                  <p className="font-medium">How it works:</p>
-                  <ol className="list-decimal list-inside mt-1 space-y-0.5 text-xs">
-                    <li>AI will extract line items from the quote</li>
-                    <li>Items will be matched to your All Specs</li>
-                    <li>Review and approve matches</li>
-                    <li>Trade prices will be updated</li>
-                  </ol>
+              {/* Manual Link: Item Selection */}
+              {mode === 'manual' && uploadedFile && selectedSupplierId && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label>Select Items to Link ({Object.keys(selectedItems).length} selected)</Label>
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input
+                        placeholder="Search items..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-8 h-8 w-48 text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {loadingSpecs ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                    </div>
+                  ) : (
+                    <ScrollArea className="h-[300px] border rounded-lg">
+                      <div className="p-2 space-y-2">
+                        {filteredSpecItems.map(item => {
+                          const isSelected = !!selectedItems[item.id]
+                          return (
+                            <div
+                              key={item.id}
+                              className={`p-3 rounded-lg border transition-colors ${
+                                isSelected
+                                  ? 'border-emerald-300 bg-emerald-50'
+                                  : 'border-gray-200 hover:border-gray-300'
+                              }`}
+                            >
+                              <div className="flex items-start gap-3">
+                                <Checkbox
+                                  checked={isSelected}
+                                  onCheckedChange={() => toggleItemSelection(item)}
+                                  className="mt-1"
+                                />
+                                {item.imageUrl && (
+                                  <img
+                                    src={item.imageUrl}
+                                    alt=""
+                                    className="w-12 h-12 rounded object-cover flex-shrink-0"
+                                  />
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-gray-900 text-sm">{item.name}</p>
+                                  <div className="flex flex-wrap gap-2 text-xs text-gray-500 mt-1">
+                                    {item.roomName && <span className="bg-gray-100 px-1.5 py-0.5 rounded">{item.roomName}</span>}
+                                    {item.sku && <span>SKU: {item.sku}</span>}
+                                    {item.brand && <span>{item.brand}</span>}
+                                  </div>
+                                  {item.existingTradePrice && (
+                                    <p className="text-xs text-gray-500 mt-1">
+                                      Current: {formatCurrency(item.existingTradePrice)}
+                                      {item.existingSupplierName && ` from ${item.existingSupplierName}`}
+                                    </p>
+                                  )}
+                                </div>
+                                {isSelected && (
+                                  <div className="flex items-center gap-2 flex-shrink-0">
+                                    <div className="flex items-center gap-1">
+                                      <Label className="text-xs text-gray-500">Qty:</Label>
+                                      <Input
+                                        type="number"
+                                        min={1}
+                                        value={selectedItems[item.id]?.quantity || item.quantity}
+                                        onChange={(e) => updateItemQuantity(item.id, parseInt(e.target.value) || 1)}
+                                        className="w-16 h-7 text-sm"
+                                        onClick={(e) => e.stopPropagation()}
+                                      />
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <Label className="text-xs text-gray-500">$</Label>
+                                      <Input
+                                        type="number"
+                                        min={0}
+                                        step={0.01}
+                                        placeholder="Price"
+                                        value={selectedItems[item.id]?.unitPrice || ''}
+                                        onChange={(e) => updateItemPrice(item.id, parseFloat(e.target.value) || 0)}
+                                        className="w-24 h-7 text-sm"
+                                        onClick={(e) => e.stopPropagation()}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                        {filteredSpecItems.length === 0 && (
+                          <div className="text-center py-8 text-gray-500">
+                            <Package className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                            <p className="text-sm">No items found</p>
+                          </div>
+                        )}
+                      </div>
+                    </ScrollArea>
+                  )}
                 </div>
-              </div>
+              )}
+
+              {/* Info Box */}
+              {mode === 'ai' && (
+                <div className="flex items-start gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+                  <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-blue-800">
+                    <p className="font-medium">How AI Analysis works:</p>
+                    <ol className="list-decimal list-inside mt-1 space-y-0.5 text-xs">
+                      <li>AI will extract line items from the quote</li>
+                      <li>Items will be matched to your All Specs</li>
+                      <li>Review and approve matches</li>
+                      <li>Trade prices will be updated</li>
+                    </ol>
+                  </div>
+                </div>
+              )}
+
+              {mode === 'manual' && !uploadedFile && (
+                <div className="flex items-start gap-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm">
+                  <AlertCircle className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-emerald-800">
+                    <p className="font-medium">How Manual Link works:</p>
+                    <ol className="list-decimal list-inside mt-1 space-y-0.5 text-xs">
+                      <li>Upload the quote document for reference</li>
+                      <li>Select items from your All Specs</li>
+                      <li>Enter the quoted price for each item</li>
+                      <li>Quote will be linked and prices updated</li>
+                    </ol>
+                  </div>
+                </div>
+              )}
             </div>
 
             <DialogFooter className="mt-4">
               <Button variant="outline" onClick={handleClose}>
                 Cancel
               </Button>
-              <Button
-                onClick={handleProceed}
-                disabled={!uploadedFile || !selectedSupplierId}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <Sparkles className="w-4 h-4 mr-2" />
-                Analyze Quote
-              </Button>
+              {mode === 'ai' ? (
+                <Button
+                  onClick={handleAIAnalysis}
+                  disabled={!uploadedFile || !selectedSupplierId}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Analyze Quote
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleManualLink}
+                  disabled={!uploadedFile || !selectedSupplierId || Object.keys(selectedItems).length === 0 || saving}
+                  className="bg-emerald-600 hover:bg-emerald-700"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4 mr-2" />
+                      Link Quote ({Object.keys(selectedItems).length} items)
+                    </>
+                  )}
+                </Button>
+              )}
             </DialogFooter>
           </>
         )}
