@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { generateInvoicePdf } from '@/lib/invoice-pdf-generator'
+import { dropboxService } from '@/lib/dropbox-service'
 
 // GET - List all client invoices for a project
 export async function GET(
@@ -300,6 +302,123 @@ export async function POST(
         userId: userId
       }
     })
+
+    // === DROPBOX INTEGRATION: Generate PDF and upload ===
+    let dropboxPdfPath: string | null = null
+    let dropboxPdfUrl: string | null = null
+
+    try {
+      // Get project with dropbox folder
+      const projectWithDropbox = await prisma.project.findUnique({
+        where: { id: projectId },
+        select: {
+          name: true,
+          dropboxFolder: true,
+          client: {
+            select: { name: true }
+          }
+        }
+      })
+
+      // Only proceed if project has a dropbox folder
+      if (projectWithDropbox?.dropboxFolder) {
+        // Get organization for invoice PDF
+        const organization = await prisma.organization.findUnique({
+          where: { id: orgId },
+          select: {
+            name: true,
+            logoUrl: true,
+            businessName: true,
+            businessAddress: true,
+            businessCity: true,
+            businessProvince: true,
+            businessPostal: true,
+            businessCountry: true,
+            businessPhone: true,
+            businessEmail: true,
+            neqNumber: true,
+            gstNumber: true,
+            qstNumber: true,
+            wireInstructions: true,
+            checkInstructions: true,
+            etransferEmail: true,
+          }
+        })
+
+        if (organization) {
+          // Generate PDF
+          const pdfBuffer = await generateInvoicePdf(
+            {
+              invoiceNumber,
+              createdAt: invoice.createdAt,
+              validUntil: invoice.validUntil,
+              clientName: clientName || projectWithDropbox.client?.name || 'Client',
+              clientEmail,
+              clientPhone,
+              clientAddress,
+              projectName: projectWithDropbox.name,
+              lineItems: invoice.lineItems.map((item: any) => ({
+                displayName: item.displayName,
+                displayDescription: item.displayDescription,
+                categoryName: item.categoryName,
+                roomName: item.roomName,
+                quantity: item.quantity,
+                unitType: item.unitType,
+                clientUnitPrice: Number(item.clientUnitPrice),
+                clientTotalPrice: Number(item.clientTotalPrice),
+              })),
+              subtotal,
+              gstRate,
+              gstAmount,
+              qstRate,
+              qstAmount,
+              totalAmount,
+              paymentTerms,
+              depositRequired,
+              depositAmount: depositRequired ? (totalAmount * depositRequired / 100) : null,
+            },
+            organization
+          )
+
+          // Determine category from first line item
+          const firstCategory = invoice.lineItems[0]?.categoryName || 'General'
+
+          // Format filename: INV-2024-0001_ClientName_2024-01-15.pdf
+          const dateStr = new Date().toISOString().split('T')[0]
+          const safeClientName = (clientName || projectWithDropbox.client?.name || 'Client')
+            .replace(/[^a-zA-Z0-9]/g, '_')
+            .substring(0, 30)
+          const fileName = `${invoiceNumber}_${safeClientName}_${dateStr}.pdf`
+
+          // Upload to Dropbox
+          const uploadResult = await dropboxService.uploadShoppingFile(
+            projectWithDropbox.dropboxFolder,
+            firstCategory,
+            'Invoices',
+            fileName,
+            pdfBuffer
+          )
+
+          dropboxPdfPath = uploadResult.path
+          dropboxPdfUrl = uploadResult.sharedLink || null
+
+          // Update invoice with Dropbox paths
+          await prisma.clientQuote.update({
+            where: { id: invoice.id },
+            data: {
+              dropboxPdfPath,
+              dropboxPdfUrl
+            }
+          })
+
+          console.log(`[Client Invoices] Invoice PDF uploaded to Dropbox: ${dropboxPdfPath}`)
+        }
+      }
+    } catch (dropboxError) {
+      // Non-fatal: log error but continue
+      console.error('[Client Invoices] Dropbox upload failed (non-fatal):', dropboxError)
+    }
+    // === END DROPBOX INTEGRATION ===
 
     // Update spec items status to INVOICED_TO_CLIENT and add activity
     const specItemIds = lineItems

@@ -3365,6 +3365,10 @@ model ClientQuote {
   // Access
   accessToken          String            @unique @default(cuid())
 
+  // Dropbox integration
+  dropboxPdfPath       String?           // Path to invoice PDF in Dropbox
+  dropboxPdfUrl        String?           // Shared link for the PDF
+
   createdById          String
   updatedById          String
   createdAt            DateTime          @default(now())

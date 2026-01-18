@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { dropboxService } from '@/lib/dropbox-service'
 
 export const dynamic = 'force-dynamic'
 
@@ -178,6 +179,80 @@ export async function POST(
     // Calculate totals for the response
     const totalTradeValue = items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0)
 
+    // === DROPBOX INTEGRATION: Upload quote PDF to Dropbox ===
+    let dropboxUploadResult: { path?: string; sharedLink?: string } = {}
+
+    try {
+      // Get project with dropbox folder
+      const projectWithDropbox = await prisma.project.findUnique({
+        where: { id: projectId },
+        select: {
+          dropboxFolder: true
+        }
+      })
+
+      // Only proceed if project has a dropbox folder and there's a file to upload
+      if (projectWithDropbox?.dropboxFolder && fileUrl) {
+        // Determine category from first matched item's section/category
+        // We need to get the category from the spec items
+        const firstSpecItem = specItems[0]
+        let category = 'General'
+
+        if (firstSpecItem) {
+          // Get the room section name for the category
+          const roomWithSection = await prisma.roomFFEItem.findUnique({
+            where: { id: firstSpecItem.id },
+            select: {
+              room: {
+                select: {
+                  section: {
+                    select: { name: true }
+                  }
+                }
+              }
+            }
+          })
+          category = roomWithSection?.room?.section?.name || 'General'
+        }
+
+        // Download file from the Blob URL
+        let fileBuffer: Buffer | null = null
+        try {
+          const response = await fetch(fileUrl)
+          if (response.ok) {
+            const arrayBuffer = await response.arrayBuffer()
+            fileBuffer = Buffer.from(arrayBuffer)
+          }
+        } catch (fetchError) {
+          console.warn('[Manual Quote Approve] Could not download file from URL:', fetchError)
+        }
+
+        if (fileBuffer) {
+          // Format filename: ManualQuote_SupplierName_2024-01-15.pdf
+          const dateStr = new Date().toISOString().split('T')[0]
+          const safeSupplierName = (supplierName || 'Supplier')
+            .replace(/[^a-zA-Z0-9]/g, '_')
+            .substring(0, 30)
+          const fileName = `ManualQuote_${safeSupplierName}_${dateStr}.pdf`
+
+          // Upload to Dropbox
+          dropboxUploadResult = await dropboxService.uploadShoppingFile(
+            projectWithDropbox.dropboxFolder,
+            category,
+            'Quotes',
+            fileName,
+            fileBuffer
+          )
+
+          console.log(`[Manual Quote Approve] Quote PDF uploaded to Dropbox: ${dropboxUploadResult.path}`)
+        }
+      }
+    } catch (dropboxError) {
+      // Non-fatal: log error but continue
+      console.error('[Manual Quote Approve] Dropbox upload failed (non-fatal):', dropboxError)
+    }
+    // === END DROPBOX INTEGRATION ===
+
     return NextResponse.json({
       success: true,
       message: `Updated ${items.length} items with trade prices`,
@@ -188,7 +263,11 @@ export async function POST(
         priceUpdates: priceUpdates.length
       },
       supplierChanges: supplierChanges.length > 0 ? supplierChanges : undefined,
-      priceUpdates: priceUpdates.length > 0 ? priceUpdates : undefined
+      priceUpdates: priceUpdates.length > 0 ? priceUpdates : undefined,
+      dropbox: dropboxUploadResult.path ? {
+        path: dropboxUploadResult.path,
+        sharedLink: dropboxUploadResult.sharedLink
+      } : undefined
     })
 
   } catch (error: any) {

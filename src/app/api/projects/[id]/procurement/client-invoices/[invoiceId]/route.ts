@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { dropboxService } from '@/lib/dropbox-service'
 
 // GET - Get single invoice details
 export async function GET(
@@ -200,6 +201,18 @@ export async function DELETE(
         error: 'Cannot delete an invoice with payment records'
       }, { status: 400 })
     }
+
+    // === DROPBOX CLEANUP: Delete PDF from Dropbox ===
+    if (invoice.dropboxPdfPath) {
+      try {
+        await dropboxService.deleteFile(invoice.dropboxPdfPath)
+        console.log(`[Client Invoices] Deleted PDF from Dropbox: ${invoice.dropboxPdfPath}`)
+      } catch (dropboxError) {
+        // Non-fatal: log error but continue with deletion
+        console.error('[Client Invoices] Dropbox delete failed (non-fatal):', dropboxError)
+      }
+    }
+    // === END DROPBOX CLEANUP ===
 
     // Delete related records first
     await prisma.clientQuoteLineItem.deleteMany({
