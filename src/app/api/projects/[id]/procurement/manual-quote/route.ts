@@ -103,7 +103,11 @@ export async function POST(
     // Get all FFE items for this project (All Spec items)
     const ffeItems = await prisma.roomFFEItem.findMany({
       where: {
-        room: { projectId },
+        section: {
+          instance: {
+            room: { projectId }
+          }
+        },
         isSpecItem: true
       },
       select: {
@@ -117,10 +121,18 @@ export async function POST(
         supplierId: true,
         supplierName: true,
         tradePrice: true,
-        room: {
+        section: {
           select: {
-            name: true,
-            type: true
+            instance: {
+              select: {
+                room: {
+                  select: {
+                    name: true,
+                    type: true
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -185,7 +197,7 @@ Important:
       brand: item.brand || '',
       modelNumber: item.modelNumber || '',
       quantity: item.quantity,
-      roomName: item.room?.name || item.room?.type || ''
+      roomName: item.section?.instance?.room?.name || item.section?.instance?.room?.type || ''
     }))
 
     const userPrompt = `Please extract all line items and information from this supplier quote document.
@@ -398,7 +410,7 @@ Extract everything you can see in the quote document.`
             id: specItem.id,
             name: specItem.name,
             confidence: Math.min(100, Math.round(confidence)),
-            roomName: specItem.room?.name || specItem.room?.type
+            roomName: specItem.section?.instance?.room?.name || specItem.section?.instance?.room?.type
           })
         }
 
