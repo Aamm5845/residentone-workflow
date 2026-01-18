@@ -1144,16 +1144,21 @@ export default function QuotePDFReviewDialog({
                   className="border-red-500 text-red-600 hover:bg-red-50"
                   onClick={async () => {
                     try {
-                      await fetch(`/api/projects/${projectId}/procurement/supplier-quotes/${quoteId}/status`, {
+                      // Use the main PATCH endpoint for full business logic (decline status + item updates)
+                      const res = await fetch(`/api/projects/${projectId}/procurement/supplier-quotes`, {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ status: 'REJECTED' })
+                        body: JSON.stringify({ quoteId, action: 'decline' })
                       })
+                      if (!res.ok) {
+                        const error = await res.json().catch(() => ({ error: 'Unknown error' }))
+                        throw new Error(error.error || 'Failed to decline quote')
+                      }
                       onMatchUpdated?.()
                       toast.success('Quote declined')
                       onOpenChange(false)
-                    } catch {
-                      toast.error('Failed to update status')
+                    } catch (err: any) {
+                      toast.error(err.message || 'Failed to update status')
                     }
                   }}
                 >
@@ -1164,16 +1169,21 @@ export default function QuotePDFReviewDialog({
                   className="border-amber-500 text-amber-600 hover:bg-amber-50"
                   onClick={async () => {
                     try {
-                      await fetch(`/api/projects/${projectId}/procurement/supplier-quotes/${quoteId}/status`, {
+                      // Use the main PATCH endpoint for full business logic
+                      const res = await fetch(`/api/projects/${projectId}/procurement/supplier-quotes`, {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ status: 'REVISION_REQUESTED' })
+                        body: JSON.stringify({ quoteId, action: 'request_revision' })
                       })
+                      if (!res.ok) {
+                        const error = await res.json().catch(() => ({ error: 'Unknown error' }))
+                        throw new Error(error.error || 'Failed to request revision')
+                      }
                       onMatchUpdated?.()
                       toast.success('Quote marked as needs revision')
                       onOpenChange(false)
-                    } catch {
-                      toast.error('Failed to update status')
+                    } catch (err: any) {
+                      toast.error(err.message || 'Failed to update status')
                     }
                   }}
                 >
@@ -1183,16 +1193,21 @@ export default function QuotePDFReviewDialog({
                   className="bg-emerald-600 hover:bg-emerald-700"
                   onClick={async () => {
                     try {
-                      await fetch(`/api/projects/${projectId}/procurement/supplier-quotes/${quoteId}/status`, {
+                      // Use the main PATCH endpoint for full business logic (approval + price updates)
+                      const res = await fetch(`/api/projects/${projectId}/procurement/supplier-quotes`, {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ status: 'ACCEPTED' })
+                        body: JSON.stringify({ quoteId, action: 'approve' })
                       })
+                      if (!res.ok) {
+                        const error = await res.json().catch(() => ({ error: 'Unknown error' }))
+                        throw new Error(error.error || 'Failed to approve quote')
+                      }
                       onMatchUpdated?.()
-                      toast.success('Quote accepted')
+                      toast.success('Quote approved')
                       onOpenChange(false)
-                    } catch {
-                      toast.error('Failed to update status')
+                    } catch (err: any) {
+                      toast.error(err.message || 'Failed to update status')
                     }
                   }}
                 >
