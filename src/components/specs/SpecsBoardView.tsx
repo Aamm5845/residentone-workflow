@@ -176,35 +176,46 @@ export default function SpecsBoardView({ projectId, onItemClick, refreshTrigger 
         </span>
       </div>
 
-      {/* Board - Fixed columns */}
-      <div className="flex-1 overflow-hidden">
-        <div className="h-full flex">
+      {/* Board - Fixed header row + scrollable content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Fixed Header Row */}
+        <div className="flex border-b border-gray-200 bg-gray-100 flex-shrink-0">
           {BOARD_COLUMNS.map(column => {
             const colData = columnData[column.id]
             const itemCount = colData?.items.length || 0
-            const categories = Object.keys(colData?.byCategory || {}).sort()
-
             return (
               <div
                 key={column.id}
-                className="flex-1 min-w-0 flex flex-col border-r border-gray-200 last:border-r-0"
+                className="flex-1 min-w-0 px-2 py-1.5 border-r border-gray-200 last:border-r-0"
               >
-                {/* Column Header */}
-                <div className="px-2 py-1.5 bg-gray-100 border-b border-gray-200 flex-shrink-0">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-medium text-gray-600 uppercase tracking-wide truncate">
-                      {column.label}
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-medium text-gray-600 uppercase tracking-wide truncate">
+                    {column.label}
+                  </span>
+                  {itemCount > 0 && (
+                    <span className="text-[10px] text-gray-400 ml-1">
+                      {itemCount}
                     </span>
-                    {itemCount > 0 && (
-                      <span className="text-[10px] text-gray-400 ml-1">
-                        {itemCount}
-                      </span>
-                    )}
-                  </div>
+                  )}
                 </div>
+              </div>
+            )
+          })}
+        </div>
 
-                {/* Column Content */}
-                <div className="flex-1 overflow-y-auto p-1">
+        {/* Scrollable Content Area */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="h-full flex">
+            {BOARD_COLUMNS.map(column => {
+              const colData = columnData[column.id]
+              const itemCount = colData?.items.length || 0
+              const categories = Object.keys(colData?.byCategory || {}).sort()
+
+              return (
+                <div
+                  key={column.id}
+                  className="flex-1 min-w-0 border-r border-gray-200 last:border-r-0 p-1"
+                >
                   {itemCount === 0 ? (
                     <div className="text-center py-4 text-gray-300 text-[10px]">
                       —
@@ -269,9 +280,9 @@ export default function SpecsBoardView({ projectId, onItemClick, refreshTrigger 
                     </div>
                   )}
                 </div>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
       </div>
     </div>
