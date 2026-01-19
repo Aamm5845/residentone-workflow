@@ -9,7 +9,6 @@ import {
   Package,
   ChevronDown,
   ChevronRight,
-  CheckCircle2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -37,7 +36,7 @@ const BOARD_COLUMNS = [
   { id: 'SELECTED', label: 'Selected' },
   { id: 'RFQ_SENT', label: 'RFQ Sent' },
   { id: 'QUOTED', label: 'Quoted', includeStatuses: ['QUOTE_RECEIVED', 'BUDGET_SENT'] },
-  { id: 'QUOTE_APPROVED', label: 'Approved' },
+  { id: 'APPROVED', label: 'Approved' },
   { id: 'INVOICED_TO_CLIENT', label: 'Invoiced' },
   { id: 'CLIENT_PAID', label: 'Paid' },
   { id: 'ORDERED', label: 'Ordered' },
@@ -110,13 +109,21 @@ export default function SpecsBoardView({ projectId, onItemClick, refreshTrigger 
     filteredItems.forEach(item => {
       if (EXCLUDED_STATUSES.includes(item.specStatus)) return
 
-      let columnId = item.specStatus
-      const completedCol = BOARD_COLUMNS.find(c => c.includeStatuses?.includes(item.specStatus))
-      if (completedCol) {
-        columnId = completedCol.id
-      }
-      if (!columns[columnId]) {
-        columnId = 'SELECTED'
+      // If client approved, item goes to APPROVED column
+      let columnId: string
+      if (item.clientApproved) {
+        columnId = 'APPROVED'
+      } else {
+        // Otherwise, determine column by status
+        columnId = item.specStatus
+        const matchingCol = BOARD_COLUMNS.find(c => c.includeStatuses?.includes(item.specStatus))
+        if (matchingCol) {
+          columnId = matchingCol.id
+        }
+        // If no matching column, default to SELECTED
+        if (!columns[columnId]) {
+          columnId = 'SELECTED'
+        }
       }
 
       columns[columnId].items.push(item)
@@ -232,13 +239,10 @@ export default function SpecsBoardView({ projectId, onItemClick, refreshTrigger 
                                   <div
                                     key={item.id}
                                     onClick={() => onItemClick?.(item.id)}
-                                    className={cn(
-                                      "flex items-center gap-1 p-1 bg-white rounded border cursor-pointer hover:border-gray-300 hover:shadow-sm transition-all",
-                                      item.clientApproved ? "border-emerald-200 bg-emerald-50/50" : "border-gray-100"
-                                    )}
+                                    className="flex items-center gap-1 p-1 bg-white rounded border border-gray-100 cursor-pointer hover:border-gray-300 hover:shadow-sm transition-all"
                                   >
                                     {/* Tiny Image */}
-                                    <div className="w-6 h-6 rounded overflow-hidden bg-gray-50 flex-shrink-0 relative">
+                                    <div className="w-6 h-6 rounded overflow-hidden bg-gray-50 flex-shrink-0">
                                       {item.image ? (
                                         <img
                                           src={item.image}
@@ -248,11 +252,6 @@ export default function SpecsBoardView({ projectId, onItemClick, refreshTrigger 
                                       ) : (
                                         <div className="w-full h-full flex items-center justify-center">
                                           <Package className="w-3 h-3 text-gray-300" />
-                                        </div>
-                                      )}
-                                      {item.clientApproved && (
-                                        <div className="absolute -top-0.5 -right-0.5 bg-emerald-500 rounded-full p-0.5">
-                                          <CheckCircle2 className="w-2 h-2 text-white" />
                                         </div>
                                       )}
                                     </div>
