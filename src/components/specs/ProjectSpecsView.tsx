@@ -1270,8 +1270,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     const baseFiltered = [...filtered]
 
     // Apply summary filter (needs approval or needs price)
-    // Exclude CONTRACTOR_TO_ORDER from these filters as it's considered "done" (no price/approval needed)
-    const skipFilterStatuses = ['CONTRACTOR_TO_ORDER']
+    // Exclude CONTRACTOR_TO_ORDER and CLIENT_TO_ORDER from these filters as approval is not needed for these
+    const skipFilterStatuses = ['CONTRACTOR_TO_ORDER', 'CLIENT_TO_ORDER']
     if (summaryFilter === 'needs_approval') {
       filtered = filtered.filter(spec => !spec.clientApproved && !skipFilterStatuses.includes(spec.specStatus || ''))
     } else if (summaryFilter === 'needs_price') {
@@ -3788,8 +3788,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   {filteredSpecs.filter(s => s.clientApproved).length} Approved
                 </button>
 
-                {/* Needs Approval - Amber (excludes CONTRACTOR_TO_ORDER as it's considered done) */}
-                {filteredSpecs.filter(s => !s.clientApproved && s.specStatus !== 'CONTRACTOR_TO_ORDER').length > 0 && (
+                {/* Needs Approval - Amber (excludes CONTRACTOR_TO_ORDER and CLIENT_TO_ORDER as approval not needed) */}
+                {filteredSpecs.filter(s => !s.clientApproved && !['CONTRACTOR_TO_ORDER', 'CLIENT_TO_ORDER'].includes(s.specStatus || '')).length > 0 && (
                   <button
                     onClick={() => setSummaryFilter(summaryFilter === 'needs_approval' ? 'all' : 'needs_approval')}
                     className={cn(
@@ -3800,7 +3800,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     )}
                   >
                     <Clock className="w-3.5 h-3.5" />
-                    {filteredSpecs.filter(s => !s.clientApproved && s.specStatus !== 'CONTRACTOR_TO_ORDER').length} Need Approval
+                    {filteredSpecs.filter(s => !s.clientApproved && !['CONTRACTOR_TO_ORDER', 'CLIENT_TO_ORDER'].includes(s.specStatus || '')).length} Need Approval
                   </button>
                 )}
 
@@ -5737,20 +5737,31 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation()
-                                    handleToggleClientApproval(item.id, item.clientApproved)
+                                    if (!['CONTRACTOR_TO_ORDER', 'CLIENT_TO_ORDER'].includes(item.specStatus || '')) {
+                                      handleToggleClientApproval(item.id, item.clientApproved)
+                                    }
                                   }}
+                                  disabled={['CONTRACTOR_TO_ORDER', 'CLIENT_TO_ORDER'].includes(item.specStatus || '')}
                                   className={cn(
                                     "flex items-center justify-center gap-1 px-1.5 lg:px-2 py-1 rounded border text-xs transition-all w-auto lg:w-[90px]",
-                                    item.clientApproved
-                                      ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
-                                      : "bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50"
+                                    ['CONTRACTOR_TO_ORDER', 'CLIENT_TO_ORDER'].includes(item.specStatus || '')
+                                      ? "bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed"
+                                      : item.clientApproved
+                                        ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+                                        : "bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50"
                                   )}
-                                  title={item.clientApproved ? "Client has approved this item" : "Click to mark as client approved"}
+                                  title={
+                                    ['CONTRACTOR_TO_ORDER', 'CLIENT_TO_ORDER'].includes(item.specStatus || '')
+                                      ? "Approval not needed for this status"
+                                      : item.clientApproved
+                                        ? "Client has approved this item"
+                                        : "Click to mark as client approved"
+                                  }
                                 >
                                   {item.clientApproved ? (
                                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
                                   ) : (
-                                    <Circle className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />
+                                    <Circle className={cn("w-3.5 h-3.5 flex-shrink-0", ['CONTRACTOR_TO_ORDER', 'CLIENT_TO_ORDER'].includes(item.specStatus || '') ? "text-gray-300" : "text-gray-300")} />
                                   )}
                                   <span className="hidden lg:inline">{item.clientApproved ? 'Approved' : 'Approve'}</span>
                                 </button>
