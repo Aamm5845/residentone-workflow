@@ -3353,6 +3353,9 @@ model SupplierQuoteLineItem {
   roomFFEItem    RoomFFEItem? @relation("ItemQuoteLineItems", fields: [roomFFEItemId], references: [id])
   acceptedByItem RoomFFEItem? @relation("AcceptedQuoteForItem") // Reverse of RoomFFEItem.acceptedQuoteLineItem
 
+  // Order items created from this quote
+  orderItems OrderItem[]
+
   // Self-reference for quote versioning
   previousVersion SupplierQuoteLineItem?  @relation("QuoteLineVersions", fields: [previousVersionId], references: [id])
   newerVersions   SupplierQuoteLineItem[] @relation("QuoteLineVersions")
@@ -3737,10 +3740,11 @@ model Order {
 
 // Individual items in an order
 model OrderItem {
-  id                    String  @id @default(cuid())
-  orderId               String
-  clientQuoteLineItemId String?
-  roomFFEItemId         String
+  id                      String  @id @default(cuid())
+  orderId                 String
+  clientQuoteLineItemId   String?
+  roomFFEItemId           String
+  supplierQuoteLineItemId String? // Link to the supplier quote we're ordering from
 
   // Item info
   name        String
@@ -3748,7 +3752,7 @@ model OrderItem {
   quantity    Int
   unitType    String?
 
-  // Pricing
+  // Pricing (from supplier quote)
   unitPrice  Decimal
   totalPrice Decimal
 
@@ -3764,13 +3768,15 @@ model OrderItem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  order               Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  clientQuoteLineItem ClientQuoteLineItem? @relation(fields: [clientQuoteLineItemId], references: [id])
-  roomFFEItem         RoomFFEItem          @relation("OrderItems", fields: [roomFFEItemId], references: [id])
-  delivery            Delivery?            @relation(fields: [deliveryId], references: [id])
+  order                 Order                    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  clientQuoteLineItem   ClientQuoteLineItem?     @relation(fields: [clientQuoteLineItemId], references: [id])
+  roomFFEItem           RoomFFEItem              @relation("OrderItems", fields: [roomFFEItemId], references: [id])
+  supplierQuoteLineItem SupplierQuoteLineItem?   @relation(fields: [supplierQuoteLineItemId], references: [id])
+  delivery              Delivery?                @relation(fields: [deliveryId], references: [id])
 
   @@index([orderId])
   @@index([roomFFEItemId])
+  @@index([supplierQuoteLineItemId])
   @@index([status])
 }
 

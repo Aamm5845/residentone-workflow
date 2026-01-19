@@ -198,6 +198,33 @@ export async function POST(
       })
     }
 
+    // Update RoomFFEItem payment statuses for all items in this invoice
+    const lineItemsWithItems = await prisma.clientQuoteLineItem.findMany({
+      where: {
+        clientQuoteId: invoiceId,
+        roomFFEItemId: { not: null }
+      },
+      select: { roomFFEItemId: true }
+    })
+
+    const roomFFEItemIds = lineItemsWithItems
+      .map(li => li.roomFFEItemId)
+      .filter((id): id is string => id !== null)
+
+    if (roomFFEItemIds.length > 0) {
+      await prisma.roomFFEItem.updateMany({
+        where: {
+          id: { in: roomFFEItemIds }
+        },
+        data: {
+          specStatus: 'CLIENT_PAID',
+          paymentStatus: isFullyPaid ? 'FULLY_PAID' : 'DEPOSIT_PAID',
+          paidAmount: newPaidAmount,
+          paidAt: new Date()
+        }
+      })
+    }
+
     // Log activity
     await prisma.clientQuoteActivity.create({
       data: {

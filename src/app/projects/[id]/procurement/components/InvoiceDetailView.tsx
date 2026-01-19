@@ -23,11 +23,13 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
-  X
+  X,
+  Truck
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
 import PaymentReminderDialog from './PaymentReminderDialog'
+import CreateOrdersFromInvoiceDialog from './CreateOrdersFromInvoiceDialog'
 
 interface InvoiceDetailViewProps {
   open: boolean
@@ -95,6 +97,7 @@ export default function InvoiceDetailView({
   const [lineItems, setLineItems] = useState<LineItem[]>([])
   const [loading, setLoading] = useState(true)
   const [reminderDialogOpen, setReminderDialogOpen] = useState(false)
+  const [createOrdersDialogOpen, setCreateOrdersDialogOpen] = useState(false)
 
   useEffect(() => {
     if (open && invoice.id) {
@@ -337,10 +340,19 @@ export default function InvoiceDetailView({
             </>
           )}
           {invoice.status === 'PAID' && (
-            <div className="flex-1 flex items-center justify-center gap-2 text-emerald-600">
-              <CheckCircle className="w-5 h-5" />
-              <span className="font-medium">Fully Paid</span>
-            </div>
+            <>
+              <Button
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                onClick={() => setCreateOrdersDialogOpen(true)}
+              >
+                <Truck className="w-4 h-4 mr-1.5" />
+                Create Purchase Orders
+              </Button>
+              <div className="flex items-center gap-1 text-emerald-600">
+                <CheckCircle className="w-4 h-4" />
+                <span className="text-sm font-medium">Paid</span>
+              </div>
+            </>
           )}
         </div>
       </SheetContent>
@@ -361,6 +373,17 @@ export default function InvoiceDetailView({
         balance: invoice.balance,
         validUntil: invoice.validUntil
       }}
+      onSuccess={() => {
+        onRefresh?.()
+      }}
+    />
+
+    <CreateOrdersFromInvoiceDialog
+      open={createOrdersDialogOpen}
+      onOpenChange={setCreateOrdersDialogOpen}
+      projectId={projectId}
+      invoiceId={invoice.id}
+      invoiceNumber={invoice.invoiceNumber}
       onSuccess={() => {
         onRefresh?.()
       }}
