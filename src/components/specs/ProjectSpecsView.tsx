@@ -99,7 +99,9 @@ import {
   Link2,
   FileDown,
   FileSpreadsheet,
-  ChevronRight
+  ChevronRight,
+  LayoutGrid,
+  List
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CropFromRenderingDialog from '@/components/image/CropFromRenderingDialog'
@@ -114,6 +116,7 @@ import CreateClientQuoteDialog from '@/components/procurement/create-client-quot
 import QuickQuoteDialog from '@/components/procurement/quick-quote-dialog'
 import SendToClientDialog from '@/components/procurement/send-to-client-dialog'
 import BudgetApprovalDialog from '@/components/specs/BudgetApprovalDialog'
+import SpecsBoardView from '@/components/specs/SpecsBoardView'
 
 // Item status options - ordered by workflow (cleaned up - 16 options)
 const ITEM_STATUS_OPTIONS = [
@@ -402,6 +405,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   const [itemSortBy, setItemSortBy] = useState<'default' | 'name' | 'brand' | 'price_asc' | 'price_desc' | 'status'>('default')
   const [itemSortDirection, setItemSortDirection] = useState<'asc' | 'desc'>('asc')
   const [activeTab, setActiveTab] = useState<'summary' | 'financial' | 'needs'>('summary')
+  const [viewMode, setViewMode] = useState<'list' | 'board'>('list')
   const [financials, setFinancials] = useState({
     totalTradePriceCAD: 0,
     totalTradePriceUSD: 0,
@@ -3616,6 +3620,34 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+
+              {/* View Toggle */}
+              <div className="flex items-center border rounded-md bg-gray-100/50">
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={cn(
+                    "p-1.5 rounded-l-md transition-colors",
+                    viewMode === 'list'
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-500 hover:text-gray-700"
+                  )}
+                  title="List view"
+                >
+                  <List className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('board')}
+                  className={cn(
+                    "p-1.5 rounded-r-md transition-colors",
+                    viewMode === 'board'
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-500 hover:text-gray-700"
+                  )}
+                  title="Board view"
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
           
@@ -4051,7 +4083,28 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
       {/* Content - Show for Summary and Financial tabs */}
       {activeTab !== 'needs' && (
-      <div className="max-w-full mx-auto px-4 py-4">
+      <>
+        {/* Board View */}
+        {viewMode === 'board' ? (
+          <div className="h-[calc(100vh-280px)]">
+            <SpecsBoardView
+              projectId={project.id}
+              onItemClick={(itemId) => {
+                const item = specs.find(s => s.id === itemId)
+                if (item) {
+                  setDetailPanel({
+                    isOpen: true,
+                    mode: 'view',
+                    item,
+                    sectionId: item.sectionId,
+                    roomId: item.roomId
+                  })
+                }
+              }}
+            />
+          </div>
+        ) : (
+        <div className="max-w-full mx-auto px-4 py-4">
         {groupedSpecs.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-200 p-8">
             {/* Show available sections if any - deduplicated by section name */}
@@ -5850,8 +5903,10 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           </div>
         )}
       </div>
+        )}
+      </>
       )}
-      
+
       {/* Floating Add Button - Only show when not on needs tab */}
       {activeTab !== 'needs' && groupedSpecs.length > 0 && groupedSpecs[0]?.sectionId && groupedSpecs[0]?.roomId && (
         <div className="fixed bottom-8 right-8 z-20">
