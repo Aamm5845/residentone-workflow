@@ -404,22 +404,7 @@ export default function ClientInvoicePage() {
                     <span className="text-gray-500">Subtotal</span>
                     <span className="text-gray-700">{formatCurrency(invoice.subtotal)}</span>
                   </div>
-                  {/* Delivery Fee */}
-                  {invoice.shippingCost && invoice.shippingCost > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Delivery</span>
-                      <span className="text-gray-700">{formatCurrency(invoice.shippingCost)}</span>
-                    </div>
-                  )}
-                  {/* Custom Fees */}
-                  {invoice.customFees && invoice.customFees.length > 0 && invoice.customFees.map((fee, index) => (
-                    fee.amount > 0 && (
-                      <div key={index} className="flex justify-between text-sm">
-                        <span className="text-gray-500">{fee.name || 'Additional Fee'}</span>
-                        <span className="text-gray-700">{formatCurrency(fee.amount)}</span>
-                      </div>
-                    )
-                  ))}
+                  {/* Tax - calculated on subtotal only */}
                   {hasGstQst ? (
                     <>
                       {invoice.gstAmount && invoice.gstAmount > 0 && (
@@ -443,6 +428,22 @@ export default function ClientInvoicePage() {
                       </div>
                     )
                   )}
+                  {/* Delivery Fee - after tax */}
+                  {invoice.shippingCost && invoice.shippingCost > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Delivery</span>
+                      <span className="text-gray-700">{formatCurrency(invoice.shippingCost)}</span>
+                    </div>
+                  )}
+                  {/* Custom Fees - after tax */}
+                  {invoice.customFees && invoice.customFees.length > 0 && invoice.customFees.map((fee, index) => (
+                    fee.amount > 0 && (
+                      <div key={index} className="flex justify-between text-sm">
+                        <span className="text-gray-500">{fee.name || 'Additional Fee'}</span>
+                        <span className="text-gray-700">{formatCurrency(fee.amount)}</span>
+                      </div>
+                    )
+                  ))}
                   <div className="flex justify-between pt-2 border-t">
                     <span className="font-semibold text-gray-900">Total Due</span>
                     <span className="text-xl font-bold text-gray-900">{formatCurrency(invoice.totalAmount)}</span>
@@ -510,10 +511,7 @@ export default function ClientInvoicePage() {
                 >
                   <div className="flex items-center gap-3">
                     <Building className="w-5 h-5 text-gray-400" />
-                    <div>
-                      <p className="font-medium text-gray-900 text-sm">Wire Transfer / Direct Deposit</p>
-                      <p className="text-xs text-gray-500">No processing fee</p>
-                    </div>
+                    <p className="font-medium text-gray-900 text-sm">Wire Transfer / Direct Deposit</p>
                   </div>
                   <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showWireInfo ? 'rotate-180' : ''}`} />
                 </button>
@@ -544,17 +542,14 @@ export default function ClientInvoicePage() {
                   className="w-full p-4 flex items-center justify-between text-left"
                 >
                   <div className="flex items-center gap-3">
-                    {/* Interac Logo */}
+                    {/* Interac Logo - Grey to match other icons */}
                     <div className="w-8 h-8 flex items-center justify-center">
-                      <svg viewBox="0 0 24 24" className="w-7 h-7" fill="none">
-                        <circle cx="12" cy="12" r="11" fill="#FFCC00"/>
-                        <path d="M7 12h10M12 7v10" stroke="#000" strokeWidth="2" strokeLinecap="round"/>
+                      <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="#9CA3AF" strokeWidth="1.5" fill="none"/>
+                        <path d="M7 12h10M12 7v10" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round"/>
                       </svg>
                     </div>
-                    <div>
-                      <p className="font-medium text-gray-900 text-sm">Interac e-Transfer</p>
-                      <p className="text-xs text-gray-500">No processing fee</p>
-                    </div>
+                    <p className="font-medium text-gray-900 text-sm">Interac e-Transfer</p>
                   </div>
                   <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showEtransferInfo ? 'rotate-180' : ''}`} />
                 </button>
@@ -594,10 +589,7 @@ export default function ClientInvoicePage() {
                 >
                   <div className="flex items-center gap-3">
                     <Banknote className="w-5 h-5 text-gray-400" />
-                    <div>
-                      <p className="font-medium text-gray-900 text-sm">Check</p>
-                      <p className="text-xs text-gray-500">No processing fee</p>
-                    </div>
+                    <p className="font-medium text-gray-900 text-sm">Check</p>
                   </div>
                   <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showCheckInfo ? 'rotate-180' : ''}`} />
                 </button>
