@@ -99,7 +99,8 @@ export async function POST(
       method, // CREDIT_CARD, WIRE_TRANSFER, CHECK, ACH_BANK_TRANSFER, CASH, OTHER
       paidAt,
       reference, // check number, wire reference, etc.
-      notes
+      notes,
+      sendConfirmationEmail = true // Default to sending email
     } = body
 
     if (!amount || amount <= 0) {
@@ -214,11 +215,11 @@ export async function POST(
       }
     })
 
-    // Send payment confirmation email to client
+    // Send payment confirmation email to client (if requested)
     const clientEmail = invoice.clientEmail || invoice.project.client?.email
     const clientName = invoice.clientName || invoice.project.client?.name || 'Valued Customer'
 
-    if (clientEmail) {
+    if (clientEmail && sendConfirmationEmail) {
       try {
         const emailData = generatePaymentConfirmationEmailTemplate({
           clientName,

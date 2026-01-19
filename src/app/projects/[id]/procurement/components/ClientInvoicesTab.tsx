@@ -41,11 +41,12 @@ import {
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
-import CreateInvoiceDialog from './CreateInvoiceDialog'
+import CreateClientQuoteDialog from '@/components/procurement/create-client-quote-dialog'
 import SendInvoiceDialog from './SendInvoiceDialog'
 import RecordPaymentDialog from './RecordPaymentDialog'
 import PaymentHistoryDialog from './PaymentHistoryDialog'
 import InvoiceDetailView from './InvoiceDetailView'
+import PaymentReminderDialog from './PaymentReminderDialog'
 
 interface ClientInvoicesTabProps {
   projectId: string
@@ -132,6 +133,7 @@ export default function ClientInvoicesTab({ projectId, searchQuery, onCreateInvo
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false)
   const [detailViewOpen, setDetailViewOpen] = useState(false)
+  const [reminderDialogOpen, setReminderDialogOpen] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState<ClientInvoice | null>(null)
 
   const fetchInvoices = useCallback(async () => {
@@ -188,18 +190,9 @@ export default function ClientInvoicesTab({ projectId, searchQuery, onCreateInvo
     setPaymentDialogOpen(true)
   }
 
-  const handleSendReminder = async (invoice: ClientInvoice) => {
-    try {
-      const res = await fetch(`/api/projects/${projectId}/procurement/client-invoices/${invoice.id}/reminder`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
-      })
-      if (!res.ok) throw new Error('Failed to send reminder')
-      toast.success(`Reminder sent to ${invoice.clientEmail}`)
-    } catch (error) {
-      toast.error('Failed to send reminder')
-    }
+  const handleSendReminder = (invoice: ClientInvoice) => {
+    setSelectedInvoice(invoice)
+    setReminderDialogOpen(true)
   }
 
   const handleViewHistory = (invoice: ClientInvoice) => {
@@ -497,7 +490,7 @@ export default function ClientInvoicesTab({ projectId, searchQuery, onCreateInvo
       </Card>
 
       {/* Dialogs */}
-      <CreateInvoiceDialog
+      <CreateClientQuoteDialog
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
         projectId={projectId}
@@ -536,6 +529,24 @@ export default function ClientInvoicesTab({ projectId, searchQuery, onCreateInvo
             onOpenChange={setHistoryDialogOpen}
             projectId={projectId}
             invoice={selectedInvoice}
+          />
+
+          <PaymentReminderDialog
+            open={reminderDialogOpen}
+            onOpenChange={setReminderDialogOpen}
+            projectId={projectId}
+            invoice={{
+              id: selectedInvoice.id,
+              invoiceNumber: selectedInvoice.invoiceNumber,
+              title: selectedInvoice.title,
+              clientEmail: selectedInvoice.clientEmail,
+              clientName: selectedInvoice.clientName,
+              totalAmount: selectedInvoice.totalAmount,
+              paidAmount: selectedInvoice.paidAmount,
+              balance: selectedInvoice.balance,
+              validUntil: selectedInvoice.validUntil
+            }}
+            onSuccess={fetchInvoices}
           />
 
           <InvoiceDetailView

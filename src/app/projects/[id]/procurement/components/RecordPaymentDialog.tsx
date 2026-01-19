@@ -19,7 +19,8 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import { Loader2, DollarSign, CreditCard, Building, Banknote, Wallet, Upload, FileText, X, Check } from 'lucide-react'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Loader2, DollarSign, CreditCard, Building, Banknote, Wallet, Upload, FileText, X, Check, Mail } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface RecordPaymentDialogProps {
@@ -33,6 +34,8 @@ interface RecordPaymentDialogProps {
     totalAmount: number
     paidAmount: number
     balance: number
+    clientEmail?: string
+    clientName?: string
   }
   onSuccess: () => void
 }
@@ -66,6 +69,9 @@ export default function RecordPaymentDialog({
   const [uploadingProof, setUploadingProof] = useState(false)
   const [proofUrl, setProofUrl] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Email confirmation
+  const [sendConfirmationEmail, setSendConfirmationEmail] = useState(true)
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -155,7 +161,8 @@ export default function RecordPaymentDialog({
           paidAt,
           notes,
           proofDocumentUrl: uploadedProofUrl,
-          proofFileName: proofFile?.name
+          proofFileName: proofFile?.name,
+          sendConfirmationEmail
         })
       })
 
@@ -354,6 +361,29 @@ export default function RecordPaymentDialog({
               PDF, images, or documents up to 10MB
             </p>
           </div>
+
+          {/* Email Confirmation */}
+          {invoice.clientEmail && (
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="sendConfirmationEmail"
+                  checked={sendConfirmationEmail}
+                  onCheckedChange={(checked) => setSendConfirmationEmail(checked === true)}
+                  className="mt-0.5"
+                />
+                <div className="flex-1">
+                  <Label htmlFor="sendConfirmationEmail" className="text-sm font-medium text-gray-900 cursor-pointer flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-blue-600" />
+                    Send payment confirmation email
+                  </Label>
+                  <p className="text-xs text-gray-600 mt-1">
+                    Notify <span className="font-medium">{invoice.clientName || invoice.clientEmail}</span> that payment has been received
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <DialogFooter>

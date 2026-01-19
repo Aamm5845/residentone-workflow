@@ -30,7 +30,29 @@ import {
   TableRow
 } from '@/components/ui/table'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Loader2, Search, DollarSign, Percent, AlertCircle, Package, ChevronDown, ChevronRight, CheckCircle, Send, Printer, Mail, FileText, ExternalLink, User, Phone, MapPin, Edit3, CreditCard, Plus, Trash2, Truck } from 'lucide-react'
+import {
+  Loader2,
+  Search,
+  DollarSign,
+  AlertCircle,
+  Package,
+  ChevronDown,
+  ChevronRight,
+  CheckCircle,
+  CheckCircle2,
+  Send,
+  Printer,
+  Mail,
+  ExternalLink,
+  User,
+  CreditCard,
+  Plus,
+  Trash2,
+  Truck,
+  ShieldX,
+  FileText,
+  AlertTriangle
+} from 'lucide-react'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
 
@@ -73,6 +95,8 @@ interface SpecItem {
   images?: string[]
   // Status
   specStatus?: string | null
+  // Approval
+  clientApproved?: boolean
   // Components
   components?: ComponentItem[]
 }
@@ -105,10 +129,22 @@ export default function CreateClientQuoteDialog({
   projectId,
   preselectedItemIds
 }: CreateClientQuoteDialogProps) {
-  const [step, setStep] = useState(1)
+  // Determine if we need item selection step (step 0)
+  const needsItemSelection = !preselectedItemIds?.length
+
+  // Step 0: Select Items (only when no preselectedItemIds)
+  // Step 1: Invoice Details
+  // Step 2: Review Pricing
+  // Step 3: Send to Client
+  const [step, setStep] = useState(needsItemSelection ? 0 : 1)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [sending, setSending] = useState(false)
+
+  // Item selection state (for step 0)
+  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set())
+  const [selectionSearchQuery, setSelectionSearchQuery] = useState('')
+  const [selectionExpandedCategories, setSelectionExpandedCategories] = useState<Set<string>>(new Set())
 
   // Created quote data (for Step 3 preview)
   const [createdQuote, setCreatedQuote] = useState<any>(null)
@@ -143,6 +179,13 @@ export default function CreateClientQuoteDialog({
   const [lineItems, setLineItems] = useState<LineItem[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
+
+  // Reset step when dialog opens/closes or preselectedItemIds changes
+  useEffect(() => {
+    if (open) {
+      setStep(needsItemSelection ? 0 : 1)
+    }
+  }, [open, needsItemSelection])
 
   // Load items when dialog opens
   useEffect(() => {
@@ -186,14 +229,16 @@ export default function CreateClientQuoteDialog({
     }
   }
 
-  // Build line items from preselected items (only items with RRP and valid status)
+  // Build line items from preselected items OR manually selected items
   useEffect(() => {
-    if (specItems.length > 0 && preselectedItemIds?.length) {
+    const itemIdsToUse = preselectedItemIds?.length ? preselectedItemIds : Array.from(selectedItemIds)
+
+    if (specItems.length > 0 && itemIdsToUse.length > 0) {
       // Filter to only items that can be invoiced:
       // 1. Must have RRP set
       // 2. Must not have excluded status
       const invoiceableItems = specItems.filter(item =>
-        preselectedItemIds.includes(item.id) &&
+        itemIdsToUse.includes(item.id) &&
         item.rrp && item.rrp > 0 &&
         !EXCLUDED_INVOICE_STATUSES.includes(item.specStatus || '')
       )
@@ -220,11 +265,12 @@ export default function CreateClientQuoteDialog({
       const categories = [...new Set(invoiceableItems.map(i => i.category || i.sectionName || 'Items'))]
       setExpandedCategories(new Set(categories))
     }
-  }, [specItems, preselectedItemIds])
+  }, [specItems, preselectedItemIds, selectedItemIds])
 
   const loadSpecItems = async () => {
     setLoading(true)
     try {
+      // Always load all items when in selection mode, or specific items when preselected
       const url = preselectedItemIds?.length
         ? `/api/projects/${projectId}/ffe-specs?ids=${preselectedItemIds.join(',')}`
         : `/api/projects/${projectId}/ffe-specs`
@@ -366,6 +412,117 @@ export default function CreateClientQuoteDialog({
     }
   }, [lineItems, additionalCharges, depositRequired, gstRate, qstRate])
 
+  // === ITEM SELECTION HELPERS (Step 0) ===
+
+  // Filter out items with excluded statuses
+  const invoiceableSpecItems = useMemo(() => {
+    return specItems.filter(item =>
+      !EXCLUDED_INVOICE_STATUSES.includes(item.specStatus || '')
+    )
+  }, [specItems])
+
+  // Group items by category for selection
+  const groupedSelectionItems = useMemo(() => {
+    const filtered = invoiceableSpecItems.filter(item =>
+      !selectionSearchQuery ||
+      item.name.toLowerCase().includes(selectionSearchQuery.toLowerCase()) ||
+      item.category?.toLowerCase().includes(selectionSearchQuery.toLowerCase()) ||
+      item.roomName?.toLowerCase().includes(selectionSearchQuery.toLowerCase())
+    )
+
+    return filtered.reduce((groups: Record<string, SpecItem[]>, item) => {
+      const key = item.category || item.sectionName || 'General'
+      if (!groups[key]) groups[key] = []
+      groups[key].push(item)
+      return groups
+    }, {})
+  }, [invoiceableSpecItems, selectionSearchQuery])
+
+  // Items without valid price (cannot be invoiced - requires RRP)
+  const itemsWithoutPrice = useMemo(() => {
+    return invoiceableSpecItems.filter(item => !item.rrp)
+  }, [invoiceableSpecItems])
+
+  // Items not approved by client
+  const itemsNotApproved = useMemo(() => {
+    return invoiceableSpecItems.filter(item => !item.clientApproved && item.rrp)
+  }, [invoiceableSpecItems])
+
+  // Items already invoiced or paid
+  const itemsAlreadyInvoiced = useMemo(() => {
+    return invoiceableSpecItems.filter(item =>
+      item.specStatus === 'INVOICED_TO_CLIENT' || item.specStatus === 'CLIENT_PAID'
+    )
+  }, [invoiceableSpecItems])
+
+  // Check which selected items are already invoiced or paid
+  const selectedInvoicedItems = useMemo(() => {
+    return invoiceableSpecItems.filter(item =>
+      selectedItemIds.has(item.id) &&
+      (item.specStatus === 'INVOICED_TO_CLIENT' || item.specStatus === 'CLIENT_PAID')
+    )
+  }, [invoiceableSpecItems, selectedItemIds])
+
+  // Check if item can be invoiced (must have RRP AND be approved AND not excluded status)
+  const canInvoiceItem = (item: SpecItem) => {
+    return item.rrp && item.clientApproved && !EXCLUDED_INVOICE_STATUSES.includes(item.specStatus || '')
+  }
+
+  const toggleSelectionCategory = (category: string) => {
+    setSelectionExpandedCategories(prev => {
+      const next = new Set(prev)
+      if (next.has(category)) {
+        next.delete(category)
+      } else {
+        next.add(category)
+      }
+      return next
+    })
+  }
+
+  const toggleItemSelection = (itemId: string) => {
+    setSelectedItemIds(prev => {
+      const next = new Set(prev)
+      if (next.has(itemId)) {
+        next.delete(itemId)
+      } else {
+        next.add(itemId)
+      }
+      return next
+    })
+  }
+
+  const selectAllInCategory = (category: string, items: SpecItem[]) => {
+    const validItems = items.filter(canInvoiceItem)
+    setSelectedItemIds(prev => {
+      const next = new Set(prev)
+      const allSelected = validItems.every(i => next.has(i.id))
+      if (allSelected) {
+        validItems.forEach(i => next.delete(i.id))
+      } else {
+        validItems.forEach(i => next.add(i.id))
+      }
+      return next
+    })
+  }
+
+  // Selection totals for step 0
+  const selectionTotals = useMemo(() => {
+    const selectedItems = invoiceableSpecItems.filter(item => selectedItemIds.has(item.id))
+    const subtotal = selectedItems.reduce((sum, item) => sum + (item.rrp || 0) * (item.quantity || 1), 0)
+    const gst = subtotal * 0.05
+    const qst = subtotal * 0.09975
+    return {
+      itemCount: selectedItems.length,
+      subtotal,
+      gst,
+      qst,
+      total: subtotal + gst + qst
+    }
+  }, [invoiceableSpecItems, selectedItemIds])
+
+  // === END ITEM SELECTION HELPERS ===
+
   // Add charge helpers
   const addCharge = (name: string = 'Delivery', amount: number = 0) => {
     setAdditionalCharges(prev => [...prev, { id: `charge-${Date.now()}`, name, amount }])
@@ -487,7 +644,7 @@ export default function CreateClientQuoteDialog({
   }
 
   const resetForm = () => {
-    setStep(1)
+    setStep(needsItemSelection ? 0 : 1)
     setTitle('')
     setDescription('')
     setValidUntil('')
@@ -503,6 +660,9 @@ export default function CreateClientQuoteDialog({
     setClientAddress('')
     setShowCreditCardOption(true)
     setAdditionalCharges([])
+    setSelectedItemIds(new Set())
+    setSelectionSearchQuery('')
+    setSelectionExpandedCategories(new Set())
   }
 
   const handleSendToClient = async () => {
@@ -518,13 +678,14 @@ export default function CreateClientQuoteDialog({
 
     setSending(true)
     try {
-      const response = await fetch('/api/client-quotes/send-to-client', {
+      // Use the send endpoint for existing invoices
+      const response = await fetch(`/api/projects/${projectId}/procurement/client-invoices/${createdQuote.id}/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          quoteId: createdQuote.id,
-          clientEmail,
-          clientName: clientName || undefined
+          email: clientEmail,
+          subject: `Invoice ${createdQuote.quoteNumber} - ${title}`,
+          message: description || ''
         })
       })
 
@@ -642,6 +803,17 @@ export default function CreateClientQuoteDialog({
     }).format(amount)
   }
 
+  // Get step title
+  const getStepTitle = () => {
+    switch (step) {
+      case 0: return 'Create Invoice - Select Items'
+      case 1: return 'Create Invoice - Details'
+      case 2: return 'Create Invoice - Pricing'
+      case 3: return 'Invoice Created - Send to Client'
+      default: return 'Create Invoice'
+    }
+  }
+
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -653,16 +825,256 @@ export default function CreateClientQuoteDialog({
             ) : (
               <DollarSign className="w-5 h-5 text-green-600" />
             )}
-            {step === 1 ? 'Create Invoice - Details' : step === 2 ? 'Create Invoice - Pricing' : 'Invoice Created - Send to Client'}
+            {getStepTitle()}
           </DialogTitle>
-          {preselectedItemIds?.length ? (
+          {(preselectedItemIds?.length || selectedItemIds.size > 0) && step > 0 ? (
             <p className="text-sm text-gray-500">
-              {preselectedItemIds.length} item{preselectedItemIds.length > 1 ? 's' : ''} selected
+              {preselectedItemIds?.length || selectedItemIds.size} item{(preselectedItemIds?.length || selectedItemIds.size) > 1 ? 's' : ''} selected
             </p>
           ) : null}
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto py-4">
+          {/* Step 0: Select Items (only when no preselectedItemIds) */}
+          {step === 0 && (
+            <div className="space-y-4">
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  placeholder="Search items..."
+                  value={selectionSearchQuery}
+                  onChange={(e) => setSelectionSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+
+              {/* Warning for items without price */}
+              {itemsWithoutPrice.length > 0 && (
+                <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm">
+                  <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <p className="text-amber-800">
+                    {itemsWithoutPrice.length} item{itemsWithoutPrice.length !== 1 ? 's' : ''} cannot be invoiced (no RRP set)
+                  </p>
+                </div>
+              )}
+
+              {/* Warning for items not approved */}
+              {itemsNotApproved.length > 0 && (
+                <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm">
+                  <ShieldX className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+                  <p className="text-red-800">
+                    {itemsNotApproved.length} item{itemsNotApproved.length !== 1 ? 's' : ''} need client approval before invoicing.
+                    <span className="text-red-600 font-medium"> Approve in All Specs first.</span>
+                  </p>
+                </div>
+              )}
+
+              {/* Info about already invoiced items */}
+              {itemsAlreadyInvoiced.length > 0 && (
+                <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+                  <FileText className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <p className="text-blue-800">
+                    {itemsAlreadyInvoiced.length} item{itemsAlreadyInvoiced.length !== 1 ? 's are' : ' is'} already invoiced or paid.
+                    <span className="text-blue-600"> You can still add them if needed (e.g., replacement item).</span>
+                  </p>
+                </div>
+              )}
+
+              {/* Warning when selecting already invoiced items */}
+              {selectedInvoicedItems.length > 0 && (
+                <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-300 rounded-lg text-sm">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <p className="text-amber-800">
+                    <span className="font-medium">{selectedInvoicedItems.length} selected item{selectedInvoicedItems.length !== 1 ? 's' : ''}</span> already invoiced/paid.
+                    {selectedInvoicedItems.some(i => i.specStatus === 'CLIENT_PAID') && (
+                      <span className="text-amber-700 font-medium"> Includes paid items!</span>
+                    )}
+                  </p>
+                </div>
+              )}
+
+              {/* Items list */}
+              <ScrollArea className="h-[400px] border rounded-lg">
+                <div className="p-2">
+                  {loading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                    </div>
+                  ) : Object.entries(groupedSelectionItems).length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      No items with prices found
+                    </div>
+                  ) : (
+                    Object.entries(groupedSelectionItems).map(([category, items]) => {
+                      const invoiceableItems = items.filter(canInvoiceItem)
+                      const selectedCount = invoiceableItems.filter(i => selectedItemIds.has(i.id)).length
+                      const isExpanded = selectionExpandedCategories.has(category)
+
+                      return (
+                        <div key={category} className="mb-2">
+                          <button
+                            onClick={() => toggleSelectionCategory(category)}
+                            className="w-full flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg"
+                          >
+                            <div className="flex items-center gap-2">
+                              {isExpanded ? (
+                                <ChevronDown className="w-4 h-4 text-gray-400" />
+                              ) : (
+                                <ChevronRight className="w-4 h-4 text-gray-400" />
+                              )}
+                              <span className="font-medium text-sm">{category}</span>
+                              <Badge variant="secondary" className="text-xs">
+                                {invoiceableItems.length} invoiceable
+                              </Badge>
+                              {items.length > invoiceableItems.length && (
+                                <Badge variant="outline" className="text-xs text-gray-400">
+                                  {items.length - invoiceableItems.length} not ready
+                                </Badge>
+                              )}
+                            </div>
+                            {selectedCount > 0 && (
+                              <Badge className="bg-emerald-100 text-emerald-700">
+                                {selectedCount} selected
+                              </Badge>
+                            )}
+                          </button>
+
+                          {isExpanded && (
+                            <div className="ml-6 mt-1 space-y-1">
+                              {/* Select all in category */}
+                              {invoiceableItems.length > 1 && (
+                                <button
+                                  onClick={() => selectAllInCategory(category, items)}
+                                  className="text-xs text-blue-600 hover:text-blue-700 mb-2"
+                                >
+                                  {invoiceableItems.every(i => selectedItemIds.has(i.id))
+                                    ? 'Deselect all'
+                                    : 'Select all approved'}
+                                </button>
+                              )}
+
+                              {items.map(item => {
+                                const hasPrice = !!item.rrp
+                                const isApproved = item.clientApproved
+                                const canInvoice = canInvoiceItem(item)
+                                const isSelected = selectedItemIds.has(item.id)
+                                const price = item.rrp || 0
+
+                                const isAlreadyInvoiced = item.specStatus === 'INVOICED_TO_CLIENT'
+                                const isPaid = item.specStatus === 'CLIENT_PAID'
+                                const hasInvoiceStatus = isAlreadyInvoiced || isPaid
+
+                                const disabledReason = !hasPrice
+                                  ? 'No RRP'
+                                  : !isApproved
+                                  ? 'Not approved'
+                                  : null
+
+                                return (
+                                  <div
+                                    key={item.id}
+                                    className={cn(
+                                      'flex items-center gap-3 p-2 rounded-lg border',
+                                      canInvoice
+                                        ? 'cursor-pointer hover:bg-gray-50'
+                                        : 'opacity-60 cursor-not-allowed bg-gray-50',
+                                      isSelected && 'border-emerald-300 bg-emerald-50',
+                                      hasInvoiceStatus && !isSelected && 'border-amber-200 bg-amber-50/50'
+                                    )}
+                                    onClick={() => canInvoice && toggleItemSelection(item.id)}
+                                  >
+                                    <Checkbox
+                                      checked={isSelected}
+                                      disabled={!canInvoice}
+                                      className={cn(!canInvoice && 'opacity-50')}
+                                    />
+                                    {item.images?.[0] && (
+                                      <img
+                                        src={item.images[0]}
+                                        alt=""
+                                        className="w-10 h-10 rounded object-cover"
+                                      />
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2">
+                                        <p className="font-medium text-sm truncate">{item.name}</p>
+                                        {isApproved ? (
+                                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" title="Client Approved" />
+                                        ) : hasPrice && (
+                                          <ShieldX className="w-3.5 h-3.5 text-red-400 flex-shrink-0" title="Not Approved" />
+                                        )}
+                                        {isPaid && (
+                                          <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-300 px-1.5 py-0">
+                                            <DollarSign className="w-3 h-3 mr-0.5" />
+                                            Paid
+                                          </Badge>
+                                        )}
+                                        {isAlreadyInvoiced && (
+                                          <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-300 px-1.5 py-0">
+                                            <FileText className="w-3 h-3 mr-0.5" />
+                                            Invoiced
+                                          </Badge>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                                        {item.roomName && <span>{item.roomName}</span>}
+                                        {item.brand && <span>• {item.brand}</span>}
+                                      </div>
+                                    </div>
+                                    <div className="text-right">
+                                      {canInvoice ? (
+                                        <>
+                                          <p className="font-medium text-sm">{formatCurrency(price)}</p>
+                                          <p className="text-xs text-gray-500">
+                                            Qty: {item.quantity || 1}
+                                          </p>
+                                        </>
+                                      ) : (
+                                        <p className={cn(
+                                          "text-xs",
+                                          !hasPrice ? "text-amber-600" : "text-red-500"
+                                        )}>
+                                          {disabledReason}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              </ScrollArea>
+
+              {/* Selection Summary */}
+              {selectionTotals.itemCount > 0 && (
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Selected Items</span>
+                    <span className="font-medium">{selectionTotals.itemCount}</span>
+                  </div>
+                  <div className="flex justify-between text-sm mt-1">
+                    <span className="text-gray-600">Subtotal</span>
+                    <span>{formatCurrency(selectionTotals.subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">GST + QST</span>
+                    <span>{formatCurrency(selectionTotals.gst + selectionTotals.qst)}</span>
+                  </div>
+                  <div className="flex justify-between font-medium mt-2 pt-2 border-t">
+                    <span>Estimated Total</span>
+                    <span>{formatCurrency(selectionTotals.total)}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Step 1: Quote Details */}
           {step === 1 && (
             <div className="space-y-4">
@@ -1182,10 +1594,28 @@ export default function CreateClientQuoteDialog({
                 Done
               </Button>
             </>
+          ) : step === 0 ? (
+            <>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <div className="flex-1" />
+              <Button
+                onClick={() => setStep(1)}
+                disabled={selectedItemIds.size === 0}
+              >
+                Continue ({selectedItemIds.size} items)
+              </Button>
+            </>
           ) : (
             <>
-              {step > 1 && (
+              {step > (needsItemSelection ? 0 : 1) && (
                 <Button variant="outline" onClick={() => setStep(step - 1)}>
+                  Back
+                </Button>
+              )}
+              {step === 1 && needsItemSelection && (
+                <Button variant="outline" onClick={() => setStep(0)}>
                   Back
                 </Button>
               )}
@@ -1269,4 +1699,3 @@ export default function CreateClientQuoteDialog({
     </>
   )
 }
-

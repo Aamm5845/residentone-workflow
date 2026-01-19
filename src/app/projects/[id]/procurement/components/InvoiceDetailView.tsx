@@ -27,6 +27,7 @@ import {
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
+import PaymentReminderDialog from './PaymentReminderDialog'
 
 interface InvoiceDetailViewProps {
   open: boolean
@@ -93,6 +94,7 @@ export default function InvoiceDetailView({
 }: InvoiceDetailViewProps) {
   const [lineItems, setLineItems] = useState<LineItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [reminderDialogOpen, setReminderDialogOpen] = useState(false)
 
   useEffect(() => {
     if (open && invoice.id) {
@@ -132,18 +134,8 @@ export default function InvoiceDetailView({
     window.open(`/client/invoice/${invoice.accessToken}`, '_blank')
   }
 
-  const handleSendReminder = async () => {
-    try {
-      const res = await fetch(`/api/projects/${projectId}/procurement/client-invoices/${invoice.id}/reminder`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
-      })
-      if (!res.ok) throw new Error('Failed to send reminder')
-      toast.success(`Reminder sent to ${invoice.clientEmail}`)
-    } catch (error) {
-      toast.error('Failed to send reminder')
-    }
+  const handleSendReminder = () => {
+    setReminderDialogOpen(true)
   }
 
   const StatusIcon = statusConfig[invoice.status].icon
@@ -157,6 +149,7 @@ export default function InvoiceDetailView({
   }, {})
 
   return (
+    <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-xl flex flex-col">
         <SheetHeader className="flex-shrink-0">
@@ -352,5 +345,26 @@ export default function InvoiceDetailView({
         </div>
       </SheetContent>
     </Sheet>
+
+    <PaymentReminderDialog
+      open={reminderDialogOpen}
+      onOpenChange={setReminderDialogOpen}
+      projectId={projectId}
+      invoice={{
+        id: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+        title: invoice.title,
+        clientEmail: invoice.clientEmail,
+        clientName: invoice.clientName,
+        totalAmount: invoice.totalAmount,
+        paidAmount: invoice.paidAmount,
+        balance: invoice.balance,
+        validUntil: invoice.validUntil
+      }}
+      onSuccess={() => {
+        onRefresh?.()
+      }}
+    />
+    </>
   )
 }

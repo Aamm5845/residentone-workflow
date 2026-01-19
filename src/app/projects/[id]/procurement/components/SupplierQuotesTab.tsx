@@ -49,7 +49,7 @@ import {
   HelpCircle,
   XCircle
 } from 'lucide-react'
-import CreateInvoiceDialog from './CreateInvoiceDialog'
+import CreateClientQuoteDialog from '@/components/procurement/create-client-quote-dialog'
 import CreateBudgetQuoteDialog from './CreateBudgetQuoteDialog'
 import QuotePDFReviewDialog from './QuotePDFReviewDialog'
 import ManualQuoteUploadDialog from './ManualQuoteUploadDialog'
@@ -1643,9 +1643,15 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
       </Dialog>
 
       {/* Create Invoice Dialog */}
-      <CreateInvoiceDialog
+      <CreateClientQuoteDialog
         open={invoiceDialogOpen}
-        onOpenChange={setInvoiceDialogOpen}
+        onOpenChange={(open) => {
+          setInvoiceDialogOpen(open)
+          if (!open) {
+            setSelectedQuoteForInvoice(null)
+            setSelectedQuoteData(null)
+          }
+        }}
         projectId={projectId}
         onSuccess={() => {
           setInvoiceDialogOpen(false)
@@ -1653,9 +1659,6 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
           setSelectedQuoteData(null)
           toast.success('Invoice created successfully')
         }}
-        preselectedQuoteIds={selectedQuoteForInvoice ? [selectedQuoteForInvoice] : undefined}
-        preselectedQuoteData={selectedQuoteData || undefined}
-        source="quotes"
       />
 
       {/* Create Budget Quote Dialog */}
