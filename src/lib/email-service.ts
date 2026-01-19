@@ -51,11 +51,16 @@ export async function sendEmail(options: { to: string; subject: string; html: st
     const trimmedSubject = options.subject.trim();
     
     // Validate email addresses format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(trimmedFrom)) {
+    // Support both plain email and "Name <email>" format
+    const plainEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const namedEmailRegex = /^.+\s*<[^\s@]+@[^\s@]+\.[^\s@]+>$/;
+
+    const isValidEmail = (email: string) => plainEmailRegex.test(email) || namedEmailRegex.test(email);
+
+    if (!isValidEmail(trimmedFrom)) {
       throw new Error(`Invalid FROM email address format: ${trimmedFrom}`);
     }
-    if (!emailRegex.test(trimmedTo)) {
+    if (!isValidEmail(trimmedTo)) {
       throw new Error(`Invalid TO email address format: ${trimmedTo}`);
     }
     
