@@ -101,7 +101,8 @@ import {
   FileSpreadsheet,
   ChevronRight,
   LayoutGrid,
-  List
+  List,
+  ThumbsUp
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CropFromRenderingDialog from '@/components/image/CropFromRenderingDialog'
@@ -2949,6 +2950,98 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     setSelectedItems(new Set())
   }
 
+  // Bulk status update modal state
+  const [bulkStatusModal, setBulkStatusModal] = useState(false)
+  const [bulkStatusValue, setBulkStatusValue] = useState('')
+  const [bulkStatusUpdating, setBulkStatusUpdating] = useState(false)
+
+  const handleBulkStatusUpdate = async () => {
+    if (selectedItems.size === 0 || !bulkStatusValue) return
+
+    // Check if status requires approval
+    if (APPROVAL_REQUIRED_STATUSES.includes(bulkStatusValue)) {
+      const itemsWithoutApproval = specs.filter(s => selectedItems.has(s.id) && !s.clientApproved)
+      if (itemsWithoutApproval.length > 0) {
+        toast.error(`${itemsWithoutApproval.length} item(s) require client approval first`)
+        return
+      }
+    }
+
+    setBulkStatusUpdating(true)
+    const itemsToUpdate = specs.filter(s => selectedItems.has(s.id))
+    let successCount = 0
+    let failCount = 0
+
+    for (const item of itemsToUpdate) {
+      try {
+        const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${item.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ specStatus: bulkStatusValue })
+        })
+        if (res.ok) successCount++
+        else failCount++
+      } catch {
+        failCount++
+      }
+    }
+
+    setBulkStatusUpdating(false)
+    setBulkStatusModal(false)
+    setBulkStatusValue('')
+    if (successCount > 0) {
+      toast.success(`Updated status for ${successCount} item(s)`)
+      setSpecs(prev => prev.map(s => selectedItems.has(s.id) ? { ...s, specStatus: bulkStatusValue } : s))
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to update ${failCount} item(s)`)
+    }
+    setSelectedItems(new Set())
+  }
+
+  // Bulk approve
+  const [bulkApproving, setBulkApproving] = useState(false)
+
+  const handleBulkApprove = async () => {
+    if (selectedItems.size === 0) return
+
+    const itemsToApprove = specs.filter(s => selectedItems.has(s.id) && !s.clientApproved)
+    if (itemsToApprove.length === 0) {
+      toast.info('All selected items are already approved')
+      return
+    }
+
+    if (!confirm(`Approve ${itemsToApprove.length} item(s)?`)) return
+
+    setBulkApproving(true)
+    let successCount = 0
+    let failCount = 0
+
+    for (const item of itemsToApprove) {
+      try {
+        const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${item.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ clientApproved: true })
+        })
+        if (res.ok) successCount++
+        else failCount++
+      } catch {
+        failCount++
+      }
+    }
+
+    setBulkApproving(false)
+    if (successCount > 0) {
+      toast.success(`Approved ${successCount} item(s)`)
+      setSpecs(prev => prev.map(s => selectedItems.has(s.id) ? { ...s, clientApproved: true } : s))
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to approve ${failCount} item(s)`)
+    }
+    setSelectedItems(new Set())
+  }
+
   // Load share settings
   const loadShareSettings = async () => {
     try {
@@ -3327,6 +3420,25 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     title="Move to section"
                   >
                     <Layers className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-xs gap-1.5"
+                    onClick={() => setBulkStatusModal(true)}
+                    title="Update status"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-xs gap-1.5 text-green-600 hover:bg-green-50"
+                    onClick={handleBulkApprove}
+                    disabled={bulkApproving}
+                    title="Approve selected items"
+                  >
+                    {bulkApproving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ThumbsUp className="w-3.5 h-3.5" />}
                   </Button>
                   <Button
                     variant="ghost"
@@ -7733,6 +7845,54 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             >
               {bulkMoving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
               Move Items
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Status Update Modal */}
+      <Dialog open={bulkStatusModal} onOpenChange={setBulkStatusModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RefreshCw className="w-5 h-5 text-blue-600" />
+              Update Status for {selectedItems.size} Item{selectedItems.size > 1 ? 's' : ''}
+            </DialogTitle>
+            <DialogDescription>
+              Select a status to apply to all selected items.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <Select value={bulkStatusValue} onValueChange={setBulkStatusValue}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a status" />
+              </SelectTrigger>
+              <SelectContent>
+                {ITEM_STATUS_OPTIONS.map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    <div className="flex items-center gap-2">
+                      <option.icon className={cn("w-4 h-4", option.color)} />
+                      {option.label}
+                      {option.requiresApproval && <span className="text-xs text-gray-400">(requires approval)</span>}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setBulkStatusModal(false); setBulkStatusValue('') }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleBulkStatusUpdate}
+              disabled={!bulkStatusValue || bulkStatusUpdating}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {bulkStatusUpdating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              Update Status
             </Button>
           </DialogFooter>
         </DialogContent>
