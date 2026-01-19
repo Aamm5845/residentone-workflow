@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -136,6 +137,10 @@ export default function ClientInvoicesTab({ projectId, searchQuery, onCreateInvo
   const [reminderDialogOpen, setReminderDialogOpen] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState<ClientInvoice | null>(null)
 
+  // Multi-select for bulk actions
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [deleting, setDeleting] = useState(false)
+
   const fetchInvoices = useCallback(async () => {
     setLoading(true)
     try {
@@ -232,6 +237,58 @@ export default function ClientInvoicesTab({ projectId, searchQuery, onCreateInvo
   const handleDownloadPDF = (invoice: ClientInvoice) => {
     // Open client view in new window for printing/saving as PDF
     window.open(`/client/invoice/${invoice.accessToken}`, '_blank')
+  }
+
+  // Multi-select handlers
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredInvoices.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(filteredInvoices.map(i => i.id)))
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return
+
+    const hasSentInvoices = filteredInvoices
+      .filter(i => selectedIds.has(i.id))
+      .some(i => i.status !== 'DRAFT')
+
+    const warningMsg = hasSentInvoices
+      ? `Some invoices have been sent to clients. Are you sure you want to delete ${selectedIds.size} invoice(s)?`
+      : `Delete ${selectedIds.size} invoice(s)?`
+
+    if (!confirm(warningMsg)) return
+
+    setDeleting(true)
+    try {
+      const deletePromises = Array.from(selectedIds).map(id =>
+        fetch(`/api/projects/${projectId}/procurement/client-invoices/${id}`, {
+          method: 'DELETE'
+        })
+      )
+      await Promise.all(deletePromises)
+      toast.success(`${selectedIds.size} invoice(s) deleted`)
+      setSelectedIds(new Set())
+      fetchInvoices()
+    } catch (error) {
+      toast.error('Failed to delete some invoices')
+    } finally {
+      setDeleting(false)
+    }
   }
 
   if (loading) {
@@ -333,6 +390,22 @@ export default function ClientInvoicesTab({ projectId, searchQuery, onCreateInvo
                 </DropdownMenuContent>
               </DropdownMenu>
 
+              {selectedIds.size > 0 && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="h-8"
+                  onClick={handleBulkDelete}
+                  disabled={deleting}
+                >
+                  {deleting ? (
+                    <RefreshCw className="w-4 h-4 mr-1.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4 mr-1.5" />
+                  )}
+                  Delete ({selectedIds.size})
+                </Button>
+              )}
               <Button variant="ghost" size="sm" className="h-8 text-gray-600" onClick={fetchInvoices}>
                 <RefreshCw className="w-4 h-4" />
               </Button>
@@ -370,6 +443,13 @@ export default function ClientInvoicesTab({ projectId, searchQuery, onCreateInvo
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
+                  <TableHead className="w-[40px]">
+                    <Checkbox
+                      checked={filteredInvoices.length > 0 && selectedIds.size === filteredInvoices.length}
+                      onCheckedChange={toggleSelectAll}
+                      aria-label="Select all"
+                    />
+                  </TableHead>
                   <TableHead className="text-gray-500 font-medium">Invoice</TableHead>
                   <TableHead className="text-gray-500 font-medium">Client</TableHead>
                   <TableHead className="text-gray-500 font-medium">Items</TableHead>
@@ -385,6 +465,13 @@ export default function ClientInvoicesTab({ projectId, searchQuery, onCreateInvo
                   const StatusIcon = statusConfig[invoice.status].icon
                   return (
                     <TableRow key={invoice.id} className="cursor-pointer group" onClick={() => handleViewInvoice(invoice)}>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedIds.has(invoice.id)}
+                          onCheckedChange={() => toggleSelect(invoice.id)}
+                          aria-label={`Select ${invoice.invoiceNumber}`}
+                        />
+                      </TableCell>
                       <TableCell>
                         <div>
                           <p className="font-medium text-gray-900">{invoice.invoiceNumber}</p>

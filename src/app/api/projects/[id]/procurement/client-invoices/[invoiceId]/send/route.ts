@@ -89,7 +89,7 @@ export async function POST(
     const orgName = invoice.project.organization?.businessName || invoice.project.organization?.name || 'Your Designer'
     const clientName = invoice.clientName || invoice.project.client?.name || 'Client'
 
-    const emailSubject = subject || `Invoice ${invoice.quoteNumber} from ${orgName}`
+    const emailSubject = subject || `Invoice ${invoice.quoteNumber}${invoice.title ? ` - ${invoice.title}` : ''} from ${orgName}`
     const personalMessage = message || ''
 
     const emailHtml = `

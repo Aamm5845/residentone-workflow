@@ -177,7 +177,7 @@ export async function POST(
       await resend.emails.send({
         from: process.env.RESEND_FROM_EMAIL || 'invoices@resend.dev',
         to: clientEmail,
-        subject: `${isOverdue ? 'Payment Overdue' : 'Payment Reminder'}: Invoice ${invoice.quoteNumber}`,
+        subject: `${isOverdue ? 'Payment Overdue' : 'Payment Reminder'}: Invoice ${invoice.quoteNumber}${invoice.title ? ` - ${invoice.title}` : ''}`,
         html: emailHtml,
         headers: {
           'X-Entity-Ref-ID': trackingId
@@ -189,7 +189,7 @@ export async function POST(
         data: {
           clientQuoteId: invoiceId,
           to: clientEmail,
-          subject: `${isOverdue ? 'Payment Overdue' : 'Payment Reminder'}: Invoice ${invoice.quoteNumber}`,
+          subject: `${isOverdue ? 'Payment Overdue' : 'Payment Reminder'}: Invoice ${invoice.quoteNumber}${invoice.title ? ` - ${invoice.title}` : ''}`,
           htmlContent: emailHtml,
           trackingPixelId: trackingId
         }
