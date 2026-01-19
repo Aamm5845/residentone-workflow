@@ -29,13 +29,11 @@ interface BoardItem {
   specStatus: string
 }
 
-// Define the procurement workflow columns - minimal labels
+// Define the procurement workflow columns - consolidated
 const BOARD_COLUMNS = [
   { id: 'SELECTED', label: 'Selected' },
   { id: 'RFQ_SENT', label: 'RFQ Sent' },
-  { id: 'QUOTE_RECEIVED', label: 'Quoted' },
-  { id: 'QUOTE_APPROVED', label: 'Approved' },
-  { id: 'INVOICED_TO_CLIENT', label: 'Invoiced' },
+  { id: 'QUOTED', label: 'Quoted', includeStatuses: ['QUOTE_RECEIVED', 'QUOTE_APPROVED', 'INVOICED_TO_CLIENT', 'BUDGET_SENT'] },
   { id: 'CLIENT_PAID', label: 'Paid' },
   { id: 'ORDERED', label: 'Ordered' },
   { id: 'SHIPPED', label: 'Shipped' },
