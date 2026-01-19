@@ -2991,7 +2991,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     setBulkStatusValue('')
     if (successCount > 0) {
       toast.success(`Updated status for ${successCount} item(s)`)
-      setSpecs(prev => prev.map(s => selectedItems.has(s.id) ? { ...s, specStatus: bulkStatusValue } : s))
+      // Refresh data to ensure consistency
+      fetchSpecs(true)
     }
     if (failCount > 0) {
       toast.error(`Failed to update ${failCount} item(s)`)
@@ -3005,9 +3006,14 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   const handleBulkApprove = async () => {
     if (selectedItems.size === 0) return
 
-    const itemsToApprove = specs.filter(s => selectedItems.has(s.id) && !s.clientApproved)
+    // Filter out items that don't need approval (CONTRACTOR_TO_ORDER, CLIENT_TO_ORDER)
+    const itemsToApprove = specs.filter(s =>
+      selectedItems.has(s.id) &&
+      !s.clientApproved &&
+      !['CONTRACTOR_TO_ORDER', 'CLIENT_TO_ORDER'].includes(s.specStatus || '')
+    )
     if (itemsToApprove.length === 0) {
-      toast.info('All selected items are already approved')
+      toast.info('All selected items are already approved or don\'t need approval')
       return
     }
 
@@ -3034,7 +3040,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     setBulkApproving(false)
     if (successCount > 0) {
       toast.success(`Approved ${successCount} item(s)`)
-      setSpecs(prev => prev.map(s => selectedItems.has(s.id) ? { ...s, clientApproved: true } : s))
+      // Refresh data to ensure consistency with individual approvals
+      fetchSpecs(true)
     }
     if (failCount > 0) {
       toast.error(`Failed to approve ${failCount} item(s)`)
