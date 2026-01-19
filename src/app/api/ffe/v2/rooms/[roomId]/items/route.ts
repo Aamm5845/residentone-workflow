@@ -139,7 +139,8 @@ export async function POST(
       images,
       notes,
       libraryProductId,
-      customFields
+      customFields,
+      productName
     } = await request.json()
 
     if (!roomId || !sectionId || !name?.trim()) {
@@ -318,6 +319,7 @@ export async function POST(
             isOption: isOption || false,
             optionNumber: optionNumber || null,
             customFields: customFields || null,
+            modelNumber: productName || null,
             createdById: session.user.id,
             updatedById: session.user.id
           }

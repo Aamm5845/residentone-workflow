@@ -452,7 +452,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   const [addFromUrlSupplierResults, setAddFromUrlSupplierResults] = useState<any[]>([])
   const [addFromUrlSupplierLoading, setAddFromUrlSupplierLoading] = useState(false)
   const [addFromUrlSelectedSupplier, setAddFromUrlSelectedSupplier] = useState<any>(null)
-  
+  const [addFromUrlQty, setAddFromUrlQty] = useState(1)
+
   // Product from Library modal
   const [libraryModal, setLibraryModal] = useState<{ open: boolean; sectionId: string | null; roomId: string | null }>({ open: false, sectionId: null, roomId: null })
   const [libraryProducts, setLibraryProducts] = useState<LibraryProduct[]>([])
@@ -1803,6 +1804,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           name: itemData.name || itemData.productName,
           // Default description to FFE item name if linked, otherwise use provided description
           description: selectedFfeItem?.itemName || itemData.description || itemData.productDescription || '',
+          // Product field (maps to modelNumber) - fill with product name from URL
+          productName: itemData.productName || itemData.name || '',
           brand: itemData.brand,
           sku: itemData.sku,
           material: itemData.material,
@@ -6437,8 +6440,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       </Dialog>
       
       {/* Add from URL Modal */}
-      <Dialog 
-        open={addFromUrlModal.open} 
+      <Dialog
+        open={addFromUrlModal.open}
         onOpenChange={(open) => {
           if (!open) {
             setAddFromUrlModal({ open: false, sectionId: null, roomId: null })
@@ -6448,6 +6451,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             setAddFromUrlShowNotes(false)
             setAddFromUrlShowSupplier(false)
             setAddFromUrlSelectedSupplier(null)
+            setAddFromUrlQty(1)
             resetFfeSelection()
           }
         }}
@@ -6775,7 +6779,20 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     )}
                   </div>
                 )}
-                
+
+                {/* Quantity Input */}
+                <div className="border-t pt-3">
+                  <Label className="text-xs text-gray-500">Quantity</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={50}
+                    value={addFromUrlQty}
+                    onChange={(e) => setAddFromUrlQty(Math.max(1, Math.min(50, parseInt(e.target.value) || 1)))}
+                    className="mt-1 h-8 text-sm w-24"
+                  />
+                </div>
+
                 {/* Add Note Button/Input */}
                 {!addFromUrlShowNotes ? (
                   <Button
@@ -6798,7 +6815,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     />
                   </div>
                 )}
-                
+
                 {/* Add Supplier Button/Input */}
                 {!addFromUrlShowSupplier ? (
                   <Button
@@ -7054,6 +7071,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               setAddFromUrlShowNotes(false)
               setAddFromUrlShowSupplier(false)
               setAddFromUrlSelectedSupplier(null)
+              setAddFromUrlQty(1)
               resetFfeSelection()
             }}>
               Cancel
@@ -7072,7 +7090,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 const dataWithSupplier = {
                   ...extractedData,
                   supplierName: addFromUrlSelectedSupplier?.name || '',
-                  supplierLink: extractedData.productWebsite || ''
+                  supplierLink: extractedData.productWebsite || '',
+                  quantity: addFromUrlQty
                 }
                 handleAddItem(addFromUrlModal.sectionId, addFromUrlModal.roomId, dataWithSupplier)
               }}

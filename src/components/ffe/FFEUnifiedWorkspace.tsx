@@ -211,7 +211,8 @@ export default function FFEUnifiedWorkspace({
   const [showNotesInput, setShowNotesInput] = useState(false)
   const [showSupplierInput, setShowSupplierInput] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
-  
+  const [urlGenerateQty, setUrlGenerateQty] = useState(1)
+
   // URL Generate Supplier states
   const [urlSuppliers, setUrlSuppliers] = useState<Array<{id: string, name: string, contactName?: string, email?: string, logo?: string, website?: string}>>([])
   const [urlSupplierSearch, setUrlSupplierSearch] = useState('')
@@ -898,6 +899,8 @@ export default function FFEUnifiedWorkspace({
         body: JSON.stringify({
           sectionId: urlGenerateItem.sectionId,
           name: extractedData.productName || `Product for ${urlGenerateItem.name}`,
+          // Product field (maps to modelNumber) - fill with product name from URL
+          productName: extractedData.productName || '',
           brand: extractedData.brand,
           sku: extractedData.sku,
           material: extractedData.material,
@@ -911,7 +914,7 @@ export default function FFEUnifiedWorkspace({
           supplierLink: extractedData.productWebsite || undefined,
           // Supplier name if user added one
           supplierName: extractedData.supplierName || undefined,
-          quantity: 1,
+          quantity: urlGenerateQty || 1,
           unitCost: extractedData.rrp ? parseFloat(String(extractedData.rrp).replace(/[^0-9.]/g, '')) : undefined,
           rrp: extractedData.rrp ? parseFloat(String(extractedData.rrp).replace(/[^0-9.]/g, '')) : undefined,
           tradePrice: extractedData.tradePrice ? parseFloat(String(extractedData.tradePrice).replace(/[^0-9.]/g, '')) : undefined,
@@ -3173,6 +3176,7 @@ export default function FFEUnifiedWorkspace({
           setEditingExtractedData(false)
           setShowNotesInput(false)
           setShowSupplierInput(false)
+          setUrlGenerateQty(1)
         }
       }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -3520,7 +3524,20 @@ export default function FFEUnifiedWorkspace({
                     )}
                   </div>
                 )}
-                
+
+                {/* Quantity Input */}
+                <div className="border-t pt-3">
+                  <Label className="text-xs text-gray-500">Quantity</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={50}
+                    value={urlGenerateQty}
+                    onChange={(e) => setUrlGenerateQty(Math.max(1, Math.min(50, parseInt(e.target.value) || 1)))}
+                    className="mt-1 h-8 text-sm w-24"
+                  />
+                </div>
+
                 {/* Add Note Section */}
                 {showNotesInput || extractedData.notes ? (
                   <div>
@@ -3695,9 +3712,9 @@ export default function FFEUnifiedWorkspace({
             )}
           </div>
           <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => { 
+            <Button
+              variant="outline"
+              onClick={() => {
                 setShowUrlGenerateDialog(false)
                 setUrlInput('')
                 setExtractedData(null)
@@ -3705,6 +3722,7 @@ export default function FFEUnifiedWorkspace({
                 setEditingExtractedData(false)
                 setShowNotesInput(false)
                 setShowSupplierInput(false)
+                setUrlGenerateQty(1)
                 // Reset supplier states
                 setUrlSuppliers([])
                 setUrlSupplierSearch('')
