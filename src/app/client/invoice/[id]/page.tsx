@@ -542,37 +542,19 @@ export default function ClientInvoicePage() {
                   className="w-full p-4 flex items-center justify-between text-left"
                 >
                   <div className="flex items-center gap-3">
-                    {/* Interac Logo - Grey to match other icons */}
-                    <div className="w-8 h-8 flex items-center justify-center">
-                      <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none">
-                        <circle cx="12" cy="12" r="10" stroke="#9CA3AF" strokeWidth="1.5" fill="none"/>
-                        <path d="M7 12h10M12 7v10" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round"/>
-                      </svg>
-                    </div>
+                    {/* Interac Logo - Grey hand icon */}
+                    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none">
+                      <path d="M12 2C10.9 2 10 2.9 10 4v7.5c0 .3-.2.5-.5.5s-.5-.2-.5-.5V8c0-1.1-.9-2-2-2s-2 .9-2 2v6c0 4.4 3.6 8 8 8s8-3.6 8-8v-4c0-1.1-.9-2-2-2s-2 .9-2 2v1.5c0 .3-.2.5-.5.5s-.5-.2-.5-.5V6c0-1.1-.9-2-2-2s-2 .9-2 2v5.5c0 .3-.2.5-.5.5s-.5-.2-.5-.5V4c0-1.1-.9-2-2-2z" fill="#9CA3AF"/>
+                    </svg>
                     <p className="font-medium text-gray-900 text-sm">Interac e-Transfer</p>
                   </div>
                   <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showEtransferInfo ? 'rotate-180' : ''}`} />
                 </button>
                 {showEtransferInfo && (
                   <div className="px-4 pb-4 border-t pt-4">
-                    <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
-                      {/* Interac branding header */}
-                      <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-200">
-                        <svg viewBox="0 0 80 24" className="h-5" fill="none">
-                          <circle cx="12" cy="12" r="11" fill="#FFCC00"/>
-                          <path d="M7 12h10M12 7v10" stroke="#000" strokeWidth="2" strokeLinecap="round"/>
-                          <text x="28" y="16" fill="#000" fontSize="12" fontWeight="bold" fontFamily="Arial, sans-serif">INTERAC</text>
-                        </svg>
-                        <span className="text-xs text-gray-500">e-Transfer</span>
-                      </div>
-                      <p className="font-medium text-gray-700 mb-2">Send e-Transfer to:</p>
-                      <p className="text-lg font-semibold text-gray-900">{invoice.organization?.etransferEmail || 'aaron@meisnerinteriors.com'}</p>
-                      <div className="mt-3 pt-3 border-t border-gray-200 space-y-1 text-xs text-gray-500">
-                        <p>1. Log in to your online banking</p>
-                        <p>2. Select "Send Interac e-Transfer"</p>
-                        <p>3. Enter the email above and amount: <strong>{formatCurrency(invoice.totalAmount)}</strong></p>
-                        <p>4. Use invoice number as message/memo</p>
-                      </div>
+                    <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg space-y-1">
+                      <p><span className="text-gray-400">Send to:</span> {invoice.organization?.etransferEmail || 'aaron@meisnerinteriors.com'}</p>
+                      <p><span className="text-gray-400">Amount:</span> {formatCurrency(invoice.totalAmount)}</p>
                     </div>
                     <p className="text-xs text-gray-400 mt-2">
                       Message/Memo: {invoice.quoteNumber}
