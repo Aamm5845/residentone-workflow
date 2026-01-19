@@ -33,7 +33,8 @@ interface BoardItem {
 const BOARD_COLUMNS = [
   { id: 'SELECTED', label: 'Selected' },
   { id: 'RFQ_SENT', label: 'RFQ Sent' },
-  { id: 'QUOTED', label: 'Quoted', includeStatuses: ['QUOTE_RECEIVED', 'QUOTE_APPROVED', 'INVOICED_TO_CLIENT', 'BUDGET_SENT'] },
+  { id: 'QUOTED', label: 'Quoted', includeStatuses: ['QUOTE_RECEIVED', 'QUOTE_APPROVED', 'BUDGET_SENT'] },
+  { id: 'INVOICED_TO_CLIENT', label: 'Invoiced' },
   { id: 'CLIENT_PAID', label: 'Paid' },
   { id: 'ORDERED', label: 'Ordered' },
   { id: 'SHIPPED', label: 'Shipped' },
