@@ -207,6 +207,7 @@ export async function POST(request: NextRequest) {
       quoteNumber,
       clientName,
       projectName: project.name,
+      title: title || undefined,
       companyName: organization?.businessName || organization?.name || 'Meisner Interiors',
       companyLogo,
       companyPhone: organization?.businessPhone || undefined,

@@ -542,10 +542,13 @@ export default function ClientInvoicePage() {
                   className="w-full p-4 flex items-center justify-between text-left"
                 >
                   <div className="flex items-center gap-3">
-                    {/* Interac Logo - Grey hand icon */}
-                    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none">
-                      <path d="M12 2C10.9 2 10 2.9 10 4v7.5c0 .3-.2.5-.5.5s-.5-.2-.5-.5V8c0-1.1-.9-2-2-2s-2 .9-2 2v6c0 4.4 3.6 8 8 8s8-3.6 8-8v-4c0-1.1-.9-2-2-2s-2 .9-2 2v1.5c0 .3-.2.5-.5.5s-.5-.2-.5-.5V6c0-1.1-.9-2-2-2s-2 .9-2 2v5.5c0 .3-.2.5-.5.5s-.5-.2-.5-.5V4c0-1.1-.9-2-2-2z" fill="#9CA3AF"/>
-                    </svg>
+                    {/* Interac Logo */}
+                    <img
+                      src="/interac.svg"
+                      alt="Interac"
+                      className="w-5 h-5"
+                      style={{ filter: 'grayscale(100%) opacity(0.6)' }}
+                    />
                     <p className="font-medium text-gray-900 text-sm">Interac e-Transfer</p>
                   </div>
                   <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showEtransferInfo ? 'rotate-180' : ''}`} />

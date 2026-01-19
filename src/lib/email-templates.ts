@@ -690,6 +690,7 @@ interface ClientQuoteEmailData {
   quoteNumber: string
   clientName: string
   projectName: string
+  title?: string // Invoice title
   companyName: string
   companyLogo?: string
   companyPhone?: string
@@ -766,7 +767,7 @@ export function generateClientQuoteEmailTemplate(data: ClientQuoteEmailData): {
             </p>
 
             <p style="margin: 0 0 32px 0; color: #4b5563; font-size: 15px;">
-                Here's your invoice for <strong>${data.projectName}</strong>. Please review the details and submit payment at your earliest convenience.
+                Here's your invoice for <strong>${data.projectName}</strong>${data.title ? ` - <strong>${data.title}</strong>` : ''}. Please review the details and submit payment at your earliest convenience.
             </p>
 
             <!-- Amount Due Box -->
@@ -800,7 +801,7 @@ export function generateClientQuoteEmailTemplate(data: ClientQuoteEmailData): {
         <!-- Footer -->
         <div style="border-top: 1px solid #e5e7eb; padding: 24px 40px; text-align: center;">
             <p style="margin: 0 0 4px 0; color: #374151; font-size: 14px; font-weight: 500;">${data.companyName}</p>
-            ${data.companyEmail ? `<p style="margin: 0; color: #6b7280; font-size: 13px;">${data.companyEmail}</p>` : ''}
+            <p style="margin: 0; color: #6b7280; font-size: 13px;">${data.companyEmail || 'shaya@meisnerinteriors.com'}</p>
             ${data.companyPhone ? `<p style="margin: 0; color: #6b7280; font-size: 13px;">${data.companyPhone}</p>` : ''}
         </div>
     </div>
