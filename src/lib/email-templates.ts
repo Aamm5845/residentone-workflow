@@ -788,7 +788,7 @@ export function generateClientQuoteEmailTemplate(data: ClientQuoteEmailData): {
             <div style="text-align: center; margin-bottom: 32px;">
                 <a href="${data.quoteUrl}"
                    style="display: inline-block; background: #111827; color: white; text-decoration: none; padding: 14px 32px; border-radius: 6px; font-weight: 600; font-size: 15px;">
-                    View Invoice & Pay
+                    View Invoice
                 </a>
             </div>
 

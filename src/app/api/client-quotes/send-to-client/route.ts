@@ -195,6 +195,21 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // Update all RoomFFEItems to INVOICED_TO_CLIENT status
+    await prisma.roomFFEItem.updateMany({
+      where: {
+        id: { in: itemIds },
+        // Only update items that are in earlier procurement stages
+        specStatus: {
+          in: ['DRAFT', 'SELECTED', 'RFQ_SENT', 'QUOTE_RECEIVED', 'QUOTE_APPROVED', 'BUDGET_SENT', 'BUDGET_APPROVED']
+        }
+      },
+      data: {
+        specStatus: 'INVOICED_TO_CLIENT',
+        paymentStatus: 'INVOICED'
+      }
+    })
+
     // Create activity log for each item
     for (const item of items) {
       await prisma.itemActivity.create({

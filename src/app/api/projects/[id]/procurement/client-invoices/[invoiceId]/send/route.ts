@@ -31,7 +31,13 @@ export async function POST(
       },
       include: {
         lineItems: {
-          include: {
+          select: {
+            id: true,
+            displayName: true,
+            quantity: true,
+            clientTotalPrice: true,
+            order: true,
+            roomFFEItemId: true,
             roomFFEItem: {
               select: {
                 images: true,
@@ -183,24 +189,10 @@ export async function POST(
                 </table>
               </div>
 
-              <!-- Payment Options -->
-              ${invoice.project.organization?.etransferEmail ? `
-              <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin: 24px 0;">
-                <p style="font-weight: 600; color: #166534; margin: 0 0 8px 0; font-size: 14px;">Pay by Interac e-Transfer (No Fee)</p>
-                <p style="color: #15803d; margin: 0; font-size: 14px;">
-                  Send <strong>$${Number(invoice.totalAmount).toLocaleString('en-CA', { minimumFractionDigits: 2 })}</strong> to:
-                  <strong>${invoice.project.organization.etransferEmail}</strong>
-                </p>
-                <p style="color: #6b7280; font-size: 12px; margin: 8px 0 0 0;">
-                  Use invoice number <strong>${invoice.quoteNumber}</strong> as message/memo
-                </p>
-              </div>
-              ` : ''}
-
               <!-- CTA Button -->
               <div style="text-align: center; margin: 32px 0;">
                 <a href="${invoiceLink}" style="display: inline-block; background: #1a1a1a; color: white; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 500;">
-                  View Invoice & Pay Online
+                  View Invoice
                 </a>
               </div>
 
@@ -263,6 +255,27 @@ export async function POST(
         clientEmail: clientEmail // Update client email if provided
       }
     })
+
+    // Update all linked RoomFFEItems to INVOICED_TO_CLIENT status
+    const roomFFEItemIds = invoice.lineItems
+      .filter(li => li.roomFFEItemId)
+      .map(li => li.roomFFEItemId as string)
+
+    if (roomFFEItemIds.length > 0) {
+      await prisma.roomFFEItem.updateMany({
+        where: {
+          id: { in: roomFFEItemIds },
+          // Only update items that are in earlier procurement stages
+          specStatus: {
+            in: ['DRAFT', 'SELECTED', 'RFQ_SENT', 'QUOTE_RECEIVED', 'QUOTE_APPROVED', 'BUDGET_SENT', 'BUDGET_APPROVED']
+          }
+        },
+        data: {
+          specStatus: 'INVOICED_TO_CLIENT',
+          paymentStatus: 'INVOICED'
+        }
+      })
+    }
 
     // Log activity
     await prisma.clientQuoteActivity.create({
