@@ -179,7 +179,8 @@ export async function POST(request: NextRequest) {
     const year = new Date().getFullYear()
     const quoteNumber = await generateUniqueQuoteNumber(orgId, year)
 
-    const markup = defaultMarkupPercent || 25
+    // Use nullish coalescing to allow 0% markup (|| treats 0 as falsy)
+    const markup = defaultMarkupPercent ?? 25
 
     // Build line items from supplier quotes or custom items
     let lineItemsData: any[] = []
@@ -264,7 +265,8 @@ export async function POST(request: NextRequest) {
     } else if (customLineItems?.length) {
       // Use custom line items
       lineItemsData = customLineItems.map((item: any) => {
-        const itemMarkup = item.markupPercent || markup
+        // Use nullish coalescing to allow 0% markup
+        const itemMarkup = item.markupPercent ?? markup
         const costPrice = parseFloat(item.costPrice || 0)
         // Round to 2 decimal places for currency precision
         const sellingPrice = Math.round(costPrice * (1 + itemMarkup / 100) * 100) / 100
