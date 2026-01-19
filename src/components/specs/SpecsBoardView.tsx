@@ -9,12 +9,14 @@ import {
   Package,
   ChevronDown,
   ChevronRight,
+  CheckCircle2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface SpecsBoardViewProps {
   projectId: string
   onItemClick?: (itemId: string) => void
+  refreshTrigger?: number
 }
 
 interface BoardItem {
@@ -27,6 +29,7 @@ interface BoardItem {
   quantity: number
   rrp?: number
   specStatus: string
+  clientApproved: boolean
 }
 
 // Define the procurement workflow columns - consolidated
@@ -47,7 +50,7 @@ const BOARD_COLUMNS = [
 // Statuses to exclude from board
 const EXCLUDED_STATUSES = ['DRAFT', 'HIDDEN', 'ARCHIVED', 'OPTION', 'NEED_SAMPLE', 'ISSUE']
 
-export default function SpecsBoardView({ projectId, onItemClick }: SpecsBoardViewProps) {
+export default function SpecsBoardView({ projectId, onItemClick, refreshTrigger }: SpecsBoardViewProps) {
   const [items, setItems] = useState<BoardItem[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -55,7 +58,7 @@ export default function SpecsBoardView({ projectId, onItemClick }: SpecsBoardVie
 
   useEffect(() => {
     loadItems()
-  }, [projectId])
+  }, [projectId, refreshTrigger])
 
   const loadItems = async () => {
     setLoading(true)
@@ -72,7 +75,8 @@ export default function SpecsBoardView({ projectId, onItemClick }: SpecsBoardVie
           brand: item.brand,
           quantity: item.quantity || 1,
           rrp: item.rrp,
-          specStatus: item.specStatus || 'DRAFT'
+          specStatus: item.specStatus || 'DRAFT',
+          clientApproved: item.clientApproved || false
         }))
         setItems(boardItems)
       }
@@ -228,10 +232,13 @@ export default function SpecsBoardView({ projectId, onItemClick }: SpecsBoardVie
                                   <div
                                     key={item.id}
                                     onClick={() => onItemClick?.(item.id)}
-                                    className="flex items-center gap-1 p-1 bg-white rounded border border-gray-100 cursor-pointer hover:border-gray-300 hover:shadow-sm transition-all"
+                                    className={cn(
+                                      "flex items-center gap-1 p-1 bg-white rounded border cursor-pointer hover:border-gray-300 hover:shadow-sm transition-all",
+                                      item.clientApproved ? "border-emerald-200 bg-emerald-50/50" : "border-gray-100"
+                                    )}
                                   >
                                     {/* Tiny Image */}
-                                    <div className="w-6 h-6 rounded overflow-hidden bg-gray-50 flex-shrink-0">
+                                    <div className="w-6 h-6 rounded overflow-hidden bg-gray-50 flex-shrink-0 relative">
                                       {item.image ? (
                                         <img
                                           src={item.image}
@@ -241,6 +248,11 @@ export default function SpecsBoardView({ projectId, onItemClick }: SpecsBoardVie
                                       ) : (
                                         <div className="w-full h-full flex items-center justify-center">
                                           <Package className="w-3 h-3 text-gray-300" />
+                                        </div>
+                                      )}
+                                      {item.clientApproved && (
+                                        <div className="absolute -top-0.5 -right-0.5 bg-emerald-500 rounded-full p-0.5">
+                                          <CheckCircle2 className="w-2 h-2 text-white" />
                                         </div>
                                       )}
                                     </div>

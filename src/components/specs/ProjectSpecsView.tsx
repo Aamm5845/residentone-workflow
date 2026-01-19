@@ -394,6 +394,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   const [loading, setLoading] = useState(true)
   const [specs, setSpecs] = useState<SpecItem[]>([])
   const [filteredSpecs, setFilteredSpecs] = useState<SpecItem[]>([]) // Filtered specs for stats
+  const [boardRefreshTrigger, setBoardRefreshTrigger] = useState(0)
   const [groupedSpecs, setGroupedSpecs] = useState<CategoryGroup[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
@@ -1970,6 +1971,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       if (res.ok) {
         // Update local state
         setSpecs(prev => prev.map(s => s.id === itemId ? { ...s, specStatus: newStatus } : s))
+        setBoardRefreshTrigger(prev => prev + 1)
         toast.success('Status updated')
       } else {
         toast.error('Failed to update status')
@@ -2034,11 +2036,12 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       })
       
       if (res.ok) {
-        setSpecs(prev => prev.map(s => s.id === itemId ? { 
-          ...s, 
+        setSpecs(prev => prev.map(s => s.id === itemId ? {
+          ...s,
           clientApproved: newApproval,
           ...(statusUpdate && { specStatus: statusUpdate })
         } : s))
+        setBoardRefreshTrigger(prev => prev + 1)
         toast.success(newApproval ? 'Client approved' : 'Approval removed')
       } else {
         toast.error('Failed to update approval')
@@ -2048,7 +2051,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       toast.error('Failed to update approval')
     }
   }
-  
+
   // Get status display (checks legacy map for old statuses)
   const getItemStatusDisplay = (status: string) => {
     // First check main options
@@ -4211,6 +4214,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           <div className="h-[calc(100vh-280px)]">
             <SpecsBoardView
               projectId={project.id}
+              refreshTrigger={boardRefreshTrigger}
               onItemClick={(itemId) => {
                 const item = specs.find(s => s.id === itemId)
                 if (item) {
