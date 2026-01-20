@@ -450,17 +450,11 @@ export default function ManualQuoteUploadDialog({
 
   const selectedSupplier = suppliers.find(s => s.id === selectedSupplierId)
 
-  // Get unique room names for filter (only from items assigned to selected supplier)
-  const supplierItems = selectedSupplierId
-    ? specItems.filter(item => item.existingSupplierId === selectedSupplierId)
-    : specItems
-  const roomNames = Array.from(new Set(supplierItems.map(item => item.roomName).filter(Boolean))) as string[]
+  // Get unique room names for filter (from all items)
+  const roomNames = Array.from(new Set(specItems.map(item => item.roomName).filter(Boolean))) as string[]
 
-  // Filter spec items by supplier, search, and room
+  // Filter spec items by search and room (NOT by supplier - show all items for linking)
   const filteredSpecItems = specItems.filter(item => {
-    // Supplier filter - only show items assigned to the selected supplier
-    if (selectedSupplierId && item.existingSupplierId !== selectedSupplierId) return false
-
     // Room filter
     if (selectedRoom !== 'all' && item.roomName !== selectedRoom) return false
 
@@ -841,9 +835,9 @@ export default function ManualQuoteUploadDialog({
                           <div className="text-center py-8 text-gray-500">
                             <Package className="w-8 h-8 mx-auto mb-2 text-gray-300" />
                             <p className="text-sm font-medium">No items found</p>
-                            {selectedSupplierId && supplierItems.length === 0 && (
+                            {specItems.length === 0 && (
                               <p className="text-xs mt-1">
-                                No items in AllSpec are assigned to {selectedSupplier?.name || 'this supplier'}
+                                No items in All Specs for this project
                               </p>
                             )}
                           </div>
