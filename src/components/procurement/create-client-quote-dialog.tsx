@@ -1231,7 +1231,7 @@ export default function CreateClientQuoteDialog({
                     onCheckedChange={(checked) => setShowCreditCardOption(checked === true)}
                   />
                   <Label htmlFor="showCreditCardStep1" className="text-sm text-gray-700 cursor-pointer">
-                    Allow credit card payments (Stripe)
+                    Allow credit card payments
                   </Label>
                 </div>
                 <p className="text-xs text-gray-500 mt-2 ml-7">

@@ -152,14 +152,10 @@ export default function PublicQuotePage({ params }: { params: Promise<{ token: s
 
       const data = await response.json()
 
-      // For now, show a message about Stripe integration
-      // In production, you would use Stripe Elements here
+      // Payment initiated successfully
       toast.success('Payment initiated! Redirecting to payment...')
 
-      // In a full implementation, you would:
-      // 1. Load Stripe.js
-      // 2. Use Elements to collect card details
-      // 3. Confirm the payment with the clientSecret
+      // The payment form will collect card details via Solo iFields
 
       // For demonstration, show the payment details
       toast.info(

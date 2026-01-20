@@ -214,7 +214,7 @@ export default function ClientInvoiceDemoPage() {
   }
 
   const handlePayWithCard = () => {
-    toast.success('Demo: This would redirect to Stripe checkout')
+    toast.success('Demo: This would open the payment form')
   }
 
   // Group line items by category
@@ -436,7 +436,7 @@ export default function ClientInvoiceDemoPage() {
                     Pay {formatCurrency(calculateCCTotal())} with Card
                   </Button>
                   <p className="text-xs text-gray-400 text-center mt-2">
-                    Secure payment powered by Stripe
+                    Secure payment processing
                   </p>
                 </div>
 
