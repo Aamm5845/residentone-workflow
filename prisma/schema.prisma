@@ -3480,6 +3480,7 @@ model ClientQuoteLineItem {
   // Pricing - what client sees (markup applied)
   clientUnitPrice  Decimal
   clientTotalPrice Decimal
+  currency         String?  @default("CAD") // Currency: CAD or USD
 
   // Hidden pricing - what designer paid
   supplierUnitPrice  Decimal?

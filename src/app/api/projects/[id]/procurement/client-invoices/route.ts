@@ -284,6 +284,7 @@ export async function POST(
             markupType: 'PERCENTAGE',
             markupValue: item.markupValue,
             markupAmount: item.markupAmount,
+            currency: item.currency || 'CAD',
             order: index
           }))
         }

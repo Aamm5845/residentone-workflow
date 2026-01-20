@@ -292,7 +292,8 @@ export async function POST(request: NextRequest) {
           markupValue: itemMarkup,
           markupAmount: markupAmount,
           clientUnitPrice: sellingPrice,
-          clientTotalPrice: clientTotal
+          clientTotalPrice: clientTotal,
+          currency: item.currency || 'CAD'
         }
       })
     }

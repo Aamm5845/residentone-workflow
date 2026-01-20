@@ -603,6 +603,7 @@ export default function CreateClientQuoteDialog({
               totalPrice: item.totalPrice,
               imageUrl: item.imageUrl || null,
               isComponent: item.isComponent || false,
+              currency: item.currency || 'CAD',
               order: index
             })),
             // Additional charges as line items
@@ -779,6 +780,7 @@ export default function CreateClientQuoteDialog({
             clientUnitPrice: item.sellingPrice,
             costPrice: item.costPrice,
             markupPercent: 0,
+            currency: item.currency || 'CAD',
             order: index
           }))
         })
