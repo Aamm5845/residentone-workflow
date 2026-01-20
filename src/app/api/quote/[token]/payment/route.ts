@@ -100,7 +100,7 @@ export async function POST(
       data: {
         clientQuoteId: quote.id,
         type: 'PAYMENT_INITIATED',
-        description: `Payment initiated via credit card ($${totalWithSurcharge.toFixed(2)} including $${surcharge.toFixed(2)} surcharge)`
+        message: `Payment initiated via credit card ($${totalWithSurcharge.toFixed(2)} including $${surcharge.toFixed(2)} surcharge)`
       }
     })
 
@@ -221,7 +221,7 @@ export async function PATCH(
         data: {
           clientQuoteId: quote.id,
           type: 'PAYMENT_COMPLETED',
-          description: `Payment of $${parseFloat(payment.amount.toString()).toFixed(2)} completed via credit card (${result.cardType || 'Card'} ending ${result.maskedCard?.slice(-4) || '****'})`
+          message: `Payment of $${parseFloat(payment.amount.toString()).toFixed(2)} completed via credit card (${result.cardType || 'Card'} ending ${result.maskedCard?.slice(-4) || '****'})`
         }
       })
 
@@ -280,7 +280,7 @@ export async function PATCH(
         data: {
           clientQuoteId: quote.id,
           type: 'PAYMENT_FAILED',
-          description: `Payment of $${parseFloat(payment.amount.toString()).toFixed(2)} failed: ${result.error}`
+          message: `Payment of $${parseFloat(payment.amount.toString()).toFixed(2)} failed: ${result.error}`
         }
       })
 
