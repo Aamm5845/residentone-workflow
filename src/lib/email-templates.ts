@@ -710,6 +710,7 @@ interface ClientQuoteEmailData {
   qstRate: number
   qstAmount: number
   total: number
+  currency?: string // CAD or USD
   note?: string
   trackingPixelUrl?: string
 }
@@ -719,11 +720,12 @@ export function generateClientQuoteEmailTemplate(data: ClientQuoteEmailData): {
   html: string
 } {
   const subject = `Invoice ${data.quoteNumber} from ${data.companyName}`
+  const invoiceCurrency = data.currency || 'CAD'
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-CA', {
       style: 'currency',
-      currency: 'CAD',
+      currency: invoiceCurrency,
     }).format(amount)
   }
 

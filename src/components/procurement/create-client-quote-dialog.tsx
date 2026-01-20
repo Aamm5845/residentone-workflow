@@ -802,12 +802,15 @@ export default function CreateClientQuoteDialog({
     }
   }
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number, currency: string = 'CAD') => {
     return new Intl.NumberFormat('en-CA', {
       style: 'currency',
-      currency: 'CAD'
+      currency: currency
     }).format(amount)
   }
+
+  // Get the primary currency for the invoice (from first item or default to CAD)
+  const invoiceCurrency = lineItems.length > 0 ? (lineItems[0].currency || 'CAD') : 'CAD'
 
   // Get step title
   const getStepTitle = () => {
@@ -1031,7 +1034,7 @@ export default function CreateClientQuoteDialog({
                                     <div className="text-right">
                                       {canInvoice ? (
                                         <>
-                                          <p className="font-medium text-sm">{formatCurrency(price)}</p>
+                                          <p className="font-medium text-sm">{formatCurrency(price, invoiceCurrency)}</p>
                                           <p className="text-xs text-gray-500">
                                             Qty: {item.quantity || 1}
                                           </p>
@@ -1066,15 +1069,15 @@ export default function CreateClientQuoteDialog({
                   </div>
                   <div className="flex justify-between text-sm mt-1">
                     <span className="text-gray-600">Subtotal</span>
-                    <span>{formatCurrency(selectionTotals.subtotal)}</span>
+                    <span>{formatCurrency(selectionTotals.subtotal, invoiceCurrency)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">GST + QST</span>
-                    <span>{formatCurrency(selectionTotals.gst + selectionTotals.qst)}</span>
+                    <span>{formatCurrency(selectionTotals.gst + selectionTotals.qst, invoiceCurrency)}</span>
                   </div>
                   <div className="flex justify-between font-medium mt-2 pt-2 border-t">
                     <span>Estimated Total</span>
-                    <span>{formatCurrency(selectionTotals.total)}</span>
+                    <span>{formatCurrency(selectionTotals.total, invoiceCurrency)}</span>
                   </div>
                 </div>
               )}
@@ -1209,7 +1212,7 @@ export default function CreateClientQuoteDialog({
                     ))}
                     <div className="flex justify-between text-sm pt-2 border-t">
                       <span className="text-gray-500">Additional Charges Total</span>
-                      <span className="font-medium">{formatCurrency(totals.chargesTotal)}</span>
+                      <span className="font-medium">{formatCurrency(totals.chargesTotal, invoiceCurrency)}</span>
                     </div>
                   </div>
                 )}
@@ -1245,29 +1248,29 @@ export default function CreateClientQuoteDialog({
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-500">Items ({lineItems.length})</span>
-                      <span className="font-semibold">{formatCurrency(totals.itemsSubtotal)}</span>
+                      <span className="font-semibold">{formatCurrency(totals.itemsSubtotal, invoiceCurrency)}</span>
                     </div>
                     {additionalCharges.length > 0 && (
                       <div className="flex justify-between text-gray-500">
                         <span>Additional Charges</span>
-                        <span>{formatCurrency(totals.chargesTotal)}</span>
+                        <span>{formatCurrency(totals.chargesTotal, invoiceCurrency)}</span>
                       </div>
                     )}
                     <div className="flex justify-between pt-1 border-t">
                       <span className="text-gray-600">Subtotal</span>
-                      <span className="font-semibold">{formatCurrency(totals.subtotal)}</span>
+                      <span className="font-semibold">{formatCurrency(totals.subtotal, invoiceCurrency)}</span>
                     </div>
                     <div className="flex justify-between text-gray-400">
                       <span>GST ({gstRate}%)</span>
-                      <span>{formatCurrency(totals.gstAmount)}</span>
+                      <span>{formatCurrency(totals.gstAmount, invoiceCurrency)}</span>
                     </div>
                     <div className="flex justify-between text-gray-400">
                       <span>QST ({qstRate}%)</span>
-                      <span>{formatCurrency(totals.qstAmount)}</span>
+                      <span>{formatCurrency(totals.qstAmount, invoiceCurrency)}</span>
                     </div>
                     <div className="flex justify-between pt-2 border-t">
                       <span className="text-gray-700 font-medium">Total</span>
-                      <span className="text-lg font-semibold text-green-600">{formatCurrency(totals.totalRevenue)}</span>
+                      <span className="text-lg font-semibold text-green-600">{formatCurrency(totals.totalRevenue, invoiceCurrency)}</span>
                     </div>
                   </div>
                 </div>
@@ -1282,15 +1285,15 @@ export default function CreateClientQuoteDialog({
               <div className="grid grid-cols-4 gap-3 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg">
                 <div className="text-center">
                   <p className="text-xs text-gray-500 uppercase">Cost</p>
-                  <p className="text-lg font-bold">{formatCurrency(totals.totalCost)}</p>
+                  <p className="text-lg font-bold">{formatCurrency(totals.totalCost, invoiceCurrency)}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-xs text-gray-500 uppercase">Quote Total</p>
-                  <p className="text-lg font-bold text-green-600">{formatCurrency(totals.totalRevenue)}</p>
+                  <p className="text-lg font-bold text-green-600">{formatCurrency(totals.totalRevenue, invoiceCurrency)}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-xs text-gray-500 uppercase">Profit</p>
-                  <p className="text-lg font-bold text-emerald-600">{formatCurrency(totals.grossProfit)}</p>
+                  <p className="text-lg font-bold text-emerald-600">{formatCurrency(totals.grossProfit, invoiceCurrency)}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-xs text-gray-500 uppercase">Margin</p>
@@ -1329,7 +1332,7 @@ export default function CreateClientQuoteDialog({
                           </div>
                           <span className="text-gray-500 text-sm">
                             Subtotal: <span className="font-medium text-gray-700">
-                              {formatCurrency(items.reduce((sum, i) => sum + i.totalPrice, 0))}
+                              {formatCurrency(items.reduce((sum, i) => sum + i.totalPrice, 0), invoiceCurrency)}
                             </span>
                           </span>
                         </button>
@@ -1385,10 +1388,10 @@ export default function CreateClientQuoteDialog({
                                     />
                                   </TableCell>
                                   <TableCell className="text-right font-medium">
-                                    {formatCurrency(item.sellingPrice)}
+                                    {formatCurrency(item.sellingPrice, item.currency || invoiceCurrency)}
                                   </TableCell>
                                   <TableCell className="text-right font-medium text-green-600">
-                                    {formatCurrency(item.totalPrice)}
+                                    {formatCurrency(item.totalPrice, item.currency || invoiceCurrency)}
                                   </TableCell>
                                 </TableRow>
                               ))}
@@ -1451,7 +1454,7 @@ export default function CreateClientQuoteDialog({
                         </div>
                         {/* Price */}
                         <p className="font-semibold text-gray-900 flex-shrink-0">
-                          {formatCurrency(item.totalPrice)}
+                          {formatCurrency(item.totalPrice, item.currency || invoiceCurrency)}
                         </p>
                       </div>
                     ))}
@@ -1462,19 +1465,19 @@ export default function CreateClientQuoteDialog({
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-500">Subtotal</span>
-                        <span>{formatCurrency(totals.subtotal)}</span>
+                        <span>{formatCurrency(totals.subtotal, invoiceCurrency)}</span>
                       </div>
                       <div className="flex justify-between text-gray-400">
                         <span>GST ({gstRate}%)</span>
-                        <span>{formatCurrency(totals.gstAmount)}</span>
+                        <span>{formatCurrency(totals.gstAmount, invoiceCurrency)}</span>
                       </div>
                       <div className="flex justify-between text-gray-400">
                         <span>QST ({qstRate}%)</span>
-                        <span>{formatCurrency(totals.qstAmount)}</span>
+                        <span>{formatCurrency(totals.qstAmount, invoiceCurrency)}</span>
                       </div>
                       <div className="flex justify-between items-center pt-2 border-t mt-2">
                         <span className="font-medium text-gray-700">Total</span>
-                        <span className="text-2xl font-bold text-gray-900">{formatCurrency(totals.totalRevenue)}</span>
+                        <span className="text-2xl font-bold text-gray-900">{formatCurrency(totals.totalRevenue, invoiceCurrency)}</span>
                       </div>
                     </div>
                     {validUntil && (
@@ -1487,7 +1490,7 @@ export default function CreateClientQuoteDialog({
               {/* Your Profit (separate, not in client view) */}
               <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
                 <span className="text-sm text-emerald-700">Your Profit (before taxes)</span>
-                <span className="font-bold text-emerald-700">{formatCurrency(totals.grossProfit)} ({totals.marginPercent.toFixed(1)}%)</span>
+                <span className="font-bold text-emerald-700">{formatCurrency(totals.grossProfit, invoiceCurrency)} ({totals.marginPercent.toFixed(1)}%)</span>
               </div>
 
               {/* Bill To Section - Editable client info */}
@@ -1637,7 +1640,7 @@ export default function CreateClientQuoteDialog({
                 <Button onClick={handleCreate} disabled={saving} className="bg-green-600 hover:bg-green-700">
                   {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   <DollarSign className="w-4 h-4 mr-1" />
-                  Create Invoice ({formatCurrency(totals.totalRevenue)})
+                  Create Invoice ({formatCurrency(totals.totalRevenue, invoiceCurrency)})
                 </Button>
               )}
             </>

@@ -110,6 +110,7 @@ export async function POST(
       qstRate: Number(invoice.qstRate) || 9.975,
       qstAmount: Number(invoice.qstAmount) || 0,
       total: Number(invoice.totalAmount),
+      currency: invoice.currency || 'CAD',
       note: message || undefined
     })
 

@@ -210,6 +210,7 @@ export async function GET(
       taxRate: quote.taxRate ? parseFloat(quote.taxRate.toString()) : undefined,
       taxAmount: quote.taxAmount ? parseFloat(quote.taxAmount.toString()) : undefined,
       totalAmount: parseFloat(quote.totalAmount?.toString() || quote.subtotal?.toString() || '0'),
+      currency: quote.currency || 'CAD',
       // CC processing fee rate (3%)
       ccFeeRate: 3,
       // Payment options

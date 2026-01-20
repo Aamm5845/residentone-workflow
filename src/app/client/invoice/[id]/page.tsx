@@ -90,6 +90,7 @@ interface InvoiceData {
   taxRate?: number
   taxAmount?: number
   totalAmount: number
+  currency?: string
   ccFeeRate: number
   allowCreditCard?: boolean
   lineItems: LineItem[]
@@ -183,7 +184,7 @@ export default function ClientInvoicePage() {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-CA', {
       style: 'currency',
-      currency: 'CAD'
+      currency: invoice?.currency || 'CAD'
     }).format(amount)
   }
 
