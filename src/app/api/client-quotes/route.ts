@@ -353,7 +353,7 @@ export async function POST(request: NextRequest) {
         clientPhone: clientPhone || null,
         clientAddress: clientAddress || null,
         // Payment options
-        allowCreditCard: allowCreditCard !== false, // Default to true
+        allowCreditCard: allowCreditCard === false ? false : true, // Explicit: only false if explicitly set to false
         createdById: userId,
         updatedById: userId,
         lineItems: {

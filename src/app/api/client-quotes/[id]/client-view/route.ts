@@ -213,7 +213,7 @@ export async function GET(
       // CC processing fee rate (3%)
       ccFeeRate: 3,
       // Payment options
-      allowCreditCard: quote.allowCreditCard !== false, // Default to true for backwards compatibility
+      allowCreditCard: quote.allowCreditCard !== false, // Show CC unless explicitly disabled
       lineItems: quote.lineItems.map(item => {
         // Get image: prefer stored imageUrl (for components), fall back to roomFFEItem.images
         const roomFFEImages = item.roomFFEItem?.images as string[] | null
