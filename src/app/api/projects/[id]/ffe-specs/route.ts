@@ -179,7 +179,10 @@ export async function GET(
     })
 
     // Transform the data - get room name via section -> instance -> room
-    const transformedItems = items.map(item => {
+    // Also flatten components into separate items for manual quote linking
+    const transformedItems: any[] = []
+
+    items.forEach(item => {
       const sectionName = sectionNameMap.get(item.sectionId) || 'Unknown'
       const instanceId = sectionInstanceMap.get(item.sectionId)
       const roomId = instanceId ? instanceRoomMap.get(instanceId) : null
@@ -189,7 +192,8 @@ export async function GET(
       const markupPercent = item.markupPercent ? Number(item.markupPercent) : 0
       const componentsTotal = calculateComponentsRRP(item.components || [], markupPercent)
 
-      return {
+      // Add the main item
+      transformedItems.push({
         id: item.id,
         name: item.name,
         description: item.description,
@@ -218,6 +222,7 @@ export async function GET(
         notes: item.notes,
         roomName: roomName,
         isSpecItem: item.isSpecItem,
+        isComponent: false,
         clientApproved: item.clientApproved,
         clientApprovedAt: item.clientApprovedAt,
         clientApprovedVia: item.clientApprovedVia,
@@ -232,7 +237,50 @@ export async function GET(
           quantity: c.quantity || 1
         })),
         componentsTotal: componentsTotal
-      }
+      })
+
+      // Also add each component as a separate item for manual quote linking
+      ;(item.components || []).forEach(c => {
+        transformedItems.push({
+          id: c.id,
+          name: c.name,
+          description: c.notes || null,
+          category: sectionName,
+          sectionName: sectionName,
+          quantity: c.quantity || 1,
+          unitType: 'units',
+          unitCost: c.price ? Number(c.price) : null,
+          tradePrice: c.price ? Number(c.price) : null,
+          rrp: c.price ? Number(c.price) * (1 + markupPercent / 100) : null,
+          rrpCurrency: item.rrpCurrency || 'CAD',
+          markupPercent: markupPercent,
+          supplierId: item.supplierId,
+          supplierName: item.supplierName,
+          supplierLink: item.supplierLink,
+          brand: null,
+          modelNumber: c.modelNumber,
+          sku: null,
+          color: null,
+          finish: null,
+          material: null,
+          leadTime: null,
+          images: c.image ? [c.image] : [],
+          specStatus: item.specStatus,
+          state: item.state,
+          notes: c.notes,
+          roomName: roomName,
+          isSpecItem: false,
+          isComponent: true,
+          parentItemId: item.id,
+          parentItemName: item.name,
+          componentId: c.id,
+          clientApproved: item.clientApproved,
+          clientApprovedAt: item.clientApprovedAt,
+          clientApprovedVia: item.clientApprovedVia,
+          components: [],
+          componentsTotal: 0
+        })
+      })
     })
 
     // Get unique categories for filtering UI
