@@ -332,6 +332,14 @@ export default function SoloPaymentForm({
 
   return (
     <div className="space-y-6">
+      {/* Debug Info - remove in production */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded p-2 text-xs">
+          <p><strong>Debug:</strong> iFields Key: {paymentData.iFieldsKey ? `${paymentData.iFieldsKey.substring(0, 15)}...` : 'NOT SET'}</p>
+          <p>Script Loaded: {scriptLoaded ? 'Yes' : 'No'} | iFields Ready: {ifieldsReady ? 'Yes' : 'No'}</p>
+        </div>
+      )}
+
       {/* Amount Summary */}
       <div className="bg-gray-50 rounded-lg p-4 space-y-2">
         <div className="flex justify-between">
@@ -359,13 +367,15 @@ export default function SoloPaymentForm({
         {/* Card Number */}
         <div className="space-y-2">
           <Label>Card Number</Label>
-          <div className="relative border rounded-md bg-white focus-within:ring-2 focus-within:ring-emerald-500 focus-within:border-emerald-500">
+          <div className="relative border rounded-md bg-white focus-within:ring-2 focus-within:ring-emerald-500 focus-within:border-emerald-500 overflow-hidden">
             <iframe
               data-ifields-id="card-number"
               data-ifields-placeholder="Card Number"
               src={`${IFIELDS_CDN}/ifield.htm`}
-              className="w-full h-12 border-0"
               title="Card Number"
+              frameBorder="0"
+              scrolling="no"
+              style={{ width: '100%', height: '48px', border: 'none', overflow: 'hidden' }}
             />
             {cardIssuer && (
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 uppercase">
@@ -373,7 +383,7 @@ export default function SoloPaymentForm({
               </span>
             )}
           </div>
-          <input type="hidden" data-ifields-id="card-number-token" />
+          <input type="hidden" data-ifields-id="card-number-token" name="xCardNum" />
         </div>
 
         {/* Expiration and CVV */}
@@ -390,16 +400,18 @@ export default function SoloPaymentForm({
           </div>
           <div className="space-y-2">
             <Label>CVV</Label>
-            <div className="border rounded-md bg-white focus-within:ring-2 focus-within:ring-emerald-500 focus-within:border-emerald-500">
+            <div className="border rounded-md bg-white focus-within:ring-2 focus-within:ring-emerald-500 focus-within:border-emerald-500 overflow-hidden">
               <iframe
                 data-ifields-id="cvv"
                 data-ifields-placeholder="CVV"
                 src={`${IFIELDS_CDN}/ifield.htm`}
-                className="w-full h-12 border-0"
                 title="CVV"
+                frameBorder="0"
+                scrolling="no"
+                style={{ width: '100%', height: '48px', border: 'none', overflow: 'hidden' }}
               />
             </div>
-            <input type="hidden" data-ifields-id="cvv-token" />
+            <input type="hidden" data-ifields-id="cvv-token" name="xCVV" />
           </div>
         </div>
 
