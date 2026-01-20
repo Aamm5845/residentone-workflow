@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email-service'
 import { generateClientQuoteEmailTemplate } from '@/lib/email-templates'
 import { calculateQuebecTaxes, QUEBEC_TAX_RATES } from '@/lib/tax-utils'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 export const dynamic = 'force-dynamic'
 
@@ -189,10 +190,8 @@ export async function POST(request: NextRequest) {
     })
 
     // Generate and send email - exactly like client would see
-    // Use request origin or fallback to env variable
-    const host = request.headers.get('host') || ''
-    const protocol = host.includes('localhost') ? 'http' : 'https'
-    const baseUrl = host ? `${protocol}://${host}` : (process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000')
+    // Always use production URL on Vercel for email links
+    const baseUrl = getBaseUrl()
     const quoteUrl = `${baseUrl}/client/invoice/${clientQuote.accessToken}`
 
     // Convert relative logo URL to absolute URL for email
