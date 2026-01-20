@@ -93,6 +93,7 @@ export async function POST(
     const emailTemplate = generateClientQuoteEmailTemplate({
       quoteNumber: invoice.quoteNumber,
       clientName,
+      clientAddress: invoice.clientAddress || undefined,
       projectName: invoice.project.name,
       title: invoice.title || undefined,
       companyName: orgName,

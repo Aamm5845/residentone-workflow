@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
       allowCreditCard,
       shippingCost,
       customFees,
+      clientAddress,
       gstRate = QUEBEC_TAX_RATES.GST,
       qstRate = QUEBEC_TAX_RATES.QST
     } = body
@@ -205,6 +206,7 @@ export async function POST(request: NextRequest) {
     const emailData = {
       quoteNumber,
       clientName,
+      clientAddress: clientAddress || undefined,
       projectName: project.name,
       title: title || undefined,
       companyName: organization?.businessName || organization?.name || 'Meisner Interiors',

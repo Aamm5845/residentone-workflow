@@ -689,6 +689,7 @@ export function generateSupplierQuoteEmailTemplate(data: SupplierQuoteEmailData)
 interface ClientQuoteEmailData {
   quoteNumber: string
   clientName: string
+  clientAddress?: string // Client/project address
   projectName: string
   title?: string // Invoice title
   companyName: string
@@ -760,12 +761,15 @@ export function generateClientQuoteEmailTemplate(data: ClientQuoteEmailData): {
             ${data.title ? `<p style="margin: 6px 0 0 0; color: #6b7280; font-size: 14px;">${data.title}</p>` : ''}
         </div>
 
+        <!-- Bill To Section -->
+        <div style="padding: 20px 40px; background: #f9fafb; border-bottom: 1px solid #e5e7eb;">
+            <p style="margin: 0 0 4px 0; color: #6b7280; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;">Bill To</p>
+            <p style="margin: 0; color: #111827; font-size: 14px; font-weight: 500;">${data.clientName}</p>
+            ${data.clientAddress ? `<p style="margin: 4px 0 0 0; color: #6b7280; font-size: 13px;">${data.clientAddress}</p>` : ''}
+        </div>
+
         <!-- Content -->
         <div style="padding: 32px 40px;">
-            <p style="margin: 0 0 24px 0; color: #374151; font-size: 15px;">
-                Hi ${data.clientName},
-            </p>
-
             <p style="margin: 0 0 32px 0; color: #4b5563; font-size: 15px;">
                 Here's your invoice for <strong>${data.projectName}</strong>. Please review the details and submit payment at your earliest convenience.
             </p>
