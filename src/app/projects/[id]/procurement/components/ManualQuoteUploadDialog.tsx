@@ -120,6 +120,7 @@ export default function ManualQuoteUploadDialog({
   const [searchQuery, setSearchQuery] = useState('')
   const [saving, setSaving] = useState(false)
   const [selectedRoom, setSelectedRoom] = useState<string>('all')
+  const [showAllItems, setShowAllItems] = useState(false)
 
   // Fetch suppliers when dialog opens
   useEffect(() => {
@@ -450,16 +451,16 @@ export default function ManualQuoteUploadDialog({
 
   const selectedSupplier = suppliers.find(s => s.id === selectedSupplierId)
 
-  // Get unique room names for filter (only from items assigned to selected supplier)
-  const supplierItems = selectedSupplierId
+  // Get unique room names for filter (from filtered items based on supplier/showAll setting)
+  const supplierItems = selectedSupplierId && !showAllItems
     ? specItems.filter(item => item.existingSupplierId === selectedSupplierId)
     : specItems
   const roomNames = Array.from(new Set(supplierItems.map(item => item.roomName).filter(Boolean))) as string[]
 
-  // Filter spec items by supplier, search, and room
+  // Filter spec items by supplier (unless showAllItems), search, and room
   const filteredSpecItems = specItems.filter(item => {
-    // Supplier filter - only show items assigned to the selected supplier
-    if (selectedSupplierId && item.existingSupplierId !== selectedSupplierId) return false
+    // Supplier filter - only apply if not showing all items
+    if (selectedSupplierId && !showAllItems && item.existingSupplierId !== selectedSupplierId) return false
 
     // Room filter
     if (selectedRoom !== 'all' && item.roomName !== selectedRoom) return false
@@ -662,6 +663,13 @@ export default function ManualQuoteUploadDialog({
                       Select Items ({selectedMainItemsCount} items{selectedComponentsCount > 0 ? ` + ${selectedComponentsCount} components` : ''})
                     </Label>
                     <div className="flex items-center gap-2">
+                      <label className="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer">
+                        <Checkbox
+                          checked={showAllItems}
+                          onCheckedChange={(checked) => setShowAllItems(checked === true)}
+                        />
+                        <span>All Items</span>
+                      </label>
                       <Select value={selectedRoom} onValueChange={setSelectedRoom}>
                         <SelectTrigger className="h-8 w-36 text-sm">
                           <SelectValue placeholder="All Rooms" />
@@ -841,9 +849,17 @@ export default function ManualQuoteUploadDialog({
                           <div className="text-center py-8 text-gray-500">
                             <Package className="w-8 h-8 mx-auto mb-2 text-gray-300" />
                             <p className="text-sm font-medium">No items found</p>
-                            {selectedSupplierId && supplierItems.length === 0 && (
+                            {selectedSupplierId && !showAllItems && supplierItems.length === 0 && (
                               <p className="text-xs mt-1">
-                                No items in All Specs are assigned to {selectedSupplier?.name || 'this supplier'}
+                                No items in All Specs are assigned to {selectedSupplier?.name || 'this supplier'}.
+                                <br />
+                                <button
+                                  type="button"
+                                  className="text-blue-600 hover:underline mt-1"
+                                  onClick={() => setShowAllItems(true)}
+                                >
+                                  Show all items
+                                </button>
                               </p>
                             )}
                           </div>
