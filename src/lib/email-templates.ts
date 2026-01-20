@@ -756,8 +756,8 @@ export function generateClientQuoteEmailTemplate(data: ClientQuoteEmailData): {
             ` : `
             <div style="color: #111827; font-size: 22px; font-weight: 700; margin-bottom: 24px;">${data.companyName}</div>
             `}
-            <p style="margin: 0; color: #6b7280; font-size: 14px;">Invoice</p>
-            <p style="margin: 4px 0 0 0; color: #111827; font-size: 16px; font-weight: 600;">${data.quoteNumber}</p>
+            <p style="margin: 0; color: #111827; font-size: 18px; font-weight: 600;">Invoice ${data.quoteNumber}</p>
+            ${data.title ? `<p style="margin: 6px 0 0 0; color: #6b7280; font-size: 14px;">${data.title}</p>` : ''}
         </div>
 
         <!-- Content -->
@@ -767,7 +767,7 @@ export function generateClientQuoteEmailTemplate(data: ClientQuoteEmailData): {
             </p>
 
             <p style="margin: 0 0 32px 0; color: #4b5563; font-size: 15px;">
-                Here's your invoice for <strong>${data.projectName}</strong>${data.title ? ` - <strong>${data.title}</strong>` : ''}. Please review the details and submit payment at your earliest convenience.
+                Here's your invoice for <strong>${data.projectName}</strong>. Please review the details and submit payment at your earliest convenience.
             </p>
 
             <!-- Amount Due Box -->
