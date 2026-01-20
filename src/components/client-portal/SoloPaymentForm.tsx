@@ -1,35 +1,14 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Loader2, CreditCard, AlertCircle, CheckCircle, Lock } from 'lucide-react'
 
-// iFields types
-declare global {
-  interface Window {
-    setAccount: (key: string, software: string, version: string) => void
-    getTokens: (
-      success: () => void,
-      error: (data: { errorMessage: string }) => void,
-      timeout: number
-    ) => void
-    setIfieldStyle: (fieldId: string, styles: Record<string, string>) => void
-    enableAutoFormatting: (separator: string) => void
-    addIfieldCallback: (event: string, callback: (data: IFieldEventData) => void) => void
-  }
-}
-
-interface IFieldEventData {
-  cardNumberFormattedLength?: number
-  cardNumberIsValid?: boolean
-  cvvIsValid?: boolean
-  issuer?: string
-  lastIfieldChanged?: string
-  isEmpty?: boolean
-}
+// iFields version - check https://cdn.cardknox.com/ifields/versions.htm for latest
+const IFIELDS_VERSION = '3.2.2601.0701'
+const IFIELDS_CDN = `https://cdn.cardknox.com/ifields/${IFIELDS_VERSION}`
 
 interface PaymentFormProps {
   token: string
@@ -44,14 +23,11 @@ interface PaymentFormProps {
 
 interface PaymentData {
   paymentId: string
-  amount: number
+  originalAmount: number
   surchargeAmount: number
   totalAmount: number
   iFieldsKey: string
 }
-
-const IFIELDS_VERSION = '2.15.2401.0801'
-const IFIELDS_CDN = `https://cdn.cardknox.com/ifields/${IFIELDS_VERSION}`
 
 export default function SoloPaymentForm({
   token,
@@ -66,92 +42,69 @@ export default function SoloPaymentForm({
   const apiEndpoint = apiBasePath === '/api/quote'
     ? `${apiBasePath}/${token}/payment`
     : `${apiBasePath}/${token}/pay`
+
   const [paymentData, setPaymentData] = useState<PaymentData | null>(null)
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [succeeded, setSucceeded] = useState(false)
-  const [applySurcharge, setApplySurcharge] = useState(true)
+  const [scriptLoaded, setScriptLoaded] = useState(false)
+  const [ifieldsReady, setIfieldsReady] = useState(false)
 
   // Card state
   const [expiration, setExpiration] = useState('')
-  const [cardNumberValid, setCardNumberValid] = useState(false)
-  const [cvvValid, setCvvValid] = useState(false)
   const [cardIssuer, setCardIssuer] = useState<string | null>(null)
 
-  const iFieldsInitialized = useRef(false)
-  const cardNumberRef = useRef<HTMLIFrameElement>(null)
-  const cvvRef = useRef<HTMLIFrameElement>(null)
+  const initAttempted = useRef(false)
 
   // Load iFields script
   useEffect(() => {
     if (typeof window === 'undefined') return
 
+    // Check if script already loaded
+    const existingScript = document.querySelector(`script[src="${IFIELDS_CDN}/ifields.min.js"]`)
+    if (existingScript) {
+      setScriptLoaded(true)
+      return
+    }
+
     const script = document.createElement('script')
     script.src = `${IFIELDS_CDN}/ifields.min.js`
     script.async = true
     script.onload = () => {
-      initializeIFields()
+      console.log('[SoloPayment] iFields script loaded')
+      setScriptLoaded(true)
     }
-    document.body.appendChild(script)
+    script.onerror = () => {
+      console.error('[SoloPayment] Failed to load iFields script')
+      setError('Failed to load payment system')
+      setLoading(false)
+    }
+    document.head.appendChild(script)
 
     return () => {
-      document.body.removeChild(script)
+      // Don't remove script on cleanup - it might be used elsewhere
     }
   }, [])
 
-  // Initialize payment when surcharge changes
+  // Initialize payment when component mounts
   useEffect(() => {
-    initializePayment()
-  }, [applySurcharge])
-
-  const initializeIFields = useCallback(() => {
-    if (iFieldsInitialized.current || !paymentData?.iFieldsKey) return
-
-    try {
-      window.setAccount(paymentData.iFieldsKey, 'ResidentOne', '1.0.0')
-
-      // Style the iFields to match our design
-      const fieldStyles = {
-        'font-family': 'system-ui, -apple-system, sans-serif',
-        'font-size': '14px',
-        'color': '#1f2937',
-        'padding': '8px 12px',
-        'background': 'transparent'
-      }
-
-      window.setIfieldStyle('card-number', fieldStyles)
-      window.setIfieldStyle('cvv', fieldStyles)
-
-      // Enable card formatting
-      window.enableAutoFormatting(' ')
-
-      // Add validation callbacks
-      window.addIfieldCallback('input', (data: IFieldEventData) => {
-        if (data.cardNumberIsValid !== undefined) {
-          setCardNumberValid(data.cardNumberIsValid)
-        }
-        if (data.cvvIsValid !== undefined) {
-          setCvvValid(data.cvvIsValid)
-        }
-        if (data.issuer) {
-          setCardIssuer(data.issuer)
-        }
-      })
-
-      iFieldsInitialized.current = true
-    } catch (err) {
-      console.error('Failed to initialize iFields:', err)
+    if (!initAttempted.current) {
+      initAttempted.current = true
+      initializePayment()
     }
-  }, [paymentData?.iFieldsKey])
+  }, [])
 
-  // Re-initialize iFields when payment data is loaded
+  // Initialize iFields when script is loaded and we have payment data
   useEffect(() => {
-    if (paymentData?.iFieldsKey && !iFieldsInitialized.current) {
-      // Small delay to ensure iframes are mounted
-      setTimeout(initializeIFields, 100)
+    if (scriptLoaded && paymentData?.iFieldsKey && !ifieldsReady) {
+      // Give iframes time to load
+      const timer = setTimeout(() => {
+        initializeIFields()
+      }, 500)
+      return () => clearTimeout(timer)
     }
-  }, [paymentData, initializeIFields])
+  }, [scriptLoaded, paymentData])
 
   const initializePayment = async () => {
     setLoading(true)
@@ -164,7 +117,7 @@ export default function SoloPaymentForm({
         body: JSON.stringify({
           quoteId,
           amount,
-          applySurcharge
+          applySurcharge: true // Always apply surcharge for credit card
         })
       })
 
@@ -174,11 +127,75 @@ export default function SoloPaymentForm({
         throw new Error(data.error || 'Failed to initialize payment')
       }
 
-      setPaymentData(data)
+      console.log('[SoloPayment] Payment initialized:', data)
+      setPaymentData({
+        paymentId: data.paymentId,
+        originalAmount: data.originalAmount || data.amount || amount,
+        surchargeAmount: data.surchargeAmount || 0,
+        totalAmount: data.totalAmount || amount,
+        iFieldsKey: data.iFieldsKey
+      })
     } catch (err) {
+      console.error('[SoloPayment] Init error:', err)
       setError(err instanceof Error ? err.message : 'Failed to initialize payment')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const initializeIFields = () => {
+    if (!paymentData?.iFieldsKey) return
+
+    try {
+      // Check if iFields functions are available
+      if (typeof (window as any).setAccount !== 'function') {
+        console.error('[SoloPayment] iFields functions not available')
+        setError('Payment system not ready. Please refresh the page.')
+        return
+      }
+
+      console.log('[SoloPayment] Initializing iFields with key:', paymentData.iFieldsKey.substring(0, 20) + '...')
+
+      // Initialize account
+      ;(window as any).setAccount(paymentData.iFieldsKey, 'ResidentOne', '1.0.0')
+
+      // Style the iFields
+      const fieldStyles = {
+        'font-family': 'system-ui, -apple-system, sans-serif',
+        'font-size': '16px',
+        'color': '#1f2937',
+        'padding': '10px 12px',
+        'background': 'transparent',
+        'border': 'none',
+        'outline': 'none',
+        'width': '100%',
+        'height': '100%'
+      }
+
+      if (typeof (window as any).setIfieldStyle === 'function') {
+        ;(window as any).setIfieldStyle('card-number', fieldStyles)
+        ;(window as any).setIfieldStyle('cvv', fieldStyles)
+      }
+
+      // Enable card formatting
+      if (typeof (window as any).enableAutoFormatting === 'function') {
+        ;(window as any).enableAutoFormatting(' ')
+      }
+
+      // Add validation callbacks
+      if (typeof (window as any).addIfieldCallback === 'function') {
+        ;(window as any).addIfieldCallback('input', (data: any) => {
+          if (data.issuer) {
+            setCardIssuer(data.issuer)
+          }
+        })
+      }
+
+      setIfieldsReady(true)
+      console.log('[SoloPayment] iFields initialized successfully')
+    } catch (err) {
+      console.error('[SoloPayment] Failed to initialize iFields:', err)
+      setError('Failed to initialize payment form')
     }
   }
 
@@ -188,8 +205,9 @@ export default function SoloPaymentForm({
     if (!paymentData || processing) return
 
     // Validate expiration
-    if (!expiration || expiration.length < 4) {
-      setError('Please enter a valid expiration date (MMYY)')
+    const expDigits = expiration.replace(/\D/g, '')
+    if (expDigits.length < 4) {
+      setError('Please enter a valid expiration date (MM/YY)')
       return
     }
 
@@ -198,10 +216,14 @@ export default function SoloPaymentForm({
 
     try {
       // Get tokens from iFields
+      if (typeof (window as any).getTokens !== 'function') {
+        throw new Error('Payment system not ready')
+      }
+
       await new Promise<void>((resolve, reject) => {
-        window.getTokens(
+        ;(window as any).getTokens(
           () => resolve(),
-          (data) => reject(new Error(data.errorMessage || 'Failed to tokenize card')),
+          (data: { errorMessage: string }) => reject(new Error(data.errorMessage || 'Failed to process card')),
           30000
         )
       })
@@ -211,7 +233,7 @@ export default function SoloPaymentForm({
       const cvvToken = (document.querySelector('input[data-ifields-id="cvv-token"]') as HTMLInputElement)?.value
 
       if (!cardToken) {
-        throw new Error('Failed to get card token')
+        throw new Error('Please enter a valid card number')
       }
 
       // Submit payment to our API
@@ -222,7 +244,7 @@ export default function SoloPaymentForm({
           paymentId: paymentData.paymentId,
           cardToken,
           cvvToken,
-          expiration: expiration.replace(/\D/g, '') // Remove any non-digits
+          expiration: expDigits // MMYY format
         })
       })
 
@@ -241,6 +263,7 @@ export default function SoloPaymentForm({
         throw new Error(result.error || 'Payment was not approved')
       }
     } catch (err) {
+      console.error('[SoloPayment] Payment error:', err)
       setError(err instanceof Error ? err.message : 'Payment failed')
     } finally {
       setProcessing(false)
@@ -248,17 +271,15 @@ export default function SoloPaymentForm({
   }
 
   const formatExpiration = (value: string) => {
-    // Remove non-digits
     const digits = value.replace(/\D/g, '')
-
-    // Format as MM/YY
     if (digits.length >= 2) {
-      return digits.slice(0, 2) + (digits.length > 2 ? '/' + digits.slice(2, 4) : '')
+      return digits.slice(0, 2) + '/' + digits.slice(2, 4)
     }
     return digits
   }
 
   const formatCurrency = (value: number) => {
+    if (isNaN(value)) return '$0.00'
     return new Intl.NumberFormat('en-CA', {
       style: 'currency',
       currency: currency
@@ -293,7 +314,7 @@ export default function SoloPaymentForm({
         <AlertCircle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
         <p className="text-gray-600">Payment processing is not available</p>
         <p className="text-sm text-gray-500 mt-2">
-          Please contact your designer for alternative payment methods
+          Please contact us for alternative payment methods
         </p>
       </div>
     )
@@ -315,7 +336,7 @@ export default function SoloPaymentForm({
       <div className="bg-gray-50 rounded-lg p-4 space-y-2">
         <div className="flex justify-between">
           <span className="text-gray-600">Amount</span>
-          <span>{formatCurrency(paymentData.amount)}</span>
+          <span>{formatCurrency(paymentData.originalAmount)}</span>
         </div>
         {paymentData.surchargeAmount > 0 && (
           <div className="flex justify-between text-sm">
@@ -333,39 +354,19 @@ export default function SoloPaymentForm({
         </div>
       </div>
 
-      {/* Surcharge Option */}
-      <div className="flex items-start gap-3 p-4 border rounded-lg">
-        <Checkbox
-          id="surcharge"
-          checked={applySurcharge}
-          onCheckedChange={(checked) => setApplySurcharge(!!checked)}
-        />
-        <div className="flex-1">
-          <Label htmlFor="surcharge" className="font-medium cursor-pointer">
-            Pay with credit card (3% processing fee)
-          </Label>
-          <p className="text-sm text-gray-500 mt-1">
-            A 3% surcharge applies to credit card payments. Uncheck to see other payment options.
-          </p>
-        </div>
-      </div>
-
       {/* Payment Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Card Number iField */}
+        {/* Card Number */}
         <div className="space-y-2">
-          <Label htmlFor="card-number">Card Number</Label>
-          <div className="relative">
-            <div className="border rounded-md overflow-hidden bg-white focus-within:ring-2 focus-within:ring-emerald-500 focus-within:border-emerald-500">
-              <iframe
-                ref={cardNumberRef}
-                data-ifields-id="card-number"
-                data-ifields-placeholder="Card Number"
-                src={`${IFIELDS_CDN}/ifield.htm`}
-                className="w-full h-10 border-0"
-                title="Card Number"
-              />
-            </div>
+          <Label>Card Number</Label>
+          <div className="relative border rounded-md bg-white focus-within:ring-2 focus-within:ring-emerald-500 focus-within:border-emerald-500">
+            <iframe
+              data-ifields-id="card-number"
+              data-ifields-placeholder="Card Number"
+              src={`${IFIELDS_CDN}/ifield.htm`}
+              className="w-full h-12 border-0"
+              title="Card Number"
+            />
             {cardIssuer && (
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 uppercase">
                 {cardIssuer}
@@ -378,25 +379,23 @@ export default function SoloPaymentForm({
         {/* Expiration and CVV */}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="expiration">Expiration</Label>
+            <Label>Expiration</Label>
             <Input
-              id="expiration"
               placeholder="MM/YY"
               value={expiration}
               onChange={(e) => setExpiration(formatExpiration(e.target.value))}
               maxLength={5}
-              className="h-10"
+              className="h-12"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="cvv">CVV</Label>
-            <div className="border rounded-md overflow-hidden bg-white focus-within:ring-2 focus-within:ring-emerald-500 focus-within:border-emerald-500">
+            <Label>CVV</Label>
+            <div className="border rounded-md bg-white focus-within:ring-2 focus-within:ring-emerald-500 focus-within:border-emerald-500">
               <iframe
-                ref={cvvRef}
                 data-ifields-id="cvv"
                 data-ifields-placeholder="CVV"
                 src={`${IFIELDS_CDN}/ifield.htm`}
-                className="w-full h-10 border-0"
+                className="w-full h-12 border-0"
                 title="CVV"
               />
             </div>
@@ -411,7 +410,7 @@ export default function SoloPaymentForm({
           </div>
         )}
 
-        <div className="flex gap-3">
+        <div className="flex gap-3 pt-2">
           <Button
             type="button"
             variant="outline"
@@ -423,7 +422,7 @@ export default function SoloPaymentForm({
           </Button>
           <Button
             type="submit"
-            disabled={processing}
+            disabled={processing || !ifieldsReady}
             className="flex-1 bg-emerald-600 hover:bg-emerald-700"
           >
             {processing ? (
@@ -434,7 +433,7 @@ export default function SoloPaymentForm({
             ) : (
               <>
                 <CreditCard className="w-4 h-4 mr-2" />
-                Pay Now
+                Pay {formatCurrency(paymentData.totalAmount)}
               </>
             )}
           </Button>
@@ -442,7 +441,7 @@ export default function SoloPaymentForm({
 
         <div className="flex items-center justify-center gap-2 text-xs text-gray-400">
           <Lock className="w-3 h-3" />
-          <span>Your payment is processed securely</span>
+          <span>Secured by Cardknox</span>
         </div>
       </form>
     </div>
