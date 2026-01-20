@@ -37,9 +37,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import toast, { Toaster } from 'react-hot-toast'
 import dynamic from 'next/dynamic'
 
-// Dynamically import Stripe payment form (client-side only)
-const StripePaymentForm = dynamic(
-  () => import('@/components/client-portal/StripePaymentForm'),
+// Dynamically import Solo payment form (client-side only)
+const SoloPaymentForm = dynamic(
+  () => import('@/components/client-portal/SoloPaymentForm'),
   { ssr: false, loading: () => <div className="py-8 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto" /></div> }
 )
 
@@ -884,7 +884,7 @@ export default function ClientPortalPage({ params }: ClientPortalPageProps) {
           </DialogHeader>
 
           {paymentQuote && (
-            <StripePaymentForm
+            <SoloPaymentForm
               token={token}
               quoteId={paymentQuote.id}
               amount={(paymentQuote.totalAmount || paymentQuote.subtotal) - paymentQuote.amountPaid}
