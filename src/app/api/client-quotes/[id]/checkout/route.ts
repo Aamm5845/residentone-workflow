@@ -118,7 +118,75 @@ export async function POST(
       })
     }
 
-    // Add CC processing fee as separate line item for transparency (3% of subtotal)
+    // Add GST if applicable
+    const gstAmount = Number(invoice.gstAmount) || 0
+    if (gstAmount > 0) {
+      stripeLineItems.push({
+        price_data: {
+          currency: 'cad',
+          product_data: {
+            name: `GST (${invoice.gstRate || 5}%)`,
+            description: 'Goods and Services Tax',
+          },
+          unit_amount: Math.round(gstAmount * 100),
+        },
+        quantity: 1,
+      })
+    }
+
+    // Add QST if applicable
+    const qstAmount = Number(invoice.qstAmount) || 0
+    if (qstAmount > 0) {
+      stripeLineItems.push({
+        price_data: {
+          currency: 'cad',
+          product_data: {
+            name: `QST (${invoice.qstRate || 9.975}%)`,
+            description: 'Quebec Sales Tax',
+          },
+          unit_amount: Math.round(qstAmount * 100),
+        },
+        quantity: 1,
+      })
+    }
+
+    // Add shipping/delivery if applicable
+    const shippingCost = Number(invoice.shippingCost) || 0
+    if (shippingCost > 0) {
+      stripeLineItems.push({
+        price_data: {
+          currency: 'cad',
+          product_data: {
+            name: 'Delivery',
+            description: 'Shipping and handling',
+          },
+          unit_amount: Math.round(shippingCost * 100),
+        },
+        quantity: 1,
+      })
+    }
+
+    // Add custom fees if applicable
+    const customFees = invoice.customFees as { name: string; amount: number }[] | null
+    if (customFees && Array.isArray(customFees)) {
+      for (const fee of customFees) {
+        const feeAmount = Number(fee.amount) || 0
+        if (feeAmount > 0) {
+          stripeLineItems.push({
+            price_data: {
+              currency: 'cad',
+              product_data: {
+                name: fee.name || 'Additional Fee',
+              },
+              unit_amount: Math.round(feeAmount * 100),
+            },
+            quantity: 1,
+          })
+        }
+      }
+    }
+
+    // Add CC processing fee as separate line item for transparency (3% of total)
     const ccFeeAmount = Math.round(ccFee * 100)
     stripeLineItems.push({
       price_data: {
