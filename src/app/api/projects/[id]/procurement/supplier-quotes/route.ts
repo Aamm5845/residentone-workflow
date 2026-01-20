@@ -331,12 +331,16 @@ export async function GET(
         // Build enhanced mismatch list with full item details
         const enhancedMismatches: any[] = []
 
+        // Skip mismatch detection for manual quotes (no AI analysis needed)
+        const isManualQuote = sRFQ.rfq.title?.startsWith('[Manual Quotes]') || false
+
         // Get all RFQ line items for this quote's RFQ to detect missing items
         const rfqLineItems = sRFQ.rfq.lineItems
         const quotedRfqLineItemIds = new Set(quote.lineItems.map(li => li.rfqLineItemId).filter(Boolean))
 
-        // Find missing items (RFQ items not in quote)
+        // Find missing items (RFQ items not in quote) - skip for manual quotes
         for (const rfqItem of rfqLineItems) {
+          if (isManualQuote) break // Skip mismatch detection for manual quotes
           if (!quotedRfqLineItemIds.has(rfqItem.id)) {
             const roomFFEItem = rfqItem.roomFFEItem
             enhancedMismatches.push({
@@ -355,8 +359,9 @@ export async function GET(
           }
         }
 
-        // Find extra items (quote items without RFQ reference or marked as alternate)
+        // Find extra items (quote items without RFQ reference or marked as alternate) - skip for manual quotes
         for (const quoteItem of quote.lineItems) {
+          if (isManualQuote) break // Skip mismatch detection for manual quotes
           if (!quoteItem.rfqLineItemId) {
             enhancedMismatches.push({
               itemName: quoteItem.itemName || 'Unknown Item',
@@ -373,8 +378,9 @@ export async function GET(
           }
         }
 
-        // Add quantity mismatches for items that exist in both
+        // Add quantity mismatches for items that exist in both - skip for manual quotes
         for (const li of quote.lineItems) {
+          if (isManualQuote) break // Skip mismatch detection for manual quotes
           const rfqItem = li.rfqLineItem
           if (rfqItem && li.quantity !== rfqItem.quantity) {
             const roomFFEItem = rfqItem.roomFFEItem
@@ -397,8 +403,9 @@ export async function GET(
           }
         }
 
-        // Add price discrepancies (more than 15% above target)
+        // Add price discrepancies (more than 15% above target) - skip for manual quotes
         for (const li of quote.lineItems) {
+          if (isManualQuote) break // Skip mismatch detection for manual quotes
           const rfqItem = li.rfqLineItem
           if (rfqItem?.targetUnitPrice && li.unitPrice) {
             const target = Number(rfqItem.targetUnitPrice)
@@ -494,8 +501,8 @@ export async function GET(
           hasMismatches: hasAnyMismatches,
           mismatches: allMismatches,
 
-          // AI match summary data - recalculate based on resolved items
-          aiMatchSummary: aiMatchData ? (() => {
+          // AI match summary data - recalculate based on resolved items (skip for manual quotes)
+          aiMatchSummary: (aiMatchData && !isManualQuote) ? (() => {
             // Count resolved extra items
             const matchResults = aiMatchData.matchResults || []
             let resolvedExtras = 0
@@ -536,8 +543,8 @@ export async function GET(
             }
           })() : null,
 
-          // Full AI extracted data for PDF review
-          aiExtractedData: aiMatchData ? {
+          // Full AI extracted data for PDF review (skip for manual quotes)
+          aiExtractedData: (aiMatchData && !isManualQuote) ? {
             supplierInfo: aiMatchData.supplierInfo || null,
             extractedItems: aiMatchData.extractedItems || [],
             matchResults: aiMatchData.matchResults || [],
