@@ -215,12 +215,16 @@ export default function CreateClientQuoteDialog({
           setClientPhone(project.client.phone || '')
         }
 
-        // Build address from project (streetAddress, city, postalCode)
+        // Build address from project (streetAddress, city, province, postalCode)
         const addressParts = []
         if (project.streetAddress) addressParts.push(project.streetAddress)
         if (project.city) addressParts.push(project.city)
+        if (project.province) addressParts.push(project.province)
         if (project.postalCode) addressParts.push(project.postalCode)
-        if (addressParts.length > 0) {
+        // Fallback to legacy address field if no structured address
+        if (addressParts.length === 0 && project.address) {
+          setClientAddress(project.address)
+        } else if (addressParts.length > 0) {
           setClientAddress(addressParts.join(', '))
         }
       }
