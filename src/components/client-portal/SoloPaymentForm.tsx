@@ -38,6 +38,8 @@ interface PaymentFormProps {
   currency?: string
   onSuccess: () => void
   onCancel: () => void
+  /** API base path - defaults to '/api/client-portal' for client portal, use '/api/quote' for invoice pages */
+  apiBasePath?: string
 }
 
 interface PaymentData {
@@ -57,8 +59,13 @@ export default function SoloPaymentForm({
   amount,
   currency = 'CAD',
   onSuccess,
-  onCancel
+  onCancel,
+  apiBasePath = '/api/client-portal'
 }: PaymentFormProps) {
+  // Determine API endpoint based on base path
+  const apiEndpoint = apiBasePath === '/api/quote'
+    ? `${apiBasePath}/${token}/payment`
+    : `${apiBasePath}/${token}/pay`
   const [paymentData, setPaymentData] = useState<PaymentData | null>(null)
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
@@ -151,7 +158,7 @@ export default function SoloPaymentForm({
     setError(null)
 
     try {
-      const response = await fetch(`/api/client-portal/${token}/pay`, {
+      const response = await fetch(apiEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -208,7 +215,7 @@ export default function SoloPaymentForm({
       }
 
       // Submit payment to our API
-      const response = await fetch(`/api/client-portal/${token}/pay`, {
+      const response = await fetch(apiEndpoint, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

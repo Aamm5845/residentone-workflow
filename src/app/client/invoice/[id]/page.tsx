@@ -2,8 +2,15 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
-import { Loader2, FileText, ChevronDown, Building, Banknote, CheckCircle } from 'lucide-react'
+import { Loader2, FileText, ChevronDown, Building, Banknote, CheckCircle, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import dynamic from 'next/dynamic'
+
+// Dynamically import Solo payment form (client-side only)
+const SoloPaymentForm = dynamic(
+  () => import('@/components/client-portal/SoloPaymentForm'),
+  { ssr: false, loading: () => <div className="py-8 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto" /></div> }
+)
 
 // Print styles - hide payment section and format for full-page printing
 const printStyles = `
@@ -131,7 +138,7 @@ export default function ClientInvoicePage() {
   const [showWireInfo, setShowWireInfo] = useState(false)
   const [showCheckInfo, setShowCheckInfo] = useState(false)
   const [showEtransferInfo, setShowEtransferInfo] = useState(false)
-  const [processingPayment, setProcessingPayment] = useState(false)
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false)
 
   useEffect(() => {
     if (id) {
@@ -202,25 +209,16 @@ export default function ClientInvoicePage() {
     return invoice.totalAmount + ccFee
   }
 
-  const handlePayWithCard = async () => {
-    try {
-      setProcessingPayment(true)
-      const response = await fetch(`/api/client-quotes/${id}/checkout`, {
-        method: 'POST',
-      })
-      const data = await response.json()
+  const handlePayWithCard = () => {
+    setShowPaymentDialog(true)
+  }
 
-      if (data.url) {
-        window.location.href = data.url
-      } else {
-        alert('Failed to create checkout session. Please try again.')
-      }
-    } catch (err) {
-      console.error('Checkout error:', err)
-      alert('Failed to process payment. Please try again.')
-    } finally {
-      setProcessingPayment(false)
-    }
+  const handlePaymentSuccess = () => {
+    setShowPaymentDialog(false)
+    // Reload invoice to show updated status
+    loadInvoice()
+    // Update URL to show success
+    window.history.replaceState({}, '', `${window.location.pathname}?payment=success`)
   }
 
   if (loading) {
@@ -489,17 +487,9 @@ export default function ClientInvoicePage() {
                   </div>
                   <Button
                     onClick={handlePayWithCard}
-                    disabled={processingPayment}
-                    className="w-full bg-[#635BFF] hover:bg-[#5851DB] text-white"
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
                   >
-                    {processingPayment ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Processing...
-                      </>
-                    ) : (
-                      `Pay ${formatCurrency(calculateCCTotal())}`
-                    )}
+                    Pay {formatCurrency(calculateCCTotal())}
                   </Button>
                 </div>
               )}
@@ -619,6 +609,37 @@ export default function ClientInvoicePage() {
           </Button>
         </div>
       </div>
+
+      {/* Payment Dialog */}
+      {showPaymentDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Make Payment</h2>
+                <p className="text-sm text-gray-500">{invoice.quoteNumber}</p>
+              </div>
+              <button
+                onClick={() => setShowPaymentDialog(false)}
+                className="p-2 hover:bg-gray-100 rounded-full"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="p-6">
+              <SoloPaymentForm
+                token={id}
+                quoteId={invoice.id}
+                amount={invoice.totalAmount}
+                currency={invoice.currency || 'CAD'}
+                onSuccess={handlePaymentSuccess}
+                onCancel={() => setShowPaymentDialog(false)}
+                apiBasePath="/api/quote"
+              />
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </>
   )
