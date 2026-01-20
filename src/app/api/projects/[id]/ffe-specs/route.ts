@@ -95,19 +95,8 @@ export async function GET(
     if (itemIds && itemIds.length > 0) {
       // Fetch specific items by ID (for RFQ pre-selection)
       whereClause.id = { in: itemIds }
-    } else {
-      // Fetch items that are spec items or in any active procurement status
-      // Include all statuses except DRAFT (which are FFE Workspace tasks, not specs)
-      whereClause.OR = [
-        { isSpecItem: true },
-        { specStatus: { in: [
-          'SELECTED', 'RFQ_SENT', 'QUOTING', 'NEED_SAMPLE', 'BETTER_PRICE', 'NEED_TO_ORDER',
-          'QUOTE_RECEIVED', 'QUOTE_APPROVED', 'BUDGET_SENT', 'BUDGET_APPROVED',
-          'INVOICED_TO_CLIENT', 'CLIENT_PAID', 'ORDERED', 'SHIPPED', 'RECEIVED', 'DELIVERED', 'INSTALLED'
-        ] } },
-        { state: { in: ['SELECTED', 'CONFIRMED'] } }
-      ]
     }
+    // No status filter - return all visible items from All Specs
 
     // Filter by category (section name)
     if (categoryFilter) {
