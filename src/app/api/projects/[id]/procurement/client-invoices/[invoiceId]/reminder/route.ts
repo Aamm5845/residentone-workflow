@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email-service'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 export async function POST(
   request: NextRequest,
@@ -74,8 +75,8 @@ export async function POST(
       return NextResponse.json({ error: 'Invoice is fully paid' }, { status: 400 })
     }
 
-    // Generate invoice link
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    // Generate invoice link (always uses production URL on Vercel)
+    const baseUrl = getBaseUrl()
     const invoiceLink = `${baseUrl}/client/invoice/${invoice.accessToken}`
 
     const orgName = invoice.project.organization?.businessName || invoice.project.organization?.name || 'Your Designer'
