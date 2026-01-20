@@ -113,27 +113,15 @@ export async function PATCH(
         where: { specItemId: specId }
       })
 
-      // 4. Only reset status to DRAFT if there are NO remaining links
-      // Otherwise keep the current status so the item stays visible in All Specs
-      let updatedSpec = specItem
-      if (remainingLinks === 0 && !specItem.ffeRequirementId) {
-        // No more links - reset to draft
-        updatedSpec = await tx.roomFFEItem.update({
-          where: { id: specId },
-          data: {
-            specStatus: 'DRAFT',
-            updatedById: userId
-          }
-        })
-      } else {
-        // Still has other links - just update the timestamp
-        updatedSpec = await tx.roomFFEItem.update({
-          where: { id: specId },
-          data: {
-            updatedById: userId
-          }
-        })
-      }
+      // 4. Keep the spec item visible in All Specs - DO NOT reset to DRAFT
+      // The item should stay in All Specs so it can be relinked to another FFE item
+      // Just update the timestamp
+      const updatedSpec = await tx.roomFFEItem.update({
+        where: { id: specId },
+        data: {
+          updatedById: userId
+        }
+      })
 
       return updatedSpec
     })
