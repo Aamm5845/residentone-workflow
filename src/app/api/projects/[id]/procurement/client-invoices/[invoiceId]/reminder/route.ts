@@ -2,9 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { Resend } from 'resend'
-
-const resend = new Resend(process.env.RESEND_API_KEY)
+import { sendEmail } from '@/lib/email-service'
 
 export async function POST(
   request: NextRequest,
@@ -170,18 +168,15 @@ export async function POST(
       </html>
     `
 
-    // Send email
-    if (process.env.RESEND_API_KEY) {
-      const trackingId = `reminder-${invoiceId}-${Date.now()}`
+    // Send email using centralized email service
+    const trackingId = `reminder-${invoiceId}-${Date.now()}`
+    const emailSubject = `${isOverdue ? 'Payment Overdue' : 'Payment Reminder'}: Invoice ${invoice.quoteNumber}${invoice.title ? ` - ${invoice.title}` : ''}`
 
-      await resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL || 'invoices@resend.dev',
+    try {
+      await sendEmail({
         to: clientEmail,
-        subject: `${isOverdue ? 'Payment Overdue' : 'Payment Reminder'}: Invoice ${invoice.quoteNumber}${invoice.title ? ` - ${invoice.title}` : ''}`,
-        html: emailHtml,
-        headers: {
-          'X-Entity-Ref-ID': trackingId
-        }
+        subject: emailSubject,
+        html: emailHtml
       })
 
       // Log email
@@ -189,11 +184,17 @@ export async function POST(
         data: {
           clientQuoteId: invoiceId,
           to: clientEmail,
-          subject: `${isOverdue ? 'Payment Overdue' : 'Payment Reminder'}: Invoice ${invoice.quoteNumber}${invoice.title ? ` - ${invoice.title}` : ''}`,
+          subject: emailSubject,
           htmlContent: emailHtml,
           trackingPixelId: trackingId
         }
       })
+    } catch (emailError: any) {
+      console.error('Email send error:', emailError)
+      return NextResponse.json({
+        error: emailError.message || 'Failed to send reminder email',
+        details: emailError.message
+      }, { status: 500 })
     }
 
     // Log activity

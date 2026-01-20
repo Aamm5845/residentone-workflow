@@ -2,9 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { Resend } from 'resend'
-
-const resend = new Resend(process.env.RESEND_API_KEY)
+import { sendEmail } from '@/lib/email-service'
 
 export async function POST(
   request: NextRequest,
@@ -219,29 +217,17 @@ export async function POST(
       </html>
     `
 
-    // Send email
-    if (process.env.RESEND_API_KEY) {
-      const trackingId = `${invoiceId}-${Date.now()}`
+    // Send email using centralized email service
+    const trackingId = `${invoiceId}-${Date.now()}`
 
-      const { data: emailResult, error: emailError } = await resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL || 'invoices@resend.dev',
+    try {
+      const emailResult = await sendEmail({
         to: clientEmail,
         subject: emailSubject,
-        html: emailHtml,
-        headers: {
-          'X-Entity-Ref-ID': trackingId
-        }
+        html: emailHtml
       })
 
-      if (emailError) {
-        console.error('Resend API error:', emailError)
-        return NextResponse.json({
-          error: `Failed to send email: ${emailError.message}`,
-          details: emailError
-        }, { status: 500 })
-      }
-
-      console.log('Email sent successfully:', emailResult?.id, 'to:', clientEmail)
+      console.log('Email sent successfully:', emailResult.messageId, 'to:', clientEmail)
 
       // Log email
       await prisma.clientQuoteEmailLog.create({
@@ -253,10 +239,11 @@ export async function POST(
           trackingPixelId: trackingId
         }
       })
-    } else {
-      console.warn('RESEND_API_KEY not configured - email not sent')
+    } catch (emailError: any) {
+      console.error('Email send error:', emailError)
       return NextResponse.json({
-        error: 'Email service not configured. Please set RESEND_API_KEY.',
+        error: emailError.message || 'Failed to send email',
+        details: emailError.message
       }, { status: 500 })
     }
 
