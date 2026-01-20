@@ -38,7 +38,8 @@ import {
   Download,
   Trash2,
   Clock,
-  AlertCircle
+  AlertCircle,
+  RotateCcw
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
@@ -543,6 +544,10 @@ export default function ClientInvoicesTab({ projectId, searchQuery, onCreateInvo
                                 <DropdownMenuItem onClick={() => handleSendReminder(invoice)}>
                                   <Bell className="w-4 h-4 mr-2" />
                                   Send Reminder
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleSendInvoice(invoice)}>
+                                  <RotateCcw className="w-4 h-4 mr-2" />
+                                  Resend Invoice
                                 </DropdownMenuItem>
                               </>
                             )}
