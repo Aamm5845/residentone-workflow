@@ -223,7 +223,7 @@ export async function POST(
     if (process.env.RESEND_API_KEY) {
       const trackingId = `${invoiceId}-${Date.now()}`
 
-      await resend.emails.send({
+      const { data: emailResult, error: emailError } = await resend.emails.send({
         from: process.env.RESEND_FROM_EMAIL || 'invoices@resend.dev',
         to: clientEmail,
         subject: emailSubject,
@@ -232,6 +232,16 @@ export async function POST(
           'X-Entity-Ref-ID': trackingId
         }
       })
+
+      if (emailError) {
+        console.error('Resend API error:', emailError)
+        return NextResponse.json({
+          error: `Failed to send email: ${emailError.message}`,
+          details: emailError
+        }, { status: 500 })
+      }
+
+      console.log('Email sent successfully:', emailResult?.id, 'to:', clientEmail)
 
       // Log email
       await prisma.clientQuoteEmailLog.create({
@@ -243,6 +253,11 @@ export async function POST(
           trackingPixelId: trackingId
         }
       })
+    } else {
+      console.warn('RESEND_API_KEY not configured - email not sent')
+      return NextResponse.json({
+        error: 'Email service not configured. Please set RESEND_API_KEY.',
+      }, { status: 500 })
     }
 
     // Update invoice status
