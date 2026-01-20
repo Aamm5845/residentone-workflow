@@ -235,6 +235,9 @@ export async function POST(
     const subtotal = lineItems.reduce((sum: number, item: any) =>
       sum + (Number(item.clientTotalPrice) || 0), 0)
 
+    // Determine invoice currency from line items (use first item's currency)
+    const invoiceCurrency = lineItems.length > 0 ? (lineItems[0].currency || 'CAD') : 'CAD'
+
     const gstRate = 5.0
     const qstRate = 9.975
     const gstAmount = subtotal * (gstRate / 100)
@@ -251,6 +254,7 @@ export async function POST(
         description,
         status: 'DRAFT',
         subtotal,
+        currency: invoiceCurrency,
         gstRate,
         gstAmount,
         qstRate,

@@ -301,6 +301,9 @@ export async function POST(request: NextRequest) {
     // Calculate totals - round to 2 decimal places
     const subtotal = Math.round(lineItemsData.reduce((sum, item) => sum + parseFloat(item.clientTotalPrice.toString()), 0) * 100) / 100
 
+    // Determine invoice currency from line items (use first item's currency)
+    const invoiceCurrency = lineItemsData.length > 0 ? (lineItemsData[0].currency || 'CAD') : 'CAD'
+
     // Calculate additional fees
     const deliveryAmount = shippingCost ? parseFloat(shippingCost) : 0
     const customFeesTotal = customFees && Array.isArray(customFees)
@@ -338,6 +341,7 @@ export async function POST(request: NextRequest) {
         groupTitle: groupTitle || null,
         defaultMarkupPercent: markup,
         subtotal,
+        currency: invoiceCurrency,
         shippingCost: deliveryAmount > 0 ? deliveryAmount : null,
         customFees: customFees && customFees.length > 0 ? customFees : null,
         gstRate,
