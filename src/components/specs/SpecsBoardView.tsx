@@ -106,12 +106,31 @@ export default function SpecsBoardView({ projectId, onItemClick, refreshTrigger 
       columns[col.id] = { items: [], byCategory: {} }
     })
 
+    // Statuses that are AFTER approval - these should use their own column even if clientApproved
+    const POST_APPROVAL_STATUSES = [
+      'INVOICED_TO_CLIENT', 'CLIENT_PAID', 'ORDERED', 'SHIPPED',
+      'DELIVERED', 'INSTALLED', 'COMPLETED', 'CLOSED',
+      'CLIENT_TO_ORDER', 'CONTRACTOR_TO_ORDER'
+    ]
+
     filteredItems.forEach(item => {
       if (EXCLUDED_STATUSES.includes(item.specStatus)) return
 
-      // If client approved, item goes to APPROVED column
       let columnId: string
-      if (item.clientApproved) {
+
+      // First check if this is a post-approval status - these always use their status column
+      if (POST_APPROVAL_STATUSES.includes(item.specStatus)) {
+        columnId = item.specStatus
+        const matchingCol = BOARD_COLUMNS.find(c => c.includeStatuses?.includes(item.specStatus))
+        if (matchingCol) {
+          columnId = matchingCol.id
+        }
+        // If no matching column exists, keep the status as column id
+        if (!columns[columnId]) {
+          columnId = 'COMPLETED' // Fallback for post-approval statuses
+        }
+      } else if (item.clientApproved) {
+        // For pre-approval statuses, clientApproved moves to APPROVED column
         columnId = 'APPROVED'
       } else {
         // Otherwise, determine column by status
