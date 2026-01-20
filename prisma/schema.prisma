@@ -3350,7 +3350,7 @@ model SupplierQuoteLineItem {
   acceptedBy      User?         @relation("QuoteLineAcceptedBy", fields: [acceptedById], references: [id])
 
   // Direct item relation
-  roomFFEItem    RoomFFEItem? @relation("ItemQuoteLineItems", fields: [roomFFEItemId], references: [id])
+  roomFFEItem    RoomFFEItem? @relation("ItemQuoteLineItems", fields: [roomFFEItemId], references: [id], onDelete: SetNull)
   acceptedByItem RoomFFEItem? @relation("AcceptedQuoteForItem") // Reverse of RoomFFEItem.acceptedQuoteLineItem
 
   // Order items created from this quote
@@ -3502,7 +3502,7 @@ model ClientQuoteLineItem {
 
   clientQuote   ClientQuote    @relation(fields: [clientQuoteId], references: [id], onDelete: Cascade)
   supplierQuote SupplierQuote? @relation(fields: [supplierQuoteId], references: [id])
-  roomFFEItem   RoomFFEItem?   @relation("ClientQuoteLineItems", fields: [roomFFEItemId], references: [id])
+  roomFFEItem   RoomFFEItem?   @relation("ClientQuoteLineItems", fields: [roomFFEItemId], references: [id], onDelete: SetNull)
   orderItems    OrderItem[]
 
   @@index([clientQuoteId])
@@ -4095,7 +4095,7 @@ model ProgramaItem {
 
   // Relations
   organization      Organization @relation("OrgProgramaItems", fields: [orgId], references: [id], onDelete: Cascade)
-  linkedRoomFFEItem RoomFFEItem? @relation("ProgramaLinkedItem", fields: [linkedRoomFFEItemId], references: [id])
+  linkedRoomFFEItem RoomFFEItem? @relation("ProgramaLinkedItem", fields: [linkedRoomFFEItemId], references: [id], onDelete: SetNull)
   linkedBy          User?        @relation("ProgramaLinkedBy", fields: [linkedById], references: [id])
 
   @@index([orgId])
