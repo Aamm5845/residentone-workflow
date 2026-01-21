@@ -85,9 +85,13 @@ export async function GET(
     // Get all items that are paid but not ordered
     const paidItems = await prisma.roomFFEItem.findMany({
       where: {
-        room: {
-          projectId,
-          project: { orgId }
+        section: {
+          instance: {
+            room: {
+              projectId,
+              project: { orgId }
+            }
+          }
         },
         specStatus: 'CLIENT_PAID',
         // Exclude items that already have orders
