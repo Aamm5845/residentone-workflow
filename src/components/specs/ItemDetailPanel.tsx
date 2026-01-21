@@ -213,10 +213,11 @@ const ITEM_STAGES = [
   { key: 'delivered', label: 'Delivered', icon: Package, activityTypes: ['DELIVERED'] },
 ]
 
-function ActivityTab({ itemId, roomId, mode, specStatus }: { itemId?: string; roomId?: string; mode: string; specStatus?: string }) {
+function ActivityTab({ itemId, roomId, mode, specStatus, onStageClick }: { itemId?: string; roomId?: string; mode: string; specStatus?: string; onStageClick?: (stageKey: string) => void }) {
   const [loading, setLoading] = useState(false)
   const [activities, setActivities] = useState<ActivityItem[]>([])
   const [deleting, setDeleting] = useState(false)
+  const [updatingStage, setUpdatingStage] = useState<string | null>(null)
 
   useEffect(() => {
     if (itemId && roomId && mode !== 'create') {
@@ -262,6 +263,70 @@ function ActivityTab({ itemId, roomId, mode, specStatus }: { itemId?: string; ro
       toast.error('Failed to delete activities')
     } finally {
       setDeleting(false)
+    }
+  }
+
+  // Handle clicking on a stage to manually mark it as complete
+  const handleStageClick = async (stageKey: string, stageIndex: number) => {
+    if (!itemId || !roomId || mode === 'create') return
+
+    // Map stage keys to activity types and spec statuses
+    const stageMapping: Record<string, { activityType: string; specStatus: string; title: string }> = {
+      'selected': { activityType: 'ITEM_SELECTED', specStatus: 'SELECTED', title: 'Item Selected' },
+      'rfq_sent': { activityType: 'QUOTE_REQUESTED', specStatus: 'RFQ_SENT', title: 'RFQ Sent' },
+      'quoted': { activityType: 'QUOTE_RECEIVED', specStatus: 'QUOTE_RECEIVED', title: 'Quote Received' },
+      'approved': { activityType: 'CLIENT_APPROVED', specStatus: 'BUDGET_APPROVED', title: 'Client Approved' },
+      'invoiced': { activityType: 'SENT_TO_CLIENT_QUOTE', specStatus: 'INVOICED_TO_CLIENT', title: 'Invoiced to Client' },
+      'paid': { activityType: 'CLIENT_QUOTE_PAID', specStatus: 'CLIENT_PAID', title: 'Client Paid' },
+      'ordered': { activityType: 'ORDERED', specStatus: 'ORDERED', title: 'Ordered from Supplier' },
+      'delivered': { activityType: 'DELIVERED', specStatus: 'DELIVERED', title: 'Delivered' },
+    }
+
+    const mapping = stageMapping[stageKey]
+    if (!mapping) return
+
+    setUpdatingStage(stageKey)
+    try {
+      // Create activity log entry
+      const activityRes = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${itemId}/activity`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: mapping.activityType,
+          title: mapping.title,
+          description: `Manually marked as ${mapping.title.toLowerCase()}`,
+          metadata: { manual: true }
+        })
+      })
+
+      if (!activityRes.ok) {
+        throw new Error('Failed to create activity')
+      }
+
+      // Update item specStatus
+      const updateRes = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${itemId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ specStatus: mapping.specStatus })
+      })
+
+      if (!updateRes.ok) {
+        throw new Error('Failed to update status')
+      }
+
+      // Reload activities to reflect the change
+      await loadActivities()
+      toast.success(`Marked as ${mapping.title}`)
+
+      // Notify parent if callback provided
+      if (onStageClick) {
+        onStageClick(stageKey)
+      }
+    } catch (error) {
+      console.error('Failed to update stage:', error)
+      toast.error('Failed to update stage')
+    } finally {
+      setUpdatingStage(null)
     }
   }
 
@@ -431,57 +496,77 @@ function ActivityTab({ itemId, roomId, mode, specStatus }: { itemId?: string; ro
     <div className="space-y-4">
       {/* Progress Tracker */}
       <div className="bg-gradient-to-r from-gray-50 to-white rounded-lg p-4 border">
-        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Item Progress</p>
-        <div className="flex items-center justify-between">
-          {ITEM_STAGES.map((stage, index) => {
-            const isCompleted = index <= currentStageIndex
-            const isCurrent = index === currentStageIndex
-            const StageIcon = stage.icon
-            const stageDate = stageDates[stage.key]
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Item Progress</p>
+          <p className="text-[10px] text-gray-400">Click a stage to mark complete</p>
+        </div>
 
-            return (
-              <div key={stage.key} className="flex flex-col items-center flex-1">
-                <div className="flex items-center w-full">
-                  {/* Connector line before */}
-                  {index > 0 && (
-                    <div className={cn(
-                      "flex-1 h-0.5",
-                      index <= currentStageIndex ? "bg-emerald-500" : "bg-gray-200"
-                    )} />
-                  )}
+        {/* Progress bar with circles */}
+        <div className="relative">
+          {/* Background line - full width */}
+          <div className="absolute top-[14px] left-[20px] right-[20px] h-0.5 bg-gray-200" />
 
-                  {/* Stage circle */}
-                  <div className={cn(
-                    "w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-all",
-                    isCompleted ? "bg-emerald-500 text-white" : "bg-gray-200 text-gray-400",
-                    isCurrent && "ring-2 ring-emerald-300 ring-offset-2"
+          {/* Completed line - dynamic width */}
+          <div
+            className="absolute top-[14px] left-[20px] h-0.5 bg-emerald-500 transition-all duration-300"
+            style={{
+              width: currentStageIndex >= 0
+                ? `calc(${(currentStageIndex / (ITEM_STAGES.length - 1)) * 100}% - ${currentStageIndex === ITEM_STAGES.length - 1 ? 0 : 0}px)`
+                : '0%'
+            }}
+          />
+
+          {/* Stage circles and labels */}
+          <div className="relative flex justify-between">
+            {ITEM_STAGES.map((stage, index) => {
+              const isCompleted = index <= currentStageIndex
+              const isCurrent = index === currentStageIndex
+              const StageIcon = stage.icon
+              const stageDate = stageDates[stage.key]
+              const isUpdating = updatingStage === stage.key
+
+              return (
+                <div key={stage.key} className="flex flex-col items-center" style={{ width: '40px' }}>
+                  {/* Stage circle - clickable */}
+                  <button
+                    onClick={() => handleStageClick(stage.key, index)}
+                    disabled={isUpdating || mode === 'create'}
+                    className={cn(
+                      "w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-all relative z-10",
+                      isCompleted ? "bg-emerald-500 text-white" : "bg-gray-200 text-gray-400",
+                      isCurrent && "ring-2 ring-emerald-300 ring-offset-2",
+                      !isCompleted && mode !== 'create' && "hover:bg-emerald-100 hover:text-emerald-600 cursor-pointer",
+                      isCompleted && mode !== 'create' && "hover:ring-2 hover:ring-emerald-300 cursor-pointer",
+                      mode === 'create' && "cursor-default"
+                    )}
+                    title={isCompleted ? `${stage.label} - ${stageDate ? formatStageDate(stageDate) : 'Completed'}` : `Click to mark as ${stage.label}`}
+                  >
+                    {isUpdating ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <StageIcon className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+
+                  {/* Label */}
+                  <span className={cn(
+                    "text-[9px] mt-1.5 text-center leading-tight whitespace-nowrap",
+                    isCurrent ? "text-emerald-700 font-semibold" : isCompleted ? "text-gray-700" : "text-gray-400"
                   )}>
-                    <StageIcon className="w-3.5 h-3.5" />
-                  </div>
-
-                  {/* Connector line after */}
-                  {index < ITEM_STAGES.length - 1 && (
-                    <div className={cn(
-                      "flex-1 h-0.5",
-                      index < currentStageIndex ? "bg-emerald-500" : "bg-gray-200"
-                    )} />
-                  )}
-                </div>
-                <span className={cn(
-                  "text-[9px] mt-1 text-center leading-tight",
-                  isCurrent ? "text-emerald-700 font-semibold" : isCompleted ? "text-gray-600" : "text-gray-400"
-                )}>
-                  {stage.label}
-                </span>
-                {/* Show date when stage was completed */}
-                {isCompleted && stageDate && (
-                  <span className="text-[8px] text-gray-400 mt-0.5">
-                    {formatStageDate(stageDate)}
+                    {stage.label}
                   </span>
-                )}
-              </div>
-            )
-          })}
+
+                  {/* Date when stage was completed */}
+                  <span className={cn(
+                    "text-[8px] mt-0.5 h-3",
+                    isCompleted && stageDate ? "text-emerald-600" : "text-transparent"
+                  )}>
+                    {isCompleted && stageDate ? formatStageDate(stageDate) : '-'}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
         </div>
       </div>
 
