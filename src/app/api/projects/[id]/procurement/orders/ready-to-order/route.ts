@@ -82,17 +82,41 @@ export async function GET(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
+    // Get all sections for this project first
+    const projectSections = await prisma.roomFFESection.findMany({
+      where: {
+        instance: {
+          room: {
+            projectId,
+            project: { orgId }
+          }
+        }
+      },
+      select: { id: true }
+    })
+
+    const sectionIds = projectSections.map(s => s.id)
+
+    if (sectionIds.length === 0) {
+      return NextResponse.json({
+        project: { id: project.id, name: project.name },
+        summary: {
+          totalItems: 0,
+          itemsWithQuotes: 0,
+          itemsWithoutQuotes: 0,
+          supplierCount: 0,
+          totalCostWithQuotes: 0,
+          estimatedCostWithoutQuotes: 0
+        },
+        supplierGroups: [],
+        itemsWithoutQuotes: []
+      })
+    }
+
     // Get all items that are paid but not ordered
     const paidItems = await prisma.roomFFEItem.findMany({
       where: {
-        section: {
-          instance: {
-            room: {
-              projectId,
-              project: { orgId }
-            }
-          }
-        },
+        sectionId: { in: sectionIds },
         specStatus: 'CLIENT_PAID',
         // Exclude items that already have orders
         orderItems: {
