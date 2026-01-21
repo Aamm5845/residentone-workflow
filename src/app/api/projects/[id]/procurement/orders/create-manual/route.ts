@@ -25,6 +25,8 @@ interface CreateManualOrderBody {
   // Order details
   shippingAddress?: string
   shippingMethod?: string
+  shippingCost?: number
+  taxAmount?: number
   notes?: string
   internalNotes?: string
 
@@ -159,6 +161,11 @@ export async function POST(
       subtotal += totalPrice
     }
 
+    // Calculate total with shipping and tax
+    const shippingCost = body.shippingCost || 0
+    const taxAmount = body.taxAmount || 0
+    const totalAmount = subtotal + shippingCost + taxAmount
+
     // Create the order
     const order = await prisma.order.create({
       data: {
@@ -170,7 +177,9 @@ export async function POST(
         supplierOrderRef: body.externalOrderNumber?.trim() || null,
         status: body.alreadyOrdered ? 'ORDERED' : 'PAYMENT_RECEIVED',
         subtotal,
-        totalAmount: subtotal, // Can be updated later with tax/shipping
+        shippingCost,
+        taxAmount,
+        totalAmount,
         currency: 'CAD',
         shippingAddress: body.shippingAddress?.trim() || null,
         shippingMethod: body.shippingMethod?.trim() || null,

@@ -37,6 +37,8 @@ interface ReadyToOrderItem {
   quantity: number
   imageUrl: string | null
   paidAmount: number | null
+  tradePrice: number | null
+  tradePriceCurrency: string | null
   clientInvoice: {
     quoteNumber: string
     clientTotalPrice: number
@@ -48,6 +50,7 @@ interface CreateManualOrderDialogProps {
   onOpenChange: (open: boolean) => void
   projectId: string
   items: ReadyToOrderItem[]
+  defaultShippingAddress?: string
   onSuccess: () => void
 }
 
@@ -63,6 +66,7 @@ export default function CreateManualOrderDialog({
   onOpenChange,
   projectId,
   items,
+  defaultShippingAddress,
   onSuccess
 }: CreateManualOrderDialogProps) {
   const [creating, setCreating] = useState(false)
@@ -82,22 +86,31 @@ export default function CreateManualOrderDialog({
   const [alreadyOrdered, setAlreadyOrdered] = useState(false)
   const [externalOrderNumber, setExternalOrderNumber] = useState('')
 
+  // Shipping and tax
+  const [shippingCost, setShippingCost] = useState('')
+  const [taxAmount, setTaxAmount] = useState('')
+
   // Item selections with prices
   const [itemDetails, setItemDetails] = useState<ItemOrderDetails[]>([])
 
-  // Initialize item details when items change
+  // Initialize item details and defaults when dialog opens
   useEffect(() => {
     if (open && items.length > 0) {
       setItemDetails(
         items.map(item => ({
           itemId: item.id,
           selected: true,
-          unitPrice: '', // User must enter price
+          // Default to trade price if available
+          unitPrice: item.tradePrice ? item.tradePrice.toString() : '',
           quantity: item.quantity || 1
         }))
       )
+      // Set default shipping address from project
+      if (defaultShippingAddress && !shippingAddress) {
+        setShippingAddress(defaultShippingAddress)
+      }
     }
-  }, [open, items])
+  }, [open, items, defaultShippingAddress])
 
   const handleItemToggle = (itemId: string, checked: boolean) => {
     setItemDetails(prev =>
@@ -120,10 +133,13 @@ export default function CreateManualOrderDialog({
   const selectedItems = itemDetails.filter(d => d.selected)
   const itemsWithPrices = selectedItems.filter(d => d.unitPrice && parseFloat(d.unitPrice) > 0)
 
-  const totalCost = selectedItems.reduce((sum, d) => {
+  const subtotal = selectedItems.reduce((sum, d) => {
     const price = parseFloat(d.unitPrice) || 0
     return sum + price * d.quantity
   }, 0)
+  const shippingAmount = parseFloat(shippingCost) || 0
+  const taxTotal = parseFloat(taxAmount) || 0
+  const totalCost = subtotal + shippingAmount + taxTotal
 
   const canCreate = vendorName.trim() && itemsWithPrices.length > 0
 
@@ -150,6 +166,8 @@ export default function CreateManualOrderDialog({
           items: orderItems,
           shippingAddress: shippingAddress.trim() || undefined,
           shippingMethod: shippingMethod.trim() || undefined,
+          shippingCost: shippingAmount || undefined,
+          taxAmount: taxTotal || undefined,
           notes: notes.trim() || undefined,
           internalNotes: internalNotes.trim() || undefined,
           alreadyOrdered,
@@ -168,6 +186,8 @@ export default function CreateManualOrderDialog({
         setVendorUrl('')
         setShippingAddress('')
         setShippingMethod('')
+        setShippingCost('')
+        setTaxAmount('')
         setNotes('')
         setInternalNotes('')
         setAlreadyOrdered(false)
@@ -369,7 +389,7 @@ export default function CreateManualOrderDialog({
 
             {/* Shipping Info */}
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-gray-900">Shipping (Optional)</h3>
+              <h3 className="text-sm font-semibold text-gray-900">Shipping & Fees (Optional)</h3>
               <div className="grid gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="shippingAddress">Shipping Address</Label>
@@ -389,6 +409,40 @@ export default function CreateManualOrderDialog({
                     onChange={e => setShippingMethod(e.target.value)}
                     placeholder="e.g., Standard, Express, White Glove"
                   />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="shippingCost">Shipping Cost</Label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input
+                        id="shippingCost"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={shippingCost}
+                        onChange={e => setShippingCost(e.target.value)}
+                        placeholder="0.00"
+                        className="pl-7"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="taxAmount">Tax Amount</Label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input
+                        id="taxAmount"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={taxAmount}
+                        onChange={e => setTaxAmount(e.target.value)}
+                        placeholder="0.00"
+                        className="pl-7"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -424,13 +478,20 @@ export default function CreateManualOrderDialog({
             {itemsWithPrices.length > 0 && (
               <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
                 <div className="flex items-center justify-between">
-                  <div>
+                  <div className="space-y-1">
                     <p className="font-medium text-emerald-800">
                       {itemsWithPrices.length} item{itemsWithPrices.length > 1 ? 's' : ''} to order
                     </p>
-                    <p className="text-sm text-emerald-600">
-                      Total cost: {formatCurrency(totalCost)}
-                    </p>
+                    <div className="text-sm text-emerald-600 space-y-0.5">
+                      <p>Subtotal: {formatCurrency(subtotal)}</p>
+                      {shippingAmount > 0 && <p>Shipping: {formatCurrency(shippingAmount)}</p>}
+                      {taxTotal > 0 && <p>Tax: {formatCurrency(taxTotal)}</p>}
+                      {(shippingAmount > 0 || taxTotal > 0) && (
+                        <p className="font-medium text-emerald-800 pt-1 border-t border-emerald-200">
+                          Total: {formatCurrency(totalCost)}
+                        </p>
+                      )}
+                    </div>
                   </div>
                   <Check className="w-6 h-6 text-emerald-500" />
                 </div>

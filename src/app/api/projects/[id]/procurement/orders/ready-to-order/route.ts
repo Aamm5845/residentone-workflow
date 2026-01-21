@@ -17,6 +17,9 @@ interface ReadyToOrderItem {
   paymentStatus: string
   paidAt: Date | null
   paidAmount: number | null
+  // Trade price (default price when no quote)
+  tradePrice: number | null
+  tradePriceCurrency: string | null
   // Supplier quote info (if exists)
   hasSupplierQuote: boolean
   supplierQuote: {
@@ -73,9 +76,18 @@ export async function GET(
     const orgId = (session.user as any).orgId
     const { id: projectId } = await params
 
-    // Verify project access
+    // Verify project access and get address info
     const project = await prisma.project.findFirst({
-      where: { id: projectId, orgId }
+      where: { id: projectId, orgId },
+      include: {
+        client: {
+          select: {
+            name: true,
+            email: true,
+            phone: true
+          }
+        }
+      }
     })
 
     if (!project) {
@@ -98,8 +110,33 @@ export async function GET(
     const sectionIds = projectSections.map(s => s.id)
 
     if (sectionIds.length === 0) {
+      // Build default shipping address from project
+      const addrParts = [
+        project.streetAddress,
+        project.city,
+        project.province,
+        project.postalCode
+      ].filter(Boolean)
+      const defaultAddr = addrParts.length > 0
+        ? addrParts.join(', ')
+        : project.address || ''
+
       return NextResponse.json({
-        project: { id: project.id, name: project.name },
+        project: {
+          id: project.id,
+          name: project.name,
+          address: project.address,
+          streetAddress: project.streetAddress,
+          city: project.city,
+          province: project.province,
+          postalCode: project.postalCode,
+          defaultShippingAddress: defaultAddr,
+          client: project.client ? {
+            name: project.client.name,
+            email: project.client.email,
+            phone: project.client.phone
+          } : null
+        },
         summary: {
           totalItems: 0,
           itemsWithQuotes: 0,
@@ -220,6 +257,8 @@ export async function GET(
         paymentStatus: item.paymentStatus || 'FULLY_PAID',
         paidAt: item.paidAt,
         paidAmount: item.paidAmount ? Number(item.paidAmount) : null,
+        tradePrice: item.tradePrice ? Number(item.tradePrice) : null,
+        tradePriceCurrency: item.tradePriceCurrency || 'CAD',
         hasSupplierQuote: !!supplierQuoteLine,
         supplierQuote: supplierQuoteLine ? {
           id: supplierQuoteLine.id,
@@ -285,10 +324,32 @@ export async function GET(
       0
     )
 
+    // Build default shipping address from project
+    const addressParts = [
+      project.streetAddress,
+      project.city,
+      project.province,
+      project.postalCode
+    ].filter(Boolean)
+    const defaultShippingAddress = addressParts.length > 0
+      ? addressParts.join(', ')
+      : project.address || ''
+
     return NextResponse.json({
       project: {
         id: project.id,
-        name: project.name
+        name: project.name,
+        address: project.address,
+        streetAddress: project.streetAddress,
+        city: project.city,
+        province: project.province,
+        postalCode: project.postalCode,
+        defaultShippingAddress,
+        client: project.client ? {
+          name: project.client.name,
+          email: project.client.email,
+          phone: project.client.phone
+        } : null
       },
       summary: {
         totalItems: paidItems.length,

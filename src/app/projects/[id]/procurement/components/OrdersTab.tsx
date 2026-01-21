@@ -81,6 +81,8 @@ interface ReadyToOrderItem {
   paymentStatus: string
   paidAt: string | null
   paidAmount: number | null
+  tradePrice: number | null
+  tradePriceCurrency: string | null
   hasSupplierQuote: boolean
   supplierQuote: {
     id: string
@@ -112,6 +114,16 @@ interface SupplierGroup {
 }
 
 interface ReadyToOrderData {
+  project: {
+    id: string
+    name: string
+    defaultShippingAddress?: string
+    client?: {
+      name: string
+      email: string
+      phone: string | null
+    } | null
+  }
   summary: {
     totalItems: number
     itemsWithQuotes: number
@@ -1191,6 +1203,7 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
         onOpenChange={setManualOrderDialogOpen}
         projectId={projectId}
         items={selectedItemsForManualOrder}
+        defaultShippingAddress={readyToOrder?.project?.defaultShippingAddress}
         onSuccess={handleManualOrderSuccess}
       />
     </div>
