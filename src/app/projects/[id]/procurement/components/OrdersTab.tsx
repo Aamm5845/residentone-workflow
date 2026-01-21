@@ -52,13 +52,76 @@ import {
   CreditCard,
   Building2,
   XCircle,
-  Clock
+  Clock,
+  ShoppingCart,
+  Store,
+  AlertCircle,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react'
 import { toast } from 'sonner'
+import CreateManualOrderDialog from './CreateManualOrderDialog'
+import CreateOrdersFromInvoiceDialog from './CreateOrdersFromInvoiceDialog'
 
 interface OrdersTabProps {
   projectId: string
   searchQuery: string
+}
+
+// Ready to order types
+interface ReadyToOrderItem {
+  id: string
+  name: string
+  description: string | null
+  roomName: string | null
+  categoryName: string | null
+  quantity: number
+  imageUrl: string | null
+  specStatus: string
+  paymentStatus: string
+  paidAt: string | null
+  paidAmount: number | null
+  hasSupplierQuote: boolean
+  supplierQuote: {
+    id: string
+    supplierId: string | null
+    supplierName: string
+    supplierEmail: string | null
+    unitPrice: number
+    totalPrice: number
+    leadTimeWeeks: number | null
+    isAccepted: boolean
+  } | null
+  clientInvoice: {
+    id: string
+    quoteNumber: string
+    title: string | null
+    paidAt: string | null
+    clientUnitPrice: number
+    clientTotalPrice: number
+  } | null
+}
+
+interface SupplierGroup {
+  supplierId: string | null
+  supplierName: string
+  supplierEmail: string | null
+  items: ReadyToOrderItem[]
+  totalCost: number
+  itemCount: number
+}
+
+interface ReadyToOrderData {
+  summary: {
+    totalItems: number
+    itemsWithQuotes: number
+    itemsWithoutQuotes: number
+    supplierCount: number
+    totalCostWithQuotes: number
+    estimatedCostWithoutQuotes: number
+  }
+  supplierGroups: SupplierGroup[]
+  itemsWithoutQuotes: ReadyToOrderItem[]
 }
 
 interface Order {
@@ -134,6 +197,16 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
   const [loading, setLoading] = useState(true)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
 
+  // Ready to order state
+  const [readyToOrder, setReadyToOrder] = useState<ReadyToOrderData | null>(null)
+  const [loadingReadyToOrder, setLoadingReadyToOrder] = useState(true)
+  const [expandedSuppliers, setExpandedSuppliers] = useState<Set<string>>(new Set())
+  const [creatingOrdersForSupplier, setCreatingOrdersForSupplier] = useState<string | null>(null)
+
+  // Manual order dialog
+  const [manualOrderDialogOpen, setManualOrderDialogOpen] = useState(false)
+  const [selectedItemsForManualOrder, setSelectedItemsForManualOrder] = useState<ReadyToOrderItem[]>([])
+
   // Dialog states
   const [sendPOOpen, setSendPOOpen] = useState(false)
   const [sendingPO, setSendingPO] = useState(false)
@@ -178,9 +251,98 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
     }
   }, [projectId])
 
+  const fetchReadyToOrder = useCallback(async () => {
+    try {
+      setLoadingReadyToOrder(true)
+      const res = await fetch(`/api/projects/${projectId}/procurement/orders/ready-to-order`)
+      if (!res.ok) throw new Error('Failed to fetch ready to order items')
+      const data = await res.json()
+      setReadyToOrder(data)
+      // Expand all suppliers by default
+      if (data.supplierGroups?.length > 0) {
+        setExpandedSuppliers(new Set(data.supplierGroups.map((g: SupplierGroup) => g.supplierId || 'unknown')))
+      }
+    } catch (error) {
+      console.error('Error fetching ready to order:', error)
+    } finally {
+      setLoadingReadyToOrder(false)
+    }
+  }, [projectId])
+
   useEffect(() => {
     fetchOrders()
-  }, [fetchOrders])
+    fetchReadyToOrder()
+  }, [fetchOrders, fetchReadyToOrder])
+
+  const toggleSupplierExpand = (supplierId: string) => {
+    setExpandedSuppliers(prev => {
+      const next = new Set(prev)
+      if (next.has(supplierId)) {
+        next.delete(supplierId)
+      } else {
+        next.add(supplierId)
+      }
+      return next
+    })
+  }
+
+  const handleCreateOrdersForSupplier = async (group: SupplierGroup) => {
+    const supplierId = group.supplierId || 'unknown'
+    setCreatingOrdersForSupplier(supplierId)
+
+    try {
+      // Get the client invoice IDs from the items
+      const invoiceIds = new Set(group.items.map(i => i.clientInvoice?.id).filter(Boolean))
+
+      if (invoiceIds.size === 0) {
+        toast.error('No invoice found for these items')
+        return
+      }
+
+      // Create orders for each invoice (or all together if same invoice)
+      const itemIds = group.items.map(i => i.id)
+
+      // Use the first invoice ID (usually all items are from same invoice)
+      const invoiceId = group.items[0]?.clientInvoice?.id
+      if (!invoiceId) {
+        toast.error('No invoice found')
+        return
+      }
+
+      const res = await fetch(`/api/projects/${projectId}/procurement/orders/create-from-invoice`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientQuoteId: invoiceId,
+          itemIds
+        })
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        toast.success(`Purchase order created for ${group.supplierName}`)
+        fetchOrders()
+        fetchReadyToOrder()
+      } else {
+        const error = await res.json()
+        toast.error(error.error || 'Failed to create order')
+      }
+    } catch (error) {
+      toast.error('Failed to create order')
+    } finally {
+      setCreatingOrdersForSupplier(null)
+    }
+  }
+
+  const handleOpenManualOrderDialog = (items: ReadyToOrderItem[]) => {
+    setSelectedItemsForManualOrder(items)
+    setManualOrderDialogOpen(true)
+  }
+
+  const handleManualOrderSuccess = () => {
+    fetchOrders()
+    fetchReadyToOrder()
+  }
 
   // Filter orders based on search
   const filteredOrders = orders.filter(order =>
@@ -390,6 +552,208 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
 
   return (
     <div className="space-y-6">
+      {/* Ready to Order Section */}
+      {!loadingReadyToOrder && readyToOrder && readyToOrder.summary.totalItems > 0 && (
+        <Card className="border-amber-200 bg-amber-50/30">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <ShoppingCart className="w-5 h-5 text-amber-600" />
+                Ready to Order
+                <Badge className="bg-amber-100 text-amber-700 ml-2">
+                  {readyToOrder.summary.totalItems} items
+                </Badge>
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-gray-600"
+                onClick={fetchReadyToOrder}
+              >
+                <RefreshCw className="w-4 h-4" />
+              </Button>
+            </div>
+            <p className="text-sm text-gray-600 mt-1">
+              Items paid by client that need to be ordered from suppliers
+            </p>
+          </CardHeader>
+          <CardContent className="pt-0 space-y-4">
+            {/* Items with Supplier Quotes - grouped by supplier */}
+            {readyToOrder.supplierGroups.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <Building2 className="w-4 h-4" />
+                  With Supplier Quotes ({readyToOrder.summary.itemsWithQuotes} items)
+                </h4>
+                <div className="space-y-2">
+                  {readyToOrder.supplierGroups.map(group => {
+                    const supplierId = group.supplierId || 'unknown'
+                    const isExpanded = expandedSuppliers.has(supplierId)
+                    const isCreating = creatingOrdersForSupplier === supplierId
+
+                    return (
+                      <div key={supplierId} className="border border-gray-200 rounded-lg bg-white overflow-hidden">
+                        <div className="flex items-center justify-between p-3">
+                          <button
+                            onClick={() => toggleSupplierExpand(supplierId)}
+                            className="flex items-center gap-2 hover:bg-gray-50 rounded px-2 py-1 -ml-2"
+                          >
+                            {isExpanded ? (
+                              <ChevronDown className="w-4 h-4 text-gray-400" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4 text-gray-400" />
+                            )}
+                            <Building2 className="w-4 h-4 text-gray-500" />
+                            <span className="font-medium text-gray-900">{group.supplierName}</span>
+                            <Badge variant="outline" className="ml-2">
+                              {group.itemCount} items
+                            </Badge>
+                          </button>
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm font-medium text-gray-700">
+                              {formatCurrency(group.totalCost)}
+                            </span>
+                            <Button
+                              size="sm"
+                              onClick={() => handleCreateOrdersForSupplier(group)}
+                              disabled={isCreating}
+                              className="bg-emerald-600 hover:bg-emerald-700"
+                            >
+                              {isCreating ? (
+                                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                              ) : (
+                                <ShoppingCart className="w-4 h-4 mr-1" />
+                              )}
+                              Create PO
+                            </Button>
+                          </div>
+                        </div>
+
+                        {isExpanded && (
+                          <div className="border-t bg-gray-50 p-3">
+                            <div className="space-y-2">
+                              {group.items.map(item => (
+                                <div
+                                  key={item.id}
+                                  className="flex items-center justify-between p-2 bg-white rounded border"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <Package className="w-4 h-4 text-gray-400" />
+                                    <div>
+                                      <p className="text-sm font-medium">{item.name}</p>
+                                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                                        {item.roomName && <span>{item.roomName}</span>}
+                                        <span>•</span>
+                                        <span>Qty: {item.quantity}</span>
+                                        {item.supplierQuote?.leadTimeWeeks && (
+                                          <>
+                                            <span>•</span>
+                                            <span>{item.supplierQuote.leadTimeWeeks} weeks lead</span>
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-sm font-medium">
+                                      {formatCurrency(item.supplierQuote?.totalPrice || 0)}
+                                    </p>
+                                    {item.clientInvoice && (
+                                      <p className="text-xs text-gray-500">
+                                        {item.clientInvoice.quoteNumber}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Items without Supplier Quotes - need manual ordering */}
+            {readyToOrder.itemsWithoutQuotes.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <Store className="w-4 h-4 text-orange-500" />
+                    Without Quotes - Manual Order Required ({readyToOrder.itemsWithoutQuotes.length} items)
+                  </h4>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleOpenManualOrderDialog(readyToOrder.itemsWithoutQuotes)}
+                    className="border-orange-300 text-orange-700 hover:bg-orange-50"
+                  >
+                    <Store className="w-4 h-4 mr-1" />
+                    Create Manual Order
+                  </Button>
+                </div>
+                <div className="border border-orange-200 rounded-lg bg-orange-50/50 p-3">
+                  <div className="flex items-start gap-2 mb-3">
+                    <AlertCircle className="w-4 h-4 text-orange-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-sm text-orange-700">
+                      These items were paid but don&apos;t have supplier quotes. Create a manual order for Amazon, local stores, or other vendors.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    {readyToOrder.itemsWithoutQuotes.slice(0, 5).map(item => (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between p-2 bg-white rounded border border-orange-200"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Package className="w-4 h-4 text-gray-400" />
+                          <div>
+                            <p className="text-sm font-medium">{item.name}</p>
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              {item.roomName && <span>{item.roomName}</span>}
+                              <span>•</span>
+                              <span>Qty: {item.quantity}</span>
+                              {item.clientInvoice && (
+                                <>
+                                  <span>•</span>
+                                  <span>{item.clientInvoice.quoteNumber}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        {item.clientInvoice && (
+                          <Badge variant="outline" className="text-xs">
+                            Client paid {formatCurrency(item.clientInvoice.clientTotalPrice)}
+                          </Badge>
+                        )}
+                      </div>
+                    ))}
+                    {readyToOrder.itemsWithoutQuotes.length > 5 && (
+                      <p className="text-xs text-gray-500 text-center py-1">
+                        + {readyToOrder.itemsWithoutQuotes.length - 5} more items
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Summary */}
+            <div className="flex items-center justify-between pt-2 border-t border-gray-200">
+              <span className="text-sm text-gray-600">
+                Total to order: {readyToOrder.summary.totalItems} items from {readyToOrder.summary.supplierCount + (readyToOrder.itemsWithoutQuotes.length > 0 ? 1 : 0)} source(s)
+              </span>
+              <span className="text-sm font-medium text-gray-900">
+                Est. Cost: {formatCurrency(readyToOrder.summary.totalCostWithQuotes + readyToOrder.summary.estimatedCostWithoutQuotes)}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Orders Table */}
       <Card className="border-gray-200">
         <CardHeader className="pb-4">
@@ -820,6 +1184,15 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Manual Order Dialog */}
+      <CreateManualOrderDialog
+        open={manualOrderDialogOpen}
+        onOpenChange={setManualOrderDialogOpen}
+        projectId={projectId}
+        items={selectedItemsForManualOrder}
+        onSuccess={handleManualOrderSuccess}
+      />
     </div>
   )
 }
