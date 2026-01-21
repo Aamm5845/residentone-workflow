@@ -70,7 +70,7 @@ interface RFQ {
   sentAt: string | null
   deadline: string | null
   createdAt: string
-  status: 'DRAFT' | 'SENT' | 'PARTIALLY_QUOTED' | 'FULLY_QUOTED' | 'QUOTE_ACCEPTED' | 'CANCELLED' | 'EXPIRED'
+  status: 'DRAFT' | 'SENT' | 'VIEWED' | 'PARTIALLY_QUOTED' | 'FULLY_QUOTED' | 'QUOTE_ACCEPTED' | 'CANCELLED' | 'EXPIRED'
   latestQuoteId?: string | null
 }
 
@@ -705,7 +705,8 @@ export default function RFQsTab({ projectId, searchQuery, refreshKey, onViewQuot
 
   // Stats
   const draftCount = rfqs.filter(r => r.status === 'DRAFT').length
-  const sentCount = rfqs.filter(r => r.status === 'SENT').length
+  // Include VIEWED in sent count - viewed RFQs are still "sent" RFQs
+  const sentCount = rfqs.filter(r => r.status === 'SENT' || r.status === 'VIEWED').length
   const respondedCount = rfqs.filter(r =>
     r.status === 'PARTIALLY_QUOTED' ||
     r.status === 'FULLY_QUOTED' ||
