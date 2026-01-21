@@ -54,6 +54,8 @@ export default function SoloPaymentForm({
   // Card state
   const [expiration, setExpiration] = useState('')
   const [cardIssuer, setCardIssuer] = useState<string | null>(null)
+  const [cardValid, setCardValid] = useState<boolean | null>(null)
+  const [cvvValid, setCvvValid] = useState<boolean | null>(null)
 
   const initAttempted = useRef(false)
 
@@ -184,10 +186,39 @@ export default function SoloPaymentForm({
 
       // Add validation callbacks
       if (typeof (window as any).addIfieldCallback === 'function') {
+        // Card number input callback
         ;(window as any).addIfieldCallback('input', (data: any) => {
-          if (data.issuer) {
-            setCardIssuer(data.issuer)
+          if (data.ifieldValueChanged === 'card-number') {
+            if (data.issuer) {
+              setCardIssuer(data.issuer)
+            }
+            // Track card validity based on length
+            if (data.cardNumberLength !== undefined) {
+              const maxLengths: Record<string, number> = {
+                'visa': 16,
+                'mastercard': 16,
+                'amex': 15,
+                'discover': 16,
+                'diners': 14,
+                'jcb': 16
+              }
+              const issuer = (data.issuer || '').toLowerCase()
+              const maxLen = maxLengths[issuer] || 16
+              setCardValid(data.cardNumberLength >= maxLen)
+            }
+          } else if (data.ifieldValueChanged === 'cvv') {
+            // CVV length validation (3 for most cards, 4 for Amex)
+            if (data.cvvLength !== undefined) {
+              const isAmex = cardIssuer?.toLowerCase() === 'amex'
+              const requiredLen = isAmex ? 4 : 3
+              setCvvValid(data.cvvLength >= requiredLen)
+            }
           }
+        })
+
+        // Focus/blur callbacks for better UX
+        ;(window as any).addIfieldCallback('focus', (data: any) => {
+          console.log('[SoloPayment] Field focused:', data.ifieldValueChanged)
         })
       }
 
@@ -367,7 +398,7 @@ export default function SoloPaymentForm({
         {/* Card Number */}
         <div className="space-y-2">
           <Label>Card Number</Label>
-          <div className="relative border rounded-md bg-white focus-within:ring-2 focus-within:ring-emerald-500 focus-within:border-emerald-500 overflow-hidden">
+          <div className={`relative border rounded-md bg-white focus-within:ring-2 focus-within:ring-emerald-500 focus-within:border-emerald-500 overflow-hidden transition-colors ${cardValid === true ? 'border-green-500' : cardValid === false ? 'border-red-300' : ''}`}>
             <iframe
               data-ifields-id="card-number"
               data-ifields-placeholder="Card Number"
@@ -377,11 +408,16 @@ export default function SoloPaymentForm({
               scrolling="no"
               style={{ width: '100%', height: '48px', border: 'none', overflow: 'hidden' }}
             />
-            {cardIssuer && (
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 uppercase">
-                {cardIssuer}
-              </span>
-            )}
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+              {cardIssuer && (
+                <span className="text-xs text-gray-400 uppercase">
+                  {cardIssuer}
+                </span>
+              )}
+              {cardValid === true && (
+                <CheckCircle className="w-4 h-4 text-green-500" />
+              )}
+            </div>
           </div>
           <input type="hidden" data-ifields-id="card-number-token" name="xCardNum" />
         </div>
@@ -400,7 +436,7 @@ export default function SoloPaymentForm({
           </div>
           <div className="space-y-2">
             <Label>CVV</Label>
-            <div className="border rounded-md bg-white focus-within:ring-2 focus-within:ring-emerald-500 focus-within:border-emerald-500 overflow-hidden">
+            <div className={`relative border rounded-md bg-white focus-within:ring-2 focus-within:ring-emerald-500 focus-within:border-emerald-500 overflow-hidden transition-colors ${cvvValid === true ? 'border-green-500' : cvvValid === false ? 'border-red-300' : ''}`}>
               <iframe
                 data-ifields-id="cvv"
                 data-ifields-placeholder="CVV"
@@ -410,6 +446,11 @@ export default function SoloPaymentForm({
                 scrolling="no"
                 style={{ width: '100%', height: '48px', border: 'none', overflow: 'hidden' }}
               />
+              {cvvValid === true && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                </div>
+              )}
             </div>
             <input type="hidden" data-ifields-id="cvv-token" name="xCVV" />
           </div>

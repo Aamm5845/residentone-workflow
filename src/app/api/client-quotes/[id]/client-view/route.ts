@@ -189,6 +189,35 @@ export async function GET(
       }
     })
 
+    // Get payment status
+    const payments = await prisma.payment.findMany({
+      where: {
+        clientQuoteId: quote.id,
+        status: 'PAID'
+      },
+      select: {
+        amount: true,
+        paidAt: true,
+        metadata: true
+      }
+    })
+
+    // Calculate total paid using original amount (before CC surcharge) when available
+    // This ensures balance calculations match the invoice total, not the charged amount with fees
+    const totalPaidTowardInvoice = payments.reduce((sum, p) => {
+      const metadata = p.metadata as Record<string, unknown> | null
+      // Use originalAmount from metadata if available (for CC payments), otherwise use full amount
+      const originalAmount = metadata?.originalAmount as number | undefined
+      return sum + (originalAmount ?? parseFloat(p.amount.toString()))
+    }, 0)
+
+    // Total actually charged (including surcharges) - for display purposes
+    const totalCharged = payments.reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0)
+
+    const quoteTotal = parseFloat(quote.totalAmount?.toString() || quote.subtotal?.toString() || '0')
+    const isPaid = totalPaidTowardInvoice >= quoteTotal
+    const remainingBalance = Math.max(0, quoteTotal - totalPaidTowardInvoice)
+
     // Return only client-facing data (no cost, markup, or profit info)
     return NextResponse.json({
       id: quote.id,
@@ -253,7 +282,13 @@ export async function GET(
         }
       }),
       project: quote.project,
-      organization
+      organization,
+      // Payment status
+      isPaid,
+      totalPaid: totalPaidTowardInvoice, // Amount applied to invoice (without CC surcharge)
+      totalCharged, // Actual amount charged (includes CC surcharge if applicable)
+      remainingBalance,
+      lastPaymentDate: payments.length > 0 ? payments[payments.length - 1].paidAt : null
     })
   } catch (error) {
     console.error('Error fetching client invoice:', error)

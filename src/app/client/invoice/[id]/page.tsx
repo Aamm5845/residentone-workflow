@@ -125,6 +125,11 @@ interface InvoiceData {
     wireInstructions?: string
     etransferEmail?: string
   }
+  // Payment status
+  isPaid?: boolean
+  totalPaid?: number
+  remainingBalance?: number
+  lastPaymentDate?: string | null
 }
 
 export default function ClientInvoicePage() {
@@ -308,7 +313,12 @@ export default function ClientInvoicePage() {
                 <div className="text-right">
                   <p className="text-2xl font-bold text-gray-900 mb-1">INVOICE</p>
                   <p className="font-mono text-sm text-gray-600">{invoice.quoteNumber}</p>
-                  {invoice.validUntil && (
+                  {invoice.isPaid ? (
+                    <div className="mt-2 inline-flex items-center gap-1.5 bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
+                      <CheckCircle className="w-4 h-4" />
+                      PAID
+                    </div>
+                  ) : invoice.validUntil && (
                     <p className="text-xs text-gray-400 mt-2">Due: {formatDate(invoice.validUntil)}</p>
                   )}
                 </div>
@@ -454,6 +464,24 @@ export default function ClientInvoicePage() {
 
           {/* Payment Section - Hidden when printing */}
           <div className="bg-gray-50 p-6 sm:p-8 border-t no-print">
+            {/* Show Paid status if fully paid */}
+            {invoice.isPaid ? (
+              <div className="text-center py-4">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
+                  <CheckCircle className="w-10 h-10 text-green-600" />
+                </div>
+                <h3 className="text-xl font-bold text-green-700 mb-2">Invoice Paid</h3>
+                <p className="text-gray-600">
+                  Thank you for your payment of {formatCurrency(invoice.totalPaid || invoice.totalAmount)}
+                </p>
+                {invoice.lastPaymentDate && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    Paid on {formatDate(invoice.lastPaymentDate)}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <>
             <h3 className="font-semibold text-gray-900 mb-4">Payment Options</h3>
 
             <div className="space-y-3">
@@ -593,6 +621,8 @@ export default function ClientInvoicePage() {
                 )}
               </div>
             </div>
+              </>
+            )}
           </div>
 
           {/* Footer - shown in print */}
