@@ -174,15 +174,11 @@ export async function GET(
                 quoteNumber: true,
                 title: true,
                 status: true
-              },
-
+              }
             }
           },
           orderBy: { createdAt: 'desc' },
           take: 1
-        },
-        components: {
-          select: { id: true }
         }
       },
       orderBy: [
@@ -211,7 +207,7 @@ export async function GET(
         roomName: item.section?.instance?.room?.name || null,
         categoryName: item.section?.name || null, // Section name as category
         quantity: item.quantity || 1,
-        imageUrl: item.imageUrl,
+        imageUrl: item.images?.[0] || null,
         specStatus: item.specStatus,
         paymentStatus: item.paymentStatus || 'FULLY_PAID',
         paidAt: item.paidAt,
