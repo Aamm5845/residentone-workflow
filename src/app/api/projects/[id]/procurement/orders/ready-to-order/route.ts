@@ -138,8 +138,12 @@ export async function GET(
           include: {
             supplierQuote: {
               include: {
-                supplier: {
-                  select: { id: true, name: true, email: true }
+                supplierRFQ: {
+                  include: {
+                    supplier: {
+                      select: { id: true, name: true, email: true }
+                    }
+                  }
                 }
               }
             }
@@ -151,8 +155,12 @@ export async function GET(
           include: {
             supplierQuote: {
               include: {
-                supplier: {
-                  select: { id: true, name: true, email: true }
+                supplierRFQ: {
+                  include: {
+                    supplier: {
+                      select: { id: true, name: true, email: true }
+                    }
+                  }
                 }
               }
             }
@@ -215,12 +223,12 @@ export async function GET(
         hasSupplierQuote: !!supplierQuoteLine,
         supplierQuote: supplierQuoteLine ? {
           id: supplierQuoteLine.id,
-          supplierId: supplierQuoteLine.supplierQuote?.supplier?.id || null,
-          supplierName: supplierQuoteLine.supplierQuote?.supplier?.name ||
-                        supplierQuoteLine.supplierQuote?.vendorName ||
+          supplierId: supplierQuoteLine.supplierQuote?.supplierRFQ?.supplier?.id || null,
+          supplierName: supplierQuoteLine.supplierQuote?.supplierRFQ?.supplier?.name ||
+                        supplierQuoteLine.supplierQuote?.supplierRFQ?.vendorName ||
                         'Unknown Supplier',
-          supplierEmail: supplierQuoteLine.supplierQuote?.supplier?.email ||
-                         supplierQuoteLine.supplierQuote?.vendorEmail || null,
+          supplierEmail: supplierQuoteLine.supplierQuote?.supplierRFQ?.supplier?.email ||
+                         supplierQuoteLine.supplierQuote?.supplierRFQ?.vendorEmail || null,
           unitPrice: Number(supplierQuoteLine.unitPrice),
           totalPrice: Number(supplierQuoteLine.totalPrice),
           leadTimeWeeks: supplierQuoteLine.leadTimeWeeks,
