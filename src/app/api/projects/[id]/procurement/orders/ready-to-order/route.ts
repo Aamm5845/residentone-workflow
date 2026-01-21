@@ -96,11 +96,15 @@ export async function GET(
         }
       },
       include: {
-        room: {
+        section: {
           select: {
             name: true,
-            category: {
-              select: { name: true }
+            instance: {
+              select: {
+                room: {
+                  select: { name: true }
+                }
+              }
             }
           }
         },
@@ -179,8 +183,8 @@ export async function GET(
         id: item.id,
         name: item.name,
         description: item.description,
-        roomName: item.room?.name || null,
-        categoryName: item.room?.category?.name || null,
+        roomName: item.section?.instance?.room?.name || null,
+        categoryName: item.section?.name || null, // Section name as category
         quantity: item.quantity || 1,
         imageUrl: item.imageUrl,
         specStatus: item.specStatus,
