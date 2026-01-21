@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { soloService } from '@/lib/solo-service'
 import { calculateCCSurcharge } from '@/lib/tax-utils'
+import { syncItemsStatus } from '@/lib/procurement/status-sync'
 
 export const dynamic = 'force-dynamic'
 
@@ -240,7 +241,7 @@ export async function PATCH(
       const quoteTotal = parseFloat(quote.totalAmount?.toString() || '0')
       const fullyPaid = totalPaid >= quoteTotal
 
-      // Update orders if fully paid
+      // Update orders and FFE item statuses if fully paid
       if (fullyPaid) {
         await prisma.order.updateMany({
           where: {
@@ -251,6 +252,24 @@ export async function PATCH(
             status: 'PAYMENT_RECEIVED'
           }
         })
+
+        // Update FFE item statuses to CLIENT_PAID
+        const lineItems = await prisma.clientQuoteLineItem.findMany({
+          where: {
+            clientQuoteId: quote.id,
+            roomFFEItemId: { not: null }
+          },
+          select: { roomFFEItemId: true }
+        })
+
+        const itemIds = lineItems
+          .map(li => li.roomFFEItemId)
+          .filter((id): id is string => id !== null)
+
+        if (itemIds.length > 0) {
+          await syncItemsStatus(itemIds, 'payment_received')
+          console.log(`[Payment] Updated ${itemIds.length} FFE items to CLIENT_PAID`)
+        }
       }
 
       return NextResponse.json({
