@@ -10,6 +10,9 @@ import {
   getIPAddress,
   isValidAuthSession
 } from '@/lib/attribution'
+import { sendEmail } from '@/lib/email-service'
+import { generateMentionNotificationEmail } from '@/lib/email-templates'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 // GET - Fetch user notifications
 export async function GET(request: NextRequest) {
@@ -92,7 +95,7 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getSession()
     const ipAddress = getIPAddress(request)
-    
+
     if (!isValidAuthSession(session)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -101,8 +104,8 @@ export async function POST(request: NextRequest) {
     const { userId, type, title, message, relatedId, relatedType } = data
 
     if (!userId || !type || !title || !message) {
-      return NextResponse.json({ 
-        error: 'Missing required fields: userId, type, title, message' 
+      return NextResponse.json({
+        error: 'Missing required fields: userId, type, title, message'
       }, { status: 400 })
     }
 
@@ -144,6 +147,56 @@ export async function POST(request: NextRequest) {
       },
       ipAddress
     })
+
+    // Send email for MENTION notifications
+    if (type === 'MENTION' && targetUser.email) {
+      try {
+        // Extract mentioned by name from the message (format: "Name mentioned you in...")
+        const mentionedByMatch = message.match(/^(.+?) mentioned you/)
+        const mentionedByName = mentionedByMatch ? mentionedByMatch[1] : 'Someone'
+
+        // Extract context title (format: "...mentioned you in Context: "message"")
+        const contextMatch = message.match(/mentioned you in ([^:]+):/)
+        const contextTitle = contextMatch ? contextMatch[1].trim() : 'a conversation'
+
+        // Extract message preview (format: "..."message preview..."")
+        const previewMatch = message.match(/"([^"]+)"/)
+        const messagePreview = previewMatch ? previewMatch[1] : message.substring(0, 100)
+
+        // Build context URL based on relatedType
+        let contextUrl: string | undefined
+        const baseUrl = getBaseUrl()
+        if (relatedId) {
+          if (relatedType === 'PROJECT' || relatedType === 'PROJECT_MESSAGE') {
+            contextUrl = `${baseUrl}/projects/${relatedId}`
+          } else if (relatedType === 'STAGE' || relatedType === 'STAGE_COMMENT') {
+            contextUrl = `${baseUrl}/stages/${relatedId}`
+          } else if (relatedType === 'DESIGN_COMMENT') {
+            contextUrl = `${baseUrl}/design?comment=${relatedId}`
+          }
+        }
+
+        const emailData = generateMentionNotificationEmail({
+          recipientName: targetUser.name || 'Team Member',
+          recipientEmail: targetUser.email,
+          mentionedByName,
+          messagePreview,
+          contextTitle,
+          contextUrl
+        })
+
+        await sendEmail({
+          to: targetUser.email,
+          subject: emailData.subject,
+          html: emailData.html
+        })
+
+        console.log(`[Notifications] Mention email sent to ${targetUser.email}`)
+      } catch (emailError) {
+        // Log but don't fail the notification creation
+        console.error('[Notifications] Failed to send mention email:', emailError)
+      }
+    }
 
     return NextResponse.json({
       success: true,

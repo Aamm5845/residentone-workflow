@@ -1616,3 +1616,75 @@ export function generateBudgetQuestionNotificationEmail(data: BudgetQuestionNoti
 
   return { subject, html }
 }
+
+/**
+ * Generate email template for mention notifications
+ */
+export interface MentionEmailData {
+  recipientName: string
+  recipientEmail: string
+  mentionedByName: string
+  messagePreview: string
+  contextTitle: string
+  contextUrl?: string
+}
+
+export function generateMentionNotificationEmail(data: MentionEmailData): { subject: string; html: string } {
+  const subject = `${data.mentionedByName} mentioned you in ${data.contextTitle}`
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>You were mentioned</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; line-height: 1.6;">
+    <div style="max-width: 560px; margin: 0 auto; padding: 40px 20px;">
+        <div style="background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden;">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%); padding: 32px 24px; text-align: center;">
+                <div style="font-size: 36px; margin-bottom: 8px;">@</div>
+                <h1 style="margin: 0; color: white; font-size: 20px; font-weight: 600;">You were mentioned</h1>
+            </div>
+
+            <!-- Content -->
+            <div style="padding: 32px 24px;">
+                <p style="margin: 0 0 16px 0; color: #374151; font-size: 15px;">
+                    Hi ${data.recipientName},
+                </p>
+
+                <p style="margin: 0 0 20px 0; color: #374151; font-size: 15px;">
+                    <strong>${data.mentionedByName}</strong> mentioned you in <strong>${data.contextTitle}</strong>:
+                </p>
+
+                <!-- Message Preview -->
+                <div style="background: #f3f4f6; border-left: 4px solid #7c3aed; border-radius: 0 8px 8px 0; padding: 16px; margin-bottom: 24px;">
+                    <p style="margin: 0; color: #4b5563; font-size: 14px; font-style: italic; line-height: 1.6;">
+                        "${data.messagePreview}"
+                    </p>
+                </div>
+
+                ${data.contextUrl ? `
+                <div style="text-align: center; margin-top: 24px;">
+                    <a href="${data.contextUrl}"
+                       style="display: inline-block; background: #7c3aed; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 500; font-size: 14px;">
+                        View & Reply
+                    </a>
+                </div>
+                ` : ''}
+            </div>
+
+            <!-- Footer -->
+            <div style="padding: 20px 24px; background: #f9fafb; border-top: 1px solid #e5e7eb;">
+                <p style="margin: 0; color: #9ca3af; font-size: 12px; text-align: center;">
+                    This notification was sent because you were mentioned in a conversation.
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>`
+
+  return { subject, html }
+}
