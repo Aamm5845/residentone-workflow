@@ -101,13 +101,10 @@ export async function GET(
       },
       include: {
         section: {
-          select: {
-            name: true,
+          include: {
             instance: {
-              select: {
-                room: {
-                  select: { name: true }
-                }
+              include: {
+                room: true
               }
             }
           }
