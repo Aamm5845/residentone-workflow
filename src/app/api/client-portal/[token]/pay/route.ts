@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { soloService } from '@/lib/solo-service'
 import { syncItemsStatus } from '@/lib/procurement/status-sync'
+import { sendEmail } from '@/lib/email/email-service'
+import { generatePaymentConfirmationEmailTemplate } from '@/lib/email-templates'
 
 export const dynamic = 'force-dynamic'
 
@@ -195,14 +197,31 @@ export async function PATCH(
       )
     }
 
-    // Get the pending payment
+    // Get the pending payment with quote and organization info
     const payment = await prisma.payment.findFirst({
       where: {
         id: paymentId,
         status: 'PENDING'
       },
       include: {
-        clientQuote: true
+        clientQuote: {
+          include: {
+            organization: {
+              select: {
+                name: true,
+                businessName: true,
+                businessEmail: true,
+                businessPhone: true,
+                logoUrl: true
+              }
+            },
+            project: {
+              select: {
+                name: true
+              }
+            }
+          }
+        }
       }
     })
 
@@ -311,6 +330,58 @@ export async function PATCH(
         if (itemIds.length > 0) {
           await syncItemsStatus(itemIds, 'payment_received')
           console.log(`[ClientPortal Payment] Updated ${itemIds.length} FFE items to CLIENT_PAID`)
+        }
+      }
+
+      // Send payment confirmation email
+      const clientEmail = payment.clientQuote.clientEmail || accessToken.project.client?.email
+      if (clientEmail) {
+        try {
+          // Calculate total paid toward invoice (without surcharges)
+          const totalPaidTowardInvoice = allPayments.reduce((sum, p) => {
+            const pMeta = p.metadata as Record<string, unknown> | null
+            const originalAmount = pMeta?.originalAmount as number | undefined
+            return sum + (originalAmount ?? parseFloat(p.amount.toString()))
+          }, 0)
+
+          // Get logo URL
+          let companyLogo: string | undefined
+          const org = payment.clientQuote.organization
+          if (org?.logoUrl) {
+            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://app.meisnerinteriors.com'
+            companyLogo = org.logoUrl.startsWith('http')
+              ? org.logoUrl
+              : `${baseUrl}${org.logoUrl.startsWith('/') ? '' : '/'}${org.logoUrl}`
+          }
+
+          const emailTemplate = generatePaymentConfirmationEmailTemplate({
+            clientName: payment.clientQuote.clientName || accessToken.project.client?.name || 'Valued Client',
+            clientEmail,
+            projectName: payment.clientQuote.project?.name || accessToken.project.name || 'Project',
+            invoiceNumber: payment.clientQuote.quoteNumber,
+            paymentAmount: metadata.originalAmount as number || parseFloat(payment.amount.toString()),
+            paymentMethod: 'CREDIT_CARD',
+            totalAmount: quoteTotal,
+            paidToDate: totalPaidTowardInvoice,
+            remainingBalance: Math.max(0, quoteTotal - totalPaidTowardInvoice),
+            isFullyPaid: fullyPaid,
+            paidAt: new Date(),
+            companyName: org?.businessName || org?.name || 'Meisner Interiors',
+            companyEmail: org?.businessEmail,
+            companyPhone: org?.businessPhone,
+            companyLogo
+          })
+
+          await sendEmail({
+            to: clientEmail,
+            subject: emailTemplate.subject,
+            html: emailTemplate.html
+          })
+
+          console.log(`[ClientPortal Payment] Confirmation email sent to ${clientEmail}`)
+        } catch (emailError) {
+          // Don't fail the payment if email fails
+          console.error('[ClientPortal Payment] Failed to send confirmation email:', emailError)
         }
       }
 
