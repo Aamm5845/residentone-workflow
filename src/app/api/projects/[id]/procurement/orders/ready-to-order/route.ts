@@ -117,7 +117,7 @@ export async function GET(
           }
         },
         // Get all quotes for comparison
-        quoteLineItems: {
+        allQuoteLineItems: {
           where: { isLatestVersion: true },
           include: {
             supplierQuote: {
@@ -169,7 +169,7 @@ export async function GET(
     for (const item of paidItems) {
       // Get supplier quote info
       const acceptedQuote = item.acceptedQuoteLineItem
-      const latestQuote = item.quoteLineItems?.[0]
+      const latestQuote = item.allQuoteLineItems?.[0]
       const supplierQuoteLine = acceptedQuote || latestQuote
 
       // Get client invoice info
