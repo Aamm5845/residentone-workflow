@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { X, ChevronUp, ChevronDown, Upload, Link as LinkIcon, ExternalLink, Edit, Trash2, Loader2, Plus, UserPlus, ImageIcon, CheckCircle2, Circle, AlertCircle, FileText, File, Download, Clock, Send, MessageSquare, Package, DollarSign, ShoppingCart, Truck, User, Building2 } from 'lucide-react'
+import { X, ChevronUp, ChevronDown, Upload, Link as LinkIcon, ExternalLink, Edit, Trash2, Loader2, Plus, UserPlus, ImageIcon, CheckCircle2, Circle, AlertCircle, FileText, File, Download, Clock, Send, MessageSquare, Package, DollarSign, ShoppingCart, Truck, User, Building2, Receipt, CreditCard, FileCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -201,14 +201,16 @@ interface ActivityItem {
   metadata?: any
 }
 
-// Progress stages for items
+// Progress stages for items - 8-stage procurement workflow
 const ITEM_STAGES = [
-  { key: 'selected', label: 'Selected', icon: CheckCircle2 },
-  { key: 'quoted', label: 'Quoted', icon: DollarSign },
-  { key: 'sent_to_client', label: 'Sent to Client', icon: Send },
-  { key: 'approved', label: 'Approved', icon: CheckCircle2 },
-  { key: 'ordered', label: 'Ordered', icon: ShoppingCart },
-  { key: 'delivered', label: 'Delivered', icon: Package },
+  { key: 'selected', label: 'Selected', icon: CheckCircle2, activityTypes: ['ITEM_SELECTED'] },
+  { key: 'rfq_sent', label: 'RFQ Sent', icon: Send, activityTypes: ['QUOTE_REQUESTED'] },
+  { key: 'quoted', label: 'Quoted', icon: DollarSign, activityTypes: ['QUOTE_RECEIVED', 'QUOTE_ACCEPTED'] },
+  { key: 'approved', label: 'Approved', icon: FileCheck, activityTypes: ['CLIENT_APPROVED'] },
+  { key: 'invoiced', label: 'Invoiced', icon: Receipt, activityTypes: ['SENT_TO_CLIENT_QUOTE'] },
+  { key: 'paid', label: 'Paid', icon: CreditCard, activityTypes: ['CLIENT_QUOTE_PAID'] },
+  { key: 'ordered', label: 'Ordered', icon: ShoppingCart, activityTypes: ['ORDERED', 'ADDED_TO_ORDER'] },
+  { key: 'delivered', label: 'Delivered', icon: Package, activityTypes: ['DELIVERED'] },
 ]
 
 function ActivityTab({ itemId, roomId, mode, specStatus }: { itemId?: string; roomId?: string; mode: string; specStatus?: string }) {
@@ -263,23 +265,66 @@ function ActivityTab({ itemId, roomId, mode, specStatus }: { itemId?: string; ro
     }
   }
 
+  // Get the date when a stage was completed (first occurrence of any matching activity type)
+  const getStageDates = () => {
+    const stageDates: Record<string, string | null> = {}
+
+    for (const stage of ITEM_STAGES) {
+      // Find the first activity that matches this stage (sorted by oldest first for "completed" date)
+      const matchingActivities = activities
+        .filter(a => stage.activityTypes.includes(a.type))
+        .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+
+      stageDates[stage.key] = matchingActivities.length > 0 ? matchingActivities[0].timestamp : null
+    }
+
+    // For "selected" stage, if no ITEM_SELECTED activity, check specStatus or use first activity date
+    if (!stageDates['selected'] && activities.length > 0) {
+      // If item exists and has any activity, consider it selected
+      const oldestActivity = [...activities].sort((a, b) =>
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      )[0]
+      stageDates['selected'] = oldestActivity?.timestamp || null
+    }
+
+    return stageDates
+  }
+
   // Determine current stage based on specStatus and activities
   const getCurrentStage = () => {
-    // Check activities for specific events
-    const hasQuoteReceived = activities.some(a => a.type === 'QUOTE_RECEIVED')
-    const hasQuoteRequested = activities.some(a => a.type === 'QUOTE_REQUESTED')
-    const hasSentToClient = activities.some(a => a.type === 'SENT_TO_CLIENT')
-    const hasApproved = activities.some(a => a.type === 'CLIENT_APPROVED')
-    const hasOrdered = activities.some(a => a.type === 'ORDERED')
+    // Check activities for specific events (8-stage workflow)
     const hasDelivered = activities.some(a => a.type === 'DELIVERED')
+    const hasOrdered = activities.some(a => a.type === 'ORDERED' || a.type === 'ADDED_TO_ORDER')
+    const hasPaid = activities.some(a => a.type === 'CLIENT_QUOTE_PAID')
+    const hasInvoiced = activities.some(a => a.type === 'SENT_TO_CLIENT_QUOTE')
+    const hasApproved = activities.some(a => a.type === 'CLIENT_APPROVED')
+    const hasQuoted = activities.some(a => a.type === 'QUOTE_RECEIVED' || a.type === 'QUOTE_ACCEPTED')
+    const hasRfqSent = activities.some(a => a.type === 'QUOTE_REQUESTED')
 
+    // Return the highest stage achieved
     if (hasDelivered) return 'delivered'
     if (hasOrdered) return 'ordered'
+    if (hasPaid) return 'paid'
+    if (hasInvoiced) return 'invoiced'
     if (hasApproved) return 'approved'
-    if (hasSentToClient) return 'sent_to_client'
-    if (hasQuoteReceived || specStatus === 'QUOTED' || specStatus === 'PRICE_RECEIVED' || specStatus === 'QUOTE_RECEIVED') return 'quoted'
-    if (specStatus === 'SELECTED' || specStatus === 'QUOTING' || specStatus === 'RFQ_SENT' || hasQuoteRequested) return 'selected'
+    if (hasQuoted || specStatus === 'QUOTED' || specStatus === 'PRICE_RECEIVED' || specStatus === 'QUOTE_RECEIVED' || specStatus === 'QUOTE_APPROVED') return 'quoted'
+    if (hasRfqSent || specStatus === 'RFQ_SENT') return 'rfq_sent'
+
+    // Check specStatus for other stages
+    if (specStatus === 'CLIENT_PAID') return 'paid'
+    if (specStatus === 'INVOICED_TO_CLIENT' || specStatus === 'BUDGET_SENT') return 'invoiced'
+    if (specStatus === 'BUDGET_APPROVED') return 'approved'
+    if (specStatus === 'ORDERED') return 'ordered'
+    if (specStatus === 'DELIVERED') return 'delivered'
+
     return 'selected'
+  }
+
+  // Format date for stage display (short format)
+  const formatStageDate = (timestamp: string | null) => {
+    if (!timestamp) return null
+    const date = new Date(timestamp)
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
 
   const getActivityIcon = (type: string) => {
@@ -288,6 +333,8 @@ function ActivityTab({ itemId, roomId, mode, specStatus }: { itemId?: string; ro
         return <Send className="w-4 h-4 text-blue-500" />
       case 'QUOTE_RECEIVED':
         return <DollarSign className="w-4 h-4 text-green-500" />
+      case 'QUOTE_ACCEPTED':
+        return <FileCheck className="w-4 h-4 text-green-500" />
       case 'QUOTE_DECLINED':
         return <X className="w-4 h-4 text-red-500" />
       case 'QUOTE_VIEWED':
@@ -298,8 +345,16 @@ function ActivityTab({ itemId, roomId, mode, specStatus }: { itemId?: string; ro
         return <DollarSign className="w-4 h-4 text-yellow-500" />
       case 'SENT_TO_CLIENT':
         return <Send className="w-4 h-4 text-blue-500" />
+      case 'SENT_TO_CLIENT_QUOTE':
+        return <Receipt className="w-4 h-4 text-indigo-500" />
+      case 'CLIENT_QUOTE_VIEWED':
+        return <ExternalLink className="w-4 h-4 text-purple-500" />
+      case 'CLIENT_QUOTE_PAID':
+        return <CreditCard className="w-4 h-4 text-green-500" />
       case 'CLIENT_APPROVED':
-        return <CheckCircle2 className="w-4 h-4 text-green-500" />
+        return <FileCheck className="w-4 h-4 text-green-500" />
+      case 'CLIENT_UNAPPROVED':
+        return <AlertCircle className="w-4 h-4 text-yellow-500" />
       case 'CLIENT_REJECTED':
         return <AlertCircle className="w-4 h-4 text-red-500" />
       case 'ADDED_TO_ORDER':
@@ -370,6 +425,7 @@ function ActivityTab({ itemId, roomId, mode, specStatus }: { itemId?: string; ro
 
   const currentStage = getCurrentStage()
   const currentStageIndex = ITEM_STAGES.findIndex(s => s.key === currentStage)
+  const stageDates = getStageDates()
 
   return (
     <div className="space-y-4">
@@ -381,6 +437,7 @@ function ActivityTab({ itemId, roomId, mode, specStatus }: { itemId?: string; ro
             const isCompleted = index <= currentStageIndex
             const isCurrent = index === currentStageIndex
             const StageIcon = stage.icon
+            const stageDate = stageDates[stage.key]
 
             return (
               <div key={stage.key} className="flex flex-col items-center flex-1">
@@ -395,11 +452,11 @@ function ActivityTab({ itemId, roomId, mode, specStatus }: { itemId?: string; ro
 
                   {/* Stage circle */}
                   <div className={cn(
-                    "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all",
+                    "w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-all",
                     isCompleted ? "bg-emerald-500 text-white" : "bg-gray-200 text-gray-400",
                     isCurrent && "ring-2 ring-emerald-300 ring-offset-2"
                   )}>
-                    <StageIcon className="w-4 h-4" />
+                    <StageIcon className="w-3.5 h-3.5" />
                   </div>
 
                   {/* Connector line after */}
@@ -411,11 +468,17 @@ function ActivityTab({ itemId, roomId, mode, specStatus }: { itemId?: string; ro
                   )}
                 </div>
                 <span className={cn(
-                  "text-[10px] mt-1.5 text-center",
+                  "text-[9px] mt-1 text-center leading-tight",
                   isCurrent ? "text-emerald-700 font-semibold" : isCompleted ? "text-gray-600" : "text-gray-400"
                 )}>
                   {stage.label}
                 </span>
+                {/* Show date when stage was completed */}
+                {isCompleted && stageDate && (
+                  <span className="text-[8px] text-gray-400 mt-0.5">
+                    {formatStageDate(stageDate)}
+                  </span>
+                )}
               </div>
             )
           })}
@@ -517,7 +580,13 @@ function ActivityTab({ itemId, roomId, mode, specStatus }: { itemId?: string; ro
                         {activity.metadata.rfqNumber}
                       </Badge>
                     )}
-                    {activity.metadata.status && activity.type !== 'QUOTE_REQUESTED' && (
+                    {/* Status change badge (old → new) */}
+                    {activity.type === 'STATUS_CHANGED' && activity.metadata.oldStatus && activity.metadata.newStatus && (
+                      <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                        {activity.metadata.oldStatus.replace(/_/g, ' ')} → {activity.metadata.newStatus.replace(/_/g, ' ')}
+                      </Badge>
+                    )}
+                    {activity.metadata.status && activity.type !== 'QUOTE_REQUESTED' && activity.type !== 'STATUS_CHANGED' && (
                       <Badge
                         variant="outline"
                         className={cn(
