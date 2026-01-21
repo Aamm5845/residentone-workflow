@@ -37,6 +37,14 @@ export default function ProcurementContent({
   const [searchQuery, setSearchQuery] = useState('')
   const [inboxCount, setInboxCount] = useState(0)
 
+  // Sync activeTab with URL changes (for navigation from inbox items)
+  useEffect(() => {
+    const tabFromUrl = searchParams.get('tab')
+    if (tabFromUrl && tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl)
+    }
+  }, [searchParams])
+
   // Dialog states
   const [showCreateInvoice, setShowCreateInvoice] = useState(false)
 
