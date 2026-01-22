@@ -710,7 +710,7 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                   <div className="flex items-start gap-2 mb-3">
                     <AlertCircle className="w-4 h-4 text-orange-600 mt-0.5 flex-shrink-0" />
                     <p className="text-sm text-orange-700">
-                      These items were paid but don&apos;t have supplier quotes. Create a manual order for Amazon, local stores, or other vendors.
+                      No supplier quotes. Create manual order to proceed.
                     </p>
                   </div>
                   <div className="space-y-2">
