@@ -29,6 +29,7 @@ interface IssueSummary {
 
 interface AIAssistedIssueFormProps {
   priority: 'HIGH' | 'URGENT'
+  currentPage?: string // The page URL where user is reporting from
   onSubmit: (data: {
     title: string
     description: string
@@ -42,6 +43,7 @@ interface AIAssistedIssueFormProps {
 
 export function AIAssistedIssueForm({
   priority,
+  currentPage,
   onSubmit,
   onCancel,
   onSwitchToManual
@@ -63,12 +65,17 @@ export function AIAssistedIssueForm({
 
   // Initial greeting
   useEffect(() => {
-    const greeting = priority === 'URGENT'
-      ? "I see this is an urgent issue. Let me help you report it clearly so we can fix it right away. What's happening?"
-      : "I'll help you report this high-priority issue. What problem are you experiencing?"
+    // Extract readable page name from URL
+    const pageName = currentPage
+      ? currentPage.split('/').filter(Boolean).slice(-2).join(' > ').replace(/-/g, ' ')
+      : null
+
+    const greeting = pageName
+      ? `I see you're on the ${pageName} page. What's the issue?`
+      : "What's the issue you're experiencing?"
 
     setMessages([{ role: 'assistant', content: greeting }])
-  }, [priority])
+  }, [priority, currentPage])
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -128,7 +135,8 @@ export function AIAssistedIssueForm({
           consoleLog: consoleLog || undefined,
           priority,
           imageBase64,
-          imageMimeType
+          imageMimeType,
+          currentPage
         })
       })
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
+import { usePathname } from 'next/navigation'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -56,6 +57,7 @@ const ISSUE_TYPES = {
 
 export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, editingIssue, viewOnly = false }: IssueModalProps) {
   const { data: session } = useSession()
+  const pathname = usePathname() // Capture current page for issue context
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [consoleLog, setConsoleLog] = useState('')
@@ -395,6 +397,7 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
           <div className="p-6">
             <AIAssistedIssueForm
               priority={priority as 'HIGH' | 'URGENT'}
+              currentPage={pathname || undefined}
               onSubmit={handleAISubmit}
               onCancel={handleClose}
               onSwitchToManual={() => setUseAIAssist(false)}
