@@ -7,7 +7,7 @@ const anthropic = new Anthropic()
 
 interface Message {
   role: 'user' | 'assistant'
-  content: string
+  content: string | Array<{ type: string; text?: string; source?: any }>
 }
 
 /**
@@ -28,7 +28,9 @@ export async function POST(request: NextRequest) {
       hasConsoleLog,
       hasScreenshot,
       consoleLog,
-      priority
+      priority,
+      imageBase64,
+      imageMimeType
     } = body
 
     if (!messages || !Array.isArray(messages)) {
@@ -74,13 +76,37 @@ RULES:
 CURRENT STATUS:
 - Console log provided: ${hasConsoleLog ? 'Yes' : 'No'}
 - Screenshot provided: ${hasScreenshot ? 'Yes' : 'No'}
-${consoleLog ? `\nConsole log content:\n${consoleLog.substring(0, 1000)}` : ''}`
+${consoleLog ? `\nConsole log content:\n${consoleLog.substring(0, 1000)}` : ''}
 
-    // Convert messages to Anthropic format
-    const anthropicMessages = messages.map((msg: Message) => ({
-      role: msg.role as 'user' | 'assistant',
-      content: msg.content
-    }))
+${hasScreenshot ? `IMPORTANT: A screenshot has been provided. Analyze it carefully to understand the visual context of the issue. Look for error messages, UI problems, or anything that helps clarify the issue.` : ''}`
+
+    // Convert messages to Anthropic format, including images if present
+    const anthropicMessages: any[] = messages.map((msg: Message, index: number) => {
+      // If this is the last user message and we have an image, include it
+      if (msg.role === 'user' && index === messages.length - 1 && imageBase64 && imageMimeType) {
+        return {
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: imageMimeType,
+                data: imageBase64
+              }
+            },
+            {
+              type: 'text',
+              text: msg.content as string
+            }
+          ]
+        }
+      }
+      return {
+        role: msg.role as 'user' | 'assistant',
+        content: msg.content
+      }
+    })
 
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',

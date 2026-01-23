@@ -82,6 +82,21 @@ export function AIAssistedIssueForm({
     }
   }, [isLoading])
 
+  // Convert image file to base64
+  const imageToBase64 = async (file: File): Promise<{ base64: string; mimeType: string }> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        const result = reader.result as string
+        // Remove the data URL prefix (e.g., "data:image/png;base64,")
+        const base64 = result.split(',')[1]
+        resolve({ base64, mimeType: file.type })
+      }
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  }
+
   const sendMessage = async () => {
     if (!inputValue.trim() || isLoading) return
 
@@ -93,6 +108,16 @@ export function AIAssistedIssueForm({
     setIsLoading(true)
 
     try {
+      // Prepare image data if available
+      let imageBase64: string | undefined
+      let imageMimeType: string | undefined
+
+      if (imageFile) {
+        const imageData = await imageToBase64(imageFile)
+        imageBase64 = imageData.base64
+        imageMimeType = imageData.mimeType
+      }
+
       const response = await fetch('/api/issues/ai-assist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -101,7 +126,9 @@ export function AIAssistedIssueForm({
           hasConsoleLog: !!consoleLog,
           hasScreenshot: !!imageFile,
           consoleLog: consoleLog || undefined,
-          priority
+          priority,
+          imageBase64,
+          imageMimeType
         })
       })
 
