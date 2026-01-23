@@ -58,6 +58,52 @@ const ISSUE_TYPES = {
 export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, editingIssue, viewOnly = false }: IssueModalProps) {
   const { data: session } = useSession()
   const pathname = usePathname() // Capture current page for issue context
+  const [pageContext, setPageContext] = useState<{ pageName: string; projectName?: string } | null>(null)
+
+  // Fetch project name if on a project page
+  useEffect(() => {
+    const fetchPageContext = async () => {
+      if (!pathname) {
+        setPageContext(null)
+        return
+      }
+
+      // Extract project ID from URL like /projects/[id]/...
+      const projectMatch = pathname.match(/\/projects\/([^/]+)/)
+      const projectId = projectMatch?.[1]
+
+      // Get the current section (last part of URL)
+      const parts = pathname.split('/').filter(Boolean)
+      const section = parts[parts.length - 1]
+
+      // Format section name
+      const sectionName = section
+        ?.replace(/-/g, ' ')
+        ?.replace(/^\w/, c => c.toUpperCase()) || 'Unknown'
+
+      if (projectId && projectId !== 'new') {
+        try {
+          const response = await fetch(`/api/projects/${projectId}`)
+          if (response.ok) {
+            const project = await response.json()
+            setPageContext({
+              pageName: sectionName,
+              projectName: project.name
+            })
+            return
+          }
+        } catch (e) {
+          // Ignore errors, just use section name
+        }
+      }
+
+      setPageContext({ pageName: sectionName })
+    }
+
+    if (isOpen) {
+      fetchPageContext()
+    }
+  }, [pathname, isOpen])
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [consoleLog, setConsoleLog] = useState('')
@@ -398,6 +444,8 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
             <AIAssistedIssueForm
               priority={priority as 'HIGH' | 'URGENT'}
               currentPage={pathname || undefined}
+              pageName={pageContext?.pageName}
+              projectName={pageContext?.projectName}
               onSubmit={handleAISubmit}
               onCancel={handleClose}
               onSwitchToManual={() => setUseAIAssist(false)}

@@ -31,7 +31,9 @@ export async function POST(request: NextRequest) {
       priority,
       imageBase64,
       imageMimeType,
-      currentPage // The page URL where user reported the issue
+      currentPage, // The page URL where user reported the issue
+      pageName,    // Friendly page name (e.g., "Procurement")
+      projectName  // Project name if on a project page
     } = body
 
     if (!messages || !Array.isArray(messages)) {
@@ -44,7 +46,7 @@ export async function POST(request: NextRequest) {
 CONTEXT:
 - This is a ${priority} priority issue for an interior design project management app
 - The app has: Projects, Rooms, FFE (furniture/fixtures), Procurement, Suppliers, Specs, etc.
-${currentPage ? `- User is currently on: ${currentPage}` : ''}
+${pageName && projectName ? `- User is on: ${pageName} page in "${projectName}" project` : pageName ? `- User is on: ${pageName} page` : ''}
 
 IMPORTANT - WHEN TO ASK QUESTIONS:
 - If the issue is CLEAR and you understand WHAT needs to happen and WHERE, DO NOT ask questions. Just confirm and submit.
@@ -72,13 +74,13 @@ RULES:
 \`\`\`json
 {
   "title": "Brief issue title (max 10 words)",
-  "description": "Clear description including: what should happen, where in the app${currentPage ? ` (reported from: ${currentPage})` : ''}",
+  "description": "Clear description including: what should happen, where in the app${pageName ? ` (Location: ${pageName}${projectName ? ` in ${projectName}` : ''})` : ''}",
   "suggestedType": "BUG" | "FEATURE_REQUEST" | "UPDATE_REQUEST" | "GENERAL"
 }
 \`\`\`
 
 CURRENT STATUS:
-- Page: ${currentPage || 'Unknown'}
+- Page: ${pageName || 'Unknown'}${projectName ? ` (Project: ${projectName})` : ''}
 - Console log: ${hasConsoleLog ? 'Yes' : 'No'}
 - Screenshot: ${hasScreenshot ? 'Yes' : 'No'}
 ${consoleLog ? `\nConsole:\n${consoleLog.substring(0, 500)}` : ''}

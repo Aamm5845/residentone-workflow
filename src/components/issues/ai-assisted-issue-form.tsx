@@ -30,6 +30,8 @@ interface IssueSummary {
 interface AIAssistedIssueFormProps {
   priority: 'HIGH' | 'URGENT'
   currentPage?: string // The page URL where user is reporting from
+  pageName?: string // Friendly name of the page section (e.g., "Procurement")
+  projectName?: string // Project name if on a project page
   onSubmit: (data: {
     title: string
     description: string
@@ -44,6 +46,8 @@ interface AIAssistedIssueFormProps {
 export function AIAssistedIssueForm({
   priority,
   currentPage,
+  pageName,
+  projectName,
   onSubmit,
   onCancel,
   onSwitchToManual
@@ -65,17 +69,18 @@ export function AIAssistedIssueForm({
 
   // Initial greeting
   useEffect(() => {
-    // Extract readable page name from URL
-    const pageName = currentPage
-      ? currentPage.split('/').filter(Boolean).slice(-2).join(' > ').replace(/-/g, ' ')
-      : null
+    let greeting: string
 
-    const greeting = pageName
-      ? `I see you're on the ${pageName} page. What's the issue?`
-      : "What's the issue you're experiencing?"
+    if (pageName && projectName) {
+      greeting = `I see you're on the ${pageName} page in ${projectName} project. What's the issue?`
+    } else if (pageName) {
+      greeting = `I see you're on the ${pageName} page. What's the issue?`
+    } else {
+      greeting = "What's the issue you're experiencing?"
+    }
 
     setMessages([{ role: 'assistant', content: greeting }])
-  }, [priority, currentPage])
+  }, [priority, pageName, projectName])
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -136,7 +141,9 @@ export function AIAssistedIssueForm({
           priority,
           imageBase64,
           imageMimeType,
-          currentPage
+          currentPage,
+          pageName,
+          projectName
         })
       })
 
