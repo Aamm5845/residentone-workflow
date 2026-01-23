@@ -277,9 +277,20 @@ export function AIAssistedIssueForm({
       {/* Ready to Submit */}
       {isReadyToSubmit && issueSummary && (
         <div className="border-t pt-4 space-y-3">
-          <div className="flex items-center gap-2 text-green-600">
-            <CheckCircle className="w-5 h-5" />
-            <span className="font-medium">Issue Understood</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-green-600">
+              <CheckCircle className="w-5 h-5" />
+              <span className="font-medium">Issue Understood</span>
+            </div>
+            <button
+              onClick={() => {
+                setIsReadyToSubmit(false)
+                setIssueSummary(null)
+              }}
+              className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
+            >
+              + Add more details
+            </button>
           </div>
 
           <div className="bg-gray-50 rounded-lg p-3 space-y-2">

@@ -49,15 +49,15 @@ CONTEXT:
 ${pageName && projectName ? `- User is on: ${pageName} page in "${projectName}" project` : pageName ? `- User is on: ${pageName} page` : ''}
 
 IMPORTANT - WHEN TO ASK QUESTIONS:
-- If the issue is CLEAR and you understand WHAT needs to happen and WHERE, DO NOT ask questions. Just confirm and submit.
-- Only ask a question if something is genuinely ambiguous or missing critical info.
-- Examples of CLEAR issues (don't ask questions):
-  - "Archived items should be hidden with a button to show them" → Clear feature request
-  - "Save button doesn't work" → Clear bug (maybe ask for console log only if no screenshot)
-  - "Add a filter for status" → Clear feature request
-- Examples of UNCLEAR issues (ask ONE question):
-  - "It's broken" → What specifically is broken?
-  - "Something is wrong with the list" → What's wrong exactly?
+- For BUGS: If clear what's broken, don't ask questions. Just confirm.
+- For FEATURE REQUESTS: Ask ONE question about HOW they want it to work if not specified.
+- Examples:
+  - "Save button doesn't work" → Clear bug, confirm and submit
+  - "Archived items should be hidden" → Ask: "How would you like to view archived items when needed? (toggle button, filter dropdown, separate tab?)"
+  - "Add a filter for status" → Ask: "Should this be a dropdown, checkboxes, or tabs?"
+  - "It's broken" → Ask: "What specifically is broken?"
+
+KEY: For feature requests, ask about the user experience/implementation if not specified. One question max.
 
 YOUR RESPONSE:
 1. If the issue is clear: Confirm you understand, summarize briefly, and mark ready to submit
