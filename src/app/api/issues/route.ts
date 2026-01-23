@@ -12,6 +12,7 @@ import { logIssueActivity, ActivityActions } from '@/lib/activity-logger'
 import { put } from '@vercel/blob'
 import { syncIssuesToCursor } from '@/lib/cursor-issues'
 import { sendIssueCreatedEmail } from '@/lib/email'
+import { triggerAutoFixWorkflow, shouldTriggerAutoFix } from '@/lib/github-actions'
 
 // Get all issues for the organization
 export async function GET(request: NextRequest) {
@@ -378,6 +379,22 @@ export async function POST(request: NextRequest) {
         // Sync issues to .cursor/issues.json for Cursor AI access
         syncIssuesToCursor().catch(err => console.error('[Issues API] Cursor sync failed:', err))
 
+        // Trigger auto-fix for urgent/high priority bugs
+        if (shouldTriggerAutoFix(updatedIssue.priority, updatedIssue.type)) {
+          const reporterName = session.user.name || session.user.email || 'A team member'
+          triggerAutoFixWorkflow({
+            issueId: updatedIssue.id,
+            title: updatedIssue.title,
+            description: updatedIssue.description,
+            type: updatedIssue.type,
+            priority: updatedIssue.priority,
+            consoleLog: (updatedIssue.metadata as any)?.consoleLog,
+            projectName: updatedIssue.project?.name,
+            roomName: updatedIssue.room?.name,
+            reporterName
+          }).catch(err => console.error('[Issues API] Auto-fix trigger failed:', err))
+        }
+
         return NextResponse.json(updatedIssue, { status: 201 })
       } catch (blobError) {
         console.error('[Issues API] Failed to upload image to Blob (non-fatal):', blobError)
@@ -434,6 +451,22 @@ export async function POST(request: NextRequest) {
 
     // Sync issues to .cursor/issues.json for Cursor AI access
     syncIssuesToCursor().catch(err => console.error('[Issues API] Cursor sync failed:', err))
+
+    // Trigger auto-fix for urgent/high priority bugs
+    if (shouldTriggerAutoFix(issue.priority, issue.type)) {
+      const reporterName = session.user.name || session.user.email || 'A team member'
+      triggerAutoFixWorkflow({
+        issueId: issue.id,
+        title: issue.title,
+        description: issue.description,
+        type: issue.type,
+        priority: issue.priority,
+        consoleLog: (issue.metadata as any)?.consoleLog,
+        projectName: issue.project?.name,
+        roomName: issue.room?.name,
+        reporterName
+      }).catch(err => console.error('[Issues API] Auto-fix trigger failed:', err))
+    }
 
     return NextResponse.json(issue, { status: 201 })
   } catch (error) {

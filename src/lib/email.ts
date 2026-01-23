@@ -569,6 +569,289 @@ export const sendIssueCreatedEmail = async (
   })
 }
 
+export const sendAutoFixNotificationEmail = async (
+  recipientEmail: string,
+  recipientName: string,
+  issueTitle: string,
+  fixSummary: string,
+  analysis: string,
+  commitUrl: string,
+  success: boolean,
+  isReporter: boolean = false
+): Promise<boolean> => {
+  const companyName = process.env.COMPANY_NAME || 'StudioFlow'
+  const appUrl = getBaseUrl()
+
+  const html = success ? `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Auto-Fix Applied - ${companyName}</title>
+        <style>
+          .container { max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif; }
+          .header { background-color: #22c55e; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+          .header h1 { color: white; margin: 0; font-size: 24px; }
+          .content { padding: 30px; background-color: #f8fafc; }
+          .message-box {
+            background-color: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+          }
+          .issue-title {
+            background-color: #f1f5f9;
+            border-left: 4px solid #22c55e;
+            padding: 15px;
+            margin: 15px 0;
+            font-weight: 500;
+            color: #1e293b;
+          }
+          .code-box {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            margin: 15px 0;
+          }
+          .action-box {
+            background-color: #dbeafe;
+            border: 1px solid #3b82f6;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+          }
+          .action-box p {
+            color: #1e40af;
+            margin: 0;
+            font-size: 14px;
+          }
+          .button {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #1e293b;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            margin: 10px 5px;
+            font-weight: 500;
+          }
+          .button-green {
+            background-color: #22c55e;
+          }
+          .footer {
+            background-color: #1e293b;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #94a3b8;
+            border-radius: 0 0 8px 8px;
+          }
+        </style>
+      </head>
+      <body style="background-color: #f1f5f9; padding: 20px;">
+        <div class="container">
+          <div class="header">
+            <h1>Auto-Fix Applied</h1>
+          </div>
+          <div class="content">
+            <div class="message-box">
+              <p style="color: #475569; line-height: 1.6; margin: 0;">
+                Hi ${recipientName},
+              </p>
+              <p style="color: #475569; line-height: 1.6; margin-top: 15px;">
+                ${isReporter
+                  ? 'The issue you reported has been automatically analyzed and a fix has been applied.'
+                  : 'An urgent issue has been automatically fixed by our AI system.'}
+              </p>
+
+              <div class="issue-title">
+                "${issueTitle}"
+              </div>
+
+              <h3 style="color: #1e293b; margin-top: 20px;">What was fixed:</h3>
+              <p style="color: #475569;">${fixSummary}</p>
+
+              ${analysis ? `
+                <h3 style="color: #1e293b; margin-top: 20px;">Analysis:</h3>
+                <p style="color: #475569;">${analysis}</p>
+              ` : ''}
+            </div>
+
+            ${!isReporter ? `
+              <div class="action-box">
+                <p><strong>Action Required:</strong> Please pull the latest changes to your local repository:</p>
+                <div class="code-box">
+                  git pull origin main
+                </div>
+              </div>
+            ` : `
+              <div class="action-box">
+                <p><strong>Please verify:</strong> The fix has been deployed. Please check if the issue is resolved for you.</p>
+              </div>
+            `}
+
+            <div style="text-align: center;">
+              ${commitUrl ? `<a href="${commitUrl}" class="button">View Commit</a>` : ''}
+              <a href="${appUrl}/preferences?tab=issues" class="button button-green">View Issue</a>
+            </div>
+          </div>
+          <div class="footer">
+            <p>This is an automated notification from ${companyName}</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  ` : `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Auto-Fix Failed - ${companyName}</title>
+        <style>
+          .container { max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif; }
+          .header { background-color: #ef4444; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+          .header h1 { color: white; margin: 0; font-size: 24px; }
+          .content { padding: 30px; background-color: #f8fafc; }
+          .message-box {
+            background-color: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+          }
+          .issue-title {
+            background-color: #f1f5f9;
+            border-left: 4px solid #ef4444;
+            padding: 15px;
+            margin: 15px 0;
+            font-weight: 500;
+            color: #1e293b;
+          }
+          .warning-box {
+            background-color: #fef3c7;
+            border: 1px solid #fbbf24;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+          }
+          .warning-box p {
+            color: #92400e;
+            margin: 0;
+            font-size: 14px;
+          }
+          .button {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #1e293b;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            margin: 20px 0;
+            font-weight: 500;
+          }
+          .footer {
+            background-color: #1e293b;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #94a3b8;
+            border-radius: 0 0 8px 8px;
+          }
+        </style>
+      </head>
+      <body style="background-color: #f1f5f9; padding: 20px;">
+        <div class="container">
+          <div class="header">
+            <h1>Auto-Fix Could Not Complete</h1>
+          </div>
+          <div class="content">
+            <div class="message-box">
+              <p style="color: #475569; line-height: 1.6; margin: 0;">
+                Hi ${recipientName},
+              </p>
+              <p style="color: #475569; line-height: 1.6; margin-top: 15px;">
+                The automatic fix system attempted to resolve an urgent issue but was unable to apply a fix.
+              </p>
+
+              <div class="issue-title">
+                "${issueTitle}"
+              </div>
+
+              <h3 style="color: #1e293b; margin-top: 20px;">Reason:</h3>
+              <p style="color: #475569;">${fixSummary}</p>
+
+              ${analysis ? `
+                <h3 style="color: #1e293b; margin-top: 20px;">Analysis:</h3>
+                <p style="color: #475569;">${analysis}</p>
+              ` : ''}
+            </div>
+
+            <div class="warning-box">
+              <p><strong>Manual Review Required:</strong> This issue needs to be reviewed and fixed manually.</p>
+            </div>
+
+            <div style="text-align: center;">
+              <a href="${appUrl}/preferences?tab=issues" class="button">View Issue</a>
+            </div>
+          </div>
+          <div class="footer">
+            <p>This is an automated notification from ${companyName}</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `
+
+  const text = success
+    ? `
+      Auto-Fix Applied - ${companyName}
+
+      Hi ${recipientName},
+
+      ${isReporter
+        ? 'The issue you reported has been automatically analyzed and a fix has been applied.'
+        : 'An urgent issue has been automatically fixed by our AI system.'}
+
+      Issue: "${issueTitle}"
+
+      What was fixed: ${fixSummary}
+      ${analysis ? `Analysis: ${analysis}` : ''}
+
+      ${!isReporter ? 'Action Required: Please pull the latest changes: git pull origin main' : 'Please verify the fix works for you.'}
+
+      ${commitUrl ? `View commit: ${commitUrl}` : ''}
+      View issue: ${appUrl}/preferences?tab=issues
+    `
+    : `
+      Auto-Fix Failed - ${companyName}
+
+      Hi ${recipientName},
+
+      The automatic fix system was unable to resolve an urgent issue.
+
+      Issue: "${issueTitle}"
+
+      Reason: ${fixSummary}
+      ${analysis ? `Analysis: ${analysis}` : ''}
+
+      Manual review is required.
+
+      View issue: ${appUrl}/preferences?tab=issues
+    `
+
+  return sendEmail({
+    to: recipientEmail,
+    subject: success
+      ? `Auto-Fix Applied: "${issueTitle}" - git pull required`
+      : `Auto-Fix Failed: "${issueTitle}" - manual review needed`,
+    html,
+    text
+  })
+}
+
 export const sendWelcomeEmail = async (email: string, name: string): Promise<boolean> => {
   const companyName = process.env.COMPANY_NAME || 'StudioFlow'
   const appUrl = getBaseUrl()

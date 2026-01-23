@@ -1,0 +1,229 @@
+name: Auto-Fix Urgent Issue
+
+on:
+  repository_dispatch:
+    types: [urgent-issue]
+
+jobs:
+  auto-fix:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Analyze and Fix Issue with Claude
+        id: fix
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          # Create a script to call Claude API
+          cat << 'EOF' > fix-issue.mjs
+          import Anthropic from '@anthropic-ai/sdk';
+          import fs from 'fs';
+          import path from 'path';
+
+          const anthropic = new Anthropic();
+
+          const issue = JSON.parse(process.env.ISSUE_DATA);
+
+          console.log('Analyzing issue:', issue.title);
+          console.log('Description:', issue.description);
+
+          // Read relevant files based on issue context
+          async function getRelevantFiles() {
+            const files = [];
+
+            // Always include key files
+            const keyPaths = [
+              'src/app',
+              'src/components',
+              'src/lib',
+              'prisma/schema.prisma'
+            ];
+
+            // Simple file discovery - get TypeScript/JavaScript files
+            function walkDir(dir, fileList = []) {
+              if (!fs.existsSync(dir)) return fileList;
+              const entries = fs.readdirSync(dir, { withFileTypes: true });
+              for (const entry of entries) {
+                const fullPath = path.join(dir, entry.name);
+                if (entry.isDirectory() && !entry.name.includes('node_modules') && !entry.name.startsWith('.')) {
+                  walkDir(fullPath, fileList);
+                } else if (entry.isFile() && /\.(ts|tsx|js|jsx|prisma)$/.test(entry.name)) {
+                  fileList.push(fullPath);
+                }
+              }
+              return fileList;
+            }
+
+            for (const keyPath of keyPaths) {
+              const foundFiles = walkDir(keyPath);
+              files.push(...foundFiles.slice(0, 50)); // Limit files
+            }
+
+            return files.slice(0, 100); // Max 100 files
+          }
+
+          const relevantFiles = await getRelevantFiles();
+
+          // Read file contents
+          const fileContents = [];
+          for (const filePath of relevantFiles.slice(0, 30)) { // Read top 30 most relevant
+            try {
+              const content = fs.readFileSync(filePath, 'utf-8');
+              if (content.length < 10000) { // Skip very large files
+                fileContents.push({ path: filePath, content });
+              }
+            } catch (e) {
+              // Skip unreadable files
+            }
+          }
+
+          const prompt = `You are a senior developer fixing an urgent bug in a Next.js application.
+
+          ISSUE:
+          Title: ${issue.title}
+          Description: ${issue.description}
+          Type: ${issue.type}
+          Priority: ${issue.priority}
+          ${issue.consoleLog ? `Console Log:\n${issue.consoleLog}` : ''}
+          ${issue.projectName ? `Project: ${issue.projectName}` : ''}
+
+          CODEBASE FILES:
+          ${fileContents.map(f => `--- ${f.path} ---\n${f.content}`).join('\n\n')}
+
+          INSTRUCTIONS:
+          1. Analyze the issue and identify the root cause
+          2. Provide a fix with the exact file changes needed
+          3. Format your response as JSON with this structure:
+          {
+            "analysis": "Brief explanation of the issue",
+            "files": [
+              {
+                "path": "path/to/file.ts",
+                "action": "modify" | "create",
+                "content": "full new file content"
+              }
+            ],
+            "summary": "One sentence describing what was fixed"
+          }
+
+          Only include files that need changes. Provide complete file contents, not patches.
+          If you cannot determine a fix, return: {"analysis": "reason", "files": [], "summary": "Could not auto-fix"}`;
+
+          const response = await anthropic.messages.create({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 8000,
+            messages: [{ role: 'user', content: prompt }]
+          });
+
+          const responseText = response.content[0].text;
+
+          // Extract JSON from response
+          const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+          if (!jsonMatch) {
+            console.log('No valid JSON in response');
+            process.exit(1);
+          }
+
+          const fix = JSON.parse(jsonMatch[0]);
+          console.log('Analysis:', fix.analysis);
+          console.log('Summary:', fix.summary);
+
+          // Apply fixes
+          if (fix.files && fix.files.length > 0) {
+            for (const file of fix.files) {
+              const dir = path.dirname(file.path);
+              if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true });
+              }
+              fs.writeFileSync(file.path, file.content);
+              console.log(`Updated: ${file.path}`);
+            }
+          }
+
+          // Output for next steps
+          fs.writeFileSync('fix-result.json', JSON.stringify(fix, null, 2));
+          EOF
+
+          # Install Anthropic SDK
+          npm install @anthropic-ai/sdk
+
+          # Run the fix script
+          ISSUE_DATA='${{ toJson(github.event.client_payload) }}' node fix-issue.mjs
+
+      - name: Check for changes
+        id: check
+        run: |
+          if [[ -n $(git status --porcelain) ]]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit and push changes
+        if: steps.check.outputs.has_changes == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          # Read fix summary
+          SUMMARY=$(cat fix-result.json | jq -r '.summary // "Auto-fix for issue"')
+
+          git add -A
+          git commit -m "fix: $SUMMARY
+
+          Auto-fix for issue: ${{ github.event.client_payload.title }}
+          Issue ID: ${{ github.event.client_payload.issueId }}
+
+          Co-Authored-By: Claude <noreply@anthropic.com>"
+
+          git push
+
+      - name: Notify app about fix
+        if: steps.check.outputs.has_changes == 'true'
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          APP_WEBHOOK_SECRET: ${{ secrets.APP_WEBHOOK_SECRET }}
+        run: |
+          SUMMARY=$(cat fix-result.json | jq -r '.summary // "Auto-fix applied"')
+          ANALYSIS=$(cat fix-result.json | jq -r '.analysis // ""')
+
+          curl -X POST "$APP_URL/api/issues/auto-fix-callback" \
+            -H "Content-Type: application/json" \
+            -H "X-Webhook-Secret: $APP_WEBHOOK_SECRET" \
+            -d "{
+              \"issueId\": \"${{ github.event.client_payload.issueId }}\",
+              \"success\": true,
+              \"summary\": \"$SUMMARY\",
+              \"analysis\": \"$ANALYSIS\",
+              \"commitUrl\": \"https://github.com/${{ github.repository }}/commit/$(git rev-parse HEAD)\"
+            }"
+
+      - name: Notify app about failure
+        if: failure() || steps.check.outputs.has_changes == 'false'
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          APP_WEBHOOK_SECRET: ${{ secrets.APP_WEBHOOK_SECRET }}
+        run: |
+          curl -X POST "$APP_URL/api/issues/auto-fix-callback" \
+            -H "Content-Type: application/json" \
+            -H "X-Webhook-Secret: $APP_WEBHOOK_SECRET" \
+            -d "{
+              \"issueId\": \"${{ github.event.client_payload.issueId }}\",
+              \"success\": false,
+              \"summary\": \"Could not automatically fix this issue\",
+              \"analysis\": \"Manual review required\"
+            }"
