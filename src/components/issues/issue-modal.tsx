@@ -14,7 +14,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { AlertCircle, Bug, Lightbulb, RefreshCw, MessageCircle, Trash2, CheckCircle, Terminal, Upload, X, Image as ImageIcon, Zap } from 'lucide-react'
+import { AlertCircle, Bug, Lightbulb, RefreshCw, MessageCircle, Trash2, CheckCircle, Terminal, Upload, X, Image as ImageIcon, Zap, ArrowLeft } from 'lucide-react'
+import { AIAssistedIssueForm } from './ai-assisted-issue-form'
 
 interface Issue {
   id: string
@@ -65,6 +66,7 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [imageError, setImageError] = useState<string | null>(null)
+  const [useAIAssist, setUseAIAssist] = useState(false)
 
   const isEditing = !!editingIssue
   const canEdit = true // Everyone can edit
@@ -98,8 +100,17 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
       setImageFile(null)
       setImagePreview(null)
       setImageError(null)
+      setUseAIAssist(false)
     }
   }, [editingIssue, isOpen])
+
+  // Handle priority change - trigger AI assist for HIGH/URGENT
+  const handlePriorityChange = (newPriority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT') => {
+    setPriority(newPriority)
+    if ((newPriority === 'HIGH' || newPriority === 'URGENT') && !isEditing) {
+      setUseAIAssist(true)
+    }
+  }
 
   // Cleanup image preview URL on unmount or when imageFile changes
   useEffect(() => {
@@ -162,6 +173,7 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
       setType('GENERAL')
       setPriority('MEDIUM')
       setStatus('OPEN')
+      setUseAIAssist(false)
     }
     // Clean up image preview
     if (imagePreview && imagePreview.startsWith('blob:')) {
@@ -171,6 +183,51 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
     setImagePreview(null)
     setImageError(null)
     onClose()
+  }
+
+  // Handle AI-assisted form submission
+  const handleAISubmit = async (data: {
+    title: string
+    description: string
+    type: string
+    consoleLog?: string
+    imageFile?: File | null
+  }) => {
+    setIsSubmitting(true)
+    try {
+      const formData = new FormData()
+      formData.append('title', data.title)
+      formData.append('description', data.description)
+      formData.append('type', data.type)
+      formData.append('priority', priority)
+
+      if (data.consoleLog) {
+        formData.append('consoleLog', data.consoleLog)
+      }
+
+      if (data.imageFile) {
+        formData.append('image', data.imageFile)
+      }
+
+      const response = await fetch('/api/issues', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (response.ok) {
+        onIssueCreated?.()
+        handleClose()
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to create issue')
+      }
+    } catch (error) {
+      console.error('Error submitting issue:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+      alert(`Error submitting issue: ${errorMessage}`)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -310,7 +367,7 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className={viewOnly ? "max-w-3xl" : "max-w-md"}>
+      <DialogContent className={viewOnly ? "max-w-3xl" : useAIAssist && !isEditing ? "max-w-xl" : "max-w-md"}>
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between w-full">
             <div className="flex items-center space-x-2">
@@ -333,7 +390,17 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
           </DialogDescription>
         </DialogHeader>
 
-        {viewOnly ? (
+        {/* AI-Assisted Issue Form for HIGH/URGENT new issues */}
+        {useAIAssist && !isEditing && !viewOnly ? (
+          <div className="p-6">
+            <AIAssistedIssueForm
+              priority={priority as 'HIGH' | 'URGENT'}
+              onSubmit={handleAISubmit}
+              onCancel={handleClose}
+              onSwitchToManual={() => setUseAIAssist(false)}
+            />
+          </div>
+        ) : viewOnly ? (
           <div className="space-y-4 p-6">
             {/* Quick Actions for viewing */}
             {isEditing && (
@@ -472,7 +539,7 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
 
             <div>
               <Label htmlFor="priority">Priority</Label>
-              <Select value={priority} onValueChange={(value: any) => setPriority(value)}>
+              <Select value={priority} onValueChange={(value: any) => handlePriorityChange(value)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -502,19 +569,6 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
               </div>
             )}
           </div>
-
-          {/* Auto-fix notification for HIGH/URGENT priority */}
-          {(priority === 'HIGH' || priority === 'URGENT') && !isEditing && (
-            <div className="flex items-start gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <Zap className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-              <div className="text-sm">
-                <p className="font-medium text-blue-800">Auto-Fix Enabled</p>
-                <p className="text-blue-600 mt-1">
-                  This issue will be automatically analyzed and fixed. You&apos;ll receive an email when the fix is ready to test.
-                </p>
-              </div>
-            </div>
-          )}
 
           <div>
             <Label htmlFor="title">Title</Label>
