@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { AlertCircle, Bug, Lightbulb, RefreshCw, MessageCircle, Trash2, CheckCircle, Terminal, Upload, X, Image as ImageIcon } from 'lucide-react'
+import { AlertCircle, Bug, Lightbulb, RefreshCw, MessageCircle, Trash2, CheckCircle, Terminal, Upload, X, Image as ImageIcon, Zap } from 'lucide-react'
 
 interface Issue {
   id: string
@@ -502,6 +502,19 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
               </div>
             )}
           </div>
+
+          {/* Auto-fix notification for HIGH/URGENT priority */}
+          {(priority === 'HIGH' || priority === 'URGENT') && !isEditing && (
+            <div className="flex items-start gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <Zap className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-medium text-blue-800">Auto-Fix Enabled</p>
+                <p className="text-blue-600 mt-1">
+                  This issue will be automatically analyzed and fixed. You&apos;ll receive an email when the fix is ready to test.
+                </p>
+              </div>
+            </div>
+          )}
 
           <div>
             <Label htmlFor="title">Title</Label>

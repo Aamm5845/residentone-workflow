@@ -84,11 +84,6 @@ export function shouldTriggerAutoFix(priority: string, type: string): boolean {
     return false
   }
 
-  // Only trigger for BUG type issues (not feature requests, etc.)
-  if (type !== 'BUG') {
-    return false
-  }
-
   // Check if auto-fix is enabled
   const autoFixEnabled = process.env.AUTO_FIX_ENABLED !== 'false'
 
