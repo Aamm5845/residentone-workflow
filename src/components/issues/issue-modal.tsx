@@ -200,6 +200,7 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
       formData.append('description', data.description)
       formData.append('type', data.type)
       formData.append('priority', priority)
+      formData.append('aiAssisted', 'true') // Mark as AI-assisted for auto-fix
 
       if (data.consoleLog) {
         formData.append('consoleLog', data.consoleLog)

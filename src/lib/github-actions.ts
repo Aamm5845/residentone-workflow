@@ -77,10 +77,20 @@ export async function triggerAutoFixWorkflow(params: TriggerAutoFixParams): Prom
 
 /**
  * Check if auto-fix should be triggered for this issue
+ * Only triggers when:
+ * - Priority is HIGH or URGENT
+ * - Issue was created via AI-assisted flow (not manual entry)
+ * - Auto-fix is enabled in environment
  */
-export function shouldTriggerAutoFix(priority: string, type: string): boolean {
+export function shouldTriggerAutoFix(priority: string, type: string, aiAssisted: boolean = false): boolean {
   // Only trigger for HIGH and URGENT priority
   if (priority !== 'HIGH' && priority !== 'URGENT') {
+    return false
+  }
+
+  // Only trigger if issue was created via AI-assisted flow
+  // Manual entries may not be clear enough for auto-fix
+  if (!aiAssisted) {
     return false
   }
 

@@ -164,6 +164,7 @@ export async function POST(request: NextRequest) {
     let stageId: string | null = null
     let consoleLog: string | undefined
     let imageFile: File | null = null
+    let aiAssisted: boolean = false // Track if issue was created via AI-assisted flow
 
     if (isFormData) {
       // Parse FormData
@@ -177,6 +178,7 @@ export async function POST(request: NextRequest) {
       stageId = formData.get('stageId') as string | null
       consoleLog = formData.get('consoleLog') as string | undefined
       imageFile = formData.get('image') as File | null
+      aiAssisted = formData.get('aiAssisted') === 'true' // Check if AI-assisted
 
       // Validate image if present
       if (imageFile) {
@@ -380,7 +382,7 @@ export async function POST(request: NextRequest) {
         syncIssuesToCursor().catch(err => console.error('[Issues API] Cursor sync failed:', err))
 
         // Trigger auto-fix for urgent/high priority bugs
-        if (shouldTriggerAutoFix(updatedIssue.priority, updatedIssue.type)) {
+        if (shouldTriggerAutoFix(updatedIssue.priority, updatedIssue.type, aiAssisted)) {
           const reporterName = session.user.name || session.user.email || 'A team member'
           triggerAutoFixWorkflow({
             issueId: updatedIssue.id,
@@ -453,7 +455,7 @@ export async function POST(request: NextRequest) {
     syncIssuesToCursor().catch(err => console.error('[Issues API] Cursor sync failed:', err))
 
     // Trigger auto-fix for urgent/high priority bugs
-    if (shouldTriggerAutoFix(issue.priority, issue.type)) {
+    if (shouldTriggerAutoFix(issue.priority, issue.type, aiAssisted)) {
       const reporterName = session.user.name || session.user.email || 'A team member'
       triggerAutoFixWorkflow({
         issueId: issue.id,
