@@ -509,10 +509,14 @@ export async function POST(
         // Get lead time: from item directly, from itemLeadTimes map, or from global leadTime
         const itemLeadTime = item.leadTime || itemLeadTimes?.[item.rfqLineItemId] || leadTime || null
 
+        // Get original quantity (from RFQ) - if different from quantity, supplier changed it
+        const originalQty = item.originalQuantity || item.quantity
+
         return {
           rfqLineItemId: item.rfqLineItemId,
           unitPrice: item.unitPrice,
           quantity: item.quantity,
+          originalQuantity: originalQty !== item.quantity ? originalQty : null,  // Only store if changed
           totalPrice,
           currency: 'CAD',
           availability: item.availability || null,

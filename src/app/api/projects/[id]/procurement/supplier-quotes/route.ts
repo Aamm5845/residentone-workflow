@@ -213,6 +213,8 @@ export async function GET(
             imageUrl,
             requestedQuantity: rfqItem?.quantity || 0,
             quotedQuantity: li.quantity,
+            originalQuantity: (li as any).originalQuantity || null,  // If supplier changed qty
+            supplierChangedQty: !!(li as any).originalQuantity,  // Flag for easy detection
             unitPrice: Number(li.unitPrice),
             totalPrice: Number(li.totalPrice),
             currency: li.currency,

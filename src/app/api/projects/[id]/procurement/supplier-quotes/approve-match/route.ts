@@ -78,14 +78,22 @@ export async function POST(
     })
 
     // Update the RoomFFEItem status to QUOTE_RECEIVED
+    // Also update quantity if supplier changed it
     if (roomFFEItemId) {
+      const updateData: any = {
+        specStatus: 'QUOTE_RECEIVED',
+        tradePrice: lineItem.unitPrice,
+        updatedById: userId
+      }
+
+      // If supplier changed the quantity, update the spec quantity
+      if (lineItem.originalQuantity && lineItem.quantity !== lineItem.originalQuantity) {
+        updateData.quantity = lineItem.quantity
+      }
+
       await prisma.roomFFEItem.update({
         where: { id: roomFFEItemId },
-        data: {
-          specStatus: 'QUOTE_RECEIVED',
-          tradePrice: lineItem.unitPrice,
-          updatedById: userId
-        }
+        data: updateData
       })
     }
 

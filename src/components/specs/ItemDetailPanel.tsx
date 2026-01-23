@@ -957,7 +957,9 @@ export function ItemDetailPanel({
   const [newComponent, setNewComponent] = useState({ name: '', modelNumber: '', price: '', quantity: 1, image: '' })
   const [showAddComponent, setShowAddComponent] = useState(false)
   const componentImageInputRef = useRef<HTMLInputElement>(null)
+  const editComponentImageInputRef = useRef<HTMLInputElement>(null)
   const [uploadingComponentImage, setUploadingComponentImage] = useState(false)
+  const [uploadingEditComponentImage, setUploadingEditComponentImage] = useState(false)
 
   // Track original values to detect changes
   const originalFormDataRef = useRef<typeof formData | null>(null)
@@ -1426,6 +1428,52 @@ export function ItemDetailPanel({
       toast.error('Failed to upload image')
     } finally {
       setUploadingComponentImage(false)
+    }
+  }
+
+  // Handle image upload for editing component
+  const handleEditComponentImageUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0 || !editingComponent) return
+
+    const file = files[0]
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file')
+      return
+    }
+
+    if (file.size > 4 * 1024 * 1024) {
+      toast.error('Image must be less than 4MB')
+      return
+    }
+
+    setUploadingEditComponentImage(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('imageType', 'general')
+
+      const res = await fetch('/api/upload-image', {
+        method: 'POST',
+        body: formData
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        if (data.url) {
+          setEditingComponent({ ...editingComponent, image: data.url })
+          toast.success('Image uploaded')
+        }
+      } else {
+        toast.error('Failed to upload image')
+      }
+    } catch (error) {
+      console.error('Upload error:', error)
+      toast.error('Failed to upload image')
+    } finally {
+      setUploadingEditComponentImage(false)
+      if (editComponentImageInputRef.current) {
+        editComponentImageInputRef.current.value = ''
+      }
     }
   }
 
@@ -2489,6 +2537,54 @@ export function ItemDetailPanel({
                         <DialogTitle>Edit Component</DialogTitle>
                       </DialogHeader>
                       <div className="space-y-4 py-4">
+                        {/* Image Section */}
+                        <div className="space-y-2">
+                          <Label>Image</Label>
+                          <input
+                            ref={editComponentImageInputRef}
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => handleEditComponentImageUpload(e.target.files)}
+                          />
+                          <div className="flex items-center gap-3">
+                            <div
+                              onClick={() => editComponentImageInputRef.current?.click()}
+                              className="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-400 cursor-pointer flex items-center justify-center bg-gray-50 hover:bg-blue-50 transition-colors overflow-hidden"
+                            >
+                              {uploadingEditComponentImage ? (
+                                <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
+                              ) : editingComponent.image ? (
+                                <img src={editingComponent.image} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <ImageIcon className="w-6 h-6 text-gray-400" />
+                              )}
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => editComponentImageInputRef.current?.click()}
+                                disabled={uploadingEditComponentImage}
+                              >
+                                {editingComponent.image ? 'Change Image' : 'Upload Image'}
+                              </Button>
+                              {editingComponent.image && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  onClick={() => setEditingComponent({ ...editingComponent, image: null })}
+                                >
+                                  <Trash2 className="w-3 h-3 mr-1" />
+                                  Remove Image
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
                         <div className="space-y-2">
                           <Label>Name</Label>
                           <Input

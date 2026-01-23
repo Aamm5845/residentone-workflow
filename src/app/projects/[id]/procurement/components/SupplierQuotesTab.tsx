@@ -1227,8 +1227,8 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                                         {item.quotedQuantity}
                                       </span>
                                       {item.quotedQuantity !== item.requestedQuantity && (
-                                        <div className="mt-0.5 text-xs bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded font-medium">
-                                          Requested: {item.requestedQuantity}
+                                        <div className="mt-0.5 text-xs bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded font-medium" title="Supplier changed quantity from requested amount">
+                                          was {item.requestedQuantity}
                                         </div>
                                       )}
                                     </div>

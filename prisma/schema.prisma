@@ -3301,10 +3301,11 @@ model SupplierQuoteLineItem {
   roomFFEItemId String?
 
   // Pricing
-  unitPrice  Decimal
-  quantity   Int
-  totalPrice Decimal
-  currency   String  @default("CAD")
+  unitPrice        Decimal
+  quantity         Int
+  originalQuantity Int?    // Original qty from RFQ - if different from quantity, supplier changed it
+  totalPrice       Decimal
+  currency         String  @default("CAD")
 
   // Availability
   availability  String? // 'IN_STOCK', 'BACKORDER', 'SPECIAL_ORDER'

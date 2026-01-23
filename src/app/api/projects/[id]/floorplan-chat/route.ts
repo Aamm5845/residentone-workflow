@@ -7,6 +7,84 @@ import { v4 as uuidv4 } from 'uuid'
 import { sendEmail } from '@/lib/email'
 import { getBaseUrl } from '@/lib/get-base-url'
 
+// Generate email HTML for new chat message notifications (for Sami)
+function generateNewMessageNotificationEmail({
+  recipientName,
+  authorName,
+  projectName,
+  messageContent,
+  projectUrl,
+  hasAttachment
+}: {
+  recipientName: string
+  authorName: string
+  projectName: string
+  messageContent: string
+  projectUrl: string
+  hasAttachment: boolean
+}) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New message - ${projectName}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; line-height: 1.6;">
+    <div style="max-width: 640px; margin: 0 auto; background: white;">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 40px 32px; text-align: center;">
+            <img src="${getBaseUrl()}/meisnerinteriorlogo.png"
+                 alt="Meisner Interiors"
+                 style="max-width: 200px; height: auto; margin-bottom: 24px; background-color: white; padding: 16px; border-radius: 8px;" />
+            <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 600;">New Floorplan Message</h1>
+            <p style="margin: 8px 0 0 0; color: #dbeafe; font-size: 16px; font-weight: 400;">Floorplan Drawings • ${projectName}</p>
+        </div>
+
+        <!-- Content -->
+        <div style="padding: 40px 32px;">
+            <p style="margin: 0 0 24px 0; color: #1e293b; font-size: 16px;">Hi ${recipientName},</p>
+
+            <p style="margin: 0 0 16px 0; color: #475569; font-size: 15px; line-height: 1.7;">
+                <strong>${authorName}</strong> posted a new message in the Floorplan Drawings chat:
+            </p>
+
+            <div style="background: #f1f5f9; border-left: 4px solid #3b82f6; padding: 20px; margin: 24px 0; border-radius: 6px;">
+                <p style="margin: 0; color: #1e293b; font-size: 15px; line-height: 1.6; font-style: italic;">"${messageContent}"</p>
+                ${hasAttachment ? '<p style="margin: 12px 0 0 0; color: #64748b; font-size: 13px;">📎 Attachment included</p>' : ''}
+            </div>
+
+            <!-- CTA Button -->
+            <div style="text-align: center; margin: 32px 0;">
+                <a href="${projectUrl}"
+                   style="background: #3b82f6; color: white; padding: 16px 32px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 600; display: inline-block; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);"
+                   target="_blank">View Floorplan Drawings</a>
+            </div>
+
+            <p style="margin: 32px 0 0 0; color: #475569; font-size: 15px; line-height: 1.7;">
+                You're receiving this because you are the floorplan drawings coordinator.
+            </p>
+        </div>
+
+        <!-- Footer -->
+        <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px; text-align: center;">
+            <div style="color: #1e293b; font-size: 14px; font-weight: 600; margin-bottom: 12px;">Meisner Interiors Team</div>
+
+            <div style="margin-bottom: 12px;">
+                <a href="mailto:projects@meisnerinteriors.com"
+                   style="color: #3b82f6; text-decoration: none; font-size: 13px; margin: 0 8px;">projects@meisnerinteriors.com</a>
+                <span style="color: #cbd5e1;">•</span>
+                <a href="tel:+15147976957"
+                   style="color: #3b82f6; text-decoration: none; font-size: 13px; margin: 0 8px;">514-797-6957</a>
+            </div>
+
+            <p style="margin: 0; color: #94a3b8; font-size: 11px;">&copy; 2025 Meisner Interiors. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>`
+}
+
 // Generate email HTML for mention notifications
 function generateMentionNotificationEmail({
   recipientName,
@@ -439,6 +517,13 @@ export async function POST(
       }
     }
 
+    const projectUrl = `${getBaseUrl()}/projects/${project.id}/floorplan/drawings`
+    const messagePreview = content.length > 150 ? content.substring(0, 150) + '...' : content
+    const authorName = session.user.name || 'A team member'
+
+    // Track notified user IDs to avoid duplicates
+    const notifiedUserIds = new Set<string>([session.user.id]) // Always skip the author
+
     // Send notifications for mentions
     if (mentions && mentions.length > 0) {
       // Get mentioned users' details for email notifications
@@ -450,15 +535,14 @@ export async function POST(
         select: {
           id: true,
           name: true,
-          email: true
+          email: true,
+          emailNotificationsEnabled: true
         }
       })
 
-      const projectUrl = `${getBaseUrl()}/projects/${project.id}/floorplan/drawings`
-      const messagePreview = content.length > 150 ? content.substring(0, 150) + '...' : content
-      const authorName = session.user.name || 'A team member'
-
       for (const user of mentionedUsers) {
+        notifiedUserIds.add(user.id) // Track that this user was notified
+
         // Create in-app notification
         await prisma.notification.create({
           data: {
@@ -472,7 +556,7 @@ export async function POST(
         })
 
         // Send email notification (don't await to not block the response)
-        if (user.email) {
+        if (user.email && user.emailNotificationsEnabled !== false) {
           console.log(`[Floorplan Chat] Sending mention email to ${user.name} (${user.email})`)
           sendEmail({
             to: user.email,
@@ -493,6 +577,55 @@ export async function POST(
           })
         }
       }
+    }
+
+    // Always notify Sami (floorplan coordinator) for all messages
+    // unless they are the author or were already mentioned
+    const samiUser = await prisma.user.findFirst({
+      where: {
+        email: 'sami@meisnerinteriors.com',
+        emailNotificationsEnabled: true
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true
+      }
+    })
+
+    if (samiUser && !notifiedUserIds.has(samiUser.id)) {
+      console.log(`[Floorplan Chat] Sending notification email to Sami (${samiUser.email})`)
+
+      // Create in-app notification for Sami
+      await prisma.notification.create({
+        data: {
+          userId: samiUser.id,
+          type: 'CHAT_MESSAGE',
+          title: `New floorplan message from ${authorName}`,
+          message: `New message in the floorplan chat for ${project.name}`,
+          link: `/projects/${project.id}/floorplan/drawings`,
+          read: false
+        }
+      })
+
+      // Send email notification to Sami
+      sendEmail({
+        to: samiUser.email,
+        subject: `New Floorplan Message - ${project.name}`,
+        html: generateNewMessageNotificationEmail({
+          recipientName: samiUser.name || 'Sami',
+          authorName,
+          projectName: project.name,
+          messageContent: messagePreview,
+          projectUrl,
+          hasAttachment: uploadedAttachments.length > 0
+        }),
+        text: `Hi ${samiUser.name},\n\n${authorName} posted a new message in the Floorplan Drawings chat for ${project.name}:\n\n"${messagePreview}"\n\nView the floorplan: ${projectUrl}\n\nBest regards,\nMeisner Interiors Team`
+      }).then(() => {
+        console.log(`[Floorplan Chat] ✅ Notification email sent to Sami`)
+      }).catch((error) => {
+        console.error(`[Floorplan Chat] ❌ Failed to send notification email to Sami:`, error)
+      })
     }
 
     return NextResponse.json({ 

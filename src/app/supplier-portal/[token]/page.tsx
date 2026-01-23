@@ -119,6 +119,7 @@ interface QuoteLineItem {
   rfqLineItemId: string
   unitPrice: string
   quantity: number
+  originalQuantity: number  // Original qty from RFQ
   leadTime: string
   notes: string
 }
@@ -270,6 +271,7 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
           rfqLineItemId: item.id,
           unitPrice: '',
           quantity: item.quantity,
+          originalQuantity: item.quantity,  // Track original qty for change detection
           leadTime: '',
           notes: ''
         }))
@@ -422,6 +424,7 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
               rfqLineItemId: item.rfqLineItemId,
               unitPrice,
               quantity: item.quantity,
+              originalQuantity: item.originalQuantity,  // Track if qty was changed
               leadTime: item.leadTime || null,
               notes: item.notes || null
             }
@@ -1144,6 +1147,24 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                                 )}
                               </div>
                             </div>
+                            {/* Quantity - Editable */}
+                            <div className="min-w-[90px]">
+                              <Label className="text-xs text-gray-500">
+                                Qty {lineItem?.quantity !== lineItem?.originalQuantity && (
+                                  <span className="text-amber-600">(was {lineItem?.originalQuantity})</span>
+                                )}
+                              </Label>
+                              <Input
+                                type="number"
+                                min="1"
+                                value={lineItem?.quantity || item.quantity}
+                                onChange={(e) => updateLineItem(index, 'quantity', parseInt(e.target.value) || 1)}
+                                className={cn(
+                                  "mt-1 h-9 text-center",
+                                  lineItem?.quantity !== lineItem?.originalQuantity && "border-amber-400 bg-amber-50"
+                                )}
+                              />
+                            </div>
                             {/* Lead Time */}
                             <div className="min-w-[140px]">
                               <Label className="text-xs text-gray-500">Lead Time</Label>
@@ -1192,7 +1213,7 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                             {matchedPrice && (
                               <div className="text-right min-w-[100px]">
                                 <p className="text-xs text-gray-500">Total</p>
-                                <p className="font-bold text-emerald-600">{formatCurrency(matchedPrice * item.quantity)}</p>
+                                <p className="font-bold text-emerald-600">{formatCurrency(matchedPrice * (lineItem?.quantity || item.quantity))}</p>
                               </div>
                             )}
                           </div>
@@ -1218,6 +1239,24 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                                   )}
                                 />
                               </div>
+                            </div>
+                            {/* Quantity - Editable */}
+                            <div className="min-w-[90px]">
+                              <Label className="text-xs text-gray-500">
+                                Qty {lineItem?.quantity !== lineItem?.originalQuantity && (
+                                  <span className="text-amber-600">(was {lineItem?.originalQuantity})</span>
+                                )}
+                              </Label>
+                              <Input
+                                type="number"
+                                min="1"
+                                value={lineItem?.quantity || item.quantity}
+                                onChange={(e) => updateLineItem(index, 'quantity', parseInt(e.target.value) || 1)}
+                                className={cn(
+                                  "mt-1 h-9 text-center",
+                                  lineItem?.quantity !== lineItem?.originalQuantity && "border-amber-400 bg-amber-50"
+                                )}
+                              />
                             </div>
                             <div className="min-w-[140px]">
                               <Label className="text-xs text-gray-500">Lead Time</Label>
@@ -1265,7 +1304,7 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                             {manualPrice && manualPrice > 0 && (
                               <div className="text-right min-w-[100px]">
                                 <p className="text-xs text-gray-500">Total</p>
-                                <p className="font-bold text-emerald-600">{formatCurrency(manualPrice * item.quantity)}</p>
+                                <p className="font-bold text-emerald-600">{formatCurrency(manualPrice * (lineItem?.quantity || item.quantity))}</p>
                               </div>
                             )}
                           </div>
