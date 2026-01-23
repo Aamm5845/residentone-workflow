@@ -115,6 +115,7 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [imageError, setImageError] = useState<string | null>(null)
   const [useAIAssist, setUseAIAssist] = useState(false)
+  const [showAutoFixMessage, setShowAutoFixMessage] = useState(false)
 
   const isEditing = !!editingIssue
   const canEdit = true // Everyone can edit
@@ -215,6 +216,7 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
       setPriority('MEDIUM')
       setStatus('OPEN')
       setUseAIAssist(false)
+      setShowAutoFixMessage(false)
     }
     // Clean up image preview
     if (imagePreview && imagePreview.startsWith('blob:')) {
@@ -263,8 +265,16 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
       })
 
       if (response.ok) {
+        const result = await response.json()
         onIssueCreated?.()
-        handleClose()
+
+        // Show auto-fix message if enabled
+        if (result.autoFixEnabled) {
+          setShowAutoFixMessage(true)
+          setUseAIAssist(false)
+        } else {
+          handleClose()
+        }
       } else {
         const errorData = await response.json().catch(() => ({}))
         throw new Error(errorData.error || 'Failed to create issue')
@@ -438,8 +448,39 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
           </DialogDescription>
         </DialogHeader>
 
-        {/* AI-Assisted Issue Form for urgent auto-fix */}
-        {useAIAssist && !isEditing && !viewOnly ? (
+        {/* Auto-Fix In Progress Message */}
+        {showAutoFixMessage ? (
+          <div className="p-6 space-y-6 text-center">
+            <div className="flex justify-center">
+              <div className="p-4 bg-green-100 rounded-full">
+                <Zap className="w-10 h-10 text-green-600" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold text-gray-900">Issue Submitted - Auto-Fix Started</h3>
+              <p className="text-gray-600">
+                Your issue is now being analyzed and fixed automatically.
+              </p>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left">
+              <p className="text-sm text-blue-800">
+                <strong>What happens next:</strong>
+              </p>
+              <ul className="text-sm text-blue-700 mt-2 space-y-1 list-disc list-inside">
+                <li>AI is analyzing the code to find and fix the issue</li>
+                <li>Status is set to <span className="font-medium">In Progress</span></li>
+                <li>You&apos;ll receive an email when the fix is ready</li>
+                <li>Verify the fix works, then mark as resolved</li>
+              </ul>
+            </div>
+
+            <Button onClick={handleClose} className="w-full">
+              Got it
+            </Button>
+          </div>
+        ) : useAIAssist && !isEditing && !viewOnly ? (
           <div className="p-6">
             <AIAssistedIssueForm
               priority={priority as 'HIGH' | 'URGENT'}

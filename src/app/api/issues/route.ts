@@ -226,6 +226,19 @@ export async function POST(request: NextRequest) {
       metadata.consoleLog = consoleLog
     }
 
+    // Determine initial status - if AI-assisted with auto-fix, start as IN_PROGRESS
+    const willAutoFix = shouldTriggerAutoFix(priority, type, aiAssisted)
+    const initialStatus = willAutoFix ? 'IN_PROGRESS' : 'OPEN'
+
+    // Add auto-fix metadata if applicable
+    if (willAutoFix) {
+      metadata.autoFix = {
+        enabled: true,
+        status: 'pending',
+        startedAt: new Date().toISOString()
+      }
+    }
+
     // Create the issue first
     const issue = await prisma.issue.create({
       data: {
@@ -233,7 +246,7 @@ export async function POST(request: NextRequest) {
         description: description.trim(),
         type,
         priority,
-        status: 'OPEN',
+        status: initialStatus,
         reportedBy: session.user.id,
         orgId: organization?.id || null,
         projectId: projectId || null,
@@ -397,7 +410,7 @@ export async function POST(request: NextRequest) {
           }).catch(err => console.error('[Issues API] Auto-fix trigger failed:', err))
         }
 
-        return NextResponse.json(updatedIssue, { status: 201 })
+        return NextResponse.json({ ...updatedIssue, autoFixEnabled: willAutoFix }, { status: 201 })
       } catch (blobError) {
         console.error('[Issues API] Failed to upload image to Blob (non-fatal):', blobError)
         // Return issue without image - don't fail the entire request
@@ -470,7 +483,7 @@ export async function POST(request: NextRequest) {
       }).catch(err => console.error('[Issues API] Auto-fix trigger failed:', err))
     }
 
-    return NextResponse.json(issue, { status: 201 })
+    return NextResponse.json({ ...issue, autoFixEnabled: willAutoFix }, { status: 201 })
   } catch (error) {
     console.error('Error creating issue:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

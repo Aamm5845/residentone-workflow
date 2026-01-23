@@ -13,10 +13,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { 
-  Bug, 
-  Lightbulb, 
-  RefreshCw, 
+import {
+  Bug,
+  Lightbulb,
+  RefreshCw,
   MessageCircle,
   Search,
   Filter,
@@ -27,7 +27,9 @@ import {
   Clock,
   CheckCircle,
   AlertTriangle,
-  Eye
+  Eye,
+  Zap,
+  Loader2
 } from 'lucide-react'
 import IssueModal from './issue-modal'
 
@@ -73,6 +75,12 @@ interface Issue {
   metadata?: {
     consoleLog?: string
     imageUrl?: string
+    autoFix?: {
+      enabled?: boolean
+      status?: 'pending' | 'running' | 'success' | 'failed'
+      startedAt?: string
+      summary?: string
+    }
   }
 }
 
@@ -398,10 +406,22 @@ export default function IssueList({ currentUser }: IssueListProps) {
                         {issue.priority}
                       </Badge>
                       <div className="flex items-center space-x-1">
-                        <StatusIcon className="w-3 h-3" />
-                        <Badge className={STATUS_COLORS[issue.status]}>
-                          {issue.status.replace('_', ' ')}
-                        </Badge>
+                        {issue.metadata?.autoFix?.enabled && issue.status === 'IN_PROGRESS' ? (
+                          <>
+                            <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
+                            <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">
+                              <Zap className="w-3 h-3 mr-1" />
+                              Auto-Fixing
+                            </Badge>
+                          </>
+                        ) : (
+                          <>
+                            <StatusIcon className="w-3 h-3" />
+                            <Badge className={STATUS_COLORS[issue.status]}>
+                              {issue.status.replace('_', ' ')}
+                            </Badge>
+                          </>
+                        )}
                       </div>
                     </div>
                     
