@@ -67,6 +67,7 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [imageError, setImageError] = useState<string | null>(null)
   const [useAIAssist, setUseAIAssist] = useState(false)
+  const [showModeSelection, setShowModeSelection] = useState(true) // Show mode selection first
 
   const isEditing = !!editingIssue
   const canEdit = true // Everyone can edit
@@ -101,17 +102,11 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
       setImagePreview(null)
       setImageError(null)
       setUseAIAssist(false)
+      setShowModeSelection(true) // Show mode selection for new issues
     }
   }, [editingIssue, isOpen])
 
-  // Handle priority change - trigger AI assist for HIGH/URGENT
-  const handlePriorityChange = (newPriority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT') => {
-    setPriority(newPriority)
-    if ((newPriority === 'HIGH' || newPriority === 'URGENT') && !isEditing) {
-      setUseAIAssist(true)
-    }
-  }
-
+  
   // Cleanup image preview URL on unmount or when imageFile changes
   useEffect(() => {
     return () => {
@@ -174,6 +169,7 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
       setPriority('MEDIUM')
       setStatus('OPEN')
       setUseAIAssist(false)
+      setShowModeSelection(true)
     }
     // Clean up image preview
     if (imagePreview && imagePreview.startsWith('blob:')) {
@@ -183,6 +179,19 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
     setImagePreview(null)
     setImageError(null)
     onClose()
+  }
+
+  // Handle selecting AI-assisted mode (auto-fix)
+  const handleSelectAutoFix = (selectedPriority: 'HIGH' | 'URGENT') => {
+    setPriority(selectedPriority)
+    setUseAIAssist(true)
+    setShowModeSelection(false)
+  }
+
+  // Handle selecting manual mode
+  const handleSelectManual = () => {
+    setUseAIAssist(false)
+    setShowModeSelection(false)
   }
 
   // Handle AI-assisted form submission
@@ -391,14 +400,95 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
           </DialogDescription>
         </DialogHeader>
 
-        {/* AI-Assisted Issue Form for HIGH/URGENT new issues */}
-        {useAIAssist && !isEditing && !viewOnly ? (
+        {/* Mode Selection Screen for new issues */}
+        {showModeSelection && !isEditing && !viewOnly ? (
+          <div className="p-6 space-y-6">
+            <div className="text-center">
+              <p className="text-gray-600">How would you like to report this issue?</p>
+            </div>
+
+            {/* Auto-Fix Option */}
+            <div className="space-y-3">
+              <button
+                onClick={() => handleSelectAutoFix('URGENT')}
+                className="w-full p-4 border-2 border-red-200 rounded-lg hover:border-red-400 hover:bg-red-50 transition-all text-left group"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-red-100 rounded-lg group-hover:bg-red-200 transition-colors">
+                    <Zap className="w-6 h-6 text-red-600" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-gray-900">Urgent - Auto Fix</span>
+                      <span className="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700 rounded-full">Recommended</span>
+                    </div>
+                    <p className="text-sm text-gray-600 mt-1">
+                      AI will ask clarifying questions, then automatically fix the issue. You&apos;ll get an email when it&apos;s ready to test.
+                    </p>
+                  </div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => handleSelectAutoFix('HIGH')}
+                className="w-full p-4 border-2 border-orange-200 rounded-lg hover:border-orange-400 hover:bg-orange-50 transition-all text-left group"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-orange-100 rounded-lg group-hover:bg-orange-200 transition-colors">
+                    <Zap className="w-6 h-6 text-orange-600" />
+                  </div>
+                  <div className="flex-1">
+                    <span className="font-semibold text-gray-900">High Priority - Auto Fix</span>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Same as urgent, but for important issues that aren&apos;t blocking your work.
+                    </p>
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            {/* Divider */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-500">or</span>
+              </div>
+            </div>
+
+            {/* Manual Option */}
+            <button
+              onClick={handleSelectManual}
+              className="w-full p-4 border-2 border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 transition-all text-left"
+            >
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-gray-100 rounded-lg">
+                  <MessageCircle className="w-6 h-6 text-gray-600" />
+                </div>
+                <div className="flex-1">
+                  <span className="font-semibold text-gray-900">Manual Entry</span>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Fill out the form yourself. Good for feature requests, suggestions, or low priority issues.
+                  </p>
+                </div>
+              </div>
+            </button>
+
+            <Button variant="ghost" onClick={handleClose} className="w-full">
+              Cancel
+            </Button>
+          </div>
+        ) : useAIAssist && !isEditing && !viewOnly ? (
           <div className="p-6">
             <AIAssistedIssueForm
               priority={priority as 'HIGH' | 'URGENT'}
               onSubmit={handleAISubmit}
               onCancel={handleClose}
-              onSwitchToManual={() => setUseAIAssist(false)}
+              onSwitchToManual={() => {
+                setUseAIAssist(false)
+                setShowModeSelection(false)
+              }}
             />
           </div>
         ) : viewOnly ? (
@@ -540,7 +630,7 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
 
             <div>
               <Label htmlFor="priority">Priority</Label>
-              <Select value={priority} onValueChange={(value: any) => handlePriorityChange(value)}>
+              <Select value={priority} onValueChange={(value: any) => setPriority(value)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
