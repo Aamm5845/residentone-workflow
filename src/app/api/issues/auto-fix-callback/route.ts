@@ -135,6 +135,20 @@ export async function POST(request: NextRequest) {
           )
         )
       )
+
+      // Also notify reporter about the failure
+      if (issue.reporter?.email) {
+        await sendAutoFixNotificationEmail(
+          issue.reporter.email,
+          issue.reporter.name || 'User',
+          issue.title,
+          summary,
+          analysis || 'Manual review required',
+          '',
+          false,
+          true // isReporter
+        )
+      }
     }
 
     return NextResponse.json({ success: true })
