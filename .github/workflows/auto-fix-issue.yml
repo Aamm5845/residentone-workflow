@@ -57,10 +57,24 @@ jobs:
           console.log('Analyzing issue:', issue.title);
           console.log('Description:', issue.description);
 
+          // Extract keywords from issue for smart file matching
+          function extractKeywords(text) {
+            const words = text.toLowerCase()
+              .replace(/[^a-z0-9\s]/g, ' ')
+              .split(/\s+/)
+              .filter(w => w.length > 2);
+            // Common keywords to look for in file paths
+            const relevant = ['spec', 'archive', 'all', 'page', 'list', 'table', 'component', 'api', 'route'];
+            return [...new Set([...words.filter(w => relevant.some(r => w.includes(r))), ...words.slice(0, 10)])];
+          }
+
+          const keywords = extractKeywords(issue.title + ' ' + issue.description);
+          console.log('Keywords:', keywords.join(', '));
+
           // Read relevant files based on issue context
           async function getRelevantFiles() {
-            const files = [];
-            const keyPaths = ['src/app', 'src/components', 'src/lib', 'prisma/schema.prisma'];
+            const allFiles = [];
+            const keyPaths = ['src/app', 'src/components', 'src/lib', 'prisma'];
 
             function walkDir(dir, fileList = []) {
               if (!fs.existsSync(dir)) return fileList;
@@ -79,10 +93,32 @@ jobs:
             }
 
             for (const keyPath of keyPaths) {
-              const foundFiles = walkDir(keyPath);
-              files.push(...foundFiles.slice(0, 50));
+              allFiles.push(...walkDir(keyPath));
             }
-            return files.slice(0, 100);
+
+            // Score files by keyword relevance
+            const scored = allFiles.map(f => {
+              const pathLower = f.toLowerCase();
+              let score = 0;
+              for (const kw of keywords) {
+                if (pathLower.includes(kw)) score += 10;
+              }
+              // Boost page.tsx, route.ts files
+              if (pathLower.includes('page.tsx')) score += 5;
+              if (pathLower.includes('route.ts')) score += 5;
+              return { path: f, score };
+            });
+
+            // Sort by score descending, take top relevant files
+            scored.sort((a, b) => b.score - a.score);
+
+            // Take top 50 relevant + some base files
+            const relevant = scored.filter(f => f.score > 0).slice(0, 50);
+            const base = scored.filter(f => f.score === 0).slice(0, 20);
+
+            console.log('Top relevant files:', relevant.slice(0, 10).map(f => f.path).join(', '));
+
+            return [...relevant, ...base].map(f => f.path);
           }
 
           const relevantFiles = await getRelevantFiles();
