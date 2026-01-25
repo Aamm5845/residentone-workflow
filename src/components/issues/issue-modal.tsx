@@ -15,8 +15,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { AlertCircle, Bug, Lightbulb, RefreshCw, MessageCircle, Trash2, CheckCircle, Terminal, Upload, X, Image as ImageIcon, Zap, ArrowLeft } from 'lucide-react'
+import { AlertCircle, Bug, Lightbulb, RefreshCw, MessageCircle, Trash2, CheckCircle, Terminal, Upload, X, Image as ImageIcon, Zap, ArrowLeft, Loader2, ExternalLink, XCircle, Clock } from 'lucide-react'
 import { AIAssistedIssueForm } from './ai-assisted-issue-form'
+
+interface IssueComment {
+  id: string
+  content: string
+  createdAt: string
+  author: {
+    id: string
+    name: string
+    image?: string
+  }
+}
 
 interface Issue {
   id: string
@@ -36,7 +47,19 @@ interface Issue {
   metadata?: {
     consoleLog?: string
     imageUrl?: string
+    autoFix?: {
+      enabled?: boolean
+      status?: string
+      startedAt?: string
+      attempted?: boolean
+      success?: boolean
+      summary?: string
+      analysis?: string
+      commitUrl?: string
+      timestamp?: string
+    }
   }
+  comments?: IssueComment[]
 }
 
 interface IssueModalProps {
@@ -613,6 +636,141 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
                     />
                   </a>
                   <p className="text-xs text-gray-500 mt-1">Click to view full size</p>
+                </div>
+              </div>
+            )}
+
+            {/* Auto-Fix Status Section */}
+            {editingIssue?.metadata?.autoFix && (
+              <div className="border-t pt-4 mt-4">
+                <Label className="flex items-center gap-2 mb-3">
+                  <Zap className="w-4 h-4" />
+                  Auto-Fix Status
+                </Label>
+
+                {/* In Progress State */}
+                {editingIssue.metadata.autoFix.enabled && !editingIssue.metadata.autoFix.attempted && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 text-blue-700 mb-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span className="font-medium">Auto-Fix In Progress</span>
+                    </div>
+                    <p className="text-sm text-blue-600">
+                      AI is analyzing the code and working on a fix. You&apos;ll receive an email when complete.
+                    </p>
+                    {editingIssue.metadata.autoFix.startedAt && (
+                      <p className="text-xs text-blue-500 mt-2 flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        Started: {new Date(editingIssue.metadata.autoFix.startedAt).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Success State */}
+                {editingIssue.metadata.autoFix.attempted && editingIssue.metadata.autoFix.success && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 text-green-700 mb-2">
+                      <CheckCircle className="w-4 h-4" />
+                      <span className="font-medium">Auto-Fix Applied</span>
+                    </div>
+                    {editingIssue.metadata.autoFix.summary && (
+                      <p className="text-sm text-green-700 mb-2">
+                        {editingIssue.metadata.autoFix.summary}
+                      </p>
+                    )}
+                    {editingIssue.metadata.autoFix.analysis && (
+                      <p className="text-sm text-green-600 mb-2">
+                        <strong>Analysis:</strong> {editingIssue.metadata.autoFix.analysis}
+                      </p>
+                    )}
+                    {editingIssue.metadata.autoFix.commitUrl && (
+                      <a
+                        href={editingIssue.metadata.autoFix.commitUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-sm text-green-700 hover:text-green-800 underline"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        View Commit on GitHub
+                      </a>
+                    )}
+                    {editingIssue.metadata.autoFix.timestamp && (
+                      <p className="text-xs text-green-500 mt-2 flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        Fixed: {new Date(editingIssue.metadata.autoFix.timestamp).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Failed State */}
+                {editingIssue.metadata.autoFix.attempted && !editingIssue.metadata.autoFix.success && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 text-red-700 mb-2">
+                      <XCircle className="w-4 h-4" />
+                      <span className="font-medium">Auto-Fix Failed</span>
+                    </div>
+                    {editingIssue.metadata.autoFix.summary && (
+                      <p className="text-sm text-red-700 mb-2">
+                        {editingIssue.metadata.autoFix.summary}
+                      </p>
+                    )}
+                    {editingIssue.metadata.autoFix.analysis && (
+                      <p className="text-sm text-red-600">
+                        {editingIssue.metadata.autoFix.analysis}
+                      </p>
+                    )}
+                    <p className="text-sm text-red-600 mt-2">
+                      Manual review and fix required.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Comments Section */}
+            {editingIssue?.comments && editingIssue.comments.length > 0 && (
+              <div className="border-t pt-4 mt-4">
+                <Label className="flex items-center gap-2 mb-3">
+                  <MessageCircle className="w-4 h-4" />
+                  Activity ({editingIssue.comments.length})
+                </Label>
+                <div className="space-y-3 max-h-64 overflow-y-auto">
+                  {editingIssue.comments.map((comment) => (
+                    <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        {comment.author.image ? (
+                          <img
+                            src={comment.author.image}
+                            alt={comment.author.name}
+                            className="w-6 h-6 rounded-full"
+                          />
+                        ) : (
+                          <div className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-xs font-medium text-gray-600">
+                            {comment.author.name?.charAt(0) || '?'}
+                          </div>
+                        )}
+                        <span className="text-sm font-medium text-gray-700">{comment.author.name}</span>
+                        <span className="text-xs text-gray-500">
+                          {new Date(comment.createdAt).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="text-sm text-gray-700 whitespace-pre-wrap prose prose-sm max-w-none">
+                        {comment.content.split('\n').map((line, i) => {
+                          // Handle markdown-style bold
+                          const parts = line.split(/\*\*(.*?)\*\*/g)
+                          return (
+                            <p key={i} className="mb-1">
+                              {parts.map((part, j) =>
+                                j % 2 === 1 ? <strong key={j}>{part}</strong> : part
+                              )}
+                            </p>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
