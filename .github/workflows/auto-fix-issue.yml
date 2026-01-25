@@ -189,6 +189,9 @@ jobs:
           # Read fix summary
           SUMMARY=$(cat fix-result.json | jq -r '.summary // "Auto-fix for issue"')
 
+          # Remove temporary files before committing
+          rm -f fix-issue.mjs fix-result.json
+
           git add -A
           git commit -m "fix: $SUMMARY
 

@@ -163,3 +163,7 @@ SMS_DEBUG_RESULTS.md
 # Claude and system files
 .claude/
 nul
+
+# Auto-fix temporary files
+fix-issue.mjs
+fix-result.json
