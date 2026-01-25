@@ -55,6 +55,34 @@ const ISSUE_TYPES = {
   GENERAL: { icon: MessageCircle, label: 'General' }
 }
 
+// Map URL paths to friendly display names
+const PAGE_DISPLAY_NAMES: Record<string, string> = {
+  // Project sections
+  'ffe': 'FFE Workspace',
+  'specs': 'All Specs',
+  'procurement': 'Procurement',
+  'schedule': 'Schedule',
+  'documents': 'Documents',
+  'settings': 'Project Settings',
+  'team': 'Team',
+  'budget': 'Budget',
+  'overview': 'Overview',
+  // Room sections
+  '3d-rendering': '3D Rendering Phase',
+  'design': 'Design Phase',
+  'install': 'Install Phase',
+  'construction': 'Construction Phase',
+  'planning': 'Planning Phase',
+  // Other pages
+  'projects': 'Projects',
+  'dashboard': 'Dashboard',
+  'preferences': 'Preferences',
+  'suppliers': 'Suppliers',
+  'clients': 'Clients',
+  'inbox': 'Inbox',
+  'calendar': 'Calendar',
+}
+
 export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, editingIssue, viewOnly = false }: IssueModalProps) {
   const { data: session } = useSession()
   const pathname = usePathname() // Capture current page for issue context
@@ -76,10 +104,10 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
       const parts = pathname.split('/').filter(Boolean)
       const section = parts[parts.length - 1]
 
-      // Format section name
-      const sectionName = section
-        ?.replace(/-/g, ' ')
-        ?.replace(/^\w/, c => c.toUpperCase()) || 'Unknown'
+      // Get friendly display name or format the section
+      const sectionName = PAGE_DISPLAY_NAMES[section?.toLowerCase()] ||
+        section?.replace(/-/g, ' ')?.replace(/\b\w/g, c => c.toUpperCase()) ||
+        'Unknown'
 
       if (projectId && projectId !== 'new') {
         try {
