@@ -59,7 +59,8 @@ const ISSUE_TYPES = {
 const PAGE_DISPLAY_NAMES: Record<string, string> = {
   // Project sections
   'ffe': 'FFE Workspace',
-  'specs': 'All Specs',
+  'specs': 'Specs',
+  'all': 'All Specs', // /specs/all
   'procurement': 'Procurement',
   'schedule': 'Schedule',
   'documents': 'Documents',
@@ -81,6 +82,9 @@ const PAGE_DISPLAY_NAMES: Record<string, string> = {
   'clients': 'Clients',
   'inbox': 'Inbox',
   'calendar': 'Calendar',
+  'rooms': 'Rooms',
+  'quotes': 'Quotes',
+  'orders': 'Orders',
 }
 
 export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, editingIssue, viewOnly = false }: IssueModalProps) {
