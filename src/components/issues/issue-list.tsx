@@ -19,7 +19,6 @@ import {
   RefreshCw,
   MessageCircle,
   Search,
-  Filter,
   Plus,
   MoreVertical,
   Edit3,
@@ -27,9 +26,7 @@ import {
   Clock,
   CheckCircle,
   AlertTriangle,
-  Eye,
-  Zap,
-  Loader2
+  Eye
 } from 'lucide-react'
 import IssueModal from './issue-modal'
 
@@ -75,17 +72,6 @@ interface Issue {
   metadata?: {
     consoleLog?: string
     imageUrl?: string
-    autoFix?: {
-      enabled?: boolean
-      status?: string
-      startedAt?: string
-      attempted?: boolean
-      success?: boolean
-      summary?: string
-      analysis?: string
-      commitUrl?: string
-      timestamp?: string
-    }
   }
 }
 
@@ -411,37 +397,10 @@ export default function IssueList({ currentUser }: IssueListProps) {
                         {issue.priority}
                       </Badge>
                       <div className="flex items-center space-x-1">
-                        {issue.metadata?.autoFix?.enabled && !issue.metadata?.autoFix?.attempted && issue.status === 'IN_PROGRESS' ? (
-                          <>
-                            <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
-                            <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">
-                              <Zap className="w-3 h-3 mr-1" />
-                              Auto-Fixing
-                            </Badge>
-                          </>
-                        ) : issue.metadata?.autoFix?.attempted && issue.metadata?.autoFix?.success ? (
-                          <>
-                            <CheckCircle className="w-3 h-3 text-green-500" />
-                            <Badge className="bg-green-100 text-green-700 hover:bg-green-100">
-                              <Zap className="w-3 h-3 mr-1" />
-                              Auto-Fixed
-                            </Badge>
-                          </>
-                        ) : issue.metadata?.autoFix?.attempted && !issue.metadata?.autoFix?.success ? (
-                          <>
-                            <AlertTriangle className="w-3 h-3 text-orange-500" />
-                            <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100">
-                              Fix Failed
-                            </Badge>
-                          </>
-                        ) : (
-                          <>
-                            <StatusIcon className="w-3 h-3" />
-                            <Badge className={STATUS_COLORS[issue.status]}>
-                              {issue.status.replace('_', ' ')}
-                            </Badge>
-                          </>
-                        )}
+                        <StatusIcon className="w-3 h-3" />
+                        <Badge className={STATUS_COLORS[issue.status]}>
+                          {issue.status.replace('_', ' ')}
+                        </Badge>
                       </div>
                     </div>
                     

@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { AlertCircle, Bug, Lightbulb, RefreshCw, MessageCircle, Trash2, CheckCircle, Terminal, Upload, X, Image as ImageIcon, Zap, ArrowLeft, Loader2, ExternalLink, XCircle, Clock } from 'lucide-react'
+import { AlertCircle, Bug, Lightbulb, RefreshCw, MessageCircle, Trash2, CheckCircle, Terminal, Upload, X, Image as ImageIcon } from 'lucide-react'
 import { AIAssistedIssueForm } from './ai-assisted-issue-form'
 
 interface IssueComment {
@@ -47,17 +47,6 @@ interface Issue {
   metadata?: {
     consoleLog?: string
     imageUrl?: string
-    autoFix?: {
-      enabled?: boolean
-      status?: string
-      startedAt?: string
-      attempted?: boolean
-      success?: boolean
-      summary?: string
-      analysis?: string
-      commitUrl?: string
-      timestamp?: string
-    }
   }
   comments?: IssueComment[]
 }
@@ -170,7 +159,6 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [imageError, setImageError] = useState<string | null>(null)
   const [useAIAssist, setUseAIAssist] = useState(false)
-  const [showAutoFixMessage, setShowAutoFixMessage] = useState(false)
 
   const isEditing = !!editingIssue
   const canEdit = true // Everyone can edit
@@ -271,7 +259,6 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
       setPriority('MEDIUM')
       setStatus('OPEN')
       setUseAIAssist(false)
-      setShowAutoFixMessage(false)
     }
     // Clean up image preview
     if (imagePreview && imagePreview.startsWith('blob:')) {
@@ -281,12 +268,6 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
     setImagePreview(null)
     setImageError(null)
     onClose()
-  }
-
-  // Handle clicking Urgent Auto Fix button
-  const handleUrgentAutoFix = () => {
-    setPriority('URGENT')
-    setUseAIAssist(true)
   }
 
   // Handle AI-assisted form submission
@@ -320,16 +301,8 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
       })
 
       if (response.ok) {
-        const result = await response.json()
         onIssueCreated?.()
-
-        // Show auto-fix message if enabled
-        if (result.autoFixEnabled) {
-          setShowAutoFixMessage(true)
-          setUseAIAssist(false)
-        } else {
-          handleClose()
-        }
+        handleClose()
       } else {
         const errorData = await response.json().catch(() => ({}))
         throw new Error(errorData.error || 'Failed to create issue')
@@ -504,38 +477,7 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
         </DialogHeader>
 
         {/* Auto-Fix In Progress Message */}
-        {showAutoFixMessage ? (
-          <div className="p-6 space-y-6 text-center">
-            <div className="flex justify-center">
-              <div className="p-4 bg-green-100 rounded-full">
-                <Zap className="w-10 h-10 text-green-600" />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <h3 className="text-lg font-semibold text-gray-900">Issue Submitted - Auto-Fix Started</h3>
-              <p className="text-gray-600">
-                Your issue is now being analyzed and fixed automatically.
-              </p>
-            </div>
-
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left">
-              <p className="text-sm text-blue-800">
-                <strong>What happens next:</strong>
-              </p>
-              <ul className="text-sm text-blue-700 mt-2 space-y-1 list-disc list-inside">
-                <li>AI is analyzing the code to find and fix the issue</li>
-                <li>Status is set to <span className="font-medium">In Progress</span></li>
-                <li>You&apos;ll receive an email when the fix is ready</li>
-                <li>Verify the fix works, then mark as resolved</li>
-              </ul>
-            </div>
-
-            <Button onClick={handleClose} className="w-full">
-              Got it
-            </Button>
-          </div>
-        ) : useAIAssist && !isEditing && !viewOnly ? (
+        {useAIAssist && !isEditing && !viewOnly ? (
           <div className="p-6">
             <AIAssistedIssueForm
               priority={priority as 'HIGH' | 'URGENT'}
@@ -640,95 +582,6 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
               </div>
             )}
 
-            {/* Auto-Fix Status Section */}
-            {editingIssue?.metadata?.autoFix && (
-              <div className="border-t pt-4 mt-4">
-                <Label className="flex items-center gap-2 mb-3">
-                  <Zap className="w-4 h-4" />
-                  Auto-Fix Status
-                </Label>
-
-                {/* In Progress State */}
-                {editingIssue.metadata.autoFix.enabled && !editingIssue.metadata.autoFix.attempted && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div className="flex items-center gap-2 text-blue-700 mb-2">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span className="font-medium">Auto-Fix In Progress</span>
-                    </div>
-                    <p className="text-sm text-blue-600">
-                      AI is analyzing the code and working on a fix. You&apos;ll receive an email when complete.
-                    </p>
-                    {editingIssue.metadata.autoFix.startedAt && (
-                      <p className="text-xs text-blue-500 mt-2 flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        Started: {new Date(editingIssue.metadata.autoFix.startedAt).toLocaleString()}
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Success State */}
-                {editingIssue.metadata.autoFix.attempted && editingIssue.metadata.autoFix.success && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <div className="flex items-center gap-2 text-green-700 mb-2">
-                      <CheckCircle className="w-4 h-4" />
-                      <span className="font-medium">Auto-Fix Applied</span>
-                    </div>
-                    {editingIssue.metadata.autoFix.summary && (
-                      <p className="text-sm text-green-700 mb-2">
-                        {editingIssue.metadata.autoFix.summary}
-                      </p>
-                    )}
-                    {editingIssue.metadata.autoFix.analysis && (
-                      <p className="text-sm text-green-600 mb-2">
-                        <strong>Analysis:</strong> {editingIssue.metadata.autoFix.analysis}
-                      </p>
-                    )}
-                    {editingIssue.metadata.autoFix.commitUrl && (
-                      <a
-                        href={editingIssue.metadata.autoFix.commitUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-sm text-green-700 hover:text-green-800 underline"
-                      >
-                        <ExternalLink className="w-3 h-3" />
-                        View Commit on GitHub
-                      </a>
-                    )}
-                    {editingIssue.metadata.autoFix.timestamp && (
-                      <p className="text-xs text-green-500 mt-2 flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        Fixed: {new Date(editingIssue.metadata.autoFix.timestamp).toLocaleString()}
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Failed State */}
-                {editingIssue.metadata.autoFix.attempted && !editingIssue.metadata.autoFix.success && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                    <div className="flex items-center gap-2 text-red-700 mb-2">
-                      <XCircle className="w-4 h-4" />
-                      <span className="font-medium">Auto-Fix Failed</span>
-                    </div>
-                    {editingIssue.metadata.autoFix.summary && (
-                      <p className="text-sm text-red-700 mb-2">
-                        {editingIssue.metadata.autoFix.summary}
-                      </p>
-                    )}
-                    {editingIssue.metadata.autoFix.analysis && (
-                      <p className="text-sm text-red-600">
-                        {editingIssue.metadata.autoFix.analysis}
-                      </p>
-                    )}
-                    <p className="text-sm text-red-600 mt-2">
-                      Manual review and fix required.
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* Comments Section */}
             {editingIssue?.comments && editingIssue.comments.length > 0 && (
               <div className="border-t pt-4 mt-4">
@@ -799,20 +652,20 @@ export function IssueModal({ isOpen, onClose, onIssueCreated, onIssueUpdated, ed
             </div>
           )}
 
-          {/* Urgent Auto Fix button for new issues */}
+          {/* AI Assistant button for new issues */}
           {!isEditing && (
             <button
               type="button"
-              onClick={handleUrgentAutoFix}
-              className="w-full p-3 border-2 border-red-200 rounded-lg hover:border-red-400 hover:bg-red-50 transition-all text-left group"
+              onClick={() => setUseAIAssist(true)}
+              className="w-full p-3 border-2 border-blue-200 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-all text-left group"
             >
               <div className="flex items-center gap-3">
-                <div className="p-1.5 bg-red-100 rounded-md group-hover:bg-red-200 transition-colors">
-                  <Zap className="w-5 h-5 text-red-600" />
+                <div className="p-1.5 bg-blue-100 rounded-md group-hover:bg-blue-200 transition-colors">
+                  <MessageCircle className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
-                  <span className="font-medium text-gray-900">Urgent Auto Fix</span>
-                  <p className="text-xs text-gray-500">AI will clarify and fix automatically</p>
+                  <span className="font-medium text-gray-900">Use AI Assistant</span>
+                  <p className="text-xs text-gray-500">AI will help clarify your issue</p>
                 </div>
               </div>
             </button>

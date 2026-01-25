@@ -12,7 +12,6 @@ import {
   Image as ImageIcon,
   Loader2,
   CheckCircle,
-  Zap,
   ArrowLeft
 } from 'lucide-react'
 
@@ -233,10 +232,8 @@ export function AIAssistedIssueForm({
       {/* Header */}
       <div className="flex items-center justify-between pb-3 border-b">
         <div className="flex items-center gap-2">
-          <Zap className={`w-5 h-5 ${priority === 'URGENT' ? 'text-red-500' : 'text-orange-500'}`} />
-          <span className="font-medium">
-            {priority === 'URGENT' ? 'Urgent Issue Report' : 'High Priority Issue Report'}
-          </span>
+          <Send className="w-5 h-5 text-blue-500" />
+          <span className="font-medium">AI Issue Assistant</span>
         </div>
         <Button variant="ghost" size="sm" onClick={onSwitchToManual} className="text-gray-500">
           <ArrowLeft className="w-4 h-4 mr-1" />

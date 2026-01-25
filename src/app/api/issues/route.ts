@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import type { Session } from 'next-auth'
-import { 
+import {
   withUpdateAttribution,
   getIPAddress,
   isValidAuthSession,
@@ -12,7 +12,6 @@ import { logIssueActivity, ActivityActions } from '@/lib/activity-logger'
 import { put } from '@vercel/blob'
 import { syncIssuesToCursor } from '@/lib/cursor-issues'
 import { sendIssueCreatedEmail } from '@/lib/email'
-import { triggerAutoFixWorkflow, shouldTriggerAutoFix } from '@/lib/github-actions'
 
 // Get all issues for the organization
 export async function GET(request: NextRequest) {
@@ -164,7 +163,6 @@ export async function POST(request: NextRequest) {
     let stageId: string | null = null
     let consoleLog: string | undefined
     let imageFile: File | null = null
-    let aiAssisted: boolean = false // Track if issue was created via AI-assisted flow
 
     if (isFormData) {
       // Parse FormData
@@ -178,7 +176,6 @@ export async function POST(request: NextRequest) {
       stageId = formData.get('stageId') as string | null
       consoleLog = formData.get('consoleLog') as string | undefined
       imageFile = formData.get('image') as File | null
-      aiAssisted = formData.get('aiAssisted') === 'true' // Check if AI-assisted
 
       // Validate image if present
       if (imageFile) {
@@ -226,27 +223,14 @@ export async function POST(request: NextRequest) {
       metadata.consoleLog = consoleLog
     }
 
-    // Determine initial status - if AI-assisted with auto-fix, start as IN_PROGRESS
-    const willAutoFix = shouldTriggerAutoFix(priority, type, aiAssisted)
-    const initialStatus = willAutoFix ? 'IN_PROGRESS' : 'OPEN'
-
-    // Add auto-fix metadata if applicable
-    if (willAutoFix) {
-      metadata.autoFix = {
-        enabled: true,
-        status: 'pending',
-        startedAt: new Date().toISOString()
-      }
-    }
-
-    // Create the issue first
+    // Create the issue
     const issue = await prisma.issue.create({
       data: {
         title: title.trim(),
         description: description.trim(),
         type,
         priority,
-        status: initialStatus,
+        status: 'OPEN',
         reportedBy: session.user.id,
         orgId: organization?.id || null,
         projectId: projectId || null,
@@ -394,23 +378,7 @@ export async function POST(request: NextRequest) {
         // Sync issues to .cursor/issues.json for Cursor AI access
         syncIssuesToCursor().catch(err => console.error('[Issues API] Cursor sync failed:', err))
 
-        // Trigger auto-fix for urgent/high priority bugs
-        if (shouldTriggerAutoFix(updatedIssue.priority, updatedIssue.type, aiAssisted)) {
-          const reporterName = session.user.name || session.user.email || 'A team member'
-          triggerAutoFixWorkflow({
-            issueId: updatedIssue.id,
-            title: updatedIssue.title,
-            description: updatedIssue.description,
-            type: updatedIssue.type,
-            priority: updatedIssue.priority,
-            consoleLog: (updatedIssue.metadata as any)?.consoleLog,
-            projectName: updatedIssue.project?.name,
-            roomName: updatedIssue.room?.name,
-            reporterName
-          }).catch(err => console.error('[Issues API] Auto-fix trigger failed:', err))
-        }
-
-        return NextResponse.json({ ...updatedIssue, autoFixEnabled: willAutoFix }, { status: 201 })
+        return NextResponse.json(updatedIssue, { status: 201 })
       } catch (blobError) {
         console.error('[Issues API] Failed to upload image to Blob (non-fatal):', blobError)
         // Return issue without image - don't fail the entire request
@@ -467,23 +435,7 @@ export async function POST(request: NextRequest) {
     // Sync issues to .cursor/issues.json for Cursor AI access
     syncIssuesToCursor().catch(err => console.error('[Issues API] Cursor sync failed:', err))
 
-    // Trigger auto-fix for urgent/high priority bugs
-    if (shouldTriggerAutoFix(issue.priority, issue.type, aiAssisted)) {
-      const reporterName = session.user.name || session.user.email || 'A team member'
-      triggerAutoFixWorkflow({
-        issueId: issue.id,
-        title: issue.title,
-        description: issue.description,
-        type: issue.type,
-        priority: issue.priority,
-        consoleLog: (issue.metadata as any)?.consoleLog,
-        projectName: issue.project?.name,
-        roomName: issue.room?.name,
-        reporterName
-      }).catch(err => console.error('[Issues API] Auto-fix trigger failed:', err))
-    }
-
-    return NextResponse.json({ ...issue, autoFixEnabled: willAutoFix }, { status: 201 })
+    return NextResponse.json(issue, { status: 201 })
   } catch (error) {
     console.error('Error creating issue:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
