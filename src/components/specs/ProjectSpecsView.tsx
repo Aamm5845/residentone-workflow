@@ -418,6 +418,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   
   // Team-only: Show unchosen FFE items (not visible in shared view)
   const [showUnchosenItems, setShowUnchosenItems] = useState(false)
+
+  // Toggle to show/hide archived items (hidden by default)
+  const [showArchived, setShowArchived] = useState(false)
   
   // Generate from URL dialog for Needs Selection tab
   const [urlGenerateDialog, setUrlGenerateDialog] = useState<{
@@ -1247,6 +1250,11 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     if (filterStatus !== 'all') {
       filtered = filtered.filter(spec => spec.specStatus === filterStatus)
     }
+
+    // Hide archived items by default (unless showArchived is true or filtering by ARCHIVED status)
+    if (!showArchived && filterStatus !== 'ARCHIVED') {
+      filtered = filtered.filter(spec => spec.specStatus !== 'ARCHIVED')
+    }
     
     // Apply room filter
     if (filterRoom !== 'all') {
@@ -1337,8 +1345,13 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       setExpandedCategories(new Set(groupedArray.map(g => g.name)))
       prevSortByRef.current = sortBy
     }
-  }, [specs, searchQuery, filterStatus, filterRoom, filterSection, filterCurrency, summaryFilter, sortBy, itemSortBy, suppliers])
-  
+  }, [specs, searchQuery, filterStatus, filterRoom, filterSection, filterCurrency, summaryFilter, sortBy, itemSortBy, suppliers, showArchived])
+
+  // Count archived items (from unfiltered specs) to show/hide the toggle
+  const archivedCount = useMemo(() => {
+    return specs.filter(spec => spec.specStatus === 'ARCHIVED').length
+  }, [specs])
+
   // Filter ffeItems based on room and section filters for Needs Selection tab
   const filteredFfeItems = useMemo(() => {
     let filtered = ffeItems
@@ -3679,6 +3692,23 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                         </SelectContent>
                       </Select>
                     </div>
+
+                    {/* Show Archived Toggle - only shown if there are archived items */}
+                    {archivedCount > 0 && (
+                      <div className="flex items-center justify-between py-2 border-t">
+                        <div className="flex items-center gap-2">
+                          <Archive className="w-4 h-4 text-gray-400" />
+                          <Label htmlFor="show-archived" className="text-sm text-gray-600 cursor-pointer">
+                            Show archived ({archivedCount})
+                          </Label>
+                        </div>
+                        <Switch
+                          id="show-archived"
+                          checked={showArchived}
+                          onCheckedChange={setShowArchived}
+                        />
+                      </div>
+                    )}
 
                     {/* Clear Filters */}
                     {(filterStatus !== 'all' || filterRoom !== 'all' || filterSection !== 'all' || filterCurrency !== 'all' || summaryFilter !== 'all') && (
