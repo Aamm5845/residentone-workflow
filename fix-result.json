@@ -1,5 +1,0 @@
-{
-  "analysis": "Cannot locate the All Specs page or specs-related components in the provided codebase. The files provided contain API routes, auth, admin pages, and activities, but no specs functionality. To implement the hide archived items feature, I would need access to the specs page component, the data model for specs, and how the archived status is stored.",
-  "files": [],
-  "summary": "Could not auto-fix - All Specs page and specs functionality not found in provided codebase"
-}
