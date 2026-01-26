@@ -624,226 +624,172 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
             </p>
           </CardHeader>
           <CardContent className="pt-0 space-y-4">
-            {/* Items with Supplier Quotes - grouped by supplier */}
-            {readyToOrder.supplierGroups.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                  <Building2 className="w-4 h-4" />
-                  With Supplier Quotes ({readyToOrder.summary.itemsWithQuotes} items)
-                </h4>
-                <div className="space-y-2">
-                  {readyToOrder.supplierGroups.map(group => {
-                    const supplierId = group.supplierId || 'unknown'
-                    const isExpanded = expandedSuppliers.has(supplierId)
+            {/* All Suppliers - unified list */}
+            <div className="space-y-2">
+              {readyToOrder.supplierGroups.map(group => {
+                const supplierId = group.supplierId || 'unknown'
+                const isExpanded = expandedSuppliers.has(supplierId)
 
-                    return (
-                      <div key={supplierId} className="border border-gray-200 rounded-lg bg-white overflow-hidden">
-                        <div className="flex items-center justify-between p-3">
-                          <button
-                            onClick={() => toggleSupplierExpand(supplierId)}
-                            className="flex items-center gap-2 hover:bg-gray-50 rounded px-2 py-1 -ml-2"
-                          >
-                            {isExpanded ? (
-                              <ChevronDown className="w-4 h-4 text-gray-400" />
-                            ) : (
-                              <ChevronRight className="w-4 h-4 text-gray-400" />
-                            )}
-                            <Building2 className="w-4 h-4 text-gray-500" />
-                            <span className="font-medium text-gray-900">{group.supplierName}</span>
-                            <Badge variant="outline" className="ml-2">
-                              {group.itemCount} items
-                            </Badge>
-                          </button>
-                          <div className="flex items-center gap-3">
-                            <span className="text-sm font-medium text-gray-700">
-                              {formatCurrency(group.totalCost)}
-                            </span>
-                            <Button
-                              size="sm"
-                              onClick={() => handleOpenCreatePO({
-                                id: group.supplierId || '',
-                                name: group.supplierName,
-                                email: group.supplierEmail
-                              })}
-                              className="bg-emerald-600 hover:bg-emerald-700"
-                            >
-                              <ShoppingCart className="w-4 h-4 mr-1" />
-                              Create PO
-                            </Button>
-                          </div>
-                        </div>
+                return (
+                  <div key={supplierId} className="border border-gray-200 rounded-lg bg-white overflow-hidden">
+                    <div className="flex items-center justify-between p-3">
+                      <button
+                        onClick={() => toggleSupplierExpand(supplierId)}
+                        className="flex items-center gap-2 hover:bg-gray-50 rounded px-2 py-1 -ml-2"
+                      >
+                        {isExpanded ? (
+                          <ChevronDown className="w-4 h-4 text-gray-400" />
+                        ) : (
+                          <ChevronRight className="w-4 h-4 text-gray-400" />
+                        )}
+                        <Building2 className="w-4 h-4 text-gray-500" />
+                        <span className="font-medium text-gray-900">{group.supplierName}</span>
+                        <Badge variant="outline" className="ml-2">
+                          {group.itemCount} item{group.itemCount > 1 ? 's' : ''}
+                        </Badge>
+                      </button>
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-medium text-gray-700">
+                          {formatCurrency(group.totalCost)}
+                        </span>
+                        <Button
+                          size="sm"
+                          onClick={() => handleOpenCreatePO({
+                            id: group.supplierId || '',
+                            name: group.supplierName,
+                            email: group.supplierEmail
+                          })}
+                          className="bg-emerald-600 hover:bg-emerald-700"
+                        >
+                          <ShoppingCart className="w-4 h-4 mr-1" />
+                          Create PO
+                        </Button>
+                      </div>
+                    </div>
 
-                        {isExpanded && (
-                          <div className="border-t bg-gray-50 p-3">
-                            <div className="space-y-2">
-                              {group.items.map(item => (
-                                <div key={item.id}>
-                                  <div
-                                    className="flex items-center justify-between p-2 bg-white rounded border"
-                                  >
-                                    <div className="flex items-center gap-2">
-                                      <Package className="w-4 h-4 text-gray-400" />
-                                      <div>
-                                        <p className="text-sm font-medium">{item.name}</p>
-                                        <div className="flex items-center gap-2 text-xs text-gray-500">
-                                          {item.roomName && <span>{item.roomName}</span>}
+                    {isExpanded && (
+                      <div className="border-t bg-gray-50 p-3">
+                        <div className="space-y-2">
+                          {group.items.map(item => (
+                            <div key={item.id}>
+                              <div className="flex items-center justify-between p-2 bg-white rounded border">
+                                <div className="flex items-center gap-2">
+                                  <Package className="w-4 h-4 text-gray-400" />
+                                  <div>
+                                    <p className="text-sm font-medium">{item.name}</p>
+                                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                                      {item.roomName && <span>{item.roomName}</span>}
+                                      <span>•</span>
+                                      <span>Qty: {item.quantity}</span>
+                                      {item.supplierQuote?.leadTimeWeeks && (
+                                        <>
                                           <span>•</span>
-                                          <span>Qty: {item.quantity}</span>
-                                          {item.supplierQuote?.leadTimeWeeks && (
-                                            <>
-                                              <span>•</span>
-                                              <span>{item.supplierQuote.leadTimeWeeks} weeks lead</span>
-                                            </>
-                                          )}
-                                          {item.components && item.components.length > 0 && (
-                                            <>
-                                              <span>•</span>
-                                              <span className="text-blue-600">{item.components.length} component{item.components.length > 1 ? 's' : ''}</span>
-                                            </>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </div>
-                                    <div className="text-right">
-                                      <p className="text-sm font-medium">
-                                        {formatCurrency(item.supplierQuote?.totalPrice || 0)}
-                                      </p>
-                                      {item.clientInvoice && (
-                                        <p className="text-xs text-gray-500">
-                                          {item.clientInvoice.quoteNumber}
-                                        </p>
+                                          <span>{item.supplierQuote.leadTimeWeeks} weeks</span>
+                                        </>
                                       )}
                                     </div>
                                   </div>
-                                  {/* Show components */}
-                                  {item.components && item.components.length > 0 && (
-                                    <div className="ml-6 mt-1 space-y-1">
-                                      {item.components.map((comp: any) => (
-                                        <div
-                                          key={comp.id}
-                                          className="flex items-center justify-between p-2 bg-blue-50/50 rounded border border-blue-100 text-sm"
-                                        >
-                                          <div className="flex items-center gap-2 text-gray-600">
-                                            <span className="text-blue-400">└</span>
-                                            <span>{comp.name}</span>
-                                            {comp.modelNumber && (
-                                              <span className="text-gray-400">({comp.modelNumber})</span>
-                                            )}
-                                            {comp.quantity > 1 && (
-                                              <span className="text-gray-500">×{comp.quantity}</span>
-                                            )}
-                                          </div>
-                                          <span className="text-gray-700">
-                                            {comp.price ? formatCurrency(comp.price * (comp.quantity || 1)) : '-'}
-                                          </span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
                                 </div>
-                              ))}
+                                <div className="text-right">
+                                  <p className="text-sm font-medium">
+                                    {formatCurrency(item.supplierQuote?.totalPrice || item.tradePrice || 0)}
+                                  </p>
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Items without Supplier Quotes - select a supplier */}
-            {readyToOrder.itemsWithoutQuotes.length > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    <Store className="w-4 h-4 text-orange-500" />
-                    Without Quotes ({readyToOrder.itemsWithoutQuotes.length} items)
-                  </h4>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="border-orange-300 text-orange-700 hover:bg-orange-50"
-                      >
-                        <Store className="w-4 h-4 mr-1" />
-                        Create PO
-                        <ChevronDown className="w-3 h-3 ml-1" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-64 max-h-[300px] overflow-y-auto">
-                      <div className="px-2 py-1.5 text-xs font-medium text-gray-500">
-                        Select Supplier
-                      </div>
-                      <DropdownMenuSeparator />
-                      {suppliers.length === 0 ? (
-                        <div className="px-2 py-2 text-sm text-gray-500">
-                          No suppliers found
+                          ))}
                         </div>
-                      ) : (
-                        suppliers.map(supplier => (
-                          <DropdownMenuItem
-                            key={supplier.id}
-                            onClick={() => handleOpenCreatePO(supplier)}
-                            className="flex flex-col items-start"
-                          >
-                            <span className="font-medium">{supplier.name}</span>
-                            {supplier.email && (
-                              <span className="text-xs text-gray-500">{supplier.email}</span>
-                            )}
-                          </DropdownMenuItem>
-                        ))
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-                <div className="border border-orange-200 rounded-lg bg-orange-50/50 p-3">
-                  <div className="flex items-start gap-2 mb-3">
-                    <AlertCircle className="w-4 h-4 text-orange-600 mt-0.5 flex-shrink-0" />
-                    <p className="text-sm text-orange-700">
-                      No supplier quotes. Create manual order to proceed.
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    {readyToOrder.itemsWithoutQuotes.slice(0, 5).map(item => (
-                      <div
-                        key={item.id}
-                        className="flex items-center justify-between p-2 bg-white rounded border border-orange-200"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Package className="w-4 h-4 text-gray-400" />
-                          <div>
-                            <p className="text-sm font-medium">{item.name}</p>
-                            <div className="flex items-center gap-2 text-xs text-gray-500">
-                              {item.roomName && <span>{item.roomName}</span>}
-                              <span>•</span>
-                              <span>Qty: {item.quantity}</span>
-                              {item.clientInvoice && (
-                                <>
-                                  <span>•</span>
-                                  <span>{item.clientInvoice.quoteNumber}</span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        {item.clientInvoice && (
-                          <Badge variant="outline" className="text-xs">
-                            Client paid {formatCurrency(item.clientInvoice.clientTotalPrice)}
-                          </Badge>
-                        )}
                       </div>
-                    ))}
-                    {readyToOrder.itemsWithoutQuotes.length > 5 && (
-                      <p className="text-xs text-gray-500 text-center py-1">
-                        + {readyToOrder.itemsWithoutQuotes.length - 5} more items
-                      </p>
                     )}
                   </div>
+                )
+              })}
+
+              {/* Items without quotes - show as "Unassigned" */}
+              {readyToOrder.itemsWithoutQuotes.length > 0 && (
+                <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
+                  <div className="flex items-center justify-between p-3">
+                    <button
+                      onClick={() => toggleSupplierExpand('unassigned')}
+                      className="flex items-center gap-2 hover:bg-gray-50 rounded px-2 py-1 -ml-2"
+                    >
+                      {expandedSuppliers.has('unassigned') ? (
+                        <ChevronDown className="w-4 h-4 text-gray-400" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4 text-gray-400" />
+                      )}
+                      <Store className="w-4 h-4 text-orange-500" />
+                      <span className="font-medium text-gray-900">Unassigned</span>
+                      <Badge variant="outline" className="ml-2 border-orange-200 text-orange-700">
+                        {readyToOrder.itemsWithoutQuotes.length} item{readyToOrder.itemsWithoutQuotes.length > 1 ? 's' : ''}
+                      </Badge>
+                    </button>
+                    <div className="flex items-center gap-3">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700">
+                            <ShoppingCart className="w-4 h-4 mr-1" />
+                            Create PO
+                            <ChevronDown className="w-3 h-3 ml-1" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-64 max-h-[300px] overflow-y-auto">
+                          <div className="px-2 py-1.5 text-xs font-medium text-gray-500">
+                            Select Supplier
+                          </div>
+                          <DropdownMenuSeparator />
+                          {suppliers.length === 0 ? (
+                            <div className="px-2 py-2 text-sm text-gray-500">
+                              No suppliers found
+                            </div>
+                          ) : (
+                            suppliers.map(supplier => (
+                              <DropdownMenuItem
+                                key={supplier.id}
+                                onClick={() => handleOpenCreatePO(supplier)}
+                                className="flex flex-col items-start"
+                              >
+                                <span className="font-medium">{supplier.name}</span>
+                                {supplier.email && (
+                                  <span className="text-xs text-gray-500">{supplier.email}</span>
+                                )}
+                              </DropdownMenuItem>
+                            ))
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+
+                  {expandedSuppliers.has('unassigned') && (
+                    <div className="border-t bg-gray-50 p-3">
+                      <div className="space-y-2">
+                        {readyToOrder.itemsWithoutQuotes.map(item => (
+                          <div key={item.id} className="flex items-center justify-between p-2 bg-white rounded border">
+                            <div className="flex items-center gap-2">
+                              <Package className="w-4 h-4 text-gray-400" />
+                              <div>
+                                <p className="text-sm font-medium">{item.name}</p>
+                                <div className="flex items-center gap-2 text-xs text-gray-500">
+                                  {item.roomName && <span>{item.roomName}</span>}
+                                  <span>•</span>
+                                  <span>Qty: {item.quantity}</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-medium">
+                                {item.tradePrice ? formatCurrency(item.tradePrice) : '-'}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Summary */}
             <div className="flex items-center justify-between pt-2 border-t border-gray-200">
