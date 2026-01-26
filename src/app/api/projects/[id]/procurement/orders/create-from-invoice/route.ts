@@ -92,7 +92,7 @@ export async function POST(
                   }
                 },
                 // Also get all quotes for items without accepted quote
-                quoteLineItems: {
+                allQuoteLineItems: {
                   where: {
                     isLatestVersion: true
                   },
@@ -198,7 +198,7 @@ export async function POST(
 
       // Get the accepted quote or the most recent quote
       const acceptedQuote = roomFFEItem.acceptedQuoteLineItem
-      const latestQuote = roomFFEItem.quoteLineItems?.[0]
+      const latestQuote = roomFFEItem.allQuoteLineItems?.[0]
       const supplierQuote = acceptedQuote || latestQuote
 
       if (!supplierQuote) {
@@ -478,7 +478,7 @@ export async function GET(
                     }
                   }
                 },
-                quoteLineItems: {
+                allQuoteLineItems: {
                   where: { isLatestVersion: true },
                   include: {
                     supplierQuote: {
@@ -552,7 +552,7 @@ export async function GET(
       }
 
       const acceptedQuote = roomFFEItem.acceptedQuoteLineItem
-      const latestQuote = roomFFEItem.quoteLineItems?.[0]
+      const latestQuote = roomFFEItem.allQuoteLineItems?.[0]
       const supplierQuote = acceptedQuote || latestQuote
 
       if (!supplierQuote) {
