@@ -86,6 +86,7 @@ interface ItemComponent {
   modelNumber: string | null
   price: number | null
   quantity: number
+  imageUrl: string | null
 }
 
 interface ReadyToOrderItem {
@@ -128,9 +129,12 @@ interface SupplierGroup {
   supplierId: string | null
   supplierName: string
   supplierEmail: string | null
+  supplierLogo: string | null
   items: ReadyToOrderItem[]
   totalCost: number
   itemCount: number
+  totalItemCount: number
+  currency: string
 }
 
 interface ReadyToOrderData {
@@ -146,11 +150,9 @@ interface ReadyToOrderData {
   }
   summary: {
     totalItems: number
-    itemsWithQuotes: number
-    itemsWithoutQuotes: number
+    totalItemsWithComponents: number
     supplierCount: number
-    totalCostWithQuotes: number
-    estimatedCostWithoutQuotes: number
+    totalCost: number
   }
   supplierGroups: SupplierGroup[]
   itemsWithoutQuotes: ReadyToOrderItem[]
@@ -302,10 +304,8 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
       if (!res.ok) throw new Error('Failed to fetch ready to order items')
       const data = await res.json()
       setReadyToOrder(data)
-      // Expand all suppliers by default
-      if (data.supplierGroups?.length > 0) {
-        setExpandedSuppliers(new Set(data.supplierGroups.map((g: SupplierGroup) => g.supplierId || 'unknown')))
-      }
+      // Keep suppliers collapsed by default (empty set)
+      setExpandedSuppliers(new Set())
     } catch (error) {
       console.error('Error fetching ready to order:', error)
     } finally {
@@ -364,11 +364,11 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
     (order.supplier?.name || order.vendorName || '').toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const formatCurrency = (amount: number | null) => {
+  const formatCurrency = (amount: number | null, currency: string = 'CAD') => {
     if (amount === null) return '-'
     return new Intl.NumberFormat('en-CA', {
       style: 'currency',
-      currency: 'CAD'
+      currency
     }).format(amount)
   }
 
@@ -685,7 +685,7 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                       </button>
                       <div className="flex items-center gap-3">
                         <span className="text-sm font-medium text-gray-700">
-                          {formatCurrency(group.totalCost)}{group.currency === 'USD' ? ' USD' : ''}
+                          {formatCurrency(group.totalCost, group.currency || 'CAD')}{group.currency === 'USD' ? ' USD' : ''}
                         </span>
                         <Button
                           size="sm"
@@ -747,7 +747,11 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                               </div>
                               <div className="text-right">
                                 <p className="text-sm font-medium">
-                                  {formatCurrency(item.supplierQuote?.totalPrice || item.tradePrice || 0)}{item.currency === 'USD' ? ' USD' : ''}
+                                  {formatCurrency(
+                                    item.supplierQuote?.totalPrice ||
+                                    ((item.tradePrice || 0) * (item.quantity || 1)),
+                                    item.currency || 'CAD'
+                                  )}{item.currency === 'USD' ? ' USD' : ''}
                                 </p>
                               </div>
                             </div>
