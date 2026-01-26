@@ -633,8 +633,9 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
 
                 // Flatten items and components into one list
                 const allItems: any[] = []
+                const currency = group.currency || 'CAD'
                 group.items.forEach(item => {
-                  allItems.push({ ...item, isComponent: false })
+                  allItems.push({ ...item, isComponent: false, currency })
                   // Add components as separate items
                   if (item.components && item.components.length > 0) {
                     item.components.forEach((comp: any) => {
@@ -645,9 +646,10 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                         roomName: item.roomName,
                         quantity: comp.quantity || 1,
                         tradePrice: comp.price,
-                        imageUrl: null,
+                        imageUrl: comp.imageUrl || null,
                         isComponent: true,
-                        parentName: item.name
+                        parentName: item.name,
+                        currency
                       })
                     })
                   }
@@ -735,7 +737,7 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                               </div>
                               <div className="text-right">
                                 <p className="text-sm font-medium">
-                                  {formatCurrency((item.supplierQuote?.totalPrice || item.tradePrice || 0) * (item.isComponent ? 1 : 1))}
+                                  {formatCurrency(item.supplierQuote?.totalPrice || item.tradePrice || 0)} {item.currency || 'CAD'}
                                 </p>
                               </div>
                             </div>

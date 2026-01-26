@@ -324,7 +324,8 @@ export async function GET(
           name: c.name,
           modelNumber: c.modelNumber,
           price: c.price ? Number(c.price) : null,
-          quantity: c.quantity || 1
+          quantity: c.quantity || 1,
+          imageUrl: c.image || null
         }))
       }
 
