@@ -76,11 +76,7 @@ export async function POST(
         lineItems: {
           include: {
             roomFFEItem: {
-              select: {
-                id: true,
-                name: true,
-                description: true,
-                currency: true,
+              include: {
                 // Get the accepted supplier quote
                 acceptedQuoteLineItem: {
                   include: {
