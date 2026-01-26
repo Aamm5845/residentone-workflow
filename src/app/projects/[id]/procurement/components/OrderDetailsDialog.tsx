@@ -42,9 +42,16 @@ import {
   User,
   Mail,
   Phone,
-  MapPin
+  MapPin,
+  Send,
+  FileDown,
+  CreditCard,
+  Receipt,
+  Wallet,
+  Banknote
 } from 'lucide-react'
 import { toast } from 'sonner'
+import SendPODialog from '@/components/procurement/SendPODialog'
 
 interface OrderItem {
   id: string
@@ -159,6 +166,17 @@ export default function OrderDetailsDialog({
   const [saving, setSaving] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [showSendPO, setShowSendPO] = useState(false)
+  const [downloadingPDF, setDownloadingPDF] = useState(false)
+  const [showPaymentForm, setShowPaymentForm] = useState(false)
+  const [paymentSaving, setPaymentSaving] = useState(false)
+  const [paymentForm, setPaymentForm] = useState({
+    paymentType: 'DEPOSIT' as 'DEPOSIT' | 'BALANCE' | 'FULL',
+    amount: '',
+    method: 'CREDIT_CARD',
+    reference: '',
+    notes: ''
+  })
 
   // Edit form state
   const [editForm, setEditForm] = useState({
@@ -262,6 +280,80 @@ export default function OrderDetailsDialog({
     }
   }
 
+  const handleDownloadPDF = async () => {
+    if (!order) return
+
+    setDownloadingPDF(true)
+    try {
+      const res = await fetch(`/api/orders/${order.id}/pdf`)
+      if (!res.ok) {
+        throw new Error('Failed to generate PDF')
+      }
+
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `PO-${order.orderNumber}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      toast.success('PDF downloaded')
+    } catch (err) {
+      toast.error('Failed to download PDF')
+    } finally {
+      setDownloadingPDF(false)
+    }
+  }
+
+  const handleRecordPayment = async () => {
+    if (!order) return
+
+    const amount = parseFloat(paymentForm.amount)
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Please enter a valid amount')
+      return
+    }
+
+    setPaymentSaving(true)
+    try {
+      const res = await fetch(`/api/orders/${order.id}/supplier-payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount,
+          paymentType: paymentForm.paymentType,
+          method: paymentForm.method,
+          reference: paymentForm.reference || null,
+          notes: paymentForm.notes || null
+        })
+      })
+
+      if (res.ok) {
+        toast.success('Payment recorded')
+        setShowPaymentForm(false)
+        setPaymentForm({
+          paymentType: 'DEPOSIT',
+          amount: '',
+          method: 'CREDIT_CARD',
+          reference: '',
+          notes: ''
+        })
+        fetchOrder()
+        onUpdate()
+      } else {
+        const data = await res.json()
+        toast.error(data.error || 'Failed to record payment')
+      }
+    } catch (error) {
+      toast.error('Failed to record payment')
+    } finally {
+      setPaymentSaving(false)
+    }
+  }
+
   const formatCurrency = (amount: string | null, currency: string = 'CAD') => {
     if (!amount) return '-'
     return new Intl.NumberFormat('en-CA', {
@@ -335,6 +427,31 @@ export default function OrderDetailsDialog({
                 </DialogDescription>
               </div>
               <div className="flex items-center gap-2">
+                {/* Download PDF */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDownloadPDF}
+                  disabled={downloadingPDF}
+                >
+                  {downloadingPDF ? (
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  ) : (
+                    <FileDown className="w-4 h-4 mr-1" />
+                  )}
+                  PDF
+                </Button>
+                {/* Send PO - show if not already ordered */}
+                {order.status !== 'ORDERED' && order.status !== 'SHIPPED' && order.status !== 'DELIVERED' && (
+                  <Button
+                    size="sm"
+                    onClick={() => setShowSendPO(true)}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Send className="w-4 h-4 mr-1" />
+                    Send PO
+                  </Button>
+                )}
                 {!editing && (
                   <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
                     <Edit className="w-4 h-4 mr-1" />
@@ -361,6 +478,7 @@ export default function OrderDetailsDialog({
               <TabsList className="mb-4">
                 <TabsTrigger value="details">Details</TabsTrigger>
                 <TabsTrigger value="items">Items ({order.items.length})</TabsTrigger>
+                <TabsTrigger value="payment">Payment</TabsTrigger>
                 <TabsTrigger value="activity">Activity</TabsTrigger>
               </TabsList>
 
@@ -641,6 +759,170 @@ export default function OrderDetailsDialog({
                 })}
               </TabsContent>
 
+              <TabsContent value="payment" className="space-y-4">
+                {/* Payment Summary */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-2">Order Total</h4>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {formatCurrency(order.totalAmount, order.currency)}
+                    </p>
+                  </div>
+                  <div className={`rounded-lg p-4 ${
+                    order.supplierPaidAt
+                      ? 'bg-green-50'
+                      : order.depositPaid && parseFloat(order.depositPaid) > 0
+                        ? 'bg-yellow-50'
+                        : 'bg-gray-50'
+                  }`}>
+                    <h4 className="text-sm font-semibold text-gray-900 mb-2">Payment Status</h4>
+                    <Badge className={
+                      order.supplierPaidAt
+                        ? 'bg-green-100 text-green-700'
+                        : order.depositPaid && parseFloat(order.depositPaid) > 0
+                          ? 'bg-yellow-100 text-yellow-700'
+                          : 'bg-gray-100 text-gray-600'
+                    }>
+                      {order.supplierPaidAt
+                        ? 'Paid to Supplier'
+                        : order.depositPaid && parseFloat(order.depositPaid) > 0
+                          ? 'Deposit Paid'
+                          : 'Not Paid'
+                      }
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Payment Details */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <DollarSign className="w-4 h-4" />
+                    Supplier Payment Tracking
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Total Amount</span>
+                        <span className="font-medium">{formatCurrency(order.totalAmount, order.currency)}</span>
+                      </div>
+                      {order.depositRequired && parseFloat(order.depositRequired) > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Deposit Required</span>
+                          <span>{formatCurrency(order.depositRequired, order.currency)}</span>
+                        </div>
+                      )}
+                      {order.depositPaid && parseFloat(order.depositPaid) > 0 && (
+                        <div className="flex justify-between text-green-600">
+                          <span>Deposit Paid</span>
+                          <span>{formatCurrency(order.depositPaid, order.currency)}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      {order.supplierPaymentAmount && (
+                        <div className="flex justify-between text-green-600">
+                          <span>Total Paid to Supplier</span>
+                          <span className="font-medium">{formatCurrency(order.supplierPaymentAmount, order.currency)}</span>
+                        </div>
+                      )}
+                      {order.balanceDue && parseFloat(order.balanceDue) > 0 && (
+                        <div className="flex justify-between text-orange-600">
+                          <span>Balance Due</span>
+                          <span>{formatCurrency(order.balanceDue, order.currency)}</span>
+                        </div>
+                      )}
+                      {order.supplierPaymentMethod && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Payment Method</span>
+                          <span>{order.supplierPaymentMethod}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Record Payment Form */}
+                {!showPaymentForm ? (
+                  <Button onClick={() => setShowPaymentForm(true)} className="w-full">
+                    <CreditCard className="w-4 h-4 mr-2" />
+                    Record Payment to Supplier
+                  </Button>
+                ) : (
+                  <div className="bg-emerald-50 rounded-lg p-4 space-y-4">
+                    <h4 className="font-medium text-emerald-900">Record Supplier Payment</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label>Payment Type</Label>
+                        <select
+                          value={paymentForm.paymentType}
+                          onChange={(e) => setPaymentForm(prev => ({
+                            ...prev,
+                            paymentType: e.target.value as 'DEPOSIT' | 'BALANCE' | 'FULL'
+                          }))}
+                          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                        >
+                          <option value="DEPOSIT">Deposit Payment</option>
+                          <option value="BALANCE">Balance Payment</option>
+                          <option value="FULL">Full Payment</option>
+                        </select>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Amount ({order.currency})</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={paymentForm.amount}
+                          onChange={(e) => setPaymentForm(prev => ({ ...prev, amount: e.target.value }))}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Payment Method</Label>
+                        <select
+                          value={paymentForm.method}
+                          onChange={(e) => setPaymentForm(prev => ({ ...prev, method: e.target.value }))}
+                          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                        >
+                          <option value="CREDIT_CARD">Credit Card</option>
+                          <option value="WIRE_TRANSFER">Wire Transfer</option>
+                          <option value="CHECK">Check</option>
+                          <option value="ETRANSFER">E-Transfer</option>
+                          <option value="CASH">Cash</option>
+                          <option value="OTHER">Other</option>
+                        </select>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Reference #</Label>
+                        <Input
+                          value={paymentForm.reference}
+                          onChange={(e) => setPaymentForm(prev => ({ ...prev, reference: e.target.value }))}
+                          placeholder="Confirmation number"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Notes</Label>
+                      <Textarea
+                        value={paymentForm.notes}
+                        onChange={(e) => setPaymentForm(prev => ({ ...prev, notes: e.target.value }))}
+                        rows={2}
+                        placeholder="Optional notes about this payment"
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" onClick={() => setShowPaymentForm(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleRecordPayment} disabled={paymentSaving}>
+                        {paymentSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                        Record Payment
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </TabsContent>
+
               <TabsContent value="activity" className="space-y-3">
                 {order.activities.length === 0 ? (
                   <p className="text-gray-400 text-center py-4">No activity yet</p>
@@ -698,6 +980,38 @@ export default function OrderDetailsDialog({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Send PO Dialog */}
+      <SendPODialog
+        open={showSendPO}
+        onOpenChange={setShowSendPO}
+        order={{
+          id: order.id,
+          orderNumber: order.orderNumber,
+          vendorName: order.supplier?.name || order.vendorName || 'Supplier',
+          vendorEmail: order.supplier?.email || order.vendorEmail || undefined,
+          totalAmount: parseFloat(order.totalAmount || '0'),
+          subtotal: parseFloat(order.subtotal || '0'),
+          shippingCost: parseFloat(order.shippingCost || '0'),
+          taxAmount: parseFloat(order.taxAmount || '0'),
+          currency: order.currency,
+          shippingAddress: order.shippingAddress || undefined,
+          expectedDelivery: order.expectedDelivery || undefined,
+          items: order.items.map(item => ({
+            id: item.id,
+            name: item.name,
+            description: item.description || undefined,
+            quantity: item.quantity,
+            unitPrice: parseFloat(item.unitPrice),
+            totalPrice: parseFloat(item.totalPrice)
+          }))
+        }}
+        onSuccess={() => {
+          setShowSendPO(false)
+          fetchOrder()
+          onUpdate()
+        }}
+      />
     </>
   )
 }
