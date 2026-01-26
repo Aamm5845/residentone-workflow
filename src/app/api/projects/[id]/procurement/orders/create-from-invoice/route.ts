@@ -9,6 +9,7 @@ interface SupplierGroup {
   supplierId: string | null
   supplierName: string
   supplierEmail: string | null
+  currency: string
   items: {
     roomFFEItemId: string
     clientQuoteLineItemId: string
@@ -19,6 +20,7 @@ interface SupplierGroup {
     unitPrice: number // Supplier cost price
     totalPrice: number
     leadTimeWeeks: number | null
+    currency: string | null
   }[]
 }
 
@@ -63,7 +65,11 @@ export async function POST(
         lineItems: {
           include: {
             roomFFEItem: {
-              include: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                currency: true,
                 // Get the accepted supplier quote
                 acceptedQuoteLineItem: {
                   include: {
@@ -186,11 +192,14 @@ export async function POST(
       const supplierName = supplier?.name || supplierQuote.supplierQuote?.vendorName || 'Unknown Supplier'
       const supplierEmail = supplier?.email || supplierQuote.supplierQuote?.vendorEmail || null
 
+      const itemCurrency = roomFFEItem.currency?.toUpperCase() || 'CAD'
+
       if (!supplierGroups[supplierId]) {
         supplierGroups[supplierId] = {
           supplierId: supplier?.id || null,
           supplierName,
           supplierEmail,
+          currency: itemCurrency, // Initial currency from first item
           items: []
         }
       }
@@ -204,7 +213,8 @@ export async function POST(
         quantity: lineItem.quantity,
         unitPrice: Number(supplierQuote.unitPrice), // Supplier cost price
         totalPrice: Number(supplierQuote.totalPrice),
-        leadTimeWeeks: supplierQuote.leadTimeWeeks
+        leadTimeWeeks: supplierQuote.leadTimeWeeks,
+        currency: itemCurrency
       })
     }
 
@@ -227,6 +237,12 @@ export async function POST(
 
       const subtotal = group.items.reduce((sum, item) => sum + item.totalPrice, 0)
 
+      // Determine currency: use the currency if all items have same currency, otherwise default to CAD
+      const itemCurrencies = group.items
+        .map(i => i.currency || 'CAD')
+        .filter((v, i, a) => a.indexOf(v) === i) // unique values
+      const orderCurrency = itemCurrencies.length === 1 ? itemCurrencies[0] : 'CAD'
+
       // Create the order
       const order = await prisma.order.create({
         data: {
@@ -239,7 +255,7 @@ export async function POST(
           status: 'PAYMENT_RECEIVED', // Client has paid
           subtotal,
           totalAmount: subtotal, // Will add tax/shipping later
-          currency: 'CAD',
+          currency: orderCurrency,
           createdById: userId,
           updatedById: userId,
           items: {
@@ -293,7 +309,8 @@ export async function POST(
         supplierEmail: group.supplierEmail,
         itemCount: group.items.length,
         subtotal,
-        status: order.status
+        status: order.status,
+        currency: orderCurrency
       })
     }
 

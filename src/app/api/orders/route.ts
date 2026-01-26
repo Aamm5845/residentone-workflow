@@ -235,6 +235,7 @@ export async function POST(request: NextRequest) {
         status: 'PENDING_PAYMENT',
         subtotal,
         totalAmount: subtotal, // TODO: Add tax and shipping
+        currency: 'CAD', // Default currency
         shippingAddress: shippingAddress || null,
         shippingMethod: shippingMethod || null,
         notes: notes || null,

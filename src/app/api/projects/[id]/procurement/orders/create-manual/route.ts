@@ -27,6 +27,7 @@ interface CreateManualOrderBody {
   shippingMethod?: string
   shippingCost?: number
   taxAmount?: number
+  currency?: string // CAD or USD - defaults to items' currency or CAD
   notes?: string
   internalNotes?: string
 
@@ -85,10 +86,16 @@ export async function POST(
           project: { orgId }
         }
       },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        quantity: true,
+        unitType: true,
+        currency: true,
         room: { select: { name: true } },
         orderItems: {
-          include: {
+          select: {
             order: { select: { orderNumber: true, status: true } }
           }
         }
@@ -114,6 +121,23 @@ export async function POST(
           existingOrder: i.orderItems[0].order.orderNumber
         }))
       }, { status: 400 })
+    }
+
+    // Determine currency from items or use provided/default
+    // Priority: body.currency > items' currency (if all same) > CAD
+    let orderCurrency = 'CAD'
+    if (body.currency && ['CAD', 'USD'].includes(body.currency.toUpperCase())) {
+      orderCurrency = body.currency.toUpperCase()
+    } else {
+      // Check if all items have the same currency
+      const itemCurrencies = ffeItems
+        .map(i => i.currency?.toUpperCase() || 'CAD')
+        .filter((v, i, a) => a.indexOf(v) === i) // unique values
+
+      if (itemCurrencies.length === 1) {
+        orderCurrency = itemCurrencies[0]
+      }
+      // If mixed currencies, default to CAD
     }
 
     // Generate order number
@@ -180,7 +204,7 @@ export async function POST(
         shippingCost,
         taxAmount,
         totalAmount,
-        currency: 'CAD',
+        currency: orderCurrency,
         shippingAddress: body.shippingAddress?.trim() || null,
         shippingMethod: body.shippingMethod?.trim() || null,
         notes: body.notes?.trim() || null,
@@ -266,7 +290,8 @@ export async function POST(
         status: order.status,
         itemCount: orderItems.length,
         subtotal,
-        totalAmount: order.totalAmount
+        totalAmount: order.totalAmount,
+        currency: orderCurrency
       }
     })
   } catch (error) {
