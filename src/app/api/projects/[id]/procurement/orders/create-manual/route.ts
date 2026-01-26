@@ -240,11 +240,12 @@ export async function POST(
     const activityPromises = itemIds.map(itemId =>
       prisma.itemActivity.create({
         data: {
-          roomFFEItemId: itemId,
-          type: 'ORDER_CREATED',
+          itemId: itemId,
+          type: 'ADDED_TO_ORDER',
           title: `Order Created - ${body.vendorName}`,
           description: `Manual order ${orderNumber} created for ${body.vendorName}`,
-          userId,
+          actorId: userId,
+          actorType: 'user',
           metadata: {
             orderId: order.id,
             orderNumber,
