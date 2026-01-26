@@ -69,6 +69,14 @@ interface OrdersTabProps {
 }
 
 // Ready to order types
+interface ItemComponent {
+  id: string
+  name: string
+  modelNumber: string | null
+  price: number | null
+  quantity: number
+}
+
 interface ReadyToOrderItem {
   id: string
   name: string
@@ -102,6 +110,7 @@ interface ReadyToOrderItem {
     clientUnitPrice: number
     clientTotalPrice: number
   } | null
+  components: ItemComponent[]
 }
 
 interface SupplierGroup {
@@ -645,37 +654,69 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                           <div className="border-t bg-gray-50 p-3">
                             <div className="space-y-2">
                               {group.items.map(item => (
-                                <div
-                                  key={item.id}
-                                  className="flex items-center justify-between p-2 bg-white rounded border"
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <Package className="w-4 h-4 text-gray-400" />
-                                    <div>
-                                      <p className="text-sm font-medium">{item.name}</p>
-                                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                                        {item.roomName && <span>{item.roomName}</span>}
-                                        <span>•</span>
-                                        <span>Qty: {item.quantity}</span>
-                                        {item.supplierQuote?.leadTimeWeeks && (
-                                          <>
-                                            <span>•</span>
-                                            <span>{item.supplierQuote.leadTimeWeeks} weeks lead</span>
-                                          </>
-                                        )}
+                                <div key={item.id}>
+                                  <div
+                                    className="flex items-center justify-between p-2 bg-white rounded border"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <Package className="w-4 h-4 text-gray-400" />
+                                      <div>
+                                        <p className="text-sm font-medium">{item.name}</p>
+                                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                                          {item.roomName && <span>{item.roomName}</span>}
+                                          <span>•</span>
+                                          <span>Qty: {item.quantity}</span>
+                                          {item.supplierQuote?.leadTimeWeeks && (
+                                            <>
+                                              <span>•</span>
+                                              <span>{item.supplierQuote.leadTimeWeeks} weeks lead</span>
+                                            </>
+                                          )}
+                                          {item.components && item.components.length > 0 && (
+                                            <>
+                                              <span>•</span>
+                                              <span className="text-blue-600">{item.components.length} component{item.components.length > 1 ? 's' : ''}</span>
+                                            </>
+                                          )}
+                                        </div>
                                       </div>
                                     </div>
-                                  </div>
-                                  <div className="text-right">
-                                    <p className="text-sm font-medium">
-                                      {formatCurrency(item.supplierQuote?.totalPrice || 0)}
-                                    </p>
-                                    {item.clientInvoice && (
-                                      <p className="text-xs text-gray-500">
-                                        {item.clientInvoice.quoteNumber}
+                                    <div className="text-right">
+                                      <p className="text-sm font-medium">
+                                        {formatCurrency(item.supplierQuote?.totalPrice || 0)}
                                       </p>
-                                    )}
+                                      {item.clientInvoice && (
+                                        <p className="text-xs text-gray-500">
+                                          {item.clientInvoice.quoteNumber}
+                                        </p>
+                                      )}
+                                    </div>
                                   </div>
+                                  {/* Show components */}
+                                  {item.components && item.components.length > 0 && (
+                                    <div className="ml-6 mt-1 space-y-1">
+                                      {item.components.map((comp: any) => (
+                                        <div
+                                          key={comp.id}
+                                          className="flex items-center justify-between p-2 bg-blue-50/50 rounded border border-blue-100 text-sm"
+                                        >
+                                          <div className="flex items-center gap-2 text-gray-600">
+                                            <span className="text-blue-400">└</span>
+                                            <span>{comp.name}</span>
+                                            {comp.modelNumber && (
+                                              <span className="text-gray-400">({comp.modelNumber})</span>
+                                            )}
+                                            {comp.quantity > 1 && (
+                                              <span className="text-gray-500">×{comp.quantity}</span>
+                                            )}
+                                          </div>
+                                          <span className="text-gray-700">
+                                            {comp.price ? formatCurrency(comp.price * (comp.quantity || 1)) : '-'}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
                               ))}
                             </div>
