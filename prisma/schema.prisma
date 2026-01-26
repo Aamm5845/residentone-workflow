@@ -221,6 +221,7 @@ model User {
   paymentsConfirmed           Payment[]                   @relation("PaymentConfirmedBy")
   paymentsReconciled          Payment[]                   @relation("PaymentReconciledBy")
   paymentsCreated             Payment[]                   @relation("PaymentCreatedBy")
+  savedPaymentMethods         SavedPaymentMethod[]        @relation("PaymentMethodCreatedBy")
   ordersCreatedBy             Order[]                     @relation("OrderCreatedBy")
   ordersUpdatedBy             Order[]                     @relation("OrderUpdatedBy")
   orderActivities             OrderActivity[]             @relation("OrderActivityUser")
@@ -2906,7 +2907,9 @@ enum PaymentMethod {
 
 enum OrderStatus {
   PENDING_PAYMENT
-  PAYMENT_RECEIVED
+  PAYMENT_RECEIVED // Client paid us
+  DEPOSIT_PAID // We paid supplier deposit
+  PAID_TO_SUPPLIER // We paid supplier in full
   ORDERED
   CONFIRMED
   IN_PRODUCTION
@@ -3676,6 +3679,43 @@ model Payment {
   @@index([method])
 }
 
+// Saved payment methods for supplier payments (credit cards, bank accounts)
+model SavedPaymentMethod {
+  id    String @id @default(cuid())
+  orgId String
+
+  // Payment method type
+  type String // CREDIT_CARD, DEBIT_CARD, BANK_ACCOUNT
+
+  // Display info (masked)
+  nickname    String? // "Company Visa", "Operating Account"
+  lastFour    String? // Last 4 digits of card/account
+  cardBrand   String? // VISA, MASTERCARD, AMEX
+  expiryMonth Int? // Card expiry month
+  expiryYear  Int? // Card expiry year
+  bankName    String? // Bank name for bank accounts
+
+  // Cardholder/Account info
+  holderName String? // Name on card or account holder
+
+  // Status
+  isActive  Boolean @default(true)
+  isDefault Boolean @default(false) // Default payment method
+
+  // Notes
+  notes String?
+
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy User?   @relation("PaymentMethodCreatedBy", fields: [createdById], references: [id])
+  orders    Order[] @relation("OrderPaymentMethod")
+
+  @@index([orgId])
+  @@index([isActive])
+}
+
 // Order placed with supplier after payment
 model Order {
   id        String @id @default(cuid())
@@ -3713,12 +3753,21 @@ model Order {
   shippingCarrier String?
   shippingAddress String?
 
+  // Deposit & Payment Tracking
+  depositRequired       Decimal? // Deposit amount required (from supplier quote)
+  depositPercent        Decimal? // Deposit as percentage
+  depositPaid           Decimal? // Amount of deposit paid
+  depositPaidAt         DateTime? // When deposit was paid
+  balanceDue            Decimal? // Remaining balance after deposit
+  balancePaidAt         DateTime? // When balance was paid
+
   // Supplier Payment Tracking
-  supplierPaidAt        DateTime? // When we paid the supplier
+  supplierPaidAt        DateTime? // When we paid the supplier (full or deposit)
   supplierPaymentMethod String? // How we paid (wire, check, credit, etc.)
   supplierPaymentRef    String? // Reference number/confirmation
-  supplierPaymentAmount Decimal? // Amount paid to supplier
+  supplierPaymentAmount Decimal? // Total amount paid to supplier
   supplierPaymentNotes  String? // Any notes about the payment
+  savedPaymentMethodId  String? // Link to saved payment method used
 
   notes         String?
   internalNotes String?
@@ -3735,15 +3784,16 @@ model Order {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  project    Project           @relation("ProjectOrders", fields: [projectId], references: [id], onDelete: Cascade)
-  supplier   Supplier?         @relation(fields: [supplierId], references: [id])
-  createdBy  User              @relation("OrderCreatedBy", fields: [createdById], references: [id])
-  updatedBy  User              @relation("OrderUpdatedBy", fields: [updatedById], references: [id])
-  items      OrderItem[]
-  documents  RFQDocument[]     @relation("OrderDocuments")
-  activities OrderActivity[]
-  deliveries Delivery[]
-  messages   SupplierMessage[]
+  project            Project             @relation("ProjectOrders", fields: [projectId], references: [id], onDelete: Cascade)
+  supplier           Supplier?           @relation(fields: [supplierId], references: [id])
+  savedPaymentMethod SavedPaymentMethod? @relation("OrderPaymentMethod", fields: [savedPaymentMethodId], references: [id])
+  createdBy          User                @relation("OrderCreatedBy", fields: [createdById], references: [id])
+  updatedBy          User                @relation("OrderUpdatedBy", fields: [updatedById], references: [id])
+  items              OrderItem[]
+  documents          RFQDocument[]       @relation("OrderDocuments")
+  activities         OrderActivity[]
+  deliveries         Delivery[]
+  messages           SupplierMessage[]
 
   @@unique([orgId, orderNumber])
   @@index([supplierAccessToken])

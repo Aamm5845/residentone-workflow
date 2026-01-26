@@ -26,6 +26,13 @@ interface SupplierGroup {
   supplierEmail: string | null
   currency: string
   items: OrderLineItem[]
+  // From supplier quote
+  shippingCost: number | null
+  depositRequired: number | null
+  depositPercent: number | null
+  paymentTerms: string | null
+  shippingTerms: string | null
+  supplierQuoteId: string | null
 }
 
 /**
@@ -79,7 +86,12 @@ export async function POST(
                   include: {
                     supplierQuote: {
                       include: {
-                        supplier: true
+                        supplier: true,
+                        supplierRFQ: {
+                          select: {
+                            supplier: true
+                          }
+                        }
                       }
                     }
                   }
@@ -92,7 +104,12 @@ export async function POST(
                   include: {
                     supplierQuote: {
                       include: {
-                        supplier: true
+                        supplier: true,
+                        supplierRFQ: {
+                          select: {
+                            supplier: true
+                          }
+                        }
                       }
                     }
                   },
@@ -203,12 +220,21 @@ export async function POST(
       const itemCurrency = roomFFEItem.currency?.toUpperCase() || 'CAD'
 
       if (!supplierGroups[supplierId]) {
+        // Get shipping/deposit info from the supplier quote
+        const parentQuote = supplierQuote.supplierQuote
         supplierGroups[supplierId] = {
           supplierId: supplier?.id || null,
           supplierName,
           supplierEmail,
           currency: itemCurrency, // Initial currency from first item
-          items: []
+          items: [],
+          // Shipping and deposit from supplier quote
+          shippingCost: parentQuote?.shippingCost ? Number(parentQuote.shippingCost) : null,
+          depositRequired: parentQuote?.depositRequired ? Number(parentQuote.depositRequired) : null,
+          depositPercent: parentQuote?.depositPercent ? Number(parentQuote.depositPercent) : null,
+          paymentTerms: parentQuote?.paymentTerms || null,
+          shippingTerms: parentQuote?.shippingTerms || null,
+          supplierQuoteId: parentQuote?.id || null
         }
       }
 
@@ -268,6 +294,15 @@ export async function POST(
       orderCounter++
 
       const subtotal = group.items.reduce((sum, item) => sum + item.totalPrice, 0)
+      const shippingCost = group.shippingCost || 0
+      const totalAmount = subtotal + shippingCost
+
+      // Calculate deposit and balance
+      let depositRequired = group.depositRequired
+      if (!depositRequired && group.depositPercent) {
+        depositRequired = totalAmount * (group.depositPercent / 100)
+      }
+      const balanceDue = depositRequired ? totalAmount - depositRequired : null
 
       // Determine currency: use the currency if all items have same currency, otherwise default to CAD
       const itemCurrencies = group.items
@@ -286,10 +321,18 @@ export async function POST(
           vendorEmail: group.supplierEmail,
           status: 'PAYMENT_RECEIVED', // Client has paid
           subtotal,
-          totalAmount: subtotal, // Will add tax/shipping later
+          shippingCost: shippingCost > 0 ? shippingCost : null,
+          totalAmount,
           currency: orderCurrency,
+          // Deposit tracking from supplier quote
+          depositRequired: depositRequired || null,
+          depositPercent: group.depositPercent,
+          balanceDue: balanceDue,
           createdById: userId,
           updatedById: userId,
+          internalNotes: group.paymentTerms || group.shippingTerms
+            ? `Payment Terms: ${group.paymentTerms || 'N/A'}\nShipping Terms: ${group.shippingTerms || 'N/A'}`
+            : null,
           items: {
             create: group.items.map(item => ({
               roomFFEItemId: item.roomFFEItemId,
@@ -343,6 +386,11 @@ export async function POST(
         supplierEmail: group.supplierEmail,
         itemCount: group.items.length,
         subtotal,
+        shippingCost,
+        totalAmount,
+        depositRequired: depositRequired || null,
+        balanceDue: balanceDue,
+        paymentTerms: group.paymentTerms,
         status: order.status,
         currency: orderCurrency
       })
