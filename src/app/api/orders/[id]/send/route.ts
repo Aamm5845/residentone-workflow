@@ -72,7 +72,14 @@ export async function POST(
                 color: true,
                 finish: true,
                 images: true,
-                notes: true
+                notes: true,
+                leadTime: true
+              }
+            },
+            supplierQuoteLineItem: {
+              select: {
+                leadTime: true,
+                leadTimeWeeks: true
               }
             }
           }
@@ -83,6 +90,45 @@ export async function POST(
     if (!order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     }
+
+    // Calculate expected delivery from lead time if not provided
+    let calculatedExpectedDelivery = expectedDelivery ? new Date(expectedDelivery) : order.expectedDelivery
+
+    if (!calculatedExpectedDelivery) {
+      // Find the maximum lead time from items
+      let maxLeadTimeWeeks = 0
+      for (const item of order.items) {
+        const leadTime = item.supplierQuoteLineItem?.leadTime || item.roomFFEItem?.leadTime
+        const leadTimeWeeks = item.supplierQuoteLineItem?.leadTimeWeeks
+
+        if (leadTimeWeeks && leadTimeWeeks > maxLeadTimeWeeks) {
+          maxLeadTimeWeeks = leadTimeWeeks
+        } else if (leadTime) {
+          // Parse lead time string (e.g., "2-4 Weeks", "4-6 Weeks", "In Stock")
+          const weekMatch = leadTime.match(/(\d+)-?(\d+)?\s*weeks?/i)
+          if (weekMatch) {
+            const weeks = parseInt(weekMatch[2] || weekMatch[1]) // Use upper bound if range
+            if (weeks > maxLeadTimeWeeks) {
+              maxLeadTimeWeeks = weeks
+            }
+          } else if (leadTime.toLowerCase().includes('in stock') || leadTime.toLowerCase().includes('in-stock')) {
+            // In stock = 1 week default
+            if (1 > maxLeadTimeWeeks) maxLeadTimeWeeks = 1
+          }
+        }
+      }
+
+      if (maxLeadTimeWeeks > 0) {
+        calculatedExpectedDelivery = new Date()
+        calculatedExpectedDelivery.setDate(calculatedExpectedDelivery.getDate() + (maxLeadTimeWeeks * 7))
+      }
+    }
+
+    // Generate supplier portal URL
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://app.meisnerinteriors.com'
+    const supplierPortalUrl = order.supplierAccessToken
+      ? `${baseUrl}/supplier-order/${order.supplierAccessToken}`
+      : undefined
 
     // Determine supplier email
     const supplierEmail = overrideEmail || order.supplier?.email || order.vendorEmail
@@ -117,6 +163,7 @@ export async function POST(
       companyPhone: organization?.phone || undefined,
       companyEmail: organization?.email || 'projects@meisnerinteriors.com',
       companyAddress: organization?.address || undefined,
+      supplierPortalUrl,
       items: order.items.map(item => ({
         name: item.name,
         description: item.description,
@@ -138,7 +185,7 @@ export async function POST(
       currency: order.currency,
       shippingAddress: overrideShippingAddress || order.shippingAddress,
       shippingMethod: order.shippingMethod,
-      expectedDelivery: expectedDelivery ? new Date(expectedDelivery) : (order.expectedDelivery || null),
+      expectedDelivery: calculatedExpectedDelivery || null,
       notes: additionalNotes || order.notes,
       paymentTerms: paymentTerms || 'Net 30',
       orderDate: order.createdAt
@@ -162,7 +209,7 @@ export async function POST(
         orderedAt: new Date(),
         notes: additionalNotes || order.notes,
         shippingAddress: overrideShippingAddress || order.shippingAddress,
-        expectedDelivery: expectedDelivery ? new Date(expectedDelivery) : order.expectedDelivery,
+        expectedDelivery: calculatedExpectedDelivery,
         updatedById: userId
       }
     })
@@ -201,6 +248,8 @@ export async function POST(
       success: true,
       message: `Purchase order sent to ${supplierEmail}`,
       emailMessageId: emailResult.messageId,
+      supplierPortalUrl,
+      expectedDelivery: calculatedExpectedDelivery?.toISOString(),
       order: {
         id: order.id,
         orderNumber: order.orderNumber,

@@ -1027,6 +1027,7 @@ export interface PurchaseOrderEmailData {
   companyPhone?: string
   companyEmail?: string
   companyAddress?: string
+  supplierPortalUrl?: string // URL for supplier to confirm order, update shipping, etc.
   items: Array<{
     name: string
     description?: string | null
@@ -1177,6 +1178,19 @@ export function generatePurchaseOrderEmailTemplate(data: PurchaseOrderEmailData)
             <p style="margin: 0 0 24px 0; color: #6b7280; font-size: 15px;">
                 Please find below our official purchase order. We kindly request confirmation of this order and estimated delivery date.
             </p>
+
+            ${data.supplierPortalUrl ? `
+            <!-- Action Button -->
+            <div style="text-align: center; margin-bottom: 28px;">
+                <a href="${data.supplierPortalUrl}"
+                   style="display: inline-block; background: #2563eb; color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">
+                    View Order & Confirm Receipt
+                </a>
+                <p style="margin: 12px 0 0 0; color: #6b7280; font-size: 13px;">
+                    Use this link to confirm the order, update shipping status, and upload documents
+                </p>
+            </div>
+            ` : ''}
 
             <!-- Order Details Card -->
             <div style="background: #f9fafb; border-radius: 8px; padding: 20px; margin-bottom: 24px;">

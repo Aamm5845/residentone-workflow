@@ -3718,6 +3718,13 @@ model Order {
   notes         String?
   internalNotes String?
 
+  // Supplier Portal Access
+  supplierAccessToken    String?   @unique @default(cuid())
+  supplierTokenExpiresAt DateTime?
+  supplierViewedAt       DateTime? // When supplier first viewed the PO
+  supplierConfirmedAt    DateTime? // When supplier confirmed receipt
+  supplierConfirmedBy    String?   // Name of person who confirmed
+
   createdById String
   updatedById String
   createdAt   DateTime @default(now())
@@ -3734,6 +3741,7 @@ model Order {
   messages   SupplierMessage[]
 
   @@unique([orgId, orderNumber])
+  @@index([supplierAccessToken])
   @@index([orgId])
   @@index([projectId])
   @@index([supplierId])
