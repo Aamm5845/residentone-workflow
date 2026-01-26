@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 
+export const dynamic = 'force-dynamic'
+
 // GET - Get payment status for an order
 export async function GET(
   request: NextRequest,
@@ -216,5 +218,82 @@ export async function POST(
   } catch (error) {
     console.error('Error recording supplier payment:', error)
     return NextResponse.json({ error: 'Failed to record payment' }, { status: 500 })
+  }
+}
+
+// PUT - Update deposit requirements
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession()
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const orgId = (session.user as any).orgId
+    const userId = session.user.id
+    const { id: orderId } = await params
+    const body = await request.json()
+
+    const {
+      depositRequired,
+      depositPercent
+    } = body
+
+    const order = await prisma.order.findFirst({
+      where: { id: orderId, orgId }
+    })
+
+    if (!order) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+    }
+
+    const totalAmount = Number(order.totalAmount) || 0
+
+    // Calculate deposit amount from percentage if provided
+    let calculatedDeposit = depositRequired
+    if (depositPercent && !depositRequired) {
+      calculatedDeposit = (totalAmount * depositPercent) / 100
+    }
+
+    // Update order with deposit requirements
+    const updatedOrder = await prisma.order.update({
+      where: { id: orderId },
+      data: {
+        depositRequired: calculatedDeposit || null,
+        depositPercent: depositPercent || null,
+        balanceDue: totalAmount - (Number(order.depositPaid) || 0),
+        updatedById: userId
+      }
+    })
+
+    // Log activity
+    await prisma.orderActivity.create({
+      data: {
+        orderId,
+        type: 'DEPOSIT_UPDATED',
+        message: `Deposit requirement set to $${calculatedDeposit?.toFixed(2) || '0'} (${depositPercent || 0}%)`,
+        userId,
+        metadata: {
+          depositRequired: calculatedDeposit,
+          depositPercent
+        }
+      }
+    })
+
+    return NextResponse.json({
+      success: true,
+      order: {
+        id: updatedOrder.id,
+        depositRequired: calculatedDeposit,
+        depositPercent,
+        balanceDue: totalAmount - (Number(order.depositPaid) || 0)
+      }
+    })
+  } catch (error) {
+    console.error('Error updating deposit requirements:', error)
+    return NextResponse.json({ error: 'Failed to update deposit requirements' }, { status: 500 })
   }
 }

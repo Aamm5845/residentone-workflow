@@ -27,6 +27,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import SendPODialog from './SendPODialog'
+import SupplierPaymentTracker from './supplier-payment-tracker'
 
 interface OrderItem {
   id: string
@@ -622,6 +623,15 @@ export default function OrderDetailView({ orderId, user, orgId }: OrderDetailVie
 
         {/* Sidebar */}
         <div className="space-y-6">
+          {/* Supplier Payment Tracker */}
+          <SupplierPaymentTracker
+            orderId={order.id}
+            orderNumber={order.orderNumber}
+            supplierName={order.supplier?.name || 'Supplier'}
+            canEdit={canEdit}
+            onPaymentUpdate={fetchOrder}
+          />
+
           {/* Supplier Info */}
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">

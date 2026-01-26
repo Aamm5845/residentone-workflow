@@ -72,8 +72,35 @@ export async function GET(request: NextRequest) {
       prisma.order.count({ where })
     ])
 
+    // Add payment summary to each order
+    const ordersWithPayment = orders.map(order => {
+      const totalAmount = Number(order.totalAmount) || 0
+      const depositRequired = Number(order.depositRequired) || 0
+      const depositPaid = Number(order.depositPaid) || 0
+      const supplierPaymentAmount = Number(order.supplierPaymentAmount) || 0
+
+      let paymentStatus: 'NOT_STARTED' | 'DEPOSIT_PAID' | 'FULLY_PAID' | 'OVERPAID' = 'NOT_STARTED'
+      if (supplierPaymentAmount >= totalAmount && totalAmount > 0) {
+        paymentStatus = supplierPaymentAmount > totalAmount ? 'OVERPAID' : 'FULLY_PAID'
+      } else if (depositPaid > 0) {
+        paymentStatus = 'DEPOSIT_PAID'
+      }
+
+      return {
+        ...order,
+        paymentSummary: {
+          totalAmount,
+          depositRequired,
+          depositPaid,
+          supplierPaymentAmount,
+          remainingBalance: Math.max(0, totalAmount - supplierPaymentAmount),
+          paymentStatus
+        }
+      }
+    })
+
     return NextResponse.json({
-      orders,
+      orders: ordersWithPayment,
       total,
       limit,
       offset
