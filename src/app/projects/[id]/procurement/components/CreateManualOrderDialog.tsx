@@ -458,27 +458,15 @@ export default function CreateManualOrderDialog({
                       placeholder="e.g., Amazon, Home Depot, West Elm"
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="vendorEmail">Vendor Email</Label>
-                      <Input
-                        id="vendorEmail"
-                        type="email"
-                        value={vendorEmail}
-                        onChange={e => setVendorEmail(e.target.value)}
-                        placeholder="orders@vendor.com"
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="vendorUrl">Product/Order URL</Label>
-                      <Input
-                        id="vendorUrl"
-                        type="url"
-                        value={vendorUrl}
-                        onChange={e => setVendorUrl(e.target.value)}
-                        placeholder="https://..."
-                      />
-                    </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="vendorEmail">Vendor Email</Label>
+                    <Input
+                      id="vendorEmail"
+                      type="email"
+                      value={vendorEmail}
+                      onChange={e => setVendorEmail(e.target.value)}
+                      placeholder="orders@vendor.com"
+                    />
                   </div>
                 </div>
               </div>
