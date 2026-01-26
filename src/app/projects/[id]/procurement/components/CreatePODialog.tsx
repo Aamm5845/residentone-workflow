@@ -373,14 +373,14 @@ export default function CreatePODialog({
                 Payment Method for Supplier
               </Label>
               <Select
-                value={selectedPaymentMethodId}
-                onValueChange={setSelectedPaymentMethodId}
+                value={selectedPaymentMethodId || 'none'}
+                onValueChange={(val) => setSelectedPaymentMethodId(val === 'none' ? '' : val)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a card for supplier to charge..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No payment method</SelectItem>
+                  <SelectItem value="none">No payment method</SelectItem>
                   {loadingPaymentMethods ? (
                     <SelectItem value="_loading" disabled>Loading...</SelectItem>
                   ) : paymentMethods.length === 0 ? (
