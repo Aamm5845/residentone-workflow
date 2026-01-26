@@ -182,12 +182,34 @@ export default function OrderDetailSheet({
     depositAmount: ''
   })
   const [savingDeposit, setSavingDeposit] = useState(false)
+  const [savedPaymentMethods, setSavedPaymentMethods] = useState<Array<{
+    id: string
+    nickname: string | null
+    type: string
+    lastFour: string | null
+    cardBrand: string | null
+    isDefault: boolean
+  }>>([])
+  const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string>('')
 
   useEffect(() => {
     if (open && orderId) {
       fetchOrder()
+      fetchSavedPaymentMethods()
     }
   }, [open, orderId])
+
+  const fetchSavedPaymentMethods = async () => {
+    try {
+      const res = await fetch('/api/saved-payment-methods')
+      if (res.ok) {
+        const data = await res.json()
+        setSavedPaymentMethods(data.paymentMethods || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch saved payment methods:', error)
+    }
+  }
 
   useEffect(() => {
     if (order) {
@@ -326,7 +348,8 @@ export default function OrderDetailSheet({
         body: JSON.stringify({
           amount,
           paymentType: paymentForm.paymentType,
-          method: paymentForm.method,
+          method: selectedPaymentMethodId ? 'SAVED_CARD' : paymentForm.method,
+          savedPaymentMethodId: selectedPaymentMethodId || null,
           reference: paymentForm.reference || null,
           notes: paymentForm.notes || null
         })
@@ -342,6 +365,7 @@ export default function OrderDetailSheet({
           reference: '',
           notes: ''
         })
+        setSelectedPaymentMethodId('')
         fetchOrder()
         onUpdate()
       } else {
@@ -810,6 +834,31 @@ export default function OrderDetailSheet({
                         <X className="w-4 h-4" />
                       </Button>
                     </div>
+
+                    {/* Saved Payment Methods */}
+                    {savedPaymentMethods.length > 0 && (
+                      <div>
+                        <Label className="text-xs">Saved Payment Method</Label>
+                        <select
+                          value={selectedPaymentMethodId}
+                          onChange={(e) => {
+                            setSelectedPaymentMethodId(e.target.value)
+                            if (e.target.value) {
+                              setPaymentForm(prev => ({ ...prev, method: 'SAVED_CARD' }))
+                            }
+                          }}
+                          className="w-full mt-1 h-9 rounded-md border border-input bg-background px-3 text-sm"
+                        >
+                          <option value="">Use manual payment method</option>
+                          {savedPaymentMethods.map(pm => (
+                            <option key={pm.id} value={pm.id}>
+                              {pm.cardBrand} ****{pm.lastFour} {pm.nickname ? `(${pm.nickname})` : ''} {pm.isDefault ? '★' : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <Label className="text-xs">Payment Type</Label>
@@ -837,20 +886,22 @@ export default function OrderDetailSheet({
                           className="mt-1"
                         />
                       </div>
-                      <div>
-                        <Label className="text-xs">Method</Label>
-                        <select
-                          value={paymentForm.method}
-                          onChange={(e) => setPaymentForm(prev => ({ ...prev, method: e.target.value }))}
-                          className="w-full mt-1 h-9 rounded-md border border-input bg-background px-3 text-sm"
-                        >
-                          <option value="CREDIT_CARD">Credit Card</option>
-                          <option value="WIRE_TRANSFER">Wire Transfer</option>
-                          <option value="CHECK">Check</option>
-                          <option value="ETRANSFER">E-Transfer</option>
-                          <option value="CASH">Cash</option>
-                        </select>
-                      </div>
+                      {!selectedPaymentMethodId && (
+                        <div>
+                          <Label className="text-xs">Method</Label>
+                          <select
+                            value={paymentForm.method}
+                            onChange={(e) => setPaymentForm(prev => ({ ...prev, method: e.target.value }))}
+                            className="w-full mt-1 h-9 rounded-md border border-input bg-background px-3 text-sm"
+                          >
+                            <option value="CREDIT_CARD">Credit Card</option>
+                            <option value="WIRE_TRANSFER">Wire Transfer</option>
+                            <option value="CHECK">Check</option>
+                            <option value="ETRANSFER">E-Transfer</option>
+                            <option value="CASH">Cash</option>
+                          </select>
+                        </div>
+                      )}
                       <div>
                         <Label className="text-xs">Reference #</Label>
                         <Input
