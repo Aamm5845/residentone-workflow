@@ -32,11 +32,8 @@ import {
   Loader2,
   Package,
   ShoppingCart,
-  Store,
   DollarSign,
-  ExternalLink,
   AlertCircle,
-  Check,
   ChevronDown,
   ChevronRight,
   AlertTriangle,
@@ -152,27 +149,11 @@ export default function CreateManualOrderDialog({
   // Vendor info
   const [vendorName, setVendorName] = useState('')
   const [vendorEmail, setVendorEmail] = useState('')
-  const [vendorUrl, setVendorUrl] = useState('')
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>('')
 
   // Order details
   const [shippingAddress, setShippingAddress] = useState('')
-  const [shippingMethod, setShippingMethod] = useState('')
   const [notes, setNotes] = useState('')
-  const [internalNotes, setInternalNotes] = useState('')
-
-  // Already ordered externally?
-  const [alreadyOrdered, setAlreadyOrdered] = useState(false)
-  const [externalOrderNumber, setExternalOrderNumber] = useState('')
-
-  // Shipping and tax
-  const [shippingCost, setShippingCost] = useState('')
-  const [taxAmount, setTaxAmount] = useState('')
-
-  // Deposit tracking
-  const [depositRequired, setDepositRequired] = useState('')
-  const [depositPercent, setDepositPercent] = useState('')
-  const [paymentTerms, setPaymentTerms] = useState('')
 
   // Item selections with prices
   const [itemDetails, setItemDetails] = useState<ItemOrderDetails[]>([])
@@ -314,17 +295,6 @@ export default function CreateManualOrderDialog({
     }
     return sum + total
   }, 0)
-  const shippingAmount = parseFloat(shippingCost) || 0
-  const taxTotal = parseFloat(taxAmount) || 0
-  const totalCost = subtotal + shippingAmount + taxTotal
-
-  // Calculate deposit amount
-  const depositAmount = depositRequired
-    ? parseFloat(depositRequired)
-    : depositPercent
-    ? totalCost * (parseFloat(depositPercent) / 100)
-    : null
-  const balanceDue = depositAmount ? totalCost - depositAmount : null
 
   const canCreate = (vendorName.trim() || selectedSupplier) && itemsWithPrices.length > 0
 
@@ -358,31 +328,19 @@ export default function CreateManualOrderDialog({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           supplierId: selectedSupplierId || undefined,
-          vendorName: vendorName.trim(),
+          vendorName: vendorName.trim() || selectedSupplier?.name || '',
           vendorEmail: vendorEmail.trim() || undefined,
-          vendorUrl: vendorUrl.trim() || undefined,
           items: orderItems,
           shippingAddress: shippingAddress.trim() || undefined,
-          shippingMethod: shippingMethod.trim() || undefined,
-          shippingCost: shippingAmount || undefined,
-          taxAmount: taxTotal || undefined,
-          notes: notes.trim() || undefined,
-          internalNotes: internalNotes.trim() || undefined,
-          alreadyOrdered,
-          externalOrderNumber: externalOrderNumber.trim() || undefined,
-          // Deposit tracking
-          depositRequired: depositAmount || undefined,
-          depositPercent: depositPercent ? parseFloat(depositPercent) : undefined,
-          paymentTerms: paymentTerms.trim() || undefined
+          notes: notes.trim() || undefined
         })
       })
 
       if (res.ok) {
         const data = await res.json()
-        toast.success(`Order ${data.order.orderNumber} created for ${vendorName}`)
+        toast.success(`Order ${data.order.orderNumber} created for ${selectedSupplier?.name || vendorName}`)
         onSuccess()
         onOpenChange(false)
-        // Reset form
         resetForm()
       } else {
         const error = await res.json()
@@ -398,19 +356,9 @@ export default function CreateManualOrderDialog({
   const resetForm = () => {
     setVendorName('')
     setVendorEmail('')
-    setVendorUrl('')
     setSelectedSupplierId('')
     setShippingAddress('')
-    setShippingMethod('')
-    setShippingCost('')
-    setTaxAmount('')
     setNotes('')
-    setInternalNotes('')
-    setAlreadyOrdered(false)
-    setExternalOrderNumber('')
-    setDepositRequired('')
-    setDepositPercent('')
-    setPaymentTerms('')
     setExpandedItems(new Set())
   }
 
@@ -532,38 +480,6 @@ export default function CreateManualOrderDialog({
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
-
-            {/* Already Ordered Toggle */}
-            <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-              <Checkbox
-                id="alreadyOrdered"
-                checked={alreadyOrdered}
-                onCheckedChange={checked => setAlreadyOrdered(!!checked)}
-              />
-              <div className="grid gap-1.5 leading-none">
-                <Label
-                  htmlFor="alreadyOrdered"
-                  className="text-sm font-medium text-blue-800 cursor-pointer"
-                >
-                  Order was already placed externally
-                </Label>
-                <p className="text-xs text-blue-600">
-                  Check this if you&apos;ve already ordered from the vendor and want to track it
-                </p>
-              </div>
-            </div>
-
-            {alreadyOrdered && (
-              <div className="grid gap-2">
-                <Label htmlFor="externalOrderNumber">External Order Number</Label>
-                <Input
-                  id="externalOrderNumber"
-                  value={externalOrderNumber}
-                  onChange={e => setExternalOrderNumber(e.target.value)}
-                  placeholder="e.g., Amazon order #123-456789"
-                />
               </div>
             )}
 
@@ -789,147 +705,31 @@ export default function CreateManualOrderDialog({
               )}
             </div>
 
-            {/* Deposit & Payment Terms */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-gray-900">Deposit & Payment Terms</h3>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="depositRequired">Deposit Amount</Label>
-                  <div className="relative">
-                    <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <Input
-                      id="depositRequired"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={depositRequired}
-                      onChange={e => {
-                        setDepositRequired(e.target.value)
-                        if (e.target.value) setDepositPercent('')
-                      }}
-                      placeholder="0.00"
-                      className="pl-7"
-                    />
-                  </div>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="depositPercent">Or Deposit %</Label>
-                  <div className="relative">
-                    <Input
-                      id="depositPercent"
-                      type="number"
-                      step="1"
-                      min="0"
-                      max="100"
-                      value={depositPercent}
-                      onChange={e => {
-                        setDepositPercent(e.target.value)
-                        if (e.target.value) setDepositRequired('')
-                      }}
-                      placeholder="e.g., 50"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">%</span>
-                  </div>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="paymentTerms">Payment Terms</Label>
-                  <Input
-                    id="paymentTerms"
-                    value={paymentTerms}
-                    onChange={e => setPaymentTerms(e.target.value)}
-                    placeholder="e.g., Net 30"
-                  />
-                </div>
-              </div>
-              {depositAmount !== null && depositAmount > 0 && (
-                <div className="text-sm text-gray-600 bg-blue-50 p-2 rounded">
-                  Deposit: {formatCurrency(depositAmount)} · Balance due: {formatCurrency(balanceDue || 0)}
-                </div>
-              )}
-            </div>
-
-            {/* Shipping Info */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-gray-900">Shipping & Fees (Optional)</h3>
-              <div className="grid gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="shippingAddress">Shipping Address</Label>
+            {/* Order Details - Shipping Address & Notes (matching quote-based form) */}
+            <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <h3 className="font-medium text-blue-800 flex items-center gap-2">
+                <Package className="w-4 h-4" />
+                Order Details
+              </h3>
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-sm text-blue-700">Ship To Address</Label>
                   <Textarea
-                    id="shippingAddress"
                     value={shippingAddress}
-                    onChange={e => setShippingAddress(e.target.value)}
-                    placeholder="Enter delivery address..."
-                    rows={2}
+                    onChange={(e) => setShippingAddress(e.target.value)}
+                    placeholder="Enter shipping address for this order..."
+                    rows={3}
+                    className="mt-1 bg-white"
                   />
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="shippingMethod">Shipping Method</Label>
-                  <Input
-                    id="shippingMethod"
-                    value={shippingMethod}
-                    onChange={e => setShippingMethod(e.target.value)}
-                    placeholder="e.g., Standard, Express, White Glove"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="shippingCost">Shipping Cost</Label>
-                    <div className="relative">
-                      <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <Input
-                        id="shippingCost"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={shippingCost}
-                        onChange={e => setShippingCost(e.target.value)}
-                        placeholder="0.00"
-                        className="pl-7"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="taxAmount">Tax Amount</Label>
-                    <div className="relative">
-                      <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <Input
-                        id="taxAmount"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={taxAmount}
-                        onChange={e => setTaxAmount(e.target.value)}
-                        placeholder="0.00"
-                        className="pl-7"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Notes */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-gray-900">Notes (Optional)</h3>
-              <div className="grid gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="notes">Order Notes</Label>
+                <div>
+                  <Label className="text-sm text-blue-700">Order Notes (optional)</Label>
                   <Textarea
-                    id="notes"
                     value={notes}
-                    onChange={e => setNotes(e.target.value)}
+                    onChange={(e) => setNotes(e.target.value)}
                     placeholder="Notes visible on PO..."
                     rows={2}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="internalNotes">Internal Notes</Label>
-                  <Textarea
-                    id="internalNotes"
-                    value={internalNotes}
-                    onChange={e => setInternalNotes(e.target.value)}
-                    placeholder="Private notes for your team..."
-                    rows={2}
+                    className="mt-1 bg-white"
                   />
                 </div>
               </div>
@@ -939,28 +739,15 @@ export default function CreateManualOrderDialog({
             {itemsWithPrices.length > 0 && (
               <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
                 <div className="flex items-center justify-between">
-                  <div className="space-y-1">
+                  <div>
                     <p className="font-medium text-emerald-800">
-                      {itemsWithPrices.length} item{itemsWithPrices.length > 1 ? 's' : ''} to order
+                      Total: {itemsWithPrices.length} item{itemsWithPrices.length > 1 ? 's' : ''}
                     </p>
-                    <div className="text-sm text-emerald-600 space-y-0.5">
-                      <p>Subtotal: {formatCurrency(subtotal)}</p>
-                      {shippingAmount > 0 && <p>Shipping: {formatCurrency(shippingAmount)}</p>}
-                      {taxTotal > 0 && <p>Tax: {formatCurrency(taxTotal)}</p>}
-                      {(shippingAmount > 0 || taxTotal > 0) && (
-                        <p className="font-medium text-emerald-800 pt-1 border-t border-emerald-200">
-                          Total: {formatCurrency(totalCost)}
-                        </p>
-                      )}
-                      {depositAmount !== null && depositAmount > 0 && (
-                        <div className="pt-1 border-t border-emerald-200 mt-1">
-                          <p>Deposit: {formatCurrency(depositAmount)}</p>
-                          <p>Balance due: {formatCurrency(balanceDue || 0)}</p>
-                        </div>
-                      )}
-                    </div>
+                    <p className="text-sm text-emerald-600">
+                      Supplier cost: {formatCurrency(subtotal)}
+                    </p>
                   </div>
-                  <Check className="w-6 h-6 text-emerald-500" />
+                  <CheckCircle className="w-8 h-8 text-emerald-500" />
                 </div>
               </div>
             )}
