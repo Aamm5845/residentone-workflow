@@ -95,6 +95,7 @@ interface ClientInvoice {
   payments: Payment[]
   createdAt: string
   updatedAt: string
+  currency: string
   // Email tracking
   emailOpenedAt: string | null
   viewCount: number
@@ -174,10 +175,10 @@ export default function ClientInvoicesTab({ projectId, searchQuery, onCreateInvo
     invoice.clientName.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number, currency: string = 'CAD') => {
     return new Intl.NumberFormat('en-CA', {
       style: 'currency',
-      currency: 'CAD'
+      currency: currency
     }).format(amount)
   }
 
@@ -441,142 +442,221 @@ export default function ClientInvoicesTab({ projectId, searchQuery, onCreateInvo
               </Button>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-[40px]">
-                    <Checkbox
-                      checked={filteredInvoices.length > 0 && selectedIds.size === filteredInvoices.length}
-                      onCheckedChange={toggleSelectAll}
-                      aria-label="Select all"
-                    />
-                  </TableHead>
-                  <TableHead className="text-gray-500 font-medium">Invoice</TableHead>
-                  <TableHead className="text-gray-500 font-medium">Client</TableHead>
-                  <TableHead className="text-gray-500 font-medium">Items</TableHead>
-                  <TableHead className="text-gray-500 font-medium text-right">Total</TableHead>
-                  <TableHead className="text-gray-500 font-medium text-right">Paid</TableHead>
-                  <TableHead className="text-gray-500 font-medium text-right">Balance</TableHead>
-                  <TableHead className="text-gray-500 font-medium">Status</TableHead>
-                  <TableHead className="text-gray-500 font-medium w-[100px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredInvoices.map((invoice) => {
-                  const StatusIcon = statusConfig[invoice.status].icon
-                  return (
-                    <TableRow key={invoice.id} className="cursor-pointer group" onClick={() => handleViewInvoice(invoice)}>
-                      <TableCell onClick={(e) => e.stopPropagation()}>
+            (() => {
+              // Group invoices by currency
+              const invoicesByCurrency = filteredInvoices.reduce((groups: Record<string, ClientInvoice[]>, invoice) => {
+                const currency = invoice.currency || 'CAD'
+                if (!groups[currency]) groups[currency] = []
+                groups[currency].push(invoice)
+                return groups
+              }, {})
+
+              // Sort currencies: CAD first, then others alphabetically
+              const sortedCurrencies = Object.keys(invoicesByCurrency).sort((a, b) => {
+                if (a === 'CAD') return -1
+                if (b === 'CAD') return 1
+                return a.localeCompare(b)
+              })
+
+              const renderInvoiceTable = (invoicesGroup: ClientInvoice[], currency: string) => (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="w-[40px]">
                         <Checkbox
-                          checked={selectedIds.has(invoice.id)}
-                          onCheckedChange={() => toggleSelect(invoice.id)}
-                          aria-label={`Select ${invoice.invoiceNumber}`}
+                          checked={invoicesGroup.length > 0 && invoicesGroup.every(i => selectedIds.has(i.id))}
+                          onCheckedChange={() => {
+                            const allSelected = invoicesGroup.every(i => selectedIds.has(i.id))
+                            if (allSelected) {
+                              setSelectedIds(prev => {
+                                const next = new Set(prev)
+                                invoicesGroup.forEach(i => next.delete(i.id))
+                                return next
+                              })
+                            } else {
+                              setSelectedIds(prev => {
+                                const next = new Set(prev)
+                                invoicesGroup.forEach(i => next.add(i.id))
+                                return next
+                              })
+                            }
+                          }}
+                          aria-label="Select all in this currency"
                         />
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium text-gray-900">{invoice.invoiceNumber}</p>
-                          <p className="text-xs text-gray-500 truncate max-w-[200px]">{invoice.title}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="text-gray-900">{invoice.clientName}</p>
-                          <p className="text-xs text-gray-500">{invoice.clientEmail}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-gray-600">{invoice.itemsCount} item{invoice.itemsCount !== 1 ? 's' : ''}</TableCell>
-                      <TableCell className="font-medium text-gray-900 text-right">{formatCurrency(invoice.totalAmount)}</TableCell>
-                      <TableCell className="text-emerald-600 text-right">{formatCurrency(invoice.paidAmount)}</TableCell>
-                      <TableCell className={`text-right font-medium ${invoice.balance > 0 ? 'text-amber-600' : 'text-gray-400'}`}>
-                        {formatCurrency(invoice.balance)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Badge className={`${statusConfig[invoice.status].color} gap-1`}>
-                            <StatusIcon className="w-3 h-3" />
-                            {statusConfig[invoice.status].label}
-                          </Badge>
-                          {invoice.emailOpenedAt && invoice.status !== 'DRAFT' && (
-                            <div
-                              className="flex items-center gap-1 text-xs text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded"
-                              title={`Viewed ${invoice.viewCount > 1 ? `${invoice.viewCount} times` : 'once'} - First opened: ${format(new Date(invoice.emailOpenedAt), 'MMM d, h:mm a')}`}
-                            >
-                              <Eye className="w-3 h-3" />
-                              {invoice.viewCount > 1 && <span>{invoice.viewCount}</span>}
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleViewInvoice(invoice)}>
-                              <Eye className="w-4 h-4 mr-2" />
-                              View Details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleOpenClientView(invoice)}>
-                              <ExternalLink className="w-4 h-4 mr-2" />
-                              Client View
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleCopyLink(invoice)}>
-                              <Copy className="w-4 h-4 mr-2" />
-                              Copy Link
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            {invoice.status === 'DRAFT' && (
-                              <DropdownMenuItem onClick={() => handleSendInvoice(invoice)}>
-                                <Send className="w-4 h-4 mr-2" />
-                                Send Invoice
-                              </DropdownMenuItem>
-                            )}
-                            {(invoice.status === 'SENT' || invoice.status === 'PARTIAL' || invoice.status === 'OVERDUE') && (
-                              <>
-                                <DropdownMenuItem onClick={() => handleRecordPayment(invoice)}>
-                                  <DollarSign className="w-4 h-4 mr-2" />
-                                  Record Payment
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleSendReminder(invoice)}>
-                                  <Bell className="w-4 h-4 mr-2" />
-                                  Send Reminder
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleSendInvoice(invoice)}>
-                                  <RotateCcw className="w-4 h-4 mr-2" />
-                                  Resend Invoice
-                                </DropdownMenuItem>
-                              </>
-                            )}
-                            {invoice.payments.length > 0 && (
-                              <DropdownMenuItem onClick={() => handleViewHistory(invoice)}>
-                                <History className="w-4 h-4 mr-2" />
-                                Payment History
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => handleDownloadPDF(invoice)}>
-                              <Download className="w-4 h-4 mr-2" />
-                              Download PDF
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="text-red-600"
-                              onClick={() => handleDeleteInvoice(invoice)}
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
+                      </TableHead>
+                      <TableHead className="text-gray-500 font-medium">Invoice</TableHead>
+                      <TableHead className="text-gray-500 font-medium">Client</TableHead>
+                      <TableHead className="text-gray-500 font-medium">Items</TableHead>
+                      <TableHead className="text-gray-500 font-medium text-right">Total</TableHead>
+                      <TableHead className="text-gray-500 font-medium text-right">Paid</TableHead>
+                      <TableHead className="text-gray-500 font-medium text-right">Balance</TableHead>
+                      <TableHead className="text-gray-500 font-medium">Status</TableHead>
+                      <TableHead className="text-gray-500 font-medium w-[100px]">Actions</TableHead>
                     </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {invoicesGroup.map((invoice) => {
+                      const StatusIcon = statusConfig[invoice.status].icon
+                      return (
+                        <TableRow key={invoice.id} className="cursor-pointer group" onClick={() => handleViewInvoice(invoice)}>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={selectedIds.has(invoice.id)}
+                              onCheckedChange={() => toggleSelect(invoice.id)}
+                              aria-label={`Select ${invoice.invoiceNumber}`}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium text-gray-900">{invoice.invoiceNumber}</p>
+                              <p className="text-xs text-gray-500 truncate max-w-[200px]">{invoice.title}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="text-gray-900">{invoice.clientName}</p>
+                              <p className="text-xs text-gray-500">{invoice.clientEmail}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-gray-600">{invoice.itemsCount} item{invoice.itemsCount !== 1 ? 's' : ''}</TableCell>
+                          <TableCell className="font-medium text-gray-900 text-right">
+                            {formatCurrency(invoice.totalAmount, currency)}
+                            {currency !== 'CAD' && <span className="ml-1 text-xs text-gray-500">{currency}</span>}
+                          </TableCell>
+                          <TableCell className="text-emerald-600 text-right">
+                            {formatCurrency(invoice.paidAmount, currency)}
+                            {currency !== 'CAD' && <span className="ml-1 text-xs text-gray-500">{currency}</span>}
+                          </TableCell>
+                          <TableCell className={`text-right font-medium ${invoice.balance > 0 ? 'text-amber-600' : 'text-gray-400'}`}>
+                            {formatCurrency(invoice.balance, currency)}
+                            {currency !== 'CAD' && <span className="ml-1 text-xs text-gray-500">{currency}</span>}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Badge className={`${statusConfig[invoice.status].color} gap-1`}>
+                                <StatusIcon className="w-3 h-3" />
+                                {statusConfig[invoice.status].label}
+                              </Badge>
+                              {invoice.emailOpenedAt && invoice.status !== 'DRAFT' && (
+                                <div
+                                  className="flex items-center gap-1 text-xs text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded"
+                                  title={`Viewed ${invoice.viewCount > 1 ? `${invoice.viewCount} times` : 'once'} - First opened: ${format(new Date(invoice.emailOpenedAt), 'MMM d, h:mm a')}`}
+                                >
+                                  <Eye className="w-3 h-3" />
+                                  {invoice.viewCount > 1 && <span>{invoice.viewCount}</span>}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                  <MoreHorizontal className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleViewInvoice(invoice)}>
+                                  <Eye className="w-4 h-4 mr-2" />
+                                  View Details
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleOpenClientView(invoice)}>
+                                  <ExternalLink className="w-4 h-4 mr-2" />
+                                  Client View
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleCopyLink(invoice)}>
+                                  <Copy className="w-4 h-4 mr-2" />
+                                  Copy Link
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                {invoice.status === 'DRAFT' && (
+                                  <DropdownMenuItem onClick={() => handleSendInvoice(invoice)}>
+                                    <Send className="w-4 h-4 mr-2" />
+                                    Send Invoice
+                                  </DropdownMenuItem>
+                                )}
+                                {(invoice.status === 'SENT' || invoice.status === 'PARTIAL' || invoice.status === 'OVERDUE') && (
+                                  <>
+                                    <DropdownMenuItem onClick={() => handleRecordPayment(invoice)}>
+                                      <DollarSign className="w-4 h-4 mr-2" />
+                                      Record Payment
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleSendReminder(invoice)}>
+                                      <Bell className="w-4 h-4 mr-2" />
+                                      Send Reminder
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleSendInvoice(invoice)}>
+                                      <RotateCcw className="w-4 h-4 mr-2" />
+                                      Resend Invoice
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                                {invoice.payments.length > 0 && (
+                                  <DropdownMenuItem onClick={() => handleViewHistory(invoice)}>
+                                    <History className="w-4 h-4 mr-2" />
+                                    Payment History
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => handleDownloadPDF(invoice)}>
+                                  <Download className="w-4 h-4 mr-2" />
+                                  Download PDF
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-red-600"
+                                  onClick={() => handleDeleteInvoice(invoice)}
+                                >
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              )
+
+              return (
+                <div className="space-y-6">
+                  {sortedCurrencies.map((currency) => {
+                    const invoicesGroup = invoicesByCurrency[currency]
+                    const groupTotal = invoicesGroup.reduce((sum, i) => sum + i.totalAmount, 0)
+                    const groupPaid = invoicesGroup.reduce((sum, i) => sum + i.paidAmount, 0)
+                    const groupBalance = invoicesGroup.reduce((sum, i) => sum + i.balance, 0)
+
+                    return (
+                      <div key={currency}>
+                        {sortedCurrencies.length > 1 && (
+                          <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200">
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-sm font-semibold text-gray-900">{currency} Invoices</h3>
+                              <Badge variant="secondary" className="text-xs">
+                                {invoicesGroup.length} invoice{invoicesGroup.length !== 1 ? 's' : ''}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-4 text-sm">
+                              <span className="text-gray-500">
+                                Total: <span className="font-medium text-gray-900">{formatCurrency(groupTotal, currency)}</span>
+                              </span>
+                              <span className="text-gray-500">
+                                Paid: <span className="font-medium text-emerald-600">{formatCurrency(groupPaid, currency)}</span>
+                              </span>
+                              <span className="text-gray-500">
+                                Balance: <span className={`font-medium ${groupBalance > 0 ? 'text-amber-600' : 'text-gray-400'}`}>{formatCurrency(groupBalance, currency)}</span>
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                        {renderInvoiceTable(invoicesGroup, currency)}
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })()
           )}
         </CardContent>
       </Card>
