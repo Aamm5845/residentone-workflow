@@ -1,0 +1,703 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription
+} from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Package,
+  Building2,
+  Calendar,
+  DollarSign,
+  Truck,
+  FileText,
+  Edit,
+  Trash2,
+  Loader2,
+  ExternalLink,
+  Clock,
+  CheckCircle,
+  User,
+  Mail,
+  Phone,
+  MapPin
+} from 'lucide-react'
+import { toast } from 'sonner'
+
+interface OrderItem {
+  id: string
+  name: string
+  description: string | null
+  quantity: number
+  unitPrice: string
+  totalPrice: string
+  isComponent: boolean
+  parentItemId: string | null
+  status: string
+  roomFFEItem: {
+    id: string
+    name: string
+    description: string
+    images: string[]
+    modelNumber: string
+  } | null
+}
+
+interface Order {
+  id: string
+  orderNumber: string
+  status: string
+  vendorName: string | null
+  vendorEmail: string | null
+  subtotal: string | null
+  taxAmount: string | null
+  shippingCost: string | null
+  totalAmount: string | null
+  currency: string
+  orderedAt: string | null
+  confirmedAt: string | null
+  expectedDelivery: string | null
+  actualDelivery: string | null
+  trackingNumber: string | null
+  trackingUrl: string | null
+  shippingCarrier: string | null
+  shippingAddress: string | null
+  supplierPaidAt: string | null
+  supplierPaymentMethod: string | null
+  supplierPaymentAmount: string | null
+  depositRequired: string | null
+  depositPaid: string | null
+  balanceDue: string | null
+  notes: string | null
+  internalNotes: string | null
+  createdAt: string
+  project: {
+    id: string
+    name: string
+    client: {
+      id: string
+      name: string
+      email: string
+    } | null
+  }
+  supplier: {
+    id: string
+    name: string
+    email: string | null
+    phone: string | null
+    contactName: string | null
+    address: string | null
+  } | null
+  createdBy: {
+    id: string
+    name: string
+  }
+  items: OrderItem[]
+  activities: {
+    id: string
+    type: string
+    message: string
+    createdAt: string
+    user: { name: string } | null
+  }[]
+}
+
+interface OrderDetailsDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  orderId: string | null
+  onUpdate: () => void
+}
+
+const statusConfig: Record<string, { label: string; color: string }> = {
+  PENDING_PAYMENT: { label: 'Pending Payment', color: 'bg-gray-100 text-gray-600' },
+  PAYMENT_RECEIVED: { label: 'Payment Received', color: 'bg-blue-50 text-blue-700' },
+  DEPOSIT_PAID: { label: 'Deposit Paid', color: 'bg-indigo-50 text-indigo-700' },
+  PAID_TO_SUPPLIER: { label: 'Paid to Supplier', color: 'bg-purple-50 text-purple-700' },
+  ORDERED: { label: 'Ordered', color: 'bg-purple-50 text-purple-700' },
+  CONFIRMED: { label: 'Confirmed', color: 'bg-indigo-50 text-indigo-700' },
+  IN_PRODUCTION: { label: 'In Production', color: 'bg-amber-50 text-amber-700' },
+  SHIPPED: { label: 'Shipped', color: 'bg-cyan-50 text-cyan-700' },
+  IN_TRANSIT: { label: 'In Transit', color: 'bg-sky-50 text-sky-700' },
+  DELIVERED: { label: 'Delivered', color: 'bg-emerald-50 text-emerald-700' },
+  INSTALLED: { label: 'Installed', color: 'bg-green-50 text-green-700' },
+  COMPLETED: { label: 'Completed', color: 'bg-green-100 text-green-800' },
+  CANCELLED: { label: 'Cancelled', color: 'bg-red-50 text-red-700' }
+}
+
+export default function OrderDetailsDialog({
+  open,
+  onOpenChange,
+  orderId,
+  onUpdate
+}: OrderDetailsDialogProps) {
+  const [order, setOrder] = useState<Order | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  // Edit form state
+  const [editForm, setEditForm] = useState({
+    notes: '',
+    internalNotes: '',
+    shippingAddress: '',
+    expectedDelivery: ''
+  })
+
+  useEffect(() => {
+    if (open && orderId) {
+      fetchOrder()
+    }
+  }, [open, orderId])
+
+  useEffect(() => {
+    if (order) {
+      setEditForm({
+        notes: order.notes || '',
+        internalNotes: order.internalNotes || '',
+        shippingAddress: order.shippingAddress || '',
+        expectedDelivery: order.expectedDelivery?.split('T')[0] || ''
+      })
+    }
+  }, [order])
+
+  const fetchOrder = async () => {
+    if (!orderId) return
+
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/orders/${orderId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setOrder(data.order)
+      } else {
+        toast.error('Failed to load order')
+        onOpenChange(false)
+      }
+    } catch (error) {
+      toast.error('Failed to load order')
+      onOpenChange(false)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSave = async () => {
+    if (!order) return
+
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/orders/${order.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          notes: editForm.notes || null,
+          internalNotes: editForm.internalNotes || null,
+          shippingAddress: editForm.shippingAddress || null,
+          expectedDelivery: editForm.expectedDelivery || null
+        })
+      })
+
+      if (res.ok) {
+        toast.success('Order updated')
+        setEditing(false)
+        fetchOrder()
+        onUpdate()
+      } else {
+        toast.error('Failed to update order')
+      }
+    } catch (error) {
+      toast.error('Failed to update order')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!order) return
+
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/orders/${order.id}`, {
+        method: 'DELETE'
+      })
+
+      if (res.ok) {
+        toast.success('Order deleted')
+        onOpenChange(false)
+        onUpdate()
+      } else {
+        const data = await res.json()
+        toast.error(data.error || 'Failed to delete order')
+      }
+    } catch (error) {
+      toast.error('Failed to delete order')
+    } finally {
+      setDeleting(false)
+      setDeleteDialogOpen(false)
+    }
+  }
+
+  const formatCurrency = (amount: string | null, currency: string = 'CAD') => {
+    if (!amount) return '-'
+    return new Intl.NumberFormat('en-CA', {
+      style: 'currency',
+      currency
+    }).format(parseFloat(amount))
+  }
+
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return '-'
+    return new Intl.DateTimeFormat('en-CA', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    }).format(new Date(dateStr))
+  }
+
+  const formatDateTime = (dateStr: string | null) => {
+    if (!dateStr) return '-'
+    return new Intl.DateTimeFormat('en-CA', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    }).format(new Date(dateStr))
+  }
+
+  if (!order && loading) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-3xl">
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+          </div>
+        </DialogContent>
+      </Dialog>
+    )
+  }
+
+  if (!order) return null
+
+  const status = statusConfig[order.status] || { label: order.status, color: 'bg-gray-100 text-gray-600' }
+  const canDelete = order.status === 'PENDING_PAYMENT' || order.status === 'PAYMENT_RECEIVED'
+
+  // Group items by parent
+  const mainItems = order.items.filter(i => !i.isComponent)
+  const componentsByParent = order.items
+    .filter(i => i.isComponent)
+    .reduce((acc, item) => {
+      const parentId = item.parentItemId || 'unknown'
+      if (!acc[parentId]) acc[parentId] = []
+      acc[parentId].push(item)
+      return acc
+    }, {} as Record<string, OrderItem[]>)
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <div className="flex items-center justify-between pr-8">
+              <div>
+                <DialogTitle className="flex items-center gap-3">
+                  <Package className="w-5 h-5 text-gray-600" />
+                  {order.orderNumber}
+                  <Badge className={status.color}>{status.label}</Badge>
+                </DialogTitle>
+                <DialogDescription className="mt-1">
+                  {order.supplier?.name || order.vendorName} • {order.project.name}
+                </DialogDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                {!editing && (
+                  <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+                    <Edit className="w-4 h-4 mr-1" />
+                    Edit
+                  </Button>
+                )}
+                {canDelete && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-red-600 hover:bg-red-50"
+                    onClick={() => setDeleteDialogOpen(true)}
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    Delete
+                  </Button>
+                )}
+              </div>
+            </div>
+          </DialogHeader>
+
+          <ScrollArea className="flex-1 -mx-6 px-6">
+            <Tabs defaultValue="details" className="w-full">
+              <TabsList className="mb-4">
+                <TabsTrigger value="details">Details</TabsTrigger>
+                <TabsTrigger value="items">Items ({order.items.length})</TabsTrigger>
+                <TabsTrigger value="activity">Activity</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="details" className="space-y-6">
+                {/* Supplier Info */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Building2 className="w-4 h-4" />
+                    Supplier
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="font-medium">{order.supplier?.name || order.vendorName}</p>
+                      {order.supplier?.contactName && (
+                        <p className="text-gray-500 flex items-center gap-1">
+                          <User className="w-3 h-3" />
+                          {order.supplier.contactName}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      {(order.supplier?.email || order.vendorEmail) && (
+                        <p className="text-gray-500 flex items-center gap-1">
+                          <Mail className="w-3 h-3" />
+                          {order.supplier?.email || order.vendorEmail}
+                        </p>
+                      )}
+                      {order.supplier?.phone && (
+                        <p className="text-gray-500 flex items-center gap-1">
+                          <Phone className="w-3 h-3" />
+                          {order.supplier.phone}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Pricing */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <DollarSign className="w-4 h-4" />
+                    Pricing
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Subtotal</span>
+                        <span>{formatCurrency(order.subtotal, order.currency)}</span>
+                      </div>
+                      {order.shippingCost && parseFloat(order.shippingCost) > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Shipping</span>
+                          <span>{formatCurrency(order.shippingCost, order.currency)}</span>
+                        </div>
+                      )}
+                      {order.taxAmount && parseFloat(order.taxAmount) > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Tax</span>
+                          <span>{formatCurrency(order.taxAmount, order.currency)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between font-medium border-t pt-2">
+                        <span>Total</span>
+                        <span>{formatCurrency(order.totalAmount, order.currency)}</span>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {order.depositRequired && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Deposit Required</span>
+                          <span>{formatCurrency(order.depositRequired, order.currency)}</span>
+                        </div>
+                      )}
+                      {order.depositPaid && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Deposit Paid</span>
+                          <span className="text-green-600">{formatCurrency(order.depositPaid, order.currency)}</span>
+                        </div>
+                      )}
+                      {order.balanceDue && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Balance Due</span>
+                          <span>{formatCurrency(order.balanceDue, order.currency)}</span>
+                        </div>
+                      )}
+                      {order.supplierPaidAt && (
+                        <div className="flex justify-between text-green-600">
+                          <span>Paid to Supplier</span>
+                          <span>{formatCurrency(order.supplierPaymentAmount, order.currency)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Dates & Shipping */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Calendar className="w-4 h-4" />
+                    Dates & Shipping
+                  </h3>
+                  {editing ? (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label>Expected Delivery</Label>
+                        <Input
+                          type="date"
+                          value={editForm.expectedDelivery}
+                          onChange={e => setEditForm(prev => ({ ...prev, expectedDelivery: e.target.value }))}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Shipping Address</Label>
+                        <Textarea
+                          value={editForm.shippingAddress}
+                          onChange={e => setEditForm(prev => ({ ...prev, shippingAddress: e.target.value }))}
+                          rows={2}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Created</span>
+                          <span>{formatDateTime(order.createdAt)}</span>
+                        </div>
+                        {order.orderedAt && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Ordered</span>
+                            <span>{formatDateTime(order.orderedAt)}</span>
+                          </div>
+                        )}
+                        {order.expectedDelivery && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Expected Delivery</span>
+                            <span>{formatDate(order.expectedDelivery)}</span>
+                          </div>
+                        )}
+                        {order.actualDelivery && (
+                          <div className="flex justify-between text-green-600">
+                            <span>Delivered</span>
+                            <span>{formatDate(order.actualDelivery)}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        {order.trackingNumber && (
+                          <div>
+                            <span className="text-gray-500">Tracking</span>
+                            <p className="font-medium">
+                              {order.shippingCarrier && `${order.shippingCarrier}: `}
+                              {order.trackingUrl ? (
+                                <a
+                                  href={order.trackingUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:underline inline-flex items-center gap-1"
+                                >
+                                  {order.trackingNumber}
+                                  <ExternalLink className="w-3 h-3" />
+                                </a>
+                              ) : (
+                                order.trackingNumber
+                              )}
+                            </p>
+                          </div>
+                        )}
+                        {order.shippingAddress && (
+                          <div>
+                            <span className="text-gray-500">Ship To</span>
+                            <p className="text-gray-700 whitespace-pre-line">{order.shippingAddress}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Notes */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    Notes
+                  </h3>
+                  {editing ? (
+                    <div className="grid gap-4">
+                      <div className="grid gap-2">
+                        <Label>Order Notes (visible on PO)</Label>
+                        <Textarea
+                          value={editForm.notes}
+                          onChange={e => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
+                          rows={2}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Internal Notes (private)</Label>
+                        <Textarea
+                          value={editForm.internalNotes}
+                          onChange={e => setEditForm(prev => ({ ...prev, internalNotes: e.target.value }))}
+                          rows={2}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 text-sm">
+                      {order.notes ? (
+                        <div>
+                          <span className="text-gray-500">Order Notes</span>
+                          <p className="text-gray-700 whitespace-pre-line">{order.notes}</p>
+                        </div>
+                      ) : null}
+                      {order.internalNotes ? (
+                        <div>
+                          <span className="text-gray-500">Internal Notes</span>
+                          <p className="text-gray-700 whitespace-pre-line">{order.internalNotes}</p>
+                        </div>
+                      ) : null}
+                      {!order.notes && !order.internalNotes && (
+                        <p className="text-gray-400 italic">No notes</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="items" className="space-y-4">
+                {mainItems.map(item => {
+                  const components = componentsByParent[item.roomFFEItem?.id || ''] || []
+                  return (
+                    <div key={item.id} className="border rounded-lg overflow-hidden">
+                      <div className="p-3 bg-white">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start gap-3">
+                            {item.roomFFEItem?.images?.[0] && (
+                              <img
+                                src={item.roomFFEItem.images[0]}
+                                alt={item.name}
+                                className="w-12 h-12 object-cover rounded"
+                              />
+                            )}
+                            <div>
+                              <p className="font-medium text-gray-900">{item.name}</p>
+                              {item.roomFFEItem?.modelNumber && (
+                                <p className="text-xs text-gray-500">{item.roomFFEItem.modelNumber}</p>
+                              )}
+                              <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-medium">{formatCurrency(item.totalPrice, order.currency)}</p>
+                            <p className="text-xs text-gray-500">
+                              {formatCurrency(item.unitPrice, order.currency)} each
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      {components.length > 0 && (
+                        <div className="border-t bg-gray-50 px-3 py-2">
+                          <div className="space-y-1">
+                            {components.map(comp => (
+                              <div
+                                key={comp.id}
+                                className="flex items-center justify-between text-sm text-gray-600"
+                              >
+                                <span>
+                                  {comp.name}
+                                  {comp.quantity > 1 && <span className="ml-1">×{comp.quantity}</span>}
+                                </span>
+                                <span>{formatCurrency(comp.totalPrice, order.currency)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </TabsContent>
+
+              <TabsContent value="activity" className="space-y-3">
+                {order.activities.length === 0 ? (
+                  <p className="text-gray-400 text-center py-4">No activity yet</p>
+                ) : (
+                  order.activities.map(activity => (
+                    <div key={activity.id} className="flex items-start gap-3 text-sm">
+                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                        <Clock className="w-4 h-4 text-gray-400" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-gray-900">{activity.message}</p>
+                        <p className="text-gray-500 text-xs">
+                          {activity.user?.name || 'System'} • {formatDateTime(activity.createdAt)}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </TabsContent>
+            </Tabs>
+          </ScrollArea>
+
+          {editing && (
+            <DialogFooter className="border-t pt-4">
+              <Button variant="outline" onClick={() => setEditing(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSave} disabled={saving}>
+                {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                Save Changes
+              </Button>
+            </DialogFooter>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Order?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {order.orderNumber}? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={deleting}
+            >
+              {deleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  )
+}

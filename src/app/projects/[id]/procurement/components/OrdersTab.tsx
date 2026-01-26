@@ -62,6 +62,7 @@ import {
 import { toast } from 'sonner'
 import CreateManualOrderDialog from './CreateManualOrderDialog'
 import CreateOrdersFromInvoiceDialog from './CreateOrdersFromInvoiceDialog'
+import OrderDetailsDialog from './OrderDetailsDialog'
 
 interface OrdersTabProps {
   projectId: string
@@ -227,6 +228,10 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
   // Manual order dialog
   const [manualOrderDialogOpen, setManualOrderDialogOpen] = useState(false)
   const [selectedItemsForManualOrder, setSelectedItemsForManualOrder] = useState<ReadyToOrderItem[]>([])
+
+  // Order details dialog
+  const [orderDetailsDialogOpen, setOrderDetailsDialogOpen] = useState(false)
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
 
   // Dialog states
   const [sendPOOpen, setSendPOOpen] = useState(false)
@@ -913,7 +918,10 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem onClick={() => window.open(`/api/orders/${order.id}`, '_blank')}>
+                            <DropdownMenuItem onClick={() => {
+                              setSelectedOrderId(order.id)
+                              setOrderDetailsDialogOpen(true)
+                            }}>
                               <Eye className="w-4 h-4 mr-2" />
                               View Details
                             </DropdownMenuItem>
@@ -1262,6 +1270,14 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
         items={selectedItemsForManualOrder.length > 0 ? selectedItemsForManualOrder as any : undefined}
         defaultShippingAddress={readyToOrder?.project?.defaultShippingAddress}
         onSuccess={handleManualOrderSuccess}
+      />
+
+      {/* Order Details Dialog */}
+      <OrderDetailsDialog
+        open={orderDetailsDialogOpen}
+        onOpenChange={setOrderDetailsDialogOpen}
+        orderId={selectedOrderId}
+        onUpdate={fetchOrders}
       />
     </div>
   )
