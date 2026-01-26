@@ -364,11 +364,12 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
     (order.supplier?.name || order.vendorName || '').toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const formatCurrency = (amount: number | null, currency: string = 'CAD') => {
+  const formatCurrency = (amount: number | null) => {
     if (amount === null) return '-'
+    // Always use CAD format for consistent "$" symbol (not "US$")
     return new Intl.NumberFormat('en-CA', {
       style: 'currency',
-      currency
+      currency: 'CAD'
     }).format(amount)
   }
 
@@ -685,7 +686,7 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                       </button>
                       <div className="flex items-center gap-3">
                         <span className="text-sm font-medium text-gray-700">
-                          {formatCurrency(group.totalCost, group.currency || 'CAD')}{group.currency === 'USD' ? ' USD' : ''}
+                          {formatCurrency(group.totalCost)}{group.currency === 'USD' ? ' USD' : ''}
                         </span>
                         <Button
                           size="sm"
@@ -748,9 +749,7 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                               <div className="text-right">
                                 <p className="text-sm font-medium">
                                   {formatCurrency(
-                                    item.supplierQuote?.totalPrice ||
-                                    ((item.tradePrice || 0) * (item.quantity || 1)),
-                                    item.currency || 'CAD'
+                                    (item.supplierQuote?.unitPrice || item.tradePrice || 0) * (item.quantity || 1)
                                   )}{item.currency === 'USD' ? ' USD' : ''}
                                 </p>
                               </div>

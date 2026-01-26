@@ -351,10 +351,11 @@ export async function GET(
       }
 
       supplierGroups[groupKey].items.push(readyItem)
-      // Use quote price if available, otherwise trade price
-      const itemPrice = supplierQuoteLine
-        ? Number(supplierQuoteLine.totalPrice)
-        : (item.tradePrice ? Number(item.tradePrice) * (item.quantity || 1) : 0)
+      // Use quote unit price if available, otherwise trade price - always multiply by quantity
+      const unitPrice = supplierQuoteLine
+        ? Number(supplierQuoteLine.unitPrice)
+        : (item.tradePrice ? Number(item.tradePrice) : 0)
+      const itemPrice = unitPrice * (item.quantity || 1)
       const componentsCost = readyItem.components.reduce((sum, c) => sum + ((c.price || 0) * (c.quantity || 1)), 0)
       const componentsCount = readyItem.components.length
       supplierGroups[groupKey].totalCost += itemPrice + componentsCost
