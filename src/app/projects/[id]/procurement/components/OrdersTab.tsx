@@ -607,7 +607,7 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                 <ShoppingCart className="w-5 h-5 text-amber-600" />
                 Ready to Order
                 <Badge className="bg-amber-100 text-amber-700 ml-2">
-                  {readyToOrder.summary.totalItems} items
+                  {readyToOrder.summary.totalItemsWithComponents || readyToOrder.summary.totalItems} items
                 </Badge>
               </CardTitle>
               <Button
@@ -667,7 +667,15 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                         ) : (
                           <ChevronRight className="w-4 h-4 text-gray-400" />
                         )}
-                        <Building2 className="w-4 h-4 text-gray-500" />
+                        {group.supplierLogo ? (
+                          <img
+                            src={group.supplierLogo}
+                            alt={group.supplierName}
+                            className="w-6 h-6 object-contain rounded"
+                          />
+                        ) : (
+                          <Building2 className="w-5 h-5 text-gray-500" />
+                        )}
                         <span className="font-medium text-gray-900">{group.supplierName}</span>
                         <Badge variant="outline" className="ml-2">
                           {allItems.length} item{allItems.length > 1 ? 's' : ''}

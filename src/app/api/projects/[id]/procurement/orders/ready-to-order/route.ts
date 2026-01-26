@@ -60,9 +60,11 @@ interface SupplierGroup {
   supplierId: string | null
   supplierName: string
   supplierEmail: string | null
+  supplierLogo: string | null
   items: ReadyToOrderItem[]
   totalCost: number
-  itemCount: number
+  itemCount: number // Main items only
+  totalItemCount: number // Items + components
   currency: string // Primary currency for this supplier's items
 }
 
@@ -190,7 +192,7 @@ export async function GET(
         },
         // Get the item's supplier (from spec)
         supplier: {
-          select: { id: true, name: true, email: true }
+          select: { id: true, name: true, email: true, logo: true }
         },
         // Get accepted quote or any recent quote
         acceptedQuoteLineItem: {
@@ -266,6 +268,7 @@ export async function GET(
       const supplierId = item.supplierId || item.supplier?.id || null
       const supplierName = item.supplier?.name || item.supplierName || 'Unknown Supplier'
       const supplierEmail = item.supplier?.email || null
+      const supplierLogo = item.supplier?.logo || null
 
       // Use supplierId if available, otherwise use supplierName as the grouping key
       // This ensures items with different supplierName values aren't grouped together
@@ -338,9 +341,11 @@ export async function GET(
           supplierId, // Can be null if grouped by name
           supplierName,
           supplierEmail,
+          supplierLogo,
           items: [],
           totalCost: 0,
           itemCount: 0,
+          totalItemCount: 0, // Items + components
           currency: itemCurrency // Use first item's currency
         }
       }
@@ -351,12 +356,15 @@ export async function GET(
         ? Number(supplierQuoteLine.totalPrice)
         : (item.tradePrice ? Number(item.tradePrice) * (item.quantity || 1) : 0)
       const componentsCost = readyItem.components.reduce((sum, c) => sum + ((c.price || 0) * (c.quantity || 1)), 0)
+      const componentsCount = readyItem.components.length
       supplierGroups[groupKey].totalCost += itemPrice + componentsCost
       supplierGroups[groupKey].itemCount += 1
+      supplierGroups[groupKey].totalItemCount += 1 + componentsCount // Item + its components
     }
 
     // Calculate totals
     const totalCost = Object.values(supplierGroups).reduce((sum, g) => sum + g.totalCost, 0)
+    const totalItemsWithComponents = Object.values(supplierGroups).reduce((sum, g) => sum + g.totalItemCount, 0)
 
     // Build default shipping address from project
     const addressParts = [
@@ -398,6 +406,7 @@ export async function GET(
       },
       summary: {
         totalItems: paidItems.length,
+        totalItemsWithComponents,
         supplierCount: Object.keys(supplierGroups).length,
         totalCost
       },
