@@ -137,6 +137,7 @@ export async function GET(
         })),
         createdAt: invoice.createdAt,
         updatedAt: invoice.updatedAt,
+        currency: invoice.currency || 'CAD',
         // Email tracking
         emailOpenedAt: invoice.emailOpenedAt || (invoice.emailLogs.length > 0 ? invoice.emailLogs[0].openedAt : null),
         viewCount: invoice.emailLogs.length

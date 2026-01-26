@@ -6,20 +6,267 @@ import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
 
+/**
+ * GET /api/projects/[id]/procurement/orders/create-manual
+ *
+ * Get all items that can be added to a PO (regardless of status)
+ * Includes components and quote matching info
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession()
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const orgId = (session.user as any).orgId
+    const { id: projectId } = await params
+
+    // Get supplier filter from query
+    const { searchParams } = new URL(request.url)
+    const supplierId = searchParams.get('supplierId')
+    const showAll = searchParams.get('showAll') === 'true' // Include already ordered items
+
+    // Get all sections for this project
+    const projectSections = await prisma.roomFFESection.findMany({
+      where: {
+        instance: {
+          room: {
+            projectId,
+            project: { orgId }
+          }
+        }
+      },
+      select: { id: true }
+    })
+
+    const sectionIds = projectSections.map(s => s.id)
+
+    if (sectionIds.length === 0) {
+      return NextResponse.json({ items: [], suppliers: [] })
+    }
+
+    // Get all spec items (visible ones)
+    const items = await prisma.roomFFEItem.findMany({
+      where: {
+        sectionId: { in: sectionIds },
+        isSpecItem: true,
+        visibility: 'VISIBLE'
+      },
+      include: {
+        section: {
+          include: {
+            instance: {
+              include: {
+                room: { select: { name: true } }
+              }
+            }
+          }
+        },
+        // Get accepted quote
+        acceptedQuoteLineItem: {
+          include: {
+            supplierQuote: {
+              include: {
+                supplierRFQ: {
+                  include: {
+                    supplier: true
+                  }
+                }
+              }
+            }
+          }
+        },
+        // Get all quotes
+        allQuoteLineItems: {
+          where: { isLatestVersion: true },
+          include: {
+            supplierQuote: {
+              include: {
+                supplierRFQ: {
+                  include: {
+                    supplier: true
+                  }
+                }
+              }
+            }
+          },
+          orderBy: { createdAt: 'desc' }
+        },
+        // Get components
+        components: {
+          orderBy: { order: 'asc' }
+        },
+        // Check if already ordered
+        orderItems: {
+          include: {
+            order: {
+              select: {
+                id: true,
+                orderNumber: true,
+                status: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: [
+        { section: { name: 'asc' } },
+        { name: 'asc' }
+      ]
+    })
+
+    // Build unique suppliers list
+    const suppliersMap = new Map<string, any>()
+
+    // Transform items with quote matching info
+    const transformedItems = items.map(item => {
+      const acceptedQuote = item.acceptedQuoteLineItem
+      const latestQuote = item.allQuoteLineItems?.[0]
+      const quote = acceptedQuote || latestQuote
+
+      // Track supplier
+      if (quote?.supplierQuote?.supplierRFQ?.supplier) {
+        const supplier = quote.supplierQuote.supplierRFQ.supplier
+        if (!suppliersMap.has(supplier.id)) {
+          suppliersMap.set(supplier.id, {
+            id: supplier.id,
+            name: supplier.name,
+            email: supplier.email
+          })
+        }
+      }
+
+      // Calculate component totals
+      const componentsTotal = (item.components || []).reduce((sum, c) => {
+        return sum + (c.price ? Number(c.price) * (c.quantity || 1) : 0)
+      }, 0)
+
+      // Check quote matching
+      const itemTradePrice = item.tradePrice ? Number(item.tradePrice) : null
+      const quoteUnitPrice = quote ? Number(quote.unitPrice) : null
+      const priceMatches = itemTradePrice && quoteUnitPrice
+        ? Math.abs(itemTradePrice - quoteUnitPrice) < 0.01
+        : null
+
+      // Check if already ordered
+      const existingOrder = item.orderItems?.[0]?.order
+
+      return {
+        id: item.id,
+        name: item.name,
+        description: item.description,
+        roomName: item.section?.instance?.room?.name,
+        categoryName: item.section?.name,
+        quantity: item.quantity || 1,
+        imageUrl: item.images?.[0] || null,
+        specStatus: item.specStatus,
+
+        // Pricing
+        tradePrice: itemTradePrice,
+        rrp: item.rrp ? Number(item.rrp) : null,
+        currency: item.currency || 'CAD',
+
+        // Components
+        components: (item.components || []).map(c => ({
+          id: c.id,
+          name: c.name,
+          modelNumber: c.modelNumber,
+          price: c.price ? Number(c.price) : null,
+          quantity: c.quantity || 1,
+          total: c.price ? Number(c.price) * (c.quantity || 1) : 0
+        })),
+        componentsTotal,
+
+        // Quote info
+        hasQuote: !!quote,
+        quote: quote ? {
+          id: quote.id,
+          supplierId: quote.supplierQuote?.supplierRFQ?.supplier?.id || null,
+          supplierName: quote.supplierQuote?.supplierRFQ?.supplier?.name ||
+                        quote.supplierQuote?.supplierRFQ?.vendorName || 'Unknown',
+          unitPrice: quoteUnitPrice,
+          totalPrice: Number(quote.totalPrice),
+          quantity: quote.quantity,
+          leadTimeWeeks: quote.leadTimeWeeks,
+          isAccepted: quote.isAccepted || !!acceptedQuote,
+          // Quote-level info
+          shippingCost: quote.supplierQuote?.shippingCost ? Number(quote.supplierQuote.shippingCost) : null,
+          depositRequired: quote.supplierQuote?.depositRequired ? Number(quote.supplierQuote.depositRequired) : null,
+          depositPercent: quote.supplierQuote?.depositPercent ? Number(quote.supplierQuote.depositPercent) : null,
+          paymentTerms: quote.supplierQuote?.paymentTerms,
+          currency: quote.currency || 'CAD'
+        } : null,
+
+        // Quote matching
+        quoteMatch: {
+          priceMatches,
+          quantityMatches: quote ? (item.quantity || 1) === quote.quantity : null,
+          itemPrice: itemTradePrice,
+          quotePrice: quoteUnitPrice,
+          priceDifference: itemTradePrice && quoteUnitPrice
+            ? Math.abs(itemTradePrice - quoteUnitPrice)
+            : null
+        },
+
+        // Order status
+        isOrdered: !!existingOrder,
+        existingOrder: existingOrder ? {
+          id: existingOrder.id,
+          orderNumber: existingOrder.orderNumber,
+          status: existingOrder.status
+        } : null
+      }
+    })
+
+    // Filter by supplier if specified
+    let filteredItems = supplierId
+      ? transformedItems.filter(item => item.quote?.supplierId === supplierId)
+      : transformedItems
+
+    // Filter out already ordered items unless showAll is true
+    if (!showAll) {
+      filteredItems = filteredItems.filter(item => !item.isOrdered)
+    }
+
+    return NextResponse.json({
+      items: filteredItems,
+      suppliers: Array.from(suppliersMap.values()),
+      summary: {
+        totalItems: filteredItems.length,
+        itemsWithQuotes: filteredItems.filter(i => i.hasQuote).length,
+        itemsWithoutQuotes: filteredItems.filter(i => !i.hasQuote).length,
+        alreadyOrdered: transformedItems.filter(i => i.isOrdered).length,
+        priceMatches: filteredItems.filter(i => i.quoteMatch.priceMatches === true).length,
+        priceMismatches: filteredItems.filter(i => i.quoteMatch.priceMatches === false).length,
+        totalComponents: filteredItems.reduce((sum, i) => sum + i.components.length, 0)
+      }
+    })
+  } catch (error) {
+    console.error('Error fetching items for manual order:', error)
+    return NextResponse.json({ error: 'Failed to fetch items' }, { status: 500 })
+  }
+}
+
 interface ManualOrderItem {
   roomFFEItemId: string
   unitPrice: number
   quantity?: number // Defaults to item's quantity
   notes?: string
+  includeComponents?: boolean // Whether to include components as separate line items
 }
 
 interface CreateManualOrderBody {
-  // Vendor info
+  // Vendor/Supplier info
+  supplierId?: string // Link to existing supplier
   vendorName: string
   vendorEmail?: string
   vendorUrl?: string // e.g., Amazon URL, store website
 
-  // Items to order (must be paid items without supplier quotes)
+  // Items to order
   items: ManualOrderItem[]
 
   // Order details
@@ -30,6 +277,12 @@ interface CreateManualOrderBody {
   currency?: string // CAD or USD - defaults to items' currency or CAD
   notes?: string
   internalNotes?: string
+
+  // Deposit tracking
+  depositRequired?: number
+  depositPercent?: number
+  paymentTerms?: string
+  shippingTerms?: string
 
   // If order was already placed externally
   alreadyOrdered?: boolean
@@ -76,24 +329,42 @@ export async function POST(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
-    // Get the FFE items
+    // Get the FFE items with components and quotes
     const itemIds = body.items.map(i => i.roomFFEItemId)
     const ffeItems = await prisma.roomFFEItem.findMany({
       where: {
         id: { in: itemIds },
-        room: {
-          projectId,
-          project: { orgId }
+        section: {
+          instance: {
+            room: {
+              projectId,
+              project: { orgId }
+            }
+          }
         }
       },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        quantity: true,
-        unitType: true,
-        currency: true,
-        room: { select: { name: true } },
+      include: {
+        section: {
+          include: {
+            instance: {
+              include: {
+                room: { select: { name: true } }
+              }
+            }
+          }
+        },
+        components: {
+          orderBy: { order: 'asc' }
+        },
+        acceptedQuoteLineItem: {
+          include: {
+            supplierQuote: true
+          }
+        },
+        allQuoteLineItems: {
+          where: { isLatestVersion: true },
+          take: 1
+        },
         orderItems: {
           select: {
             order: { select: { orderNumber: true, status: true } }
@@ -150,19 +421,8 @@ export async function POST(
     })
     const orderNumber = `PO-${year}-${String(existingCount + 1).padStart(4, '0')}`
 
-    // Build order items with prices
-    const orderItems: {
-      roomFFEItemId: string
-      name: string
-      description: string | null
-      quantity: number
-      unitType: string | null
-      unitPrice: number
-      totalPrice: number
-      status: string
-      notes: string | null
-    }[] = []
-
+    // Build order items with prices (including components)
+    const orderItems: any[] = []
     let subtotal = 0
 
     for (const orderItem of body.items) {
@@ -170,19 +430,52 @@ export async function POST(
       const quantity = orderItem.quantity || ffeItem.quantity || 1
       const totalPrice = orderItem.unitPrice * quantity
 
+      // Get quote line item ID if available
+      const quoteLineItem = ffeItem.acceptedQuoteLineItem || ffeItem.allQuoteLineItems?.[0]
+
+      // Add main item
       orderItems.push({
         roomFFEItemId: ffeItem.id,
+        supplierQuoteLineItemId: quoteLineItem?.id || null,
         name: ffeItem.name,
         description: ffeItem.description,
         quantity,
         unitType: ffeItem.unitType,
         unitPrice: orderItem.unitPrice,
         totalPrice,
+        isComponent: false,
+        parentItemId: null,
         status: body.alreadyOrdered ? 'ORDERED' : 'PAYMENT_RECEIVED',
         notes: orderItem.notes || null
       })
-
       subtotal += totalPrice
+
+      // Add components if requested (default true)
+      if (orderItem.includeComponents !== false && ffeItem.components?.length > 0) {
+        for (const comp of ffeItem.components) {
+          if (comp.price) {
+            const compQty = comp.quantity || 1
+            const compPrice = Number(comp.price)
+            const compTotal = compPrice * compQty
+
+            orderItems.push({
+              roomFFEItemId: ffeItem.id,
+              supplierQuoteLineItemId: null,
+              componentId: comp.id,
+              name: `  └ ${comp.name}${comp.modelNumber ? ` (${comp.modelNumber})` : ''}`,
+              description: `Component of ${ffeItem.name}`,
+              quantity: compQty,
+              unitPrice: compPrice,
+              totalPrice: compTotal,
+              isComponent: true,
+              parentItemId: ffeItem.id,
+              status: body.alreadyOrdered ? 'ORDERED' : 'PAYMENT_RECEIVED',
+              notes: null
+            })
+            subtotal += compTotal
+          }
+        }
+      }
     }
 
     // Calculate total with shipping and tax
@@ -190,12 +483,22 @@ export async function POST(
     const taxAmount = body.taxAmount || 0
     const totalAmount = subtotal + shippingCost + taxAmount
 
+    // Calculate deposit if provided
+    let depositRequired: number | null = null
+    if (body.depositRequired) {
+      depositRequired = parseFloat(String(body.depositRequired))
+    } else if (body.depositPercent) {
+      depositRequired = totalAmount * (parseFloat(String(body.depositPercent)) / 100)
+    }
+    const balanceDue = depositRequired ? totalAmount - depositRequired : null
+
     // Create the order
     const order = await prisma.order.create({
       data: {
         orgId,
         projectId,
         orderNumber,
+        supplierId: body.supplierId || null,
         vendorName: body.vendorName.trim(),
         vendorEmail: body.vendorEmail?.trim() || null,
         supplierOrderRef: body.externalOrderNumber?.trim() || null,
@@ -209,6 +512,10 @@ export async function POST(
         shippingMethod: body.shippingMethod?.trim() || null,
         notes: body.notes?.trim() || null,
         internalNotes: body.internalNotes?.trim() || null,
+        // Deposit tracking
+        depositRequired,
+        depositPercent: body.depositPercent ? parseFloat(String(body.depositPercent)) : null,
+        balanceDue,
         orderedAt: body.alreadyOrdered
           ? (body.orderedAt ? new Date(body.orderedAt) : new Date())
           : null,
@@ -291,7 +598,11 @@ export async function POST(
         itemCount: orderItems.length,
         subtotal,
         totalAmount: order.totalAmount,
-        currency: orderCurrency
+        currency: orderCurrency,
+        // Deposit info
+        depositRequired: order.depositRequired ? Number(order.depositRequired) : null,
+        depositPercent: order.depositPercent ? Number(order.depositPercent) : null,
+        balanceDue: order.balanceDue ? Number(order.balanceDue) : null
       }
     })
   } catch (error) {

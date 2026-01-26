@@ -771,14 +771,28 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base font-semibold">Purchase Orders</CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 text-gray-600"
-              onClick={fetchOrders}
-            >
-              <RefreshCw className="w-4 h-4" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8"
+                onClick={() => {
+                  setSelectedItemsForManualOrder([])
+                  setManualOrderDialogOpen(true)
+                }}
+              >
+                <Store className="w-4 h-4 mr-1" />
+                Create Manual PO
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-gray-600"
+                onClick={fetchOrders}
+              >
+                <RefreshCw className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="pt-0">
@@ -1202,7 +1216,8 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
         open={manualOrderDialogOpen}
         onOpenChange={setManualOrderDialogOpen}
         projectId={projectId}
-        items={selectedItemsForManualOrder}
+        // Only pass items if we have specific items selected; otherwise let dialog fetch all
+        items={selectedItemsForManualOrder.length > 0 ? selectedItemsForManualOrder as any : undefined}
         defaultShippingAddress={readyToOrder?.project?.defaultShippingAddress}
         onSuccess={handleManualOrderSuccess}
       />
