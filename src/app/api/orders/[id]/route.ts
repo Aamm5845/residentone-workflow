@@ -459,14 +459,7 @@ export async function DELETE(
     const orgId = (session.user as any).orgId
 
     const existing = await prisma.order.findFirst({
-      where: { id, orgId },
-      include: {
-        items: {
-          select: {
-            roomFFEItemId: true
-          }
-        }
-      }
+      where: { id, orgId }
     })
 
     if (!existing) {
@@ -482,15 +475,20 @@ export async function DELETE(
       )
     }
 
-    // Get all RoomFFEItem IDs from the order items
-    const roomFFEItemIds = existing.items
-      .map(item => item.roomFFEItemId)
-      .filter((id): id is string => id !== null)
-
-    // Use transaction to delete order and reset item statuses
+    // Use transaction to delete order and all related records
     await prisma.$transaction(async (tx) => {
-      // Delete order activities first
+      // Delete order activities
       await tx.orderActivity.deleteMany({
+        where: { orderId: id }
+      })
+
+      // Delete supplier messages
+      await tx.supplierMessage.deleteMany({
+        where: { orderId: id }
+      })
+
+      // Delete deliveries
+      await tx.delivery.deleteMany({
         where: { orderId: id }
       })
 
@@ -503,14 +501,6 @@ export async function DELETE(
       await tx.order.delete({
         where: { id }
       })
-
-      // Reset the RoomFFEItems orderStatus back so they appear in Ready to Order
-      if (roomFFEItemIds.length > 0) {
-        await tx.roomFFEItem.updateMany({
-          where: { id: { in: roomFFEItemIds } },
-          data: { orderStatus: null }
-        })
-      }
     })
 
     return NextResponse.json({ success: true })
