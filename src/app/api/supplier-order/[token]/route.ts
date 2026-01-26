@@ -103,7 +103,8 @@ export async function GET(
         logo: true,
         businessName: true,
         businessPhone: true,
-        businessEmail: true
+        businessEmail: true,
+        address: true
       }
     })
 
@@ -144,12 +145,20 @@ export async function GET(
         shippingCarrier: order.shippingCarrier,
         shippingMethod: order.shippingMethod,
         shippingAddress: order.shippingAddress,
+        billingAddress: order.billingAddress,
         notes: order.notes,
         subtotal: order.subtotal ? parseFloat(order.subtotal.toString()) : 0,
         taxAmount: order.taxAmount ? parseFloat(order.taxAmount.toString()) : 0,
         shippingCost: order.shippingCost ? parseFloat(order.shippingCost.toString()) : 0,
         totalAmount: order.totalAmount ? parseFloat(order.totalAmount.toString()) : 0,
-        currency: order.currency
+        currency: order.currency,
+        // Payment card info for supplier to charge
+        paymentCardBrand: order.paymentCardBrand,
+        paymentCardLastFour: order.paymentCardLastFour,
+        paymentCardHolderName: order.paymentCardHolderName,
+        paymentCardExpiry: order.paymentCardExpiry,
+        paymentCardNumber: order.paymentCardNumber,
+        paymentCardCvv: order.paymentCardCvv
       },
       project: order.project,
       supplier: order.supplier,
@@ -205,7 +214,8 @@ export async function GET(
         name: organization?.businessName || organization?.name || 'Company',
         logo: organization?.logo,
         phone: organization?.businessPhone,
-        email: organization?.businessEmail
+        email: organization?.businessEmail,
+        address: organization?.address
       }
     })
 

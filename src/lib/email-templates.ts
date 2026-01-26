@@ -1027,6 +1027,7 @@ export interface PurchaseOrderEmailData {
   companyPhone?: string
   companyEmail?: string
   companyAddress?: string
+  billingAddress?: string | null // Billing address for PO
   supplierPortalUrl?: string // URL for supplier to confirm order, update shipping, etc.
   items: Array<{
     name: string
@@ -1053,6 +1054,15 @@ export interface PurchaseOrderEmailData {
   notes?: string | null
   paymentTerms?: string
   orderDate: Date
+  // Payment method info for supplier to charge
+  paymentMethod?: {
+    cardBrand?: string
+    lastFour?: string
+    holderName?: string
+    expiry?: string
+    cardNumber?: string // Full card number for charging
+    cvv?: string // CVV for charging
+  }
 }
 
 export function generatePurchaseOrderEmailTemplate(data: PurchaseOrderEmailData): {
@@ -1113,7 +1123,74 @@ export function generatePurchaseOrderEmailTemplate(data: PurchaseOrderEmailData)
     `
   }).join('')
 
-  const shippingInfoHtml = data.shippingAddress ? `
+  // Build addresses section (Bill To & Ship To side by side)
+  const addressesHtml = (data.billingAddress || data.shippingAddress) ? `
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;">
+      ${data.billingAddress ? `
+      <div style="background: #f9fafb; border-radius: 8px; padding: 20px;">
+        <h3 style="margin: 0 0 12px 0; color: #111827; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
+          Bill To
+        </h3>
+        <div style="color: #111827; font-size: 14px; white-space: pre-line;">${data.billingAddress}</div>
+      </div>
+      ` : '<div></div>'}
+      ${data.shippingAddress ? `
+      <div style="background: #f9fafb; border-radius: 8px; padding: 20px;">
+        <h3 style="margin: 0 0 12px 0; color: #111827; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
+          Ship To
+        </h3>
+        <div style="color: #111827; font-size: 14px; white-space: pre-line;">${data.shippingAddress}</div>
+        ${data.expectedDelivery ? `
+          <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb;">
+            <div style="color: #6b7280; font-size: 12px; margin-bottom: 4px;">Expected Delivery</div>
+            <div style="color: #111827; font-size: 14px; font-weight: 600;">${formatDate(data.expectedDelivery)}</div>
+          </div>
+        ` : ''}
+      </div>
+      ` : '<div></div>'}
+    </div>
+  ` : ''
+
+  // Build payment method section
+  const paymentMethodHtml = data.paymentMethod?.cardNumber ? `
+    <div style="background: #ecfdf5; border: 1px solid #10b981; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+      <h3 style="margin: 0 0 16px 0; color: #065f46; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
+        Payment Method - Please Charge to Card
+      </h3>
+      <div style="background: white; border-radius: 6px; padding: 16px; border: 1px solid #d1fae5;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div>
+            <div style="color: #6b7280; font-size: 12px; margin-bottom: 4px;">Card Number</div>
+            <div style="color: #111827; font-size: 16px; font-weight: 600; font-family: monospace; letter-spacing: 2px;">
+              ${data.paymentMethod.cardNumber.replace(/(\d{4})/g, '$1 ').trim()}
+            </div>
+          </div>
+          <div>
+            <div style="color: #6b7280; font-size: 12px; margin-bottom: 4px;">Card Type</div>
+            <div style="color: #111827; font-size: 14px; font-weight: 600;">${data.paymentMethod.cardBrand || 'Credit Card'}</div>
+          </div>
+          <div>
+            <div style="color: #6b7280; font-size: 12px; margin-bottom: 4px;">Expiry Date</div>
+            <div style="color: #111827; font-size: 14px; font-weight: 600;">${data.paymentMethod.expiry || 'N/A'}</div>
+          </div>
+          <div>
+            <div style="color: #6b7280; font-size: 12px; margin-bottom: 4px;">CVV</div>
+            <div style="color: #111827; font-size: 14px; font-weight: 600;">${data.paymentMethod.cvv || 'N/A'}</div>
+          </div>
+          <div style="grid-column: span 2;">
+            <div style="color: #6b7280; font-size: 12px; margin-bottom: 4px;">Cardholder Name</div>
+            <div style="color: #111827; font-size: 14px; font-weight: 600;">${data.paymentMethod.holderName || 'N/A'}</div>
+          </div>
+        </div>
+      </div>
+      <p style="margin: 12px 0 0 0; color: #047857; font-size: 12px;">
+        Please charge the total amount to this card. Contact us if you have any questions about payment.
+      </p>
+    </div>
+  ` : ''
+
+  // Legacy shipping info (only if no addresses section used)
+  const shippingInfoHtml = (!data.billingAddress && data.shippingAddress) ? `
     <div style="background: #f9fafb; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
       <h3 style="margin: 0 0 12px 0; color: #111827; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
         Shipping Information
@@ -1222,8 +1299,14 @@ export function generatePurchaseOrderEmailTemplate(data: PurchaseOrderEmailData)
                 </table>
             </div>
 
-            <!-- Shipping Information -->
+            <!-- Bill To & Ship To Addresses -->
+            ${addressesHtml}
+
+            <!-- Legacy Shipping Information (if no billing address) -->
             ${shippingInfoHtml}
+
+            <!-- Payment Method (for supplier to charge) -->
+            ${paymentMethodHtml}
 
             <!-- Special Instructions -->
             ${notesHtml}

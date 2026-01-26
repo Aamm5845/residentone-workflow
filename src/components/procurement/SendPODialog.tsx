@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -16,6 +16,14 @@ import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import { Badge } from '@/components/ui/badge'
+import {
   Loader2,
   Send,
   Mail,
@@ -24,7 +32,10 @@ import {
   Package,
   Building2,
   Truck,
-  Calendar
+  Calendar,
+  CreditCard,
+  TestTube,
+  AlertCircle
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -36,6 +47,17 @@ interface OrderItem {
   unitType?: string | null
   unitPrice: number
   totalPrice: number
+}
+
+interface PaymentMethod {
+  id: string
+  type: string
+  nickname: string | null
+  lastFour: string | null
+  cardBrand: string | null
+  expiry: string | null
+  holderName: string | null
+  hasFullCardDetails: boolean
 }
 
 interface SendPODialogProps {
@@ -53,6 +75,8 @@ interface SendPODialogProps {
     currency?: string
     shippingAddress?: string | null
     expectedDelivery?: string | null
+    billingAddress?: string | null
+    savedPaymentMethodId?: string | null
     items: OrderItem[]
   }
   onSuccess: () => void
@@ -67,26 +91,83 @@ export default function SendPODialog({
   const [email, setEmail] = useState(order.vendorEmail || '')
   const [notes, setNotes] = useState('')
   const [shippingAddress, setShippingAddress] = useState(order.shippingAddress || '')
+  const [billingAddress, setBillingAddress] = useState(order.billingAddress || '')
   const [expectedDelivery, setExpectedDelivery] = useState(
     order.expectedDelivery ? order.expectedDelivery.split('T')[0] : ''
   )
   const [paymentTerms, setPaymentTerms] = useState('Net 30')
+  const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string>(
+    order.savedPaymentMethodId || ''
+  )
   const [sending, setSending] = useState(false)
+  const [sendingTest, setSendingTest] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [activeTab, setActiveTab] = useState<'send' | 'preview'>('send')
   const [previewHtml, setPreviewHtml] = useState<string | null>(null)
   const [loadingPreview, setLoadingPreview] = useState(false)
+
+  // Payment methods
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
+  const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(false)
+
+  // Test email
+  const [testEmail, setTestEmail] = useState('')
+  const [showTestEmailInput, setShowTestEmailInput] = useState(false)
+
+  // Fetch payment methods
+  const fetchPaymentMethods = useCallback(async () => {
+    setLoadingPaymentMethods(true)
+    try {
+      const res = await fetch('/api/saved-payment-methods')
+      if (res.ok) {
+        const data = await res.json()
+        setPaymentMethods(data.paymentMethods || [])
+        // Set default if available
+        if (!selectedPaymentMethodId) {
+          const defaultMethod = (data.paymentMethods || []).find((pm: PaymentMethod) => pm.hasFullCardDetails)
+          if (defaultMethod) {
+            setSelectedPaymentMethodId(defaultMethod.id)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching payment methods:', error)
+    } finally {
+      setLoadingPaymentMethods(false)
+    }
+  }, [selectedPaymentMethodId])
+
+  // Fetch organization billing address
+  const fetchOrgBillingAddress = useCallback(async () => {
+    try {
+      const res = await fetch('/api/settings/organization')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.organization?.address && !billingAddress) {
+          setBillingAddress(data.organization.address)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching org settings:', error)
+    }
+  }, [billingAddress])
 
   // Reset form when dialog opens
   useEffect(() => {
     if (open) {
       setEmail(order.vendorEmail || '')
       setShippingAddress(order.shippingAddress || '')
+      setBillingAddress(order.billingAddress || '')
       setExpectedDelivery(order.expectedDelivery ? order.expectedDelivery.split('T')[0] : '')
       setNotes('')
       setPaymentTerms('Net 30')
+      setSelectedPaymentMethodId(order.savedPaymentMethodId || '')
+      setShowTestEmailInput(false)
+      setTestEmail('')
+      fetchPaymentMethods()
+      fetchOrgBillingAddress()
     }
-  }, [open, order])
+  }, [open, order, fetchPaymentMethods, fetchOrgBillingAddress])
 
   // Load preview when switching to preview tab
   useEffect(() => {
@@ -110,23 +191,33 @@ export default function SendPODialog({
     }
   }
 
-  const handleSend = async () => {
-    if (!email.trim()) {
-      toast.error('Please enter a supplier email address')
+  const handleSend = async (isTest: boolean = false) => {
+    const targetEmail = isTest ? testEmail : email
+
+    if (!targetEmail.trim()) {
+      toast.error(isTest ? 'Please enter a test email address' : 'Please enter a supplier email address')
       return
     }
 
-    setSending(true)
+    if (isTest) {
+      setSendingTest(true)
+    } else {
+      setSending(true)
+    }
+
     try {
       const res = await fetch(`/api/orders/${order.id}/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          supplierEmail: email,
+          supplierEmail: targetEmail,
           notes,
           shippingAddress,
+          billingAddress,
           expectedDelivery: expectedDelivery || undefined,
-          paymentTerms
+          paymentTerms,
+          savedPaymentMethodId: selectedPaymentMethodId || undefined,
+          isTest // Flag to indicate this is a test email
         })
       })
 
@@ -135,13 +226,23 @@ export default function SendPODialog({
         throw new Error(error.error || 'Failed to send PO')
       }
 
-      toast.success(`Purchase Order sent to ${email}`)
-      onSuccess()
-      onOpenChange(false)
+      if (isTest) {
+        toast.success(`Test email sent to ${targetEmail}`)
+        setShowTestEmailInput(false)
+        setTestEmail('')
+      } else {
+        toast.success(`Purchase Order sent to ${targetEmail}`)
+        onSuccess()
+        onOpenChange(false)
+      }
     } catch (error: any) {
       toast.error(error.message || 'Failed to send Purchase Order')
     } finally {
-      setSending(false)
+      if (isTest) {
+        setSendingTest(false)
+      } else {
+        setSending(false)
+      }
     }
   }
 
@@ -234,16 +335,80 @@ export default function SendPODialog({
                 />
               </div>
 
-              {/* Shipping Address */}
+              {/* Addresses */}
+              <div className="grid grid-cols-2 gap-4">
+                {/* Billing Address */}
+                <div>
+                  <Label htmlFor="billingAddress" className="flex items-center gap-1">
+                    <Building2 className="w-3.5 h-3.5" />
+                    Bill To Address
+                  </Label>
+                  <Textarea
+                    id="billingAddress"
+                    value={billingAddress}
+                    onChange={(e) => setBillingAddress(e.target.value)}
+                    placeholder="Enter billing address..."
+                    rows={3}
+                  />
+                </div>
+
+                {/* Shipping Address */}
+                <div>
+                  <Label htmlFor="shippingAddress" className="flex items-center gap-1">
+                    <Truck className="w-3.5 h-3.5" />
+                    Ship To Address
+                  </Label>
+                  <Textarea
+                    id="shippingAddress"
+                    value={shippingAddress}
+                    onChange={(e) => setShippingAddress(e.target.value)}
+                    placeholder="Enter shipping address..."
+                    rows={3}
+                  />
+                </div>
+              </div>
+
+              {/* Payment Method */}
               <div>
-                <Label htmlFor="shippingAddress">Ship To Address</Label>
-                <Textarea
-                  id="shippingAddress"
-                  value={shippingAddress}
-                  onChange={(e) => setShippingAddress(e.target.value)}
-                  placeholder="Enter shipping address..."
-                  rows={3}
-                />
+                <Label htmlFor="paymentMethod" className="flex items-center gap-1">
+                  <CreditCard className="w-3.5 h-3.5" />
+                  Payment Method for Supplier
+                </Label>
+                <Select
+                  value={selectedPaymentMethodId}
+                  onValueChange={setSelectedPaymentMethodId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a payment method..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">No payment method</SelectItem>
+                    {loadingPaymentMethods ? (
+                      <SelectItem value="_loading" disabled>Loading...</SelectItem>
+                    ) : paymentMethods.length === 0 ? (
+                      <SelectItem value="_empty" disabled>No saved payment methods</SelectItem>
+                    ) : (
+                      paymentMethods.map((pm) => (
+                        <SelectItem key={pm.id} value={pm.id}>
+                          <div className="flex items-center gap-2">
+                            <span>{pm.nickname || `${pm.cardBrand} ****${pm.lastFour}`}</span>
+                            {pm.hasFullCardDetails && (
+                              <Badge variant="outline" className="text-xs bg-green-50 text-green-700">
+                                Full Details
+                              </Badge>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                {selectedPaymentMethodId && paymentMethods.find(pm => pm.id === selectedPaymentMethodId)?.hasFullCardDetails && (
+                  <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    Full card details will be included in the PO for supplier to charge
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -283,6 +448,48 @@ export default function SendPODialog({
                   placeholder="Add notes for the supplier..."
                   rows={3}
                 />
+              </div>
+
+              {/* Test Email Option */}
+              <div className="pt-4 border-t">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm text-gray-500">Send a test email to preview:</p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowTestEmailInput(!showTestEmailInput)}
+                    className="text-purple-600 hover:text-purple-700"
+                  >
+                    <TestTube className="w-4 h-4 mr-1" />
+                    {showTestEmailInput ? 'Hide' : 'Test Email'}
+                  </Button>
+                </div>
+                {showTestEmailInput && (
+                  <div className="flex gap-2">
+                    <Input
+                      type="email"
+                      value={testEmail}
+                      onChange={(e) => setTestEmail(e.target.value)}
+                      placeholder="your@email.com"
+                      className="flex-1"
+                    />
+                    <Button
+                      variant="outline"
+                      onClick={() => handleSend(true)}
+                      disabled={sendingTest || !testEmail.trim()}
+                      className="border-purple-200 text-purple-600 hover:bg-purple-50"
+                    >
+                      {sendingTest ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <>
+                          <Send className="w-4 h-4 mr-1" />
+                          Send Test
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
               </div>
 
               {/* Download PDF Option */}
@@ -382,7 +589,7 @@ export default function SendPODialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSend} disabled={sending} className="bg-blue-600 hover:bg-blue-700">
+          <Button onClick={() => handleSend(false)} disabled={sending} className="bg-blue-600 hover:bg-blue-700">
             {sending ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
             ) : (

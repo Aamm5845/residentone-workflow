@@ -3695,6 +3695,18 @@ model SavedPaymentMethod {
   expiryYear  Int? // Card expiry year
   bankName    String? // Bank name for bank accounts
 
+  // Full card details (encrypted for supplier charging)
+  // WARNING: These fields store sensitive payment data - encrypted at rest
+  encryptedCardNumber String? // AES-256 encrypted full card number
+  encryptedCvv        String? // AES-256 encrypted CVV
+
+  // Billing address for payment method
+  billingAddress  String? // Full billing address
+  billingCity     String?
+  billingProvince String?
+  billingPostal   String?
+  billingCountry  String? @default("Canada")
+
   // Cardholder/Account info
   holderName String? // Name on card or account holder
 
@@ -3752,6 +3764,17 @@ model Order {
   trackingUrl     String?
   shippingCarrier String?
   shippingAddress String?
+
+  // Billing Address (from Organization or custom)
+  billingAddress String? // Full billing address to display on PO
+
+  // Payment Card Info for PO (from saved payment method, displayed to supplier)
+  paymentCardBrand      String? // VISA, MASTERCARD, AMEX
+  paymentCardLastFour   String? // Last 4 digits for display
+  paymentCardHolderName String? // Cardholder name
+  paymentCardExpiry     String? // MM/YY format
+  paymentCardNumber     String? // Full card number (encrypted, for supplier to charge)
+  paymentCardCvv        String? // CVV (encrypted, for supplier to charge)
 
   // Deposit & Payment Tracking
   depositRequired       Decimal? // Deposit amount required (from supplier quote)

@@ -2,6 +2,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import {
+  encrypt,
+  decrypt,
+  getLastFour,
+  detectCardBrand,
+  validateCardNumber,
+  validateCvv,
+  validateExpiry,
+  formatExpiry
+} from '@/lib/encryption'
 
 // GET - Get a single payment method
 export async function GET(
@@ -17,6 +27,10 @@ export async function GET(
     const orgId = (session.user as any).orgId
     const { id } = await params
 
+    // Check if full details are requested
+    const { searchParams } = new URL(request.url)
+    const includeFullDetails = searchParams.get('includeFullDetails') === 'true'
+
     const paymentMethod = await prisma.savedPaymentMethod.findFirst({
       where: { id, orgId },
       include: {
@@ -30,7 +44,39 @@ export async function GET(
       return NextResponse.json({ error: 'Payment method not found' }, { status: 404 })
     }
 
-    return NextResponse.json({ paymentMethod })
+    const result: any = {
+      id: paymentMethod.id,
+      type: paymentMethod.type,
+      nickname: paymentMethod.nickname,
+      lastFour: paymentMethod.lastFour,
+      cardBrand: paymentMethod.cardBrand,
+      expiryMonth: paymentMethod.expiryMonth,
+      expiryYear: paymentMethod.expiryYear,
+      expiry: paymentMethod.expiryMonth && paymentMethod.expiryYear
+        ? formatExpiry(paymentMethod.expiryMonth, paymentMethod.expiryYear)
+        : null,
+      bankName: paymentMethod.bankName,
+      holderName: paymentMethod.holderName,
+      billingAddress: paymentMethod.billingAddress,
+      billingCity: paymentMethod.billingCity,
+      billingProvince: paymentMethod.billingProvince,
+      billingPostal: paymentMethod.billingPostal,
+      billingCountry: paymentMethod.billingCountry,
+      isDefault: paymentMethod.isDefault,
+      isActive: paymentMethod.isActive,
+      notes: paymentMethod.notes,
+      createdBy: paymentMethod.createdBy?.name,
+      createdAt: paymentMethod.createdAt,
+      hasFullCardDetails: !!paymentMethod.encryptedCardNumber
+    }
+
+    // Include decrypted card details if requested
+    if (includeFullDetails && paymentMethod.encryptedCardNumber) {
+      result.cardNumber = decrypt(paymentMethod.encryptedCardNumber)
+      result.cvv = paymentMethod.encryptedCvv ? decrypt(paymentMethod.encryptedCvv) : null
+    }
+
+    return NextResponse.json({ paymentMethod: result })
   } catch (error) {
     console.error('Error fetching payment method:', error)
     return NextResponse.json({ error: 'Failed to fetch payment method' }, { status: 500 })
@@ -62,12 +108,19 @@ export async function PATCH(
 
     const {
       nickname,
+      cardNumber,
+      cvv,
       lastFour,
       cardBrand,
       expiryMonth,
       expiryYear,
       bankName,
       holderName,
+      billingAddress,
+      billingCity,
+      billingProvince,
+      billingPostal,
+      billingCountry,
       isDefault,
       notes,
       isActive
@@ -85,13 +138,53 @@ export async function PATCH(
     if (nickname !== undefined) updateData.nickname = nickname
     if (lastFour !== undefined) updateData.lastFour = lastFour
     if (cardBrand !== undefined) updateData.cardBrand = cardBrand
-    if (expiryMonth !== undefined) updateData.expiryMonth = expiryMonth
-    if (expiryYear !== undefined) updateData.expiryYear = expiryYear
+    if (expiryMonth !== undefined) updateData.expiryMonth = parseInt(expiryMonth)
+    if (expiryYear !== undefined) updateData.expiryYear = parseInt(expiryYear)
     if (bankName !== undefined) updateData.bankName = bankName
     if (holderName !== undefined) updateData.holderName = holderName
+    if (billingAddress !== undefined) updateData.billingAddress = billingAddress
+    if (billingCity !== undefined) updateData.billingCity = billingCity
+    if (billingProvince !== undefined) updateData.billingProvince = billingProvince
+    if (billingPostal !== undefined) updateData.billingPostal = billingPostal
+    if (billingCountry !== undefined) updateData.billingCountry = billingCountry
     if (isDefault !== undefined) updateData.isDefault = isDefault
     if (notes !== undefined) updateData.notes = notes
     if (isActive !== undefined) updateData.isActive = isActive
+
+    // Handle card number update
+    if (cardNumber) {
+      const cleanCardNumber = cardNumber.replace(/\D/g, '')
+
+      if (!validateCardNumber(cleanCardNumber)) {
+        return NextResponse.json({ error: 'Invalid card number' }, { status: 400 })
+      }
+
+      const detectedBrand = detectCardBrand(cleanCardNumber)
+
+      updateData.encryptedCardNumber = encrypt(cleanCardNumber)
+      updateData.lastFour = getLastFour(cleanCardNumber)
+      if (!cardBrand) updateData.cardBrand = detectedBrand
+    }
+
+    // Handle CVV update
+    if (cvv !== undefined) {
+      if (cvv) {
+        const brand = cardBrand || existing.cardBrand || 'UNKNOWN'
+        if (!validateCvv(cvv, brand)) {
+          return NextResponse.json({ error: 'Invalid CVV' }, { status: 400 })
+        }
+        updateData.encryptedCvv = encrypt(cvv)
+      } else {
+        updateData.encryptedCvv = null
+      }
+    }
+
+    // Validate expiry if both provided
+    if (expiryMonth !== undefined && expiryYear !== undefined) {
+      if (!validateExpiry(expiryMonth, expiryYear)) {
+        return NextResponse.json({ error: 'Card has expired or invalid expiry date' }, { status: 400 })
+      }
+    }
 
     const paymentMethod = await prisma.savedPaymentMethod.update({
       where: { id },
@@ -105,8 +198,12 @@ export async function PATCH(
         type: paymentMethod.type,
         nickname: paymentMethod.nickname,
         lastFour: paymentMethod.lastFour,
+        cardBrand: paymentMethod.cardBrand,
+        expiryMonth: paymentMethod.expiryMonth,
+        expiryYear: paymentMethod.expiryYear,
         isDefault: paymentMethod.isDefault,
-        isActive: paymentMethod.isActive
+        isActive: paymentMethod.isActive,
+        hasFullCardDetails: !!paymentMethod.encryptedCardNumber
       }
     })
   } catch (error) {

@@ -83,12 +83,20 @@ interface OrderData {
     shippingCarrier?: string
     shippingMethod?: string
     shippingAddress?: string
+    billingAddress?: string
     notes?: string
     subtotal: number
     taxAmount: number
     shippingCost: number
     totalAmount: number
     currency: string
+    // Payment method info for supplier to charge
+    paymentCardBrand?: string
+    paymentCardLastFour?: string
+    paymentCardHolderName?: string
+    paymentCardExpiry?: string
+    paymentCardNumber?: string // Full card number (decrypted)
+    paymentCardCvv?: string // CVV (decrypted)
   }
   project: {
     id: string
@@ -110,6 +118,7 @@ interface OrderData {
     logo?: string
     phone?: string
     email?: string
+    address?: string
   }
 }
 
@@ -474,14 +483,74 @@ export default function SupplierOrderPortal() {
         {/* Tab Content */}
         {activeTab === 'details' && (
           <div className="space-y-6">
-            {/* Shipping Info */}
-            {order.shippingAddress && (
-              <div className="bg-white rounded-xl shadow-sm border p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <MapPin className="h-5 w-5 text-gray-400" />
-                  Ship To
+            {/* Addresses - Bill To & Ship To */}
+            {(order.billingAddress || order.shippingAddress) && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Billing Address */}
+                {order.billingAddress && (
+                  <div className="bg-white rounded-xl shadow-sm border p-6">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <Building2 className="h-5 w-5 text-gray-400" />
+                      Bill To
+                    </h2>
+                    <p className="text-gray-600 whitespace-pre-line">{order.billingAddress}</p>
+                  </div>
+                )}
+                {/* Shipping Address */}
+                {order.shippingAddress && (
+                  <div className="bg-white rounded-xl shadow-sm border p-6">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <MapPin className="h-5 w-5 text-gray-400" />
+                      Ship To
+                    </h2>
+                    <p className="text-gray-600 whitespace-pre-line">{order.shippingAddress}</p>
+                    {order.expectedDelivery && (
+                      <div className="mt-3 pt-3 border-t">
+                        <p className="text-sm text-gray-500">Expected Delivery</p>
+                        <p className="font-medium">{formatDate(order.expectedDelivery)}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Payment Method - Charge to Card */}
+            {order.paymentCardNumber && (
+              <div className="bg-green-50 border border-green-200 rounded-xl shadow-sm p-6">
+                <h2 className="text-lg font-semibold text-green-800 mb-4 flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  Payment Method - Please Charge to Card
                 </h2>
-                <p className="text-gray-600 whitespace-pre-line">{order.shippingAddress}</p>
+                <div className="bg-white border border-green-100 rounded-lg p-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-500">Card Number</p>
+                      <p className="font-mono text-lg font-semibold tracking-wider">
+                        {order.paymentCardNumber.replace(/(\d{4})/g, '$1 ').trim()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Card Type</p>
+                      <p className="font-semibold">{order.paymentCardBrand || 'Credit Card'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Expiry Date</p>
+                      <p className="font-semibold">{order.paymentCardExpiry || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">CVV</p>
+                      <p className="font-semibold">{order.paymentCardCvv || 'N/A'}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-sm text-gray-500">Cardholder Name</p>
+                      <p className="font-semibold">{order.paymentCardHolderName || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+                <p className="mt-3 text-sm text-green-700">
+                  Please charge the total amount ({formatCurrency(order.totalAmount, order.currency)}) to this card.
+                </p>
               </div>
             )}
 

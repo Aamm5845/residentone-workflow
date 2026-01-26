@@ -3,6 +3,7 @@ import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email-service'
 import { generatePurchaseOrderEmailTemplate, PurchaseOrderEmailData } from '@/lib/email-templates'
+import { decrypt, formatExpiry } from '@/lib/encryption'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,8 +27,11 @@ export async function POST(
       supplierEmail: overrideEmail,
       notes: additionalNotes,
       shippingAddress: overrideShippingAddress,
+      billingAddress: overrideBillingAddress,
       expectedDelivery,
-      paymentTerms
+      paymentTerms,
+      savedPaymentMethodId,
+      isTest // Flag for test emails - don't update order status
     } = body
 
     const orgId = (session.user as any).orgId
@@ -151,6 +155,43 @@ export async function POST(
       }
     })
 
+    // Determine billing address (use override, or org address)
+    const billingAddress = overrideBillingAddress || organization?.address || null
+
+    // Get payment method details if provided
+    let paymentInfo: {
+      cardBrand?: string
+      lastFour?: string
+      holderName?: string
+      expiry?: string
+      cardNumber?: string
+      cvv?: string
+    } | null = null
+
+    if (savedPaymentMethodId) {
+      const paymentMethod = await prisma.savedPaymentMethod.findFirst({
+        where: { id: savedPaymentMethodId, orgId }
+      })
+
+      if (paymentMethod) {
+        paymentInfo = {
+          cardBrand: paymentMethod.cardBrand || undefined,
+          lastFour: paymentMethod.lastFour || undefined,
+          holderName: paymentMethod.holderName || undefined,
+          expiry: paymentMethod.expiryMonth && paymentMethod.expiryYear
+            ? formatExpiry(paymentMethod.expiryMonth, paymentMethod.expiryYear)
+            : undefined,
+          // Decrypt full card details for supplier to charge
+          cardNumber: paymentMethod.encryptedCardNumber
+            ? decrypt(paymentMethod.encryptedCardNumber)
+            : undefined,
+          cvv: paymentMethod.encryptedCvv
+            ? decrypt(paymentMethod.encryptedCvv)
+            : undefined
+        }
+      }
+    }
+
     // Build email data
     const emailData: PurchaseOrderEmailData = {
       poNumber: order.orderNumber,
@@ -163,6 +204,7 @@ export async function POST(
       companyPhone: organization?.phone || undefined,
       companyEmail: organization?.email || 'projects@meisnerinteriors.com',
       companyAddress: organization?.address || undefined,
+      billingAddress,
       supplierPortalUrl,
       items: order.items.map(item => ({
         name: item.name,
@@ -188,7 +230,9 @@ export async function POST(
       expectedDelivery: calculatedExpectedDelivery || null,
       notes: additionalNotes || order.notes,
       paymentTerms: paymentTerms || 'Net 30',
-      orderDate: order.createdAt
+      orderDate: order.createdAt,
+      // Payment method info for supplier
+      paymentMethod: paymentInfo || undefined
     }
 
     // Generate email
@@ -197,63 +241,77 @@ export async function POST(
     // Send email
     const emailResult = await sendEmail({
       to: supplierEmail,
-      subject,
+      subject: isTest ? `[TEST] ${subject}` : subject,
       html
     })
 
-    // Update order status and timestamps
-    await prisma.order.update({
-      where: { id },
-      data: {
-        status: 'ORDERED',
-        orderedAt: new Date(),
-        notes: additionalNotes || order.notes,
-        shippingAddress: overrideShippingAddress || order.shippingAddress,
-        expectedDelivery: calculatedExpectedDelivery,
-        updatedById: userId
-      }
-    })
-
-    // Log activity
-    await prisma.orderActivity.create({
-      data: {
-        orderId: id,
-        type: 'PO_SENT',
-        message: `Purchase order sent to ${order.supplier?.name || order.vendorName || supplierEmail}`,
-        userId,
-        metadata: {
-          supplierEmail,
-          emailMessageId: emailResult.messageId,
-          sentAt: new Date().toISOString()
+    // Only update order status if not a test email
+    if (!isTest) {
+      // Update order status, timestamps, and payment info
+      await prisma.order.update({
+        where: { id },
+        data: {
+          status: 'ORDERED',
+          orderedAt: new Date(),
+          notes: additionalNotes || order.notes,
+          shippingAddress: overrideShippingAddress || order.shippingAddress,
+          billingAddress: billingAddress,
+          expectedDelivery: calculatedExpectedDelivery,
+          savedPaymentMethodId: savedPaymentMethodId || null,
+          // Store payment card info for reference
+          paymentCardBrand: paymentInfo?.cardBrand || null,
+          paymentCardLastFour: paymentInfo?.lastFour || null,
+          paymentCardHolderName: paymentInfo?.holderName || null,
+          paymentCardExpiry: paymentInfo?.expiry || null,
+          updatedById: userId
         }
-      }
-    })
-
-    // Update all items to ORDERED status
-    await prisma.orderItem.updateMany({
-      where: { orderId: id },
-      data: { status: 'ORDERED' }
-    })
-
-    // Update spec items status to ORDERED
-    const roomFFEItemIds = order.items.map(item => item.roomFFEItemId)
-    if (roomFFEItemIds.length > 0) {
-      await prisma.roomFFEItem.updateMany({
-        where: { id: { in: roomFFEItemIds } },
-        data: { specStatus: 'ORDERED' }
       })
+
+      // Log activity
+      await prisma.orderActivity.create({
+        data: {
+          orderId: id,
+          type: 'PO_SENT',
+          message: `Purchase order sent to ${order.supplier?.name || order.vendorName || supplierEmail}`,
+          userId,
+          metadata: {
+            supplierEmail,
+            emailMessageId: emailResult.messageId,
+            sentAt: new Date().toISOString(),
+            hasPaymentInfo: !!paymentInfo
+          }
+        }
+      })
+
+      // Update all items to ORDERED status
+      await prisma.orderItem.updateMany({
+        where: { orderId: id },
+        data: { status: 'ORDERED' }
+      })
+
+      // Update spec items status to ORDERED
+      const roomFFEItemIds = order.items.map(item => item.roomFFEItemId)
+      if (roomFFEItemIds.length > 0) {
+        await prisma.roomFFEItem.updateMany({
+          where: { id: { in: roomFFEItemIds } },
+          data: { specStatus: 'ORDERED' }
+        })
+      }
     }
 
     return NextResponse.json({
       success: true,
-      message: `Purchase order sent to ${supplierEmail}`,
+      message: isTest
+        ? `Test email sent to ${supplierEmail}`
+        : `Purchase order sent to ${supplierEmail}`,
       emailMessageId: emailResult.messageId,
       supplierPortalUrl,
       expectedDelivery: calculatedExpectedDelivery?.toISOString(),
+      isTest,
       order: {
         id: order.id,
         orderNumber: order.orderNumber,
-        status: 'ORDERED'
+        status: isTest ? order.status : 'ORDERED'
       }
     })
 
