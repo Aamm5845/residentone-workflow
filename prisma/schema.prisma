@@ -3760,12 +3760,17 @@ model OrderItem {
   clientQuoteLineItemId   String?
   roomFFEItemId           String
   supplierQuoteLineItemId String? // Link to the supplier quote we're ordering from
+  componentId             String? // Link to ItemComponent if this is a component
 
   // Item info
   name        String
   description String?
   quantity    Int
   unitType    String?
+
+  // Component tracking
+  isComponent  Boolean @default(false) // True if this is a component of another item
+  parentItemId String? // Parent RoomFFEItem ID if this is a component
 
   // Pricing (from supplier quote)
   unitPrice  Decimal

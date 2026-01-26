@@ -5,6 +5,14 @@ import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
 
+interface ItemComponent {
+  id: string
+  name: string
+  modelNumber: string | null
+  price: number | null
+  quantity: number
+}
+
 interface ReadyToOrderItem {
   id: string
   name: string
@@ -41,6 +49,8 @@ interface ReadyToOrderItem {
     clientUnitPrice: number
     clientTotalPrice: number
   } | null
+  // Components (sub-items like transformers)
+  components: ItemComponent[]
 }
 
 interface SupplierGroup {
@@ -224,6 +234,10 @@ export async function GET(
           },
           orderBy: { createdAt: 'desc' },
           take: 1
+        },
+        // Get item components (sub-items like transformers, brackets, etc.)
+        components: {
+          orderBy: { order: 'asc' }
         }
       },
       orderBy: [
@@ -280,7 +294,15 @@ export async function GET(
           paidAt: item.paidAt,
           clientUnitPrice: Number(clientInvoiceLine.clientUnitPrice),
           clientTotalPrice: Number(clientInvoiceLine.clientTotalPrice)
-        } : null
+        } : null,
+        // Include components for the PO
+        components: (item.components || []).map(c => ({
+          id: c.id,
+          name: c.name,
+          modelNumber: c.modelNumber,
+          price: c.price ? Number(c.price) : null,
+          quantity: c.quantity || 1
+        }))
       }
 
       if (supplierQuoteLine) {
@@ -310,19 +332,21 @@ export async function GET(
       }
 
       supplierGroups[supplierId].items.push(item)
-      supplierGroups[supplierId].totalCost += item.supplierQuote?.totalPrice || 0
-      supplierGroups[supplierId].itemCount++
+      // Include component costs in total
+      const componentsCost = item.components.reduce((sum, c) => sum + ((c.price || 0) * (c.quantity || 1)), 0)
+      supplierGroups[supplierId].totalCost += (item.supplierQuote?.totalPrice || 0) + componentsCost
+      supplierGroups[supplierId].itemCount += 1 + item.components.length // Count main item + components
     }
 
-    // Calculate totals
-    const totalWithQuotes = itemsWithQuotes.reduce(
-      (sum, item) => sum + (item.supplierQuote?.totalPrice || 0),
-      0
-    )
-    const totalWithoutQuotes = itemsWithoutQuotes.reduce(
-      (sum, item) => sum + (item.paidAmount || 0),
-      0
-    )
+    // Calculate totals (including components)
+    const totalWithQuotes = itemsWithQuotes.reduce((sum, item) => {
+      const componentsCost = item.components.reduce((cSum, c) => cSum + ((c.price || 0) * (c.quantity || 1)), 0)
+      return sum + (item.supplierQuote?.totalPrice || 0) + componentsCost
+    }, 0)
+    const totalWithoutQuotes = itemsWithoutQuotes.reduce((sum, item) => {
+      const componentsCost = item.components.reduce((cSum, c) => cSum + ((c.price || 0) * (c.quantity || 1)), 0)
+      return sum + (item.paidAmount || 0) + componentsCost
+    }, 0)
 
     // Build default shipping address from project
     const addressParts = [

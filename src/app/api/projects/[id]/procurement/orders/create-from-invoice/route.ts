@@ -5,23 +5,27 @@ import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
 
+interface OrderLineItem {
+  roomFFEItemId: string
+  clientQuoteLineItemId: string
+  supplierQuoteLineItemId: string | null
+  name: string
+  description: string | null
+  quantity: number
+  unitPrice: number // Supplier cost price
+  totalPrice: number
+  leadTimeWeeks: number | null
+  currency: string | null
+  isComponent: boolean
+  parentItemId: string | null
+}
+
 interface SupplierGroup {
   supplierId: string | null
   supplierName: string
   supplierEmail: string | null
   currency: string
-  items: {
-    roomFFEItemId: string
-    clientQuoteLineItemId: string
-    supplierQuoteLineItemId: string | null
-    name: string
-    description: string | null
-    quantity: number
-    unitPrice: number // Supplier cost price
-    totalPrice: number
-    leadTimeWeeks: number | null
-    currency: string | null
-  }[]
+  items: OrderLineItem[]
 }
 
 /**
@@ -95,6 +99,10 @@ export async function POST(
                   orderBy: {
                     createdAt: 'desc'
                   }
+                },
+                // Include components (sub-items like transformers, brackets)
+                components: {
+                  orderBy: { order: 'asc' }
                 }
               }
             }
@@ -204,6 +212,7 @@ export async function POST(
         }
       }
 
+      // Add main item
       supplierGroups[supplierId].items.push({
         roomFFEItemId: roomFFEItem.id,
         clientQuoteLineItemId: lineItem.id,
@@ -214,8 +223,31 @@ export async function POST(
         unitPrice: Number(supplierQuote.unitPrice), // Supplier cost price
         totalPrice: Number(supplierQuote.totalPrice),
         leadTimeWeeks: supplierQuote.leadTimeWeeks,
-        currency: itemCurrency
+        currency: itemCurrency,
+        isComponent: false,
+        parentItemId: null
       })
+
+      // Add components as separate line items
+      const components = (roomFFEItem as any).components || []
+      for (const comp of components) {
+        if (comp.price) {
+          supplierGroups[supplierId].items.push({
+            roomFFEItemId: roomFFEItem.id, // Link to parent item
+            clientQuoteLineItemId: lineItem.id,
+            supplierQuoteLineItemId: null, // Components don't have separate quote lines
+            name: `  └ ${comp.name}${comp.modelNumber ? ` (${comp.modelNumber})` : ''}`,
+            description: `Component of ${roomFFEItem.name}`,
+            quantity: comp.quantity || 1,
+            unitPrice: Number(comp.price),
+            totalPrice: Number(comp.price) * (comp.quantity || 1),
+            leadTimeWeeks: null,
+            currency: itemCurrency,
+            isComponent: true,
+            parentItemId: roomFFEItem.id
+          })
+        }
+      }
     }
 
     // Generate order numbers
@@ -261,13 +293,15 @@ export async function POST(
           items: {
             create: group.items.map(item => ({
               roomFFEItemId: item.roomFFEItemId,
-              clientQuoteLineItemId: item.clientQuoteLineItemId,
+              clientQuoteLineItemId: item.isComponent ? null : item.clientQuoteLineItemId,
               supplierQuoteLineItemId: item.supplierQuoteLineItemId,
               name: item.name,
               description: item.description,
               quantity: item.quantity,
               unitPrice: item.unitPrice,
               totalPrice: item.totalPrice,
+              isComponent: item.isComponent,
+              parentItemId: item.parentItemId,
               status: 'PAYMENT_RECEIVED'
             }))
           },
@@ -413,6 +447,10 @@ export async function GET(
                       }
                     }
                   }
+                },
+                // Include components for preview
+                components: {
+                  orderBy: { order: 'asc' }
                 }
               }
             }
@@ -486,6 +524,8 @@ export async function GET(
       }
 
       const itemTotal = Number(supplierQuote.totalPrice)
+
+      // Add main item
       supplierGroups[supplierId].items.push({
         id: roomFFEItem.id,
         name: roomFFEItem.name,
@@ -493,9 +533,30 @@ export async function GET(
         unitPrice: Number(supplierQuote.unitPrice),
         totalPrice: itemTotal,
         leadTimeWeeks: supplierQuote.leadTimeWeeks,
-        hasAcceptedQuote: !!acceptedQuote
+        hasAcceptedQuote: !!acceptedQuote,
+        isComponent: false
       })
       supplierGroups[supplierId].subtotal += itemTotal
+
+      // Add components
+      const components = (roomFFEItem as any).components || []
+      for (const comp of components) {
+        if (comp.price) {
+          const compTotal = Number(comp.price) * (comp.quantity || 1)
+          supplierGroups[supplierId].items.push({
+            id: comp.id,
+            name: `  └ ${comp.name}${comp.modelNumber ? ` (${comp.modelNumber})` : ''}`,
+            quantity: comp.quantity || 1,
+            unitPrice: Number(comp.price),
+            totalPrice: compTotal,
+            leadTimeWeeks: null,
+            hasAcceptedQuote: false,
+            isComponent: true,
+            parentItemName: roomFFEItem.name
+          })
+          supplierGroups[supplierId].subtotal += compTotal
+        }
+      }
     }
 
     return NextResponse.json({
