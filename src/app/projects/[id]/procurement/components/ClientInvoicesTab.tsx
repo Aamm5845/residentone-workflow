@@ -176,10 +176,12 @@ export default function ClientInvoicesTab({ projectId, searchQuery, onCreateInvo
   )
 
   const formatCurrency = (amount: number, currency: string = 'CAD') => {
-    return new Intl.NumberFormat('en-CA', {
+    const formatted = new Intl.NumberFormat('en-CA', {
       style: 'currency',
       currency: currency
     }).format(amount)
+    // Remove "US" prefix from USD amounts (shows as "US$" by default)
+    return currency === 'USD' ? formatted.replace('US$', '$') : formatted
   }
 
   const handleViewInvoice = (invoice: ClientInvoice) => {
