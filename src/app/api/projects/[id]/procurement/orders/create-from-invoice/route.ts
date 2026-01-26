@@ -423,7 +423,12 @@ export async function POST(
     })
   } catch (error) {
     console.error('Error creating orders from invoice:', error)
-    return NextResponse.json({ error: 'Failed to create orders' }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    return NextResponse.json({
+      error: 'Failed to create orders',
+      details: errorMessage,
+      stack: error instanceof Error ? error.stack : undefined
+    }, { status: 500 })
   }
 }
 

@@ -346,7 +346,8 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
         fetchReadyToOrder()
       } else {
         const error = await res.json()
-        toast.error(error.error || 'Failed to create order')
+        console.error('Create PO error:', error)
+        toast.error(error.details || error.error || 'Failed to create order')
       }
     } catch (error) {
       toast.error('Failed to create order')
