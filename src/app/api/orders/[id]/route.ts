@@ -442,7 +442,8 @@ export async function POST(
 
 /**
  * DELETE /api/orders/[id]
- * Delete an order (only if pending)
+ * Delete an order (only if pending/not yet shipped)
+ * Items will go back to "Ready to Order" status
  */
 export async function DELETE(
   request: NextRequest,
@@ -458,29 +459,66 @@ export async function DELETE(
     const orgId = (session.user as any).orgId
 
     const existing = await prisma.order.findFirst({
-      where: { id, orgId }
+      where: { id, orgId },
+      include: {
+        items: {
+          select: {
+            roomFFEItemId: true
+          }
+        }
+      }
     })
 
     if (!existing) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     }
 
-    if (existing.status !== 'PENDING_PAYMENT') {
+    // Only allow deletion of orders that haven't been shipped/delivered
+    const nonDeletableStatuses = ['SHIPPED', 'IN_TRANSIT', 'DELIVERED', 'INSTALLED', 'COMPLETED']
+    if (nonDeletableStatuses.includes(existing.status)) {
       return NextResponse.json(
-        { error: 'Only pending orders can be deleted' },
+        { error: 'Cannot delete orders that have been shipped or delivered' },
         { status: 400 }
       )
     }
 
-    await prisma.order.delete({
-      where: { id }
+    // Get all RoomFFEItem IDs from the order items
+    const roomFFEItemIds = existing.items
+      .map(item => item.roomFFEItemId)
+      .filter((id): id is string => id !== null)
+
+    // Use transaction to delete order and reset item statuses
+    await prisma.$transaction(async (tx) => {
+      // Delete order activities first
+      await tx.orderActivity.deleteMany({
+        where: { orderId: id }
+      })
+
+      // Delete order items
+      await tx.orderItem.deleteMany({
+        where: { orderId: id }
+      })
+
+      // Delete the order
+      await tx.order.delete({
+        where: { id }
+      })
+
+      // Reset the RoomFFEItems orderStatus back so they appear in Ready to Order
+      if (roomFFEItemIds.length > 0) {
+        await tx.roomFFEItem.updateMany({
+          where: { id: { in: roomFFEItemIds } },
+          data: { orderStatus: null }
+        })
+      }
     })
 
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error deleting order:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
-      { error: 'Failed to delete order' },
+      { error: 'Failed to delete order', details: errorMessage },
       { status: 500 }
     )
   }

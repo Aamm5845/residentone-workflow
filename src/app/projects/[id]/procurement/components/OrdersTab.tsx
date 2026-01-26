@@ -57,8 +57,19 @@ import {
   Store,
   AlertCircle,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Trash2
 } from 'lucide-react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog'
 import { toast } from 'sonner'
 import CreateManualOrderDialog from './CreateManualOrderDialog'
 import CreateOrdersFromInvoiceDialog from './CreateOrdersFromInvoiceDialog'
@@ -232,6 +243,11 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
   // Order details dialog
   const [orderDetailsDialogOpen, setOrderDetailsDialogOpen] = useState(false)
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
+
+  // Delete confirmation dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [orderToDelete, setOrderToDelete] = useState<Order | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   // Dialog states
   const [sendPOOpen, setSendPOOpen] = useState(false)
@@ -567,6 +583,39 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to mark as delivered')
     }
+  }
+
+  // Delete order
+  const handleDeleteOrder = async () => {
+    if (!orderToDelete) return
+
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/orders/${orderToDelete.id}`, {
+        method: 'DELETE'
+      })
+
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || 'Failed to delete order')
+      }
+
+      toast.success('Order deleted - items returned to Ready to Order')
+      setDeleteDialogOpen(false)
+      setOrderToDelete(null)
+      fetchOrders()
+      fetchReadyToOrder()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete order')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  // Check if order can be deleted
+  const canDeleteOrder = (order: Order) => {
+    const nonDeletableStatuses = ['SHIPPED', 'IN_TRANSIT', 'DELIVERED', 'INSTALLED', 'COMPLETED']
+    return !nonDeletableStatuses.includes(order.status)
   }
 
   if (loading) {
@@ -969,6 +1018,22 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                               <FileText className="w-4 h-4 mr-2" />
                               Download PO PDF
                             </DropdownMenuItem>
+
+                            {canDeleteOrder(order) && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-red-600 focus:text-red-600"
+                                  onClick={() => {
+                                    setOrderToDelete(order)
+                                    setDeleteDialogOpen(true)
+                                  }}
+                                >
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  Delete Order
+                                </DropdownMenuItem>
+                              </>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -1277,8 +1342,41 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
         open={orderDetailsDialogOpen}
         onOpenChange={setOrderDetailsDialogOpen}
         orderId={selectedOrderId}
-        onUpdate={fetchOrders}
+        onUpdate={() => {
+          fetchOrders()
+          fetchReadyToOrder()
+        }}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Purchase Order?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {orderToDelete?.orderNumber}?
+              The items in this order will be returned to "Ready to Order" status.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteOrder}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={deleting}
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete Order'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
