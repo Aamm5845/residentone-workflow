@@ -263,9 +263,13 @@ export async function GET(
 
     for (const item of paidItems) {
       // Get the item's supplier from the spec (this is the primary grouping)
-      const supplierId = item.supplierId || item.supplier?.id || 'unknown'
+      const supplierId = item.supplierId || item.supplier?.id || null
       const supplierName = item.supplier?.name || item.supplierName || 'Unknown Supplier'
       const supplierEmail = item.supplier?.email || null
+
+      // Use supplierId if available, otherwise use supplierName as the grouping key
+      // This ensures items with different supplierName values aren't grouped together
+      const groupKey = supplierId || `name:${supplierName}`
 
       // Get supplier quote info (optional - for additional details)
       const acceptedQuote = item.acceptedQuoteLineItem
@@ -327,10 +331,10 @@ export async function GET(
       // Get currency from item
       const itemCurrency = item.tradePriceCurrency || 'CAD'
 
-      // Group by item's supplier
-      if (!supplierGroups[supplierId]) {
-        supplierGroups[supplierId] = {
-          supplierId: supplierId === 'unknown' ? null : supplierId,
+      // Group by item's supplier (using groupKey which can be supplierId or supplierName)
+      if (!supplierGroups[groupKey]) {
+        supplierGroups[groupKey] = {
+          supplierId, // Can be null if grouped by name
           supplierName,
           supplierEmail,
           items: [],
@@ -340,14 +344,14 @@ export async function GET(
         }
       }
 
-      supplierGroups[supplierId].items.push(readyItem)
+      supplierGroups[groupKey].items.push(readyItem)
       // Use quote price if available, otherwise trade price
       const itemPrice = supplierQuoteLine
         ? Number(supplierQuoteLine.totalPrice)
         : (item.tradePrice ? Number(item.tradePrice) * (item.quantity || 1) : 0)
       const componentsCost = readyItem.components.reduce((sum, c) => sum + ((c.price || 0) * (c.quantity || 1)), 0)
-      supplierGroups[supplierId].totalCost += itemPrice + componentsCost
-      supplierGroups[supplierId].itemCount += 1
+      supplierGroups[groupKey].totalCost += itemPrice + componentsCost
+      supplierGroups[groupKey].itemCount += 1
     }
 
     // Calculate totals
