@@ -176,6 +176,12 @@ export default function OrderDetailSheet({
     reference: '',
     notes: ''
   })
+  const [showDepositSettings, setShowDepositSettings] = useState(false)
+  const [depositForm, setDepositForm] = useState({
+    depositPercent: '50',
+    depositAmount: ''
+  })
+  const [savingDeposit, setSavingDeposit] = useState(false)
 
   useEffect(() => {
     if (open && orderId) {
@@ -349,12 +355,47 @@ export default function OrderDetailSheet({
     }
   }
 
+  const handleSaveDepositSettings = async () => {
+    if (!order) return
+
+    setSavingDeposit(true)
+    try {
+      const depositPercent = parseFloat(depositForm.depositPercent) || 0
+      const depositAmount = depositForm.depositAmount
+        ? parseFloat(depositForm.depositAmount)
+        : (parseFloat(order.totalAmount || '0') * depositPercent / 100)
+
+      const res = await fetch(`/api/orders/${order.id}/supplier-payment`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          depositRequired: depositAmount,
+          depositPercent
+        })
+      })
+
+      if (res.ok) {
+        toast.success('Deposit requirements updated')
+        setShowDepositSettings(false)
+        fetchOrder()
+        onUpdate()
+      } else {
+        const data = await res.json()
+        toast.error(data.error || 'Failed to update deposit settings')
+      }
+    } catch (error) {
+      toast.error('Failed to update deposit settings')
+    } finally {
+      setSavingDeposit(false)
+    }
+  }
+
   const handleCopyPortalLink = () => {
     if (!order?.supplierAccessToken) {
       toast.error('Portal link not available')
       return
     }
-    const link = `${window.location.origin}/supplier-order/${order.accessToken}`
+    const link = `${window.location.origin}/supplier-order/${order.supplierAccessToken}`
     navigator.clipboard.writeText(link)
     toast.success('Supplier portal link copied')
   }
@@ -364,7 +405,7 @@ export default function OrderDetailSheet({
       toast.error('Portal link not available')
       return
     }
-    window.open(`/supplier-order/${order.accessToken}`, '_blank')
+    window.open(`/supplier-order/${order.supplierAccessToken}`, '_blank')
   }
 
   const formatCurrency = (amount: string | null, currency: string = 'CAD') => {
@@ -480,10 +521,12 @@ export default function OrderDetailSheet({
                       className="mt-1"
                     />
                   </div>
-                ) : order.expectedDelivery && (
+                ) : (
                   <div>
                     <p className="text-xs text-gray-400 uppercase tracking-wider">Expected Delivery</p>
-                    <p className="text-sm">{formatDate(order.expectedDelivery)}</p>
+                    <p className="text-sm">
+                      {order.expectedDelivery ? formatDate(order.expectedDelivery) : <span className="text-gray-400 italic">Not set</span>}
+                    </p>
                   </div>
                 )}
                 {order.actualDelivery && (
@@ -635,19 +678,26 @@ export default function OrderDetailSheet({
                   Supplier Payment
                 </h4>
                 <div className="space-y-2 bg-gray-50 rounded-lg p-3">
+                  {/* Deposit Section */}
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Deposit Required</span>
+                    <span>
+                      {depositRequired > 0
+                        ? `${formatCurrency(order.depositRequired, order.currency)} (${order.depositPercent || 0}%)`
+                        : <span className="text-gray-400 italic">Not set</span>
+                      }
+                    </span>
+                  </div>
                   {depositRequired > 0 && (
-                    <>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Deposit Required</span>
-                        <span>{formatCurrency(order.depositRequired, order.currency)}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Deposit Paid</span>
-                        <span className={depositPaid > 0 ? 'text-emerald-600' : ''}>
-                          {formatCurrency(order.depositPaid, order.currency)}
-                        </span>
-                      </div>
-                    </>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Deposit Paid</span>
+                      <span className={depositPaid > 0 ? 'text-emerald-600' : ''}>
+                        {formatCurrency(order.depositPaid, order.currency)}
+                        {depositPaid >= depositRequired && depositRequired > 0 && (
+                          <CheckCircle className="w-3 h-3 inline ml-1 text-emerald-600" />
+                        )}
+                      </span>
+                    </div>
                   )}
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">Total Paid to Supplier</span>
@@ -669,17 +719,90 @@ export default function OrderDetailSheet({
                   )}
                 </div>
 
+                {/* Deposit Settings Form */}
+                {showDepositSettings && (
+                  <div className="mt-3 p-3 bg-blue-50 rounded-lg space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h5 className="font-medium text-blue-900">Set Deposit Requirements</h5>
+                      <Button variant="ghost" size="sm" onClick={() => setShowDepositSettings(false)}>
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs">Deposit %</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={depositForm.depositPercent}
+                          onChange={(e) => {
+                            const pct = parseFloat(e.target.value) || 0
+                            const amt = (totalAmount * pct / 100).toFixed(2)
+                            setDepositForm({ depositPercent: e.target.value, depositAmount: amt })
+                          }}
+                          placeholder="50"
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Amount ({order.currency})</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={depositForm.depositAmount}
+                          onChange={(e) => {
+                            const amt = parseFloat(e.target.value) || 0
+                            const pct = totalAmount > 0 ? ((amt / totalAmount) * 100).toFixed(0) : '0'
+                            setDepositForm({ depositAmount: e.target.value, depositPercent: pct })
+                          }}
+                          placeholder="0.00"
+                          className="mt-1"
+                        />
+                      </div>
+                    </div>
+                    <Button
+                      className="w-full bg-blue-600 hover:bg-blue-700"
+                      onClick={handleSaveDepositSettings}
+                      disabled={savingDeposit}
+                    >
+                      {savingDeposit && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                      Save Deposit Requirements
+                    </Button>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex gap-2 mt-3">
+                  {!showDepositSettings && !showPaymentForm && (
+                    <>
+                      <Button
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => {
+                          setDepositForm({
+                            depositPercent: order.depositPercent?.toString() || '50',
+                            depositAmount: order.depositRequired?.toString() || (totalAmount * 0.5).toFixed(2)
+                          })
+                          setShowDepositSettings(true)
+                        }}
+                      >
+                        Set Deposit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => setShowPaymentForm(true)}
+                      >
+                        <DollarSign className="w-4 h-4 mr-2" />
+                        Record Payment
+                      </Button>
+                    </>
+                  )}
+                </div>
+
                 {/* Record Payment Form */}
-                {!showPaymentForm ? (
-                  <Button
-                    variant="outline"
-                    className="w-full mt-3"
-                    onClick={() => setShowPaymentForm(true)}
-                  >
-                    <DollarSign className="w-4 h-4 mr-2" />
-                    Record Payment
-                  </Button>
-                ) : (
+                {showPaymentForm && (
                   <div className="mt-3 p-3 bg-emerald-50 rounded-lg space-y-3">
                     <div className="flex items-center justify-between">
                       <h5 className="font-medium text-emerald-900">Record Payment</h5>
@@ -750,46 +873,60 @@ export default function OrderDetailSheet({
                 )}
               </div>
 
-              {/* Notes */}
-              {editing ? (
-                <div className="space-y-3">
-                  <div>
-                    <Label className="text-xs text-gray-400 uppercase tracking-wider">Order Notes</Label>
-                    <Textarea
-                      value={editForm.notes}
-                      onChange={e => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
-                      rows={2}
-                      placeholder="Notes visible on PO..."
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-400 uppercase tracking-wider">Internal Notes</Label>
-                    <Textarea
-                      value={editForm.internalNotes}
-                      onChange={e => setEditForm(prev => ({ ...prev, internalNotes: e.target.value }))}
-                      rows={2}
-                      placeholder="Private notes..."
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
-              ) : (order.notes || order.internalNotes) && (
-                <div className="space-y-2">
-                  {order.notes && (
-                    <div>
-                      <p className="text-xs text-gray-400 uppercase tracking-wider">Notes</p>
-                      <p className="text-sm text-gray-700 whitespace-pre-line">{order.notes}</p>
-                    </div>
-                  )}
-                  {order.internalNotes && (
-                    <div>
-                      <p className="text-xs text-gray-400 uppercase tracking-wider">Internal Notes</p>
-                      <p className="text-sm text-gray-700 whitespace-pre-line">{order.internalNotes}</p>
-                    </div>
+              {/* Notes - Always visible */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    Notes
+                  </h4>
+                  {!editing && (
+                    <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setEditing(true)}>
+                      <Edit className="w-3 h-3 mr-1" />
+                      Edit
+                    </Button>
                   )}
                 </div>
-              )}
+                {editing ? (
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-xs text-gray-500">Order Notes (visible on PO)</Label>
+                      <Textarea
+                        value={editForm.notes}
+                        onChange={e => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
+                        rows={2}
+                        placeholder="Notes visible on PO..."
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">Internal Notes (private)</Label>
+                      <Textarea
+                        value={editForm.internalNotes}
+                        onChange={e => setEditForm(prev => ({ ...prev, internalNotes: e.target.value }))}
+                        rows={2}
+                        placeholder="Private notes..."
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2 bg-gray-50 rounded-lg p-3">
+                    <div>
+                      <p className="text-xs text-gray-400">Order Notes</p>
+                      <p className="text-sm text-gray-700 whitespace-pre-line">
+                        {order.notes || <span className="text-gray-400 italic">No notes</span>}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400">Internal Notes</p>
+                      <p className="text-sm text-gray-700 whitespace-pre-line">
+                        {order.internalNotes || <span className="text-gray-400 italic">No internal notes</span>}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               <Separator />
 
@@ -826,7 +963,7 @@ export default function OrderDetailSheet({
 
               {/* Quick Actions */}
               <div className="flex flex-wrap gap-2">
-                {order.accessToken && (
+                {order.supplierAccessToken && (
                   <>
                     <Button variant="outline" size="sm" onClick={handleCopyPortalLink}>
                       <Copy className="w-4 h-4 mr-1.5" />
