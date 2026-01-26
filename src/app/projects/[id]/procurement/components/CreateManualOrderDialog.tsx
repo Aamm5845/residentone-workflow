@@ -320,8 +320,8 @@ export default function CreateManualOrderDialog({
   const quoteMatchSummary = selectedItems.reduce(
     (acc, d) => {
       const item = items.find(i => i.id === d.itemId)
-      if (item?.quoteMatch.priceMatches === true) acc.matches++
-      else if (item?.quoteMatch.priceMatches === false) acc.mismatches++
+      if (item?.quoteMatch?.priceMatches === true) acc.matches++
+      else if (item?.quoteMatch?.priceMatches === false) acc.mismatches++
       return acc
     },
     { matches: 0, mismatches: 0 }
@@ -624,16 +624,16 @@ export default function CreateManualOrderDialog({
                                   </div>
                                   <div className="flex items-center gap-2">
                                     {/* Quote match indicator */}
-                                    {item.quoteMatch.priceMatches === true && (
+                                    {item.quoteMatch?.priceMatches === true && (
                                       <Badge variant="outline" className="text-green-700 border-green-200 bg-green-50 text-xs">
                                         <CheckCircle className="w-3 h-3 mr-1" />
                                         Matches quote
                                       </Badge>
                                     )}
-                                    {item.quoteMatch.priceMatches === false && (
+                                    {item.quoteMatch?.priceMatches === false && (
                                       <Badge variant="outline" className="text-amber-700 border-amber-200 bg-amber-50 text-xs">
                                         <AlertTriangle className="w-3 h-3 mr-1" />
-                                        Diff: {formatCurrency(item.quoteMatch.priceDifference || 0, item.currency)}
+                                        Diff: {formatCurrency(item.quoteMatch?.priceDifference || 0, item.currency)}
                                       </Badge>
                                     )}
                                     {item.isOrdered && item.existingOrder && (
