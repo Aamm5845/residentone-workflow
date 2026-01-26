@@ -675,7 +675,7 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                       </button>
                       <div className="flex items-center gap-3">
                         <span className="text-sm font-medium text-gray-700">
-                          {formatCurrency(group.totalCost)} {group.currency || 'CAD'}
+                          {formatCurrency(group.totalCost)}{group.currency === 'USD' ? ' USD' : ''}
                         </span>
                         <Button
                           size="sm"
@@ -737,7 +737,7 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                               </div>
                               <div className="text-right">
                                 <p className="text-sm font-medium">
-                                  {formatCurrency(item.supplierQuote?.totalPrice || item.tradePrice || 0)} {item.currency || 'CAD'}
+                                  {formatCurrency(item.supplierQuote?.totalPrice || item.tradePrice || 0)}{item.currency === 'USD' ? ' USD' : ''}
                                 </p>
                               </div>
                             </div>
