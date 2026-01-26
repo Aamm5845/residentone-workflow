@@ -674,7 +674,9 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                             className="w-6 h-6 object-contain rounded"
                           />
                         ) : (
-                          <Building2 className="w-5 h-5 text-gray-500" />
+                          <div className="w-6 h-6 bg-gray-200 rounded flex items-center justify-center text-xs font-semibold text-gray-600">
+                            {group.supplierName?.charAt(0)?.toUpperCase() || '?'}
+                          </div>
                         )}
                         <span className="font-medium text-gray-900">{group.supplierName}</span>
                         <Badge variant="outline" className="ml-2">
