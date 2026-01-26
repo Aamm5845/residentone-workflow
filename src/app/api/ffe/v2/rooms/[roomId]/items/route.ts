@@ -255,38 +255,35 @@ export async function POST(
     }
 
     await prisma.$transaction(async (tx) => {
-      for (let i = 1; i <= quantity; i++) {
-        const itemName = quantity > 1 ? `${name.trim()} #${i}` : name.trim()
+      // Determine visibility and specStatus based on item type:
+      // - isSpecItem = true: This is a product spec (from All Specs view), linked to FFE requirement
+      // - isSpec = true (legacy): This is an actual spec, should be visible
+      // - Otherwise: FFE Workspace requirement, starts as visible
+      const isActualSpec = isSpecItem || isSpec
+      const finalVisibility = visibility || (isActualSpec ? 'VISIBLE' : 'VISIBLE')
+      const finalSpecStatus = specStatus || (isActualSpec ? 'SELECTED' : 'DRAFT')
 
-        // Determine visibility and specStatus based on item type:
-        // - isSpecItem = true: This is a product spec (from All Specs view), linked to FFE requirement
-        // - isSpec = true (legacy): This is an actual spec, should be visible
-        // - Otherwise: FFE Workspace requirement, starts as visible
-        const isActualSpec = isSpecItem || isSpec
-        const finalVisibility = visibility || (isActualSpec ? 'VISIBLE' : 'VISIBLE')
-        const finalSpecStatus = specStatus || (isActualSpec ? 'SELECTED' : 'DRAFT')
+      // Generate doc code
+      // Priority: explicit docCode > FFE requirement's docCode > auto-generated > null
+      let itemDocCode = docCode || ffeRequirementDocCode || null
+      if (!docCode && !ffeRequirementDocCode && section.docCodePrefix && currentDocCodeNumber > 0) {
+        itemDocCode = `${section.docCodePrefix}-${String(currentDocCodeNumber).padStart(2, '0')}`
+      } else if (!docCode && !ffeRequirementDocCode && generatedDocCode) {
+        itemDocCode = generatedDocCode
+      }
 
-        // Generate unique doc code for each item in bulk creation
-        // Priority: explicit docCode > FFE requirement's docCode > auto-generated > null
-        let itemDocCode = docCode || ffeRequirementDocCode || null
-        if (!docCode && !ffeRequirementDocCode && section.docCodePrefix && currentDocCodeNumber > 0) {
-          itemDocCode = `${section.docCodePrefix}-${String(currentDocCodeNumber + i - 1).padStart(2, '0')}`
-        } else if (!docCode && !ffeRequirementDocCode && generatedDocCode && i === 1) {
-          itemDocCode = generatedDocCode
-        }
-
-        const newItem = await tx.roomFFEItem.create({
-          data: {
-            sectionId,
-            name: itemName,
-            description: description?.trim() || null,
-            state: 'PENDING',
-            visibility: finalVisibility,
-            specStatus: finalSpecStatus,
-            isRequired: false,
-            isCustom: true,
-            order: nextOrder + i - 1,
-            quantity: 1, // Each created item has quantity 1
+      const newItem = await tx.roomFFEItem.create({
+        data: {
+          sectionId,
+          name: name.trim(),
+          description: description?.trim() || null,
+          state: 'PENDING',
+          visibility: finalVisibility,
+          specStatus: finalSpecStatus,
+          isRequired: false,
+          isCustom: true,
+          order: nextOrder,
+          quantity: quantity || 1, // Set the actual quantity on the item
             // Include spec fields if provided
             brand: brand || null,
             sku: sku || null,
@@ -324,9 +321,8 @@ export async function POST(
             updatedById: session.user.id
           }
         })
-        
-        createdItems.push(newItem)
-      }
+
+      createdItems.push(newItem)
     })
 
     // Log activity if linking a product to an FFE requirement
