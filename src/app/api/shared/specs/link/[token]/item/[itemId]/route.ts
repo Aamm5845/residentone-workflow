@@ -96,7 +96,7 @@ export async function GET(
       // Match the same filtering as the specs API (Financial Tab)
       if (item.section?.instance?.room?.projectId !== shareLink.projectId ||
           item.visibility !== 'VISIBLE' ||
-          ['DRAFT', 'NEEDS_SPEC', 'HIDDEN'].includes(item.specStatus || '')) {
+          ['DRAFT', 'NEEDS_SPEC', 'HIDDEN', 'ARCHIVED'].includes(item.specStatus || '')) {
         return NextResponse.json({ error: 'Item not found in this share link' }, { status: 404 })
       }
     } else {
@@ -113,7 +113,7 @@ export async function GET(
             // Select All mode - fetch all visible spec items from the project
             // Match the same filtering as the specs API (Financial Tab)
             visibility: 'VISIBLE',
-            specStatus: { notIn: ['DRAFT', 'NEEDS_SPEC', 'HIDDEN'] },
+            specStatus: { notIn: ['DRAFT', 'NEEDS_SPEC', 'HIDDEN', 'ARCHIVED'] },
             section: {
               instance: {
                 room: {

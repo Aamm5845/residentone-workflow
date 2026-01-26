@@ -41,7 +41,7 @@ export async function GET(
     const items = await prisma.roomFFEItem.findMany({
       where: {
         visibility: 'VISIBLE',
-        specStatus: { notIn: ['DRAFT', 'NEEDS_SPEC', 'HIDDEN'] },
+        specStatus: { notIn: ['DRAFT', 'NEEDS_SPEC', 'HIDDEN', 'ARCHIVED'] },
         section: {
           instance: {
             room: {

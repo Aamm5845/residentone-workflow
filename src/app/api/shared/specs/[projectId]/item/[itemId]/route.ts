@@ -70,7 +70,7 @@ export async function GET(
         },
         visibility: 'VISIBLE',
         specStatus: {
-          notIn: ['DRAFT', 'NEEDS_SPEC', 'HIDDEN']
+          notIn: ['DRAFT', 'NEEDS_SPEC', 'HIDDEN', 'ARCHIVED']
         }
       },
       select: {

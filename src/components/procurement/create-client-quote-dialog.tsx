@@ -102,7 +102,7 @@ interface SpecItem {
 }
 
 // Statuses that should NOT appear in invoice creation
-const EXCLUDED_INVOICE_STATUSES = ['CLIENT_TO_ORDER', 'CONTRACTOR_TO_ORDER', 'DRAFT', 'HIDDEN']
+const EXCLUDED_INVOICE_STATUSES = ['CLIENT_TO_ORDER', 'CONTRACTOR_TO_ORDER', 'DRAFT', 'HIDDEN', 'ARCHIVED']
 
 interface LineItem {
   id: string

@@ -95,7 +95,7 @@ POST /api/projects/[id]/spec-share-links
 ### Share All Mode
 When `itemIds` is empty, link dynamically includes all specs:
 - Filters to `visibility: VISIBLE`
-- Excludes `specStatus` in `['DRAFT', 'NEEDS_SPEC', 'HIDDEN']`
+- Excludes `specStatus` in `['DRAFT', 'NEEDS_SPEC', 'HIDDEN', 'ARCHIVED']`
 - Includes future items automatically
 
 ### Access Share Link (Public)
