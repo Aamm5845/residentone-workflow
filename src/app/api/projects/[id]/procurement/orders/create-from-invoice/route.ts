@@ -395,7 +395,7 @@ export async function POST(
       data: {
         clientQuoteId,
         type: 'ORDERS_CREATED',
-        description: `${createdOrders.length} purchase order${createdOrders.length > 1 ? 's' : ''} created: ${createdOrders.map(o => o.orderNumber).join(', ')}`,
+        message: `${createdOrders.length} purchase order${createdOrders.length > 1 ? 's' : ''} created: ${createdOrders.map(o => o.orderNumber).join(', ')}`,
         userId,
         metadata: {
           orders: createdOrders.map(o => ({ id: o.id, number: o.orderNumber }))
