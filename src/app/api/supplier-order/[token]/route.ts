@@ -221,8 +221,17 @@ export async function GET(
 
   } catch (error) {
     console.error('Error fetching supplier order:', error)
+    console.error('Error details:', {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    })
     return NextResponse.json(
-      { error: 'Failed to fetch order details' },
+      {
+        error: 'Failed to fetch order details',
+        details: error instanceof Error ? error.message : 'Unknown error',
+        errorType: error instanceof Error ? error.name : 'Unknown'
+      },
       { status: 500 }
     )
   }
