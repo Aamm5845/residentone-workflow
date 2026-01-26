@@ -71,6 +71,7 @@ interface ItemComponent {
   name: string
   modelNumber?: string | null
   image?: string | null
+  link?: string | null
   price?: number | null
   quantity: number
   order: number
@@ -954,7 +955,7 @@ export function ItemDetailPanel({
   const [components, setComponents] = useState<ItemComponent[]>([])
   const [savingComponent, setSavingComponent] = useState(false)
   const [editingComponent, setEditingComponent] = useState<ItemComponent | null>(null)
-  const [newComponent, setNewComponent] = useState({ name: '', modelNumber: '', price: '', quantity: 1, image: '' })
+  const [newComponent, setNewComponent] = useState({ name: '', modelNumber: '', price: '', quantity: 1, image: '', link: '' })
   const [showAddComponent, setShowAddComponent] = useState(false)
   const componentImageInputRef = useRef<HTMLInputElement>(null)
   const editComponentImageInputRef = useRef<HTMLInputElement>(null)
@@ -1277,12 +1278,13 @@ export function ItemDetailPanel({
         name: newComponent.name,
         modelNumber: newComponent.modelNumber || null,
         image: newComponent.image || null,
+        link: newComponent.link || null,
         price: newComponent.price ? parseFloat(newComponent.price) : null,
         quantity: newComponent.quantity || 1,
         order: prev.length,
         notes: null
       }])
-      setNewComponent({ name: '', modelNumber: '', price: '', quantity: 1, image: '' })
+      setNewComponent({ name: '', modelNumber: '', price: '', quantity: 1, image: '', link: '' })
       setShowAddComponent(false)
       return
     }
@@ -1296,6 +1298,7 @@ export function ItemDetailPanel({
           name: newComponent.name,
           modelNumber: newComponent.modelNumber || null,
           image: newComponent.image || null,
+          link: newComponent.link || null,
           price: newComponent.price || null,
           quantity: newComponent.quantity || 1
         })
@@ -1304,7 +1307,7 @@ export function ItemDetailPanel({
       if (res.ok) {
         const data = await res.json()
         setComponents(prev => [...prev, data.component])
-        setNewComponent({ name: '', modelNumber: '', price: '', quantity: 1, image: '' })
+        setNewComponent({ name: '', modelNumber: '', price: '', quantity: 1, image: '', link: '' })
         setShowAddComponent(false)
         toast.success('Component added')
         onSave?.()
@@ -1334,6 +1337,7 @@ export function ItemDetailPanel({
           name: component.name,
           modelNumber: component.modelNumber,
           image: component.image,
+          link: component.link,
           price: component.price,
           quantity: component.quantity
         })
@@ -2383,6 +2387,18 @@ export function ItemDetailPanel({
                               {comp.modelNumber && (
                                 <p className="text-xs text-gray-500 truncate">{comp.modelNumber}</p>
                               )}
+                              {comp.link && (
+                                <a
+                                  href={comp.link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 hover:underline mt-0.5"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <ExternalLink className="w-3 h-3" />
+                                  View Product
+                                </a>
+                              )}
                             </div>
 
                             {/* Actions - fixed width, always visible */}
@@ -2465,6 +2481,16 @@ export function ItemDetailPanel({
                         </div>
                       </div>
 
+                      <div className="flex items-center gap-2">
+                        <LinkIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        <Input
+                          value={newComponent.link}
+                          onChange={(e) => setNewComponent(prev => ({ ...prev, link: e.target.value }))}
+                          placeholder="Product link (optional)"
+                          className="h-8 text-sm"
+                        />
+                      </div>
+
                       <div className="grid grid-cols-2 gap-2">
                         <div>
                           <Label className="text-xs text-gray-500">Price</Label>
@@ -2495,7 +2521,7 @@ export function ItemDetailPanel({
                           size="sm"
                           onClick={() => {
                             setShowAddComponent(false)
-                            setNewComponent({ name: '', modelNumber: '', price: '', quantity: 1, image: '' })
+                            setNewComponent({ name: '', modelNumber: '', price: '', quantity: 1, image: '', link: '' })
                           }}
                         >
                           Cancel
@@ -2598,6 +2624,17 @@ export function ItemDetailPanel({
                             value={editingComponent.modelNumber || ''}
                             onChange={(e) => setEditingComponent({ ...editingComponent, modelNumber: e.target.value })}
                           />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Product Link</Label>
+                          <div className="flex items-center gap-2">
+                            <LinkIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                            <Input
+                              value={editingComponent.link || ''}
+                              onChange={(e) => setEditingComponent({ ...editingComponent, link: e.target.value })}
+                              placeholder="https://..."
+                            />
+                          </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
@@ -3305,8 +3342,8 @@ export function ItemDetailPanel({
                   />
                 </div>
 
-                {/* Trade Price TOTAL Section - includes components */}
-                {(parseFloat(formData.tradePrice) > 0 || componentsTotal > 0) && (
+                {/* Trade Price TOTAL Section - only show when item has trade price */}
+                {parseFloat(formData.tradePrice) > 0 && (
                   <div className="bg-blue-50 rounded-lg p-4 mt-4">
                     <div className="flex justify-between items-center">
                       <span className="text-blue-700 font-medium">TRADE TOTAL</span>

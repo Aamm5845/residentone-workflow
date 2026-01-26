@@ -1621,6 +1621,7 @@ model ItemComponent {
   name        String // Component name (e.g., "Transformer")
   modelNumber String? // Component model number
   image       String? // Component image URL
+  link        String? // Product link URL
   price       Decimal? // Component price (uses parent's currency)
   quantity    Int      @default(1)
   order       Int      @default(0)

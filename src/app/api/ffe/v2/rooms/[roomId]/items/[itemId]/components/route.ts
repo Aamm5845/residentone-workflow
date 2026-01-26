@@ -55,7 +55,7 @@ export async function POST(
 
     const { roomId, itemId } = await params
     const body = await request.json()
-    const { name, modelNumber, image, price, quantity, notes } = body
+    const { name, modelNumber, image, link, price, quantity, notes } = body
 
     if (!name) {
       return NextResponse.json({ error: 'Component name is required' }, { status: 400 })
@@ -94,6 +94,7 @@ export async function POST(
         name,
         modelNumber: modelNumber || null,
         image: image || null,
+        link: link || null,
         price: price ? parseFloat(String(price)) : null,
         quantity: parsedQuantity > 0 ? parsedQuantity : 1,
         order: nextOrder,
@@ -136,7 +137,7 @@ export async function PATCH(
 
     const { roomId, itemId } = await params
     const body = await request.json()
-    const { componentId, name, modelNumber, image, price, quantity, notes, order } = body
+    const { componentId, name, modelNumber, image, link, price, quantity, notes, order } = body
 
     if (!componentId) {
       return NextResponse.json({ error: 'Component ID is required' }, { status: 400 })
@@ -172,6 +173,7 @@ export async function PATCH(
     if (name !== undefined) updateData.name = name
     if (modelNumber !== undefined) updateData.modelNumber = modelNumber || null
     if (image !== undefined) updateData.image = image || null
+    if (link !== undefined) updateData.link = link || null
     if (price !== undefined) updateData.price = price ? parseFloat(String(price)) : null
     if (quantity !== undefined) {
       // Ensure quantity is a proper integer (handle string or number input)
