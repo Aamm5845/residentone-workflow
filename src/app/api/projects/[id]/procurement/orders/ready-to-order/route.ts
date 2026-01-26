@@ -187,6 +187,10 @@ export async function GET(
             }
           }
         },
+        // Get the item's supplier (from spec)
+        supplier: {
+          select: { id: true, name: true, email: true }
+        },
         // Get accepted quote or any recent quote
         acceptedQuoteLineItem: {
           include: {
@@ -253,12 +257,16 @@ export async function GET(
       ]
     })
 
-    // Transform and group items
-    const itemsWithQuotes: ReadyToOrderItem[] = []
-    const itemsWithoutQuotes: ReadyToOrderItem[] = []
+    // Transform and group ALL items by the item's supplier (from spec)
+    const supplierGroups: Record<string, SupplierGroup> = {}
 
     for (const item of paidItems) {
-      // Get supplier quote info
+      // Get the item's supplier from the spec (this is the primary grouping)
+      const supplierId = item.supplierId || item.supplier?.id || 'unknown'
+      const supplierName = item.supplier?.name || item.supplierName || 'Unknown Supplier'
+      const supplierEmail = item.supplier?.email || null
+
+      // Get supplier quote info (optional - for additional details)
       const acceptedQuote = item.acceptedQuoteLineItem
       const latestQuote = item.allQuoteLineItems?.[0]
       const supplierQuoteLine = acceptedQuote || latestQuote
@@ -271,7 +279,7 @@ export async function GET(
         name: item.name,
         description: item.description,
         roomName: item.section?.instance?.room?.name || null,
-        categoryName: item.section?.name || null, // Section name as category
+        categoryName: item.section?.name || null,
         quantity: item.quantity || 1,
         imageUrl: item.images?.[0] || null,
         specStatus: item.specStatus,
@@ -293,7 +301,6 @@ export async function GET(
           totalPrice: Number(supplierQuoteLine.totalPrice),
           leadTimeWeeks: supplierQuoteLine.leadTimeWeeks,
           isAccepted: supplierQuoteLine.isAccepted || !!acceptedQuote,
-          // Additional quote details for PO creation
           shippingCost: supplierQuoteLine.supplierQuote?.shippingCost
             ? Number(supplierQuoteLine.supplierQuote.shippingCost)
             : null,
@@ -307,7 +314,6 @@ export async function GET(
           clientUnitPrice: Number(clientInvoiceLine.clientUnitPrice),
           clientTotalPrice: Number(clientInvoiceLine.clientTotalPrice)
         } : null,
-        // Include components for the PO
         components: (item.components || []).map(c => ({
           id: c.id,
           name: c.name,
@@ -317,21 +323,7 @@ export async function GET(
         }))
       }
 
-      if (supplierQuoteLine) {
-        itemsWithQuotes.push(readyItem)
-      } else {
-        itemsWithoutQuotes.push(readyItem)
-      }
-    }
-
-    // Group items with quotes by supplier
-    const supplierGroups: Record<string, SupplierGroup> = {}
-
-    for (const item of itemsWithQuotes) {
-      const supplierId = item.supplierQuote?.supplierId || 'unknown'
-      const supplierName = item.supplierQuote?.supplierName || 'Unknown Supplier'
-      const supplierEmail = item.supplierQuote?.supplierEmail || null
-
+      // Group by item's supplier
       if (!supplierGroups[supplierId]) {
         supplierGroups[supplierId] = {
           supplierId: supplierId === 'unknown' ? null : supplierId,
@@ -343,22 +335,18 @@ export async function GET(
         }
       }
 
-      supplierGroups[supplierId].items.push(item)
-      // Include component costs in total
-      const componentsCost = item.components.reduce((sum, c) => sum + ((c.price || 0) * (c.quantity || 1)), 0)
-      supplierGroups[supplierId].totalCost += (item.supplierQuote?.totalPrice || 0) + componentsCost
-      supplierGroups[supplierId].itemCount += 1 + item.components.length // Count main item + components
+      supplierGroups[supplierId].items.push(readyItem)
+      // Use quote price if available, otherwise trade price
+      const itemPrice = supplierQuoteLine
+        ? Number(supplierQuoteLine.totalPrice)
+        : (item.tradePrice ? Number(item.tradePrice) * (item.quantity || 1) : 0)
+      const componentsCost = readyItem.components.reduce((sum, c) => sum + ((c.price || 0) * (c.quantity || 1)), 0)
+      supplierGroups[supplierId].totalCost += itemPrice + componentsCost
+      supplierGroups[supplierId].itemCount += 1
     }
 
-    // Calculate totals (including components)
-    const totalWithQuotes = itemsWithQuotes.reduce((sum, item) => {
-      const componentsCost = item.components.reduce((cSum, c) => cSum + ((c.price || 0) * (c.quantity || 1)), 0)
-      return sum + (item.supplierQuote?.totalPrice || 0) + componentsCost
-    }, 0)
-    const totalWithoutQuotes = itemsWithoutQuotes.reduce((sum, item) => {
-      const componentsCost = item.components.reduce((cSum, c) => cSum + ((c.price || 0) * (c.quantity || 1)), 0)
-      return sum + (item.paidAmount || 0) + componentsCost
-    }, 0)
+    // Calculate totals
+    const totalCost = Object.values(supplierGroups).reduce((sum, g) => sum + g.totalCost, 0)
 
     // Build default shipping address from project
     const addressParts = [
@@ -375,23 +363,11 @@ export async function GET(
     let filteredSupplierGroups = Object.values(supplierGroups).sort((a, b) =>
       b.totalCost - a.totalCost
     )
-    let filteredItemsWithoutQuotes = itemsWithoutQuotes.sort((a, b) =>
-      (a.paidAt?.getTime() || 0) - (b.paidAt?.getTime() || 0)
-    )
 
     if (filterSupplierId) {
-      // Only return the specific supplier group
       filteredSupplierGroups = filteredSupplierGroups.filter(
         g => g.supplierId === filterSupplierId
       )
-      // Include items without quotes too (they can be ordered from any supplier)
-      // But only if no supplier group was found (meaning this is a manual PO)
-      if (filteredSupplierGroups.length === 0) {
-        // Keep itemsWithoutQuotes so they can be ordered from this supplier
-      } else {
-        // Clear items without quotes since we have a supplier with quotes
-        filteredItemsWithoutQuotes = []
-      }
     }
 
     return NextResponse.json({
@@ -412,16 +388,13 @@ export async function GET(
       },
       summary: {
         totalItems: paidItems.length,
-        itemsWithQuotes: itemsWithQuotes.length,
-        itemsWithoutQuotes: itemsWithoutQuotes.length,
         supplierCount: Object.keys(supplierGroups).length,
-        totalCostWithQuotes: totalWithQuotes,
-        estimatedCostWithoutQuotes: totalWithoutQuotes
+        totalCost
       },
-      // Items grouped by supplier (ready for PO creation)
+      // All items grouped by their supplier (from spec)
       supplierGroups: filteredSupplierGroups,
-      // Items without quotes (need manual ordering)
-      itemsWithoutQuotes: filteredItemsWithoutQuotes
+      // Legacy - kept for compatibility but should be empty
+      itemsWithoutQuotes: []
     })
   } catch (error) {
     console.error('Error fetching ready to order items:', error)

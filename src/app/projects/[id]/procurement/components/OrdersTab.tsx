@@ -705,99 +705,15 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                 )
               })}
 
-              {/* Items without quotes - show as "Unassigned" */}
-              {readyToOrder.itemsWithoutQuotes.length > 0 && (
-                <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
-                  <div className="flex items-center justify-between p-3">
-                    <button
-                      onClick={() => toggleSupplierExpand('unassigned')}
-                      className="flex items-center gap-2 hover:bg-gray-50 rounded px-2 py-1 -ml-2"
-                    >
-                      {expandedSuppliers.has('unassigned') ? (
-                        <ChevronDown className="w-4 h-4 text-gray-400" />
-                      ) : (
-                        <ChevronRight className="w-4 h-4 text-gray-400" />
-                      )}
-                      <Store className="w-4 h-4 text-orange-500" />
-                      <span className="font-medium text-gray-900">Unassigned</span>
-                      <Badge variant="outline" className="ml-2 border-orange-200 text-orange-700">
-                        {readyToOrder.itemsWithoutQuotes.length} item{readyToOrder.itemsWithoutQuotes.length > 1 ? 's' : ''}
-                      </Badge>
-                    </button>
-                    <div className="flex items-center gap-3">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700">
-                            <ShoppingCart className="w-4 h-4 mr-1" />
-                            Create PO
-                            <ChevronDown className="w-3 h-3 ml-1" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-64 max-h-[300px] overflow-y-auto">
-                          <div className="px-2 py-1.5 text-xs font-medium text-gray-500">
-                            Select Supplier
-                          </div>
-                          <DropdownMenuSeparator />
-                          {suppliers.length === 0 ? (
-                            <div className="px-2 py-2 text-sm text-gray-500">
-                              No suppliers found
-                            </div>
-                          ) : (
-                            suppliers.map(supplier => (
-                              <DropdownMenuItem
-                                key={supplier.id}
-                                onClick={() => handleOpenCreatePO(supplier)}
-                                className="flex flex-col items-start"
-                              >
-                                <span className="font-medium">{supplier.name}</span>
-                                {supplier.email && (
-                                  <span className="text-xs text-gray-500">{supplier.email}</span>
-                                )}
-                              </DropdownMenuItem>
-                            ))
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-
-                  {expandedSuppliers.has('unassigned') && (
-                    <div className="border-t bg-gray-50 p-3">
-                      <div className="space-y-2">
-                        {readyToOrder.itemsWithoutQuotes.map(item => (
-                          <div key={item.id} className="flex items-center justify-between p-2 bg-white rounded border">
-                            <div className="flex items-center gap-2">
-                              <Package className="w-4 h-4 text-gray-400" />
-                              <div>
-                                <p className="text-sm font-medium">{item.name}</p>
-                                <div className="flex items-center gap-2 text-xs text-gray-500">
-                                  {item.roomName && <span>{item.roomName}</span>}
-                                  <span>•</span>
-                                  <span>Qty: {item.quantity}</span>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-sm font-medium">
-                                {item.tradePrice ? formatCurrency(item.tradePrice) : '-'}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
 
             {/* Summary */}
             <div className="flex items-center justify-between pt-2 border-t border-gray-200">
               <span className="text-sm text-gray-600">
-                Total to order: {readyToOrder.summary.totalItems} items from {readyToOrder.summary.supplierCount + (readyToOrder.itemsWithoutQuotes.length > 0 ? 1 : 0)} source(s)
+                Total: {readyToOrder.summary.totalItems} items from {readyToOrder.summary.supplierCount} supplier{readyToOrder.summary.supplierCount !== 1 ? 's' : ''}
               </span>
               <span className="text-sm font-medium text-gray-900">
-                Est. Cost: {formatCurrency(readyToOrder.summary.totalCostWithQuotes + readyToOrder.summary.estimatedCostWithoutQuotes)}
+                Est. Cost: {formatCurrency(readyToOrder.summary.totalCost || 0)}
               </span>
             </div>
           </CardContent>
