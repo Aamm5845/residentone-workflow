@@ -86,9 +86,8 @@ export async function POST(
                   include: {
                     supplierQuote: {
                       include: {
-                        supplier: true,
                         supplierRFQ: {
-                          select: {
+                          include: {
                             supplier: true
                           }
                         }
@@ -104,9 +103,8 @@ export async function POST(
                   include: {
                     supplierQuote: {
                       include: {
-                        supplier: true,
                         supplierRFQ: {
-                          select: {
+                          include: {
                             supplier: true
                           }
                         }
@@ -212,10 +210,10 @@ export async function POST(
         continue
       }
 
-      const supplier = supplierQuote.supplierQuote?.supplier
+      const supplier = supplierQuote.supplierQuote?.supplierRFQ?.supplier
       const supplierId = supplier?.id || 'unknown'
-      const supplierName = supplier?.name || supplierQuote.supplierQuote?.vendorName || 'Unknown Supplier'
-      const supplierEmail = supplier?.email || supplierQuote.supplierQuote?.vendorEmail || null
+      const supplierName = supplier?.name || supplierQuote.supplierQuote?.supplierRFQ?.vendorName || 'Unknown Supplier'
+      const supplierEmail = supplier?.email || supplierQuote.supplierQuote?.supplierRFQ?.vendorEmail || null
 
       const itemCurrency = roomFFEItem.currency?.toUpperCase() || 'CAD'
 
@@ -470,7 +468,11 @@ export async function GET(
                   include: {
                     supplierQuote: {
                       include: {
-                        supplier: true
+                        supplierRFQ: {
+                          include: {
+                            supplier: true
+                          }
+                        }
                       }
                     }
                   }
@@ -480,7 +482,11 @@ export async function GET(
                   include: {
                     supplierQuote: {
                       include: {
-                        supplier: true
+                        supplierRFQ: {
+                          include: {
+                            supplier: true
+                          }
+                        }
                       }
                     }
                   },
@@ -557,15 +563,15 @@ export async function GET(
         continue
       }
 
-      const supplier = supplierQuote.supplierQuote?.supplier
+      const supplier = supplierQuote.supplierQuote?.supplierRFQ?.supplier
       const supplierId = supplier?.id || 'unknown'
-      const supplierName = supplier?.name || supplierQuote.supplierQuote?.vendorName || 'Unknown Supplier'
+      const supplierName = supplier?.name || supplierQuote.supplierQuote?.supplierRFQ?.vendorName || 'Unknown Supplier'
 
       if (!supplierGroups[supplierId]) {
         supplierGroups[supplierId] = {
           supplierId: supplier?.id || null,
           supplierName,
-          supplierEmail: supplier?.email || supplierQuote.supplierQuote?.vendorEmail || null,
+          supplierEmail: supplier?.email || supplierQuote.supplierQuote?.supplierRFQ?.vendorEmail || null,
           items: [],
           subtotal: 0
         }
