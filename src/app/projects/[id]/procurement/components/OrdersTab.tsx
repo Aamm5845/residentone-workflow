@@ -71,8 +71,7 @@ import {
   AlertDialogTitle
 } from '@/components/ui/alert-dialog'
 import { toast } from 'sonner'
-import CreateManualOrderDialog from './CreateManualOrderDialog'
-import CreateOrdersFromInvoiceDialog from './CreateOrdersFromInvoiceDialog'
+import CreatePODialog from './CreatePODialog'
 import OrderDetailSheet from './OrderDetailSheet'
 
 interface OrdersTabProps {
@@ -234,12 +233,10 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
   const [readyToOrder, setReadyToOrder] = useState<ReadyToOrderData | null>(null)
   const [loadingReadyToOrder, setLoadingReadyToOrder] = useState(true)
   const [expandedSuppliers, setExpandedSuppliers] = useState<Set<string>>(new Set())
-  const [creatingOrdersForSupplier, setCreatingOrdersForSupplier] = useState<string | null>(null)
 
-  // Manual order dialog
-  const [manualOrderDialogOpen, setManualOrderDialogOpen] = useState(false)
-  const [selectedItemsForManualOrder, setSelectedItemsForManualOrder] = useState<ReadyToOrderItem[]>([])
-  const [selectedSupplierForManualOrder, setSelectedSupplierForManualOrder] = useState<{ id: string; name: string; email: string | null } | null>(null)
+  // Create PO dialog
+  const [createPODialogOpen, setCreatePODialogOpen] = useState(false)
+  const [selectedSupplierForPO, setSelectedSupplierForPO] = useState<{ id: string; name: string; email: string | null } | null>(null)
 
   // Suppliers list for manual PO dropdown
   const [suppliers, setSuppliers] = useState<Array<{ id: string; name: string; email: string | null }>>([])
@@ -349,62 +346,13 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
     })
   }
 
-  const handleCreateOrdersForSupplier = async (group: SupplierGroup) => {
-    const supplierId = group.supplierId || 'unknown'
-    setCreatingOrdersForSupplier(supplierId)
-
-    try {
-      // Get the client invoice IDs from the items
-      const invoiceIds = new Set(group.items.map(i => i.clientInvoice?.id).filter(Boolean))
-
-      if (invoiceIds.size === 0) {
-        toast.error('No invoice found for these items')
-        return
-      }
-
-      // Create orders for each invoice (or all together if same invoice)
-      const itemIds = group.items.map(i => i.id)
-
-      // Use the first invoice ID (usually all items are from same invoice)
-      const invoiceId = group.items[0]?.clientInvoice?.id
-      if (!invoiceId) {
-        toast.error('No invoice found')
-        return
-      }
-
-      const res = await fetch(`/api/projects/${projectId}/procurement/orders/create-from-invoice`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clientQuoteId: invoiceId,
-          itemIds
-        })
-      })
-
-      if (res.ok) {
-        const data = await res.json()
-        toast.success(`Purchase order created for ${group.supplierName}`)
-        fetchOrders()
-        fetchReadyToOrder()
-      } else {
-        const error = await res.json()
-        console.error('Create PO error:', error)
-        toast.error(error.details || error.error || 'Failed to create order')
-      }
-    } catch (error) {
-      toast.error('Failed to create order')
-    } finally {
-      setCreatingOrdersForSupplier(null)
-    }
+  // Open Create PO dialog for a supplier
+  const handleOpenCreatePO = (supplier: { id: string; name: string; email: string | null }) => {
+    setSelectedSupplierForPO(supplier)
+    setCreatePODialogOpen(true)
   }
 
-  const handleOpenManualOrderDialog = (items: ReadyToOrderItem[], supplier?: { id: string; name: string; email: string | null }) => {
-    setSelectedItemsForManualOrder(items)
-    setSelectedSupplierForManualOrder(supplier || null)
-    setManualOrderDialogOpen(true)
-  }
-
-  const handleManualOrderSuccess = () => {
+  const handlePOCreated = () => {
     fetchOrders()
     fetchReadyToOrder()
   }
@@ -687,7 +635,6 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                   {readyToOrder.supplierGroups.map(group => {
                     const supplierId = group.supplierId || 'unknown'
                     const isExpanded = expandedSuppliers.has(supplierId)
-                    const isCreating = creatingOrdersForSupplier === supplierId
 
                     return (
                       <div key={supplierId} className="border border-gray-200 rounded-lg bg-white overflow-hidden">
@@ -713,15 +660,14 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                             </span>
                             <Button
                               size="sm"
-                              onClick={() => handleCreateOrdersForSupplier(group)}
-                              disabled={isCreating}
+                              onClick={() => handleOpenCreatePO({
+                                id: group.supplierId || '',
+                                name: group.supplierName,
+                                email: group.supplierEmail
+                              })}
                               className="bg-emerald-600 hover:bg-emerald-700"
                             >
-                              {isCreating ? (
-                                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                              ) : (
-                                <ShoppingCart className="w-4 h-4 mr-1" />
-                              )}
+                              <ShoppingCart className="w-4 h-4 mr-1" />
                               Create PO
                             </Button>
                           </div>
@@ -806,23 +752,51 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
               </div>
             )}
 
-            {/* Items without Supplier Quotes - need manual ordering */}
+            {/* Items without Supplier Quotes - select a supplier */}
             {readyToOrder.itemsWithoutQuotes.length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
                     <Store className="w-4 h-4 text-orange-500" />
-                    Without Quotes - Manual Order Required ({readyToOrder.itemsWithoutQuotes.length} items)
+                    Without Quotes ({readyToOrder.itemsWithoutQuotes.length} items)
                   </h4>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleOpenManualOrderDialog(readyToOrder.itemsWithoutQuotes)}
-                    className="border-orange-300 text-orange-700 hover:bg-orange-50"
-                  >
-                    <Store className="w-4 h-4 mr-1" />
-                    Create Manual Order
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-orange-300 text-orange-700 hover:bg-orange-50"
+                      >
+                        <Store className="w-4 h-4 mr-1" />
+                        Create PO
+                        <ChevronDown className="w-3 h-3 ml-1" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-64 max-h-[300px] overflow-y-auto">
+                      <div className="px-2 py-1.5 text-xs font-medium text-gray-500">
+                        Select Supplier
+                      </div>
+                      <DropdownMenuSeparator />
+                      {suppliers.length === 0 ? (
+                        <div className="px-2 py-2 text-sm text-gray-500">
+                          No suppliers found
+                        </div>
+                      ) : (
+                        suppliers.map(supplier => (
+                          <DropdownMenuItem
+                            key={supplier.id}
+                            onClick={() => handleOpenCreatePO(supplier)}
+                            className="flex flex-col items-start"
+                          >
+                            <span className="font-medium">{supplier.name}</span>
+                            {supplier.email && (
+                              <span className="text-xs text-gray-500">{supplier.email}</span>
+                            )}
+                          </DropdownMenuItem>
+                        ))
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
                 <div className="border border-orange-200 rounded-lg bg-orange-50/50 p-3">
                   <div className="flex items-start gap-2 mb-3">
@@ -911,7 +885,7 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                     suppliers.map(supplier => (
                       <DropdownMenuItem
                         key={supplier.id}
-                        onClick={() => handleOpenManualOrderDialog([], supplier)}
+                        onClick={() => handleOpenCreatePO(supplier)}
                         className="flex flex-col items-start"
                       >
                         <span className="font-medium">{supplier.name}</span>
@@ -1369,23 +1343,22 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Manual Order Dialog */}
-      <CreateManualOrderDialog
-        open={manualOrderDialogOpen}
-        onOpenChange={(open) => {
-          setManualOrderDialogOpen(open)
-          if (!open) {
-            setSelectedSupplierForManualOrder(null)
-            setSelectedItemsForManualOrder([])
-          }
-        }}
-        projectId={projectId}
-        // Only pass items if we have specific items selected; otherwise let dialog fetch all
-        items={selectedItemsForManualOrder.length > 0 ? selectedItemsForManualOrder as any : undefined}
-        defaultShippingAddress={readyToOrder?.project?.defaultShippingAddress}
-        selectedSupplier={selectedSupplierForManualOrder}
-        onSuccess={handleManualOrderSuccess}
-      />
+      {/* Create PO Dialog */}
+      {selectedSupplierForPO && (
+        <CreatePODialog
+          open={createPODialogOpen}
+          onOpenChange={(open) => {
+            setCreatePODialogOpen(open)
+            if (!open) {
+              setSelectedSupplierForPO(null)
+            }
+          }}
+          projectId={projectId}
+          supplier={selectedSupplierForPO}
+          defaultShippingAddress={readyToOrder?.project?.defaultShippingAddress}
+          onSuccess={handlePOCreated}
+        />
+      )}
 
       {/* Order Details Sheet */}
       <OrderDetailSheet

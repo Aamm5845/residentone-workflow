@@ -284,6 +284,9 @@ interface CreateManualOrderBody {
   paymentTerms?: string
   shippingTerms?: string
 
+  // Payment method for supplier to charge
+  savedPaymentMethodId?: string
+
   // If order was already placed externally
   alreadyOrdered?: boolean
   externalOrderNumber?: string // e.g., Amazon order #
@@ -516,6 +519,8 @@ export async function POST(
         depositRequired,
         depositPercent: body.depositPercent ? parseFloat(String(body.depositPercent)) : null,
         balanceDue,
+        // Payment method for supplier
+        savedPaymentMethodId: body.savedPaymentMethodId || null,
         orderedAt: body.alreadyOrdered
           ? (body.orderedAt ? new Date(body.orderedAt) : new Date())
           : null,

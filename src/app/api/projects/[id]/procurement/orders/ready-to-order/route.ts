@@ -39,6 +39,9 @@ interface ReadyToOrderItem {
     totalPrice: number
     leadTimeWeeks: number | null
     isAccepted: boolean
+    // Additional quote details
+    shippingCost: number | null
+    currency: string
   } | null
   // Client invoice info
   clientInvoice: {
@@ -85,6 +88,10 @@ export async function GET(
 
     const orgId = (session.user as any).orgId
     const { id: projectId } = await params
+
+    // Check for supplier filter
+    const { searchParams } = new URL(request.url)
+    const filterSupplierId = searchParams.get('supplierId')
 
     // Verify project access and get address info
     const project = await prisma.project.findFirst({
@@ -285,7 +292,12 @@ export async function GET(
           unitPrice: Number(supplierQuoteLine.unitPrice),
           totalPrice: Number(supplierQuoteLine.totalPrice),
           leadTimeWeeks: supplierQuoteLine.leadTimeWeeks,
-          isAccepted: supplierQuoteLine.isAccepted || !!acceptedQuote
+          isAccepted: supplierQuoteLine.isAccepted || !!acceptedQuote,
+          // Additional quote details for PO creation
+          shippingCost: supplierQuoteLine.supplierQuote?.shippingCost
+            ? Number(supplierQuoteLine.supplierQuote.shippingCost)
+            : null,
+          currency: supplierQuoteLine.currency || item.tradePriceCurrency || 'CAD'
         } : null,
         clientInvoice: clientInvoiceLine ? {
           id: clientInvoiceLine.clientQuote.id,
@@ -359,6 +371,29 @@ export async function GET(
       ? addressParts.join(', ')
       : project.address || ''
 
+    // Filter by supplier if requested
+    let filteredSupplierGroups = Object.values(supplierGroups).sort((a, b) =>
+      b.totalCost - a.totalCost
+    )
+    let filteredItemsWithoutQuotes = itemsWithoutQuotes.sort((a, b) =>
+      (a.paidAt?.getTime() || 0) - (b.paidAt?.getTime() || 0)
+    )
+
+    if (filterSupplierId) {
+      // Only return the specific supplier group
+      filteredSupplierGroups = filteredSupplierGroups.filter(
+        g => g.supplierId === filterSupplierId
+      )
+      // Include items without quotes too (they can be ordered from any supplier)
+      // But only if no supplier group was found (meaning this is a manual PO)
+      if (filteredSupplierGroups.length === 0) {
+        // Keep itemsWithoutQuotes so they can be ordered from this supplier
+      } else {
+        // Clear items without quotes since we have a supplier with quotes
+        filteredItemsWithoutQuotes = []
+      }
+    }
+
     return NextResponse.json({
       project: {
         id: project.id,
@@ -384,13 +419,9 @@ export async function GET(
         estimatedCostWithoutQuotes: totalWithoutQuotes
       },
       // Items grouped by supplier (ready for PO creation)
-      supplierGroups: Object.values(supplierGroups).sort((a, b) =>
-        b.totalCost - a.totalCost
-      ),
+      supplierGroups: filteredSupplierGroups,
       // Items without quotes (need manual ordering)
-      itemsWithoutQuotes: itemsWithoutQuotes.sort((a, b) =>
-        (a.paidAt?.getTime() || 0) - (b.paidAt?.getTime() || 0)
-      )
+      itemsWithoutQuotes: filteredItemsWithoutQuotes
     })
   } catch (error) {
     console.error('Error fetching ready to order items:', error)
