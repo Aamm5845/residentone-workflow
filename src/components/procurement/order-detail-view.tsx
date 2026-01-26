@@ -21,8 +21,12 @@ import {
   Edit,
   Send,
   XCircle,
-  RefreshCw
+  RefreshCw,
+  FileDown,
+  Loader2
 } from 'lucide-react'
+import { toast } from 'sonner'
+import SendPODialog from './SendPODialog'
 
 interface OrderItem {
   id: string
@@ -128,6 +132,8 @@ export default function OrderDetailView({ orderId, user, orgId }: OrderDetailVie
   const [updating, setUpdating] = useState(false)
   const [showAddDelivery, setShowAddDelivery] = useState(false)
   const [showUpdateTracking, setShowUpdateTracking] = useState(false)
+  const [showSendPO, setShowSendPO] = useState(false)
+  const [downloadingPDF, setDownloadingPDF] = useState(false)
 
   const fetchOrder = useCallback(async () => {
     try {
@@ -231,6 +237,34 @@ export default function OrderDetailView({ orderId, user, orgId }: OrderDetailVie
     }
   }
 
+  const handleDownloadPDF = async () => {
+    if (!order) return
+
+    setDownloadingPDF(true)
+    try {
+      const res = await fetch(`/api/orders/${orderId}/pdf`)
+      if (!res.ok) {
+        throw new Error('Failed to generate PDF')
+      }
+
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `PO-${order.orderNumber}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      toast.success('PDF downloaded successfully')
+    } catch (err) {
+      toast.error('Failed to download PDF')
+    } finally {
+      setDownloadingPDF(false)
+    }
+  }
+
   const getStatusConfig = (status: string) => {
     return ORDER_STATUSES.find(s => s.value === status) || ORDER_STATUSES[0]
   }
@@ -315,15 +349,42 @@ export default function OrderDetailView({ orderId, user, orgId }: OrderDetailVie
           </div>
         </div>
 
-        {canEdit && order.status !== 'CANCELLED' && order.status !== 'DELIVERED' && (
+        {canEdit && (
           <div className="flex items-center gap-2">
+            {/* Download PDF - always available */}
             <button
-              onClick={() => setShowUpdateTracking(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              onClick={handleDownloadPDF}
+              disabled={downloadingPDF}
+              className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
             >
-              <Truck className="h-4 w-4" />
-              Update Tracking
+              {downloadingPDF ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <FileDown className="h-4 w-4" />
+              )}
+              Download PDF
             </button>
+
+            {/* Send PO - show if not already sent/ordered */}
+            {order.status !== 'ORDERED' && order.status !== 'SHIPPED' && order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && (
+              <button
+                onClick={() => setShowSendPO(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Send className="h-4 w-4" />
+                Send PO
+              </button>
+            )}
+
+            {order.status !== 'CANCELLED' && order.status !== 'DELIVERED' && (
+              <button
+                onClick={() => setShowUpdateTracking(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <Truck className="h-4 w-4" />
+                Update Tracking
+              </button>
+            )}
             {order.status === 'DRAFT' && (
               <button
                 onClick={() => updateOrderStatus('PENDING')}
@@ -806,6 +867,39 @@ export default function OrderDetailView({ orderId, user, orgId }: OrderDetailVie
             </form>
           </div>
         </div>
+      )}
+
+      {/* Send PO Dialog */}
+      {order && (
+        <SendPODialog
+          open={showSendPO}
+          onOpenChange={setShowSendPO}
+          order={{
+            id: order.id,
+            orderNumber: order.orderNumber,
+            vendorName: order.supplier?.name || 'Vendor',
+            vendorEmail: order.supplier?.email,
+            totalAmount: order.totalAmount,
+            subtotal: order.totalAmount - order.shippingCost - order.tax,
+            shippingCost: order.shippingCost,
+            taxAmount: order.tax,
+            currency: 'USD',
+            shippingAddress: order.shippingAddress,
+            expectedDelivery: order.expectedDelivery,
+            items: order.items.map(item => ({
+              id: item.id,
+              name: item.description,
+              description: item.notes,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              totalPrice: item.totalPrice
+            }))
+          }}
+          onSuccess={() => {
+            setShowSendPO(false)
+            fetchOrder()
+          }}
+        />
       )}
     </div>
   )
