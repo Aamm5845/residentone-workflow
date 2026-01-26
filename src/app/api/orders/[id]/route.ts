@@ -61,7 +61,8 @@ export async function GET(
                 id: true,
                 name: true,
                 description: true,
-                category: true
+                images: true,
+                modelNumber: true
               }
             },
             delivery: {
@@ -103,8 +104,9 @@ export async function GET(
     return NextResponse.json({ order })
   } catch (error) {
     console.error('Error fetching order:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
-      { error: 'Failed to fetch order' },
+      { error: 'Failed to fetch order', details: errorMessage },
       { status: 500 }
     )
   }
