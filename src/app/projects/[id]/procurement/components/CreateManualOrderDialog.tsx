@@ -223,28 +223,6 @@ export default function CreateManualOrderDialog({
     }
   }, [open, items, defaultShippingAddress])
 
-  // Auto-fill deposit info from quote when supplier is selected
-  useEffect(() => {
-    if (selectedSupplierId && items.length > 0) {
-      const itemWithQuote = items.find(
-        i => i.quote?.supplierId === selectedSupplierId && (i.quote?.depositRequired || i.quote?.depositPercent)
-      )
-      if (itemWithQuote?.quote) {
-        if (itemWithQuote.quote.depositRequired && !depositRequired) {
-          setDepositRequired(itemWithQuote.quote.depositRequired.toString())
-        }
-        if (itemWithQuote.quote.depositPercent && !depositPercent) {
-          setDepositPercent(itemWithQuote.quote.depositPercent.toString())
-        }
-        if (itemWithQuote.quote.paymentTerms && !paymentTerms) {
-          setPaymentTerms(itemWithQuote.quote.paymentTerms)
-        }
-        if (itemWithQuote.quote.shippingCost && !shippingCost) {
-          setShippingCost(itemWithQuote.quote.shippingCost.toString())
-        }
-      }
-    }
-  }, [selectedSupplierId, items])
 
   const handleItemToggle = (itemId: string, checked: boolean) => {
     setItemDetails(prev =>
