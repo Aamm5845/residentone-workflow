@@ -42,7 +42,8 @@ import {
   AlertTriangle,
   CheckCircle,
   RefreshCw,
-  Layers
+  Layers,
+  Building2
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -116,6 +117,7 @@ interface CreateManualOrderDialogProps {
   projectId: string
   items?: ManualOrderItem[] // Optional - if not provided, will fetch from API
   defaultShippingAddress?: string
+  selectedSupplier?: { id: string; name: string; email: string | null } | null
   onSuccess: () => void
 }
 
@@ -133,6 +135,7 @@ export default function CreateManualOrderDialog({
   projectId,
   items: passedItems,
   defaultShippingAddress,
+  selectedSupplier,
   onSuccess
 }: CreateManualOrderDialogProps) {
   const [creating, setCreating] = useState(false)
@@ -208,6 +211,15 @@ export default function CreateManualOrderDialog({
       fetchItems()
     }
   }, [open, showAlreadyOrdered, selectedSupplierId])
+
+  // Auto-fill from selected supplier
+  useEffect(() => {
+    if (open && selectedSupplier) {
+      setSelectedSupplierId(selectedSupplier.id)
+      setVendorName(selectedSupplier.name)
+      setVendorEmail(selectedSupplier.email || '')
+    }
+  }, [open, selectedSupplier])
 
   // Initialize item details and defaults when dialog opens or items change
   useEffect(() => {
@@ -314,7 +326,7 @@ export default function CreateManualOrderDialog({
     : null
   const balanceDue = depositAmount ? totalCost - depositAmount : null
 
-  const canCreate = vendorName.trim() && itemsWithPrices.length > 0
+  const canCreate = (vendorName.trim() || selectedSupplier) && itemsWithPrices.length > 0
 
   // Check quote matching
   const quoteMatchSummary = selectedItems.reduce(
@@ -415,17 +427,25 @@ export default function CreateManualOrderDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Store className="w-5 h-5 text-orange-600" />
-            Create Manual Order
+            Create Purchase Order
+            {selectedSupplier && (
+              <Badge className="ml-2 bg-blue-100 text-blue-700">
+                {selectedSupplier.name}
+              </Badge>
+            )}
           </DialogTitle>
           <DialogDescription>
-            Create a purchase order for items. Shows quote matching to verify prices.
+            {selectedSupplier
+              ? `Create a purchase order for ${selectedSupplier.name}`
+              : 'Create a purchase order for items. Shows quote matching to verify prices.'
+            }
           </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="flex-1 -mx-6 px-6">
           <div className="space-y-6 py-4">
-            {/* Filters - only show when fetching from API */}
-            {!passedItems && (
+            {/* Filters - only show when fetching from API and no supplier pre-selected */}
+            {!passedItems && !selectedSupplier && (
               <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center gap-2">
                   <Checkbox
@@ -458,45 +478,62 @@ export default function CreateManualOrderDialog({
               </div>
             )}
 
-            {/* Vendor Info */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-gray-900">Vendor Information</h3>
-              <div className="grid gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="vendorName">
-                    Vendor Name <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="vendorName"
-                    value={vendorName}
-                    onChange={e => setVendorName(e.target.value)}
-                    placeholder="e.g., Amazon, Home Depot, West Elm"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="vendorEmail">Vendor Email</Label>
-                    <Input
-                      id="vendorEmail"
-                      type="email"
-                      value={vendorEmail}
-                      onChange={e => setVendorEmail(e.target.value)}
-                      placeholder="orders@vendor.com"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="vendorUrl">Product/Order URL</Label>
-                    <Input
-                      id="vendorUrl"
-                      type="url"
-                      value={vendorUrl}
-                      onChange={e => setVendorUrl(e.target.value)}
-                      placeholder="https://..."
-                    />
+            {/* Supplier Info Summary - when supplier is pre-selected */}
+            {selectedSupplier && (
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Building2 className="w-5 h-5 text-blue-600" />
+                  <div>
+                    <p className="font-medium text-blue-900">{selectedSupplier.name}</p>
+                    {selectedSupplier.email && (
+                      <p className="text-sm text-blue-700">{selectedSupplier.email}</p>
+                    )}
                   </div>
                 </div>
               </div>
-            </div>
+            )}
+
+            {/* Vendor Info - only show if no supplier pre-selected */}
+            {!selectedSupplier && (
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-gray-900">Vendor Information</h3>
+                <div className="grid gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="vendorName">
+                      Vendor Name <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="vendorName"
+                      value={vendorName}
+                      onChange={e => setVendorName(e.target.value)}
+                      placeholder="e.g., Amazon, Home Depot, West Elm"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="vendorEmail">Vendor Email</Label>
+                      <Input
+                        id="vendorEmail"
+                        type="email"
+                        value={vendorEmail}
+                        onChange={e => setVendorEmail(e.target.value)}
+                        placeholder="orders@vendor.com"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="vendorUrl">Product/Order URL</Label>
+                      <Input
+                        id="vendorUrl"
+                        type="url"
+                        value={vendorUrl}
+                        onChange={e => setVendorUrl(e.target.value)}
+                        placeholder="https://..."
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Already Ordered Toggle */}
             <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
@@ -944,7 +981,7 @@ export default function CreateManualOrderDialog({
             ) : (
               <ShoppingCart className="w-4 h-4 mr-2" />
             )}
-            Create Order
+            Create Purchase Order
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -239,6 +239,11 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
   // Manual order dialog
   const [manualOrderDialogOpen, setManualOrderDialogOpen] = useState(false)
   const [selectedItemsForManualOrder, setSelectedItemsForManualOrder] = useState<ReadyToOrderItem[]>([])
+  const [selectedSupplierForManualOrder, setSelectedSupplierForManualOrder] = useState<{ id: string; name: string; email: string | null } | null>(null)
+
+  // Suppliers list for manual PO dropdown
+  const [suppliers, setSuppliers] = useState<Array<{ id: string; name: string; email: string | null }>>([])
+  const [loadingSuppliers, setLoadingSuppliers] = useState(false)
 
   // Order details dialog
   const [orderDetailsDialogOpen, setOrderDetailsDialogOpen] = useState(false)
@@ -311,10 +316,26 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
     }
   }, [projectId])
 
+  const fetchSuppliers = useCallback(async () => {
+    try {
+      setLoadingSuppliers(true)
+      const res = await fetch('/api/suppliers')
+      if (res.ok) {
+        const data = await res.json()
+        setSuppliers(data.suppliers || [])
+      }
+    } catch (error) {
+      console.error('Error fetching suppliers:', error)
+    } finally {
+      setLoadingSuppliers(false)
+    }
+  }, [])
+
   useEffect(() => {
     fetchOrders()
     fetchReadyToOrder()
-  }, [fetchOrders, fetchReadyToOrder])
+    fetchSuppliers()
+  }, [fetchOrders, fetchReadyToOrder, fetchSuppliers])
 
   const toggleSupplierExpand = (supplierId: string) => {
     setExpandedSuppliers(prev => {
@@ -377,8 +398,9 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
     }
   }
 
-  const handleOpenManualOrderDialog = (items: ReadyToOrderItem[]) => {
+  const handleOpenManualOrderDialog = (items: ReadyToOrderItem[], supplier?: { id: string; name: string; email: string | null }) => {
     setSelectedItemsForManualOrder(items)
+    setSelectedSupplierForManualOrder(supplier || null)
     setManualOrderDialogOpen(true)
   }
 
@@ -868,18 +890,39 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
           <div className="flex items-center justify-between">
             <CardTitle className="text-base font-semibold">Purchase Orders</CardTitle>
             <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8"
-                onClick={() => {
-                  setSelectedItemsForManualOrder([])
-                  setManualOrderDialogOpen(true)
-                }}
-              >
-                <Store className="w-4 h-4 mr-1" />
-                Create Manual PO
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8">
+                    <Store className="w-4 h-4 mr-1" />
+                    Create Manual PO
+                    <ChevronDown className="w-3 h-3 ml-1" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64 max-h-[300px] overflow-y-auto">
+                  <div className="px-2 py-1.5 text-xs font-medium text-gray-500">
+                    Select Supplier
+                  </div>
+                  <DropdownMenuSeparator />
+                  {suppliers.length === 0 ? (
+                    <div className="px-2 py-2 text-sm text-gray-500">
+                      No suppliers found
+                    </div>
+                  ) : (
+                    suppliers.map(supplier => (
+                      <DropdownMenuItem
+                        key={supplier.id}
+                        onClick={() => handleOpenManualOrderDialog([], supplier)}
+                        className="flex flex-col items-start"
+                      >
+                        <span className="font-medium">{supplier.name}</span>
+                        {supplier.email && (
+                          <span className="text-xs text-gray-500">{supplier.email}</span>
+                        )}
+                      </DropdownMenuItem>
+                    ))
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button
                 variant="ghost"
                 size="sm"
@@ -1329,11 +1372,18 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
       {/* Manual Order Dialog */}
       <CreateManualOrderDialog
         open={manualOrderDialogOpen}
-        onOpenChange={setManualOrderDialogOpen}
+        onOpenChange={(open) => {
+          setManualOrderDialogOpen(open)
+          if (!open) {
+            setSelectedSupplierForManualOrder(null)
+            setSelectedItemsForManualOrder([])
+          }
+        }}
         projectId={projectId}
         // Only pass items if we have specific items selected; otherwise let dialog fetch all
         items={selectedItemsForManualOrder.length > 0 ? selectedItemsForManualOrder as any : undefined}
         defaultShippingAddress={readyToOrder?.project?.defaultShippingAddress}
+        selectedSupplier={selectedSupplierForManualOrder}
         onSuccess={handleManualOrderSuccess}
       />
 
