@@ -59,10 +59,12 @@ export async function GET(
         paidAt: p.paidAt,
         confirmedAt: p.confirmedAt,
         confirmedBy: p.confirmedBy?.name,
-        createdBy: p.createdBy.name,
+        createdBy: p.createdBy?.name,
         stripePaymentId: p.stripePaymentId,
         checkNumber: p.checkNumber,
         wireReference: p.wireReference,
+        proofDocumentUrl: p.proofDocumentUrl,
+        proofFileName: p.proofFileName,
         notes: p.notes,
         createdAt: p.createdAt
       })),
@@ -100,6 +102,8 @@ export async function POST(
       paidAt,
       reference, // check number, wire reference, etc.
       notes,
+      proofDocumentUrl,
+      proofFileName,
       sendConfirmationEmail = true // Default to sending email
     } = body
 
@@ -176,7 +180,9 @@ export async function POST(
         confirmedAt: new Date(),
         confirmedById: userId,
         checkNumber: method === 'CHECK' ? reference : null,
-        wireReference: method === 'WIRE_TRANSFER' ? reference : null,
+        wireReference: method === 'WIRE_TRANSFER' || method === 'E_TRANSFER' ? reference : null,
+        proofDocumentUrl: proofDocumentUrl || null,
+        proofFileName: proofFileName || null,
         notes,
         createdById: userId
       }

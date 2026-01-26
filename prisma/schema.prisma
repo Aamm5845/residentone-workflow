@@ -3647,6 +3647,10 @@ model Payment {
   confirmedAt   DateTime?
   confirmedById String?
 
+  // Proof of payment
+  proofDocumentUrl  String?
+  proofFileName     String?
+
   // Reconciliation
   reconciled      Boolean   @default(false)
   reconciledAt    DateTime?

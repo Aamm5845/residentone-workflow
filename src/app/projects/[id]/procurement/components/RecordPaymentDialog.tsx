@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -72,6 +72,23 @@ export default function RecordPaymentDialog({
 
   // Email confirmation
   const [sendConfirmationEmail, setSendConfirmationEmail] = useState(true)
+
+  // Reset form when invoice changes or dialog opens
+  useEffect(() => {
+    if (open) {
+      setAmount(invoice.balance.toFixed(2))
+      setMethod('WIRE_TRANSFER')
+      setReference('')
+      setPaidAt(new Date().toISOString().split('T')[0])
+      setNotes('')
+      setProofFile(null)
+      setProofUrl(null)
+      setSendConfirmationEmail(true)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+  }, [open, invoice.id, invoice.balance])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
