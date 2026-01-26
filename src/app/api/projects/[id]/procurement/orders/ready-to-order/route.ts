@@ -63,6 +63,7 @@ interface SupplierGroup {
   items: ReadyToOrderItem[]
   totalCost: number
   itemCount: number
+  currency: string // Primary currency for this supplier's items
 }
 
 /**
@@ -323,6 +324,9 @@ export async function GET(
         }))
       }
 
+      // Get currency from item
+      const itemCurrency = item.tradePriceCurrency || 'CAD'
+
       // Group by item's supplier
       if (!supplierGroups[supplierId]) {
         supplierGroups[supplierId] = {
@@ -331,7 +335,8 @@ export async function GET(
           supplierEmail,
           items: [],
           totalCost: 0,
-          itemCount: 0
+          itemCount: 0,
+          currency: itemCurrency // Use first item's currency
         }
       }
 

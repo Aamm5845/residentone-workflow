@@ -650,7 +650,7 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                       </button>
                       <div className="flex items-center gap-3">
                         <span className="text-sm font-medium text-gray-700">
-                          {formatCurrency(group.totalCost)}
+                          {formatCurrency(group.totalCost)} {group.currency || 'CAD'}
                         </span>
                         <Button
                           size="sm"
@@ -673,8 +673,19 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                           {group.items.map(item => (
                             <div key={item.id}>
                               <div className="flex items-center justify-between p-2 bg-white rounded border">
-                                <div className="flex items-center gap-2">
-                                  <Package className="w-4 h-4 text-gray-400" />
+                                <div className="flex items-center gap-3">
+                                  {/* Item Image */}
+                                  {item.imageUrl ? (
+                                    <img
+                                      src={item.imageUrl}
+                                      alt={item.name}
+                                      className="w-10 h-10 object-cover rounded border"
+                                    />
+                                  ) : (
+                                    <div className="w-10 h-10 bg-gray-100 rounded border flex items-center justify-center">
+                                      <Package className="w-5 h-5 text-gray-400" />
+                                    </div>
+                                  )}
                                   <div>
                                     <p className="text-sm font-medium">{item.name}</p>
                                     <div className="flex items-center gap-2 text-xs text-gray-500">
@@ -696,6 +707,31 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                                   </p>
                                 </div>
                               </div>
+                              {/* Components */}
+                              {item.components && item.components.length > 0 && (
+                                <div className="ml-12 mt-1 space-y-1">
+                                  {item.components.map((comp: any) => (
+                                    <div
+                                      key={comp.id}
+                                      className="flex items-center justify-between p-2 bg-blue-50/50 rounded border border-blue-100 text-sm"
+                                    >
+                                      <div className="flex items-center gap-2 text-gray-600">
+                                        <span className="text-blue-400">└</span>
+                                        <span>{comp.name}</span>
+                                        {comp.modelNumber && (
+                                          <span className="text-gray-400">({comp.modelNumber})</span>
+                                        )}
+                                        {comp.quantity > 1 && (
+                                          <span className="text-gray-500">×{comp.quantity}</span>
+                                        )}
+                                      </div>
+                                      <span className="text-gray-700">
+                                        {comp.price ? formatCurrency(comp.price * (comp.quantity || 1)) : '-'}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
