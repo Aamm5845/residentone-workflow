@@ -59,7 +59,7 @@ export async function POST(
 
     const { id: projectId } = await params
     const body = await request.json()
-    const { clientQuoteId, itemIds } = body
+    const { clientQuoteId, itemIds, shippingAddress: requestShippingAddress, notes: requestNotes } = body
 
     if (!clientQuoteId) {
       return NextResponse.json({ error: 'Client quote/invoice ID is required' }, { status: 400 })
@@ -130,6 +130,19 @@ export async function POST(
     if (!clientQuote) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
     }
+
+    // Fetch project details for default shipping address
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: {
+        id: true,
+        address: true,
+        defaultShippingAddress: true
+      }
+    })
+
+    // Shipping address priority: request > project.defaultShippingAddress > project.address
+    const shippingAddressToUse = requestShippingAddress || project?.defaultShippingAddress || project?.address || null
 
     // Check if invoice has been paid
     const totalPaid = clientQuote.payments.reduce((sum, p) => sum + Number(p.amount), 0)
@@ -318,6 +331,10 @@ export async function POST(
           shippingCost: shippingCost > 0 ? shippingCost : null,
           totalAmount,
           currency: orderCurrency,
+          // Shipping address from request or project default
+          shippingAddress: shippingAddressToUse,
+          // Notes from request
+          notes: requestNotes || null,
           // Deposit tracking from supplier quote
           depositRequired: depositRequired || null,
           depositPercent: group.depositPercent,

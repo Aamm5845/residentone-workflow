@@ -23,8 +23,11 @@ import {
   ChevronRight,
   DollarSign,
   Clock,
-  FileText
+  FileText,
+  MapPin
 } from 'lucide-react'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 
 interface CreateOrdersFromInvoiceDialogProps {
@@ -66,6 +69,7 @@ interface PreviewData {
   itemsWithoutSupplier: { id: string; name: string; reason: string }[]
   alreadyOrderedItems: { id: string; name: string; existingOrder: string; status: string }[]
   canCreateOrders: boolean
+  defaultShippingAddress?: string
 }
 
 export default function CreateOrdersFromInvoiceDialog({
@@ -80,6 +84,8 @@ export default function CreateOrdersFromInvoiceDialog({
   const [creating, setCreating] = useState(false)
   const [preview, setPreview] = useState<PreviewData | null>(null)
   const [expandedSuppliers, setExpandedSuppliers] = useState<Set<string>>(new Set())
+  const [shippingAddress, setShippingAddress] = useState('')
+  const [notes, setNotes] = useState('')
 
   useEffect(() => {
     if (open && invoiceId) {
@@ -90,17 +96,27 @@ export default function CreateOrdersFromInvoiceDialog({
   const loadPreview = async () => {
     setLoading(true)
     try {
-      const res = await fetch(
-        `/api/projects/${projectId}/procurement/orders/create-from-invoice?clientQuoteId=${invoiceId}`
-      )
-      if (res.ok) {
-        const data = await res.json()
+      // Fetch preview data and project info in parallel
+      const [previewRes, projectRes] = await Promise.all([
+        fetch(`/api/projects/${projectId}/procurement/orders/create-from-invoice?clientQuoteId=${invoiceId}`),
+        fetch(`/api/projects/${projectId}`)
+      ])
+
+      if (previewRes.ok) {
+        const data = await previewRes.json()
         setPreview(data)
         // Expand all suppliers by default
         setExpandedSuppliers(new Set(data.orders.map((_: any, i: number) => `supplier-${i}`)))
       } else {
-        const error = await res.json()
+        const error = await previewRes.json()
         toast.error(error.error || 'Failed to load preview')
+      }
+
+      // Set default shipping address from project
+      if (projectRes.ok) {
+        const projectData = await projectRes.json()
+        const defaultAddr = projectData.project?.defaultShippingAddress || projectData.project?.address || ''
+        setShippingAddress(defaultAddr)
       }
     } catch (error) {
       toast.error('Failed to load order preview')
@@ -115,7 +131,11 @@ export default function CreateOrdersFromInvoiceDialog({
       const res = await fetch(`/api/projects/${projectId}/procurement/orders/create-from-invoice`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientQuoteId: invoiceId })
+        body: JSON.stringify({
+          clientQuoteId: invoiceId,
+          shippingAddress: shippingAddress || null,
+          notes: notes || null
+        })
       })
 
       if (res.ok) {
@@ -339,6 +359,41 @@ export default function CreateOrdersFromInvoiceDialog({
                           <li>• ... and {preview.alreadyOrderedItems.length - 5} more</li>
                         )}
                       </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Order Details - Shipping Address & Notes */}
+              {preview.orders.length > 0 && (
+                <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h3 className="font-medium text-blue-800 flex items-center gap-2">
+                    <MapPin className="w-4 h-4" />
+                    Order Details
+                  </h3>
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-sm text-blue-700">Ship To Address</Label>
+                      <Textarea
+                        value={shippingAddress}
+                        onChange={(e) => setShippingAddress(e.target.value)}
+                        placeholder="Enter shipping address for all orders..."
+                        rows={3}
+                        className="mt-1 bg-white"
+                      />
+                      <p className="text-xs text-blue-600 mt-1">
+                        This address will be used for all purchase orders
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-sm text-blue-700">Order Notes (optional)</Label>
+                      <Textarea
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        placeholder="Notes visible on PO..."
+                        rows={2}
+                        className="mt-1 bg-white"
+                      />
                     </div>
                   </div>
                 </div>
