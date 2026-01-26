@@ -73,7 +73,7 @@ import {
 import { toast } from 'sonner'
 import CreateManualOrderDialog from './CreateManualOrderDialog'
 import CreateOrdersFromInvoiceDialog from './CreateOrdersFromInvoiceDialog'
-import OrderDetailsDialog from './OrderDetailsDialog'
+import OrderDetailSheet from './OrderDetailSheet'
 
 interface OrdersTabProps {
   projectId: string
@@ -1337,8 +1337,8 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
         onSuccess={handleManualOrderSuccess}
       />
 
-      {/* Order Details Dialog */}
-      <OrderDetailsDialog
+      {/* Order Details Sheet */}
+      <OrderDetailSheet
         open={orderDetailsDialogOpen}
         onOpenChange={setOrderDetailsDialogOpen}
         orderId={selectedOrderId}

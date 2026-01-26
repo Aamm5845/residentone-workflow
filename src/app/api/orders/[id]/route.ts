@@ -23,12 +23,57 @@ export async function GET(
 
     const order = await prisma.order.findFirst({
       where: { id, orgId },
-      include: {
+      select: {
+        id: true,
+        orgId: true,
+        projectId: true,
+        orderNumber: true,
+        supplierOrderRef: true,
+        supplierId: true,
+        vendorName: true,
+        vendorEmail: true,
+        status: true,
+        subtotal: true,
+        taxAmount: true,
+        shippingCost: true,
+        totalAmount: true,
+        currency: true,
+        orderedAt: true,
+        confirmedAt: true,
+        expectedShipDate: true,
+        actualShipDate: true,
+        expectedDelivery: true,
+        actualDelivery: true,
+        shippingMethod: true,
+        trackingNumber: true,
+        trackingUrl: true,
+        shippingCarrier: true,
+        shippingAddress: true,
+        billingAddress: true,
+        depositRequired: true,
+        depositPercent: true,
+        depositPaid: true,
+        depositPaidAt: true,
+        balanceDue: true,
+        balancePaidAt: true,
+        supplierPaidAt: true,
+        supplierPaymentMethod: true,
+        supplierPaymentRef: true,
+        supplierPaymentAmount: true,
+        supplierPaymentNotes: true,
+        notes: true,
+        internalNotes: true,
+        supplierAccessToken: true,
+        supplierViewedAt: true,
+        supplierConfirmedAt: true,
+        createdById: true,
+        updatedById: true,
+        createdAt: true,
+        updatedAt: true,
         project: {
           select: {
             id: true,
             name: true,
-            
             client: {
               select: {
                 id: true,
@@ -55,7 +100,16 @@ export async function GET(
           select: { id: true, name: true }
         },
         items: {
-          include: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            quantity: true,
+            unitPrice: true,
+            totalPrice: true,
+            isComponent: true,
+            parentItemId: true,
+            status: true,
             roomFFEItem: {
               select: {
                 id: true,
@@ -64,35 +118,22 @@ export async function GET(
                 images: true,
                 modelNumber: true
               }
-            },
-            delivery: {
-              select: {
-                id: true,
-                status: true,
-                trackingNumber: true
-              }
             }
           },
           orderBy: { createdAt: 'asc' }
         },
-        deliveries: {
-          orderBy: { createdAt: 'desc' }
-        },
-        documents: {
-          orderBy: { createdAt: 'desc' }
-        },
         activities: {
-          include: {
+          select: {
+            id: true,
+            type: true,
+            message: true,
+            createdAt: true,
             user: {
               select: { id: true, name: true }
             }
           },
           orderBy: { createdAt: 'desc' },
           take: 50
-        },
-        messages: {
-          orderBy: { createdAt: 'desc' },
-          take: 20
         }
       }
     })
