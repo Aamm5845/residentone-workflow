@@ -34,7 +34,11 @@ import {
   X,
   FileCheck,
   AlertTriangle,
-  CheckCircle2
+  CheckCircle2,
+  Upload,
+  FileText,
+  Image as ImageIcon,
+  Trash2
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -91,6 +95,14 @@ interface ExtraCharge {
   id: string
   label: string
   amount: number
+}
+
+interface UploadedFile {
+  id: string
+  file: File
+  title: string
+  type: 'SPEC_SHEET' | 'DRAWING' | 'PHOTO' | 'OTHER'
+  preview?: string
 }
 
 interface SavedPaymentMethod {
@@ -157,6 +169,9 @@ export default function CreatePODialog({
 
   // Deposit
   const [depositPercent, setDepositPercent] = useState<string>('')
+
+  // File uploads
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
 
   // Tax rates
   const GST_RATE = 0.05 // 5%
@@ -244,6 +259,7 @@ export default function CreatePODialog({
       setIncludeGst(true)
       setIncludeQst(true)
       setDepositPercent('')
+      setUploadedFiles([])
     }
   }, [open, fetchItems, fetchPaymentMethods, project?.defaultShippingAddress])
 
@@ -377,6 +393,69 @@ export default function CreatePODialog({
     setExtraCharges(extraCharges.filter(c => c.id !== id))
   }
 
+  // File upload handlers
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files) return
+
+    const newFiles: UploadedFile[] = []
+    Array.from(files).forEach(file => {
+      const isImage = file.type.startsWith('image/')
+      const fileType = isImage ? 'PHOTO' : (file.type === 'application/pdf' ? 'SPEC_SHEET' : 'OTHER')
+
+      const uploadedFile: UploadedFile = {
+        id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        file,
+        title: file.name.replace(/\.[^/.]+$/, ''), // Remove extension for title
+        type: fileType,
+        preview: isImage ? URL.createObjectURL(file) : undefined
+      }
+      newFiles.push(uploadedFile)
+    })
+
+    setUploadedFiles([...uploadedFiles, ...newFiles])
+    e.target.value = '' // Reset input
+  }
+
+  const updateFileTitle = (id: string, title: string) => {
+    setUploadedFiles(uploadedFiles.map(f =>
+      f.id === id ? { ...f, title } : f
+    ))
+  }
+
+  const updateFileType = (id: string, type: UploadedFile['type']) => {
+    setUploadedFiles(uploadedFiles.map(f =>
+      f.id === id ? { ...f, type } : f
+    ))
+  }
+
+  const removeFile = (id: string) => {
+    const file = uploadedFiles.find(f => f.id === id)
+    if (file?.preview) {
+      URL.revokeObjectURL(file.preview)
+    }
+    setUploadedFiles(uploadedFiles.filter(f => f.id !== id))
+  }
+
+  // Upload files to order after creation
+  const uploadFilesToOrder = async (orderId: string) => {
+    for (const uploadedFile of uploadedFiles) {
+      try {
+        const formData = new FormData()
+        formData.append('file', uploadedFile.file)
+        formData.append('title', uploadedFile.title)
+        formData.append('type', uploadedFile.type)
+
+        await fetch(`/api/orders/${orderId}/documents`, {
+          method: 'POST',
+          body: formData
+        })
+      } catch (error) {
+        console.error('Failed to upload file:', uploadedFile.title, error)
+      }
+    }
+  }
+
   const handleCreate = async () => {
     if (flatItems.length === 0) {
       toast.error('No items to order')
@@ -422,6 +501,13 @@ export default function CreatePODialog({
 
       if (res.ok) {
         const data = await res.json()
+
+        // Upload any attached files
+        if (uploadedFiles.length > 0) {
+          toast.info('Uploading documents...')
+          await uploadFilesToOrder(data.order.id)
+        }
+
         toast.success(`PO ${data.order.orderNumber} created for ${supplier.name}`)
         onSuccess()
         onOpenChange(false)
@@ -810,6 +896,89 @@ export default function CreatePODialog({
                 placeholder="Notes visible on PO..."
                 rows={2}
               />
+            </div>
+
+            {/* Documents & Photos */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                <FileText className="w-4 h-4 text-gray-500" />
+                Documents & Photos
+              </h3>
+              <p className="text-xs text-gray-500">
+                Upload spec sheets, drawings, or photos to include with this PO
+              </p>
+
+              {uploadedFiles.length > 0 && (
+                <div className="space-y-2">
+                  {uploadedFiles.map(file => (
+                    <div
+                      key={file.id}
+                      className="flex items-center gap-3 p-3 bg-white border rounded-lg"
+                    >
+                      {file.preview ? (
+                        <img
+                          src={file.preview}
+                          alt={file.title}
+                          className="w-12 h-12 object-cover rounded border"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 bg-gray-100 rounded border flex items-center justify-center">
+                          <FileText className="w-5 h-5 text-gray-400" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <Input
+                          value={file.title}
+                          onChange={(e) => updateFileTitle(file.id, e.target.value)}
+                          className="h-8 text-sm mb-1"
+                          placeholder="Document title"
+                        />
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={file.type}
+                            onChange={(e) => updateFileType(file.id, e.target.value as UploadedFile['type'])}
+                            className="text-xs h-6 rounded border border-gray-200 bg-white px-2"
+                          >
+                            <option value="SPEC_SHEET">Spec Sheet</option>
+                            <option value="DRAWING">Drawing</option>
+                            <option value="PHOTO">Photo</option>
+                            <option value="OTHER">Other</option>
+                          </select>
+                          <span className="text-xs text-gray-400 truncate">
+                            {file.file.name}
+                          </span>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-gray-400 hover:text-red-500"
+                        onClick={() => removeFile(file.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex items-center gap-2">
+                <label className="flex-1">
+                  <div className="flex items-center justify-center gap-2 p-4 border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
+                    <Upload className="w-5 h-5 text-gray-400" />
+                    <span className="text-sm text-gray-600">
+                      Click to upload documents or photos
+                    </span>
+                  </div>
+                  <input
+                    type="file"
+                    className="hidden"
+                    multiple
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp"
+                    onChange={handleFileSelect}
+                  />
+                </label>
+              </div>
             </div>
 
             {/* Totals */}
