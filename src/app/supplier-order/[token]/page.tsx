@@ -187,7 +187,7 @@ export default function SupplierOrderPortal() {
   const [showMessageDialog, setShowMessageDialog] = useState(false)
   const [showUploadDialog, setShowUploadDialog] = useState(false)
   const [viewingDocument, setViewingDocument] = useState<Document | null>(null)
-  const [activeTab, setActiveTab] = useState<'messages' | 'documents'>('messages')
+  const [activeTab, setActiveTab] = useState<'messages' | 'documents' | 'activity'>('messages')
 
   // Form State - Confirm with optional receipt upload
   const [confirmName, setConfirmName] = useState('')
@@ -468,31 +468,6 @@ export default function SupplierOrderPortal() {
           </div>
         </Card>
 
-        {/* Status Alerts */}
-        {/* PO Sent Alert - shows when order has been sent but not yet confirmed */}
-        {order.orderedAt && !isConfirmed && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex items-center gap-3">
-            <Send className="w-5 h-5 text-blue-600" />
-            <div>
-              <p className="font-medium text-blue-800">Purchase Order Sent</p>
-              <p className="text-sm text-blue-600">
-                Sent on {formatDateTime(order.orderedAt)} - Awaiting your confirmation
-              </p>
-            </div>
-          </div>
-        )}
-
-        {isConfirmed && (
-          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-6 flex items-center gap-3">
-            <CheckCircle className="w-5 h-5 text-emerald-600" />
-            <div>
-              <p className="font-medium text-emerald-800">Order Confirmed</p>
-              <p className="text-sm text-emerald-600">
-                Confirmed by {order.supplierConfirmedBy} on {formatDateTime(order.supplierConfirmedAt!)}
-              </p>
-            </div>
-          </div>
-        )}
 
         {order.trackingNumber && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex items-center justify-between">
@@ -907,36 +882,35 @@ export default function SupplierOrderPortal() {
             )}
           </div>
 
-          {/* Right Column - Messages & Documents */}
+          {/* Right Column - Messages, Documents & Activity */}
           <div className="space-y-6">
-            {/* Supplier Details */}
-            <Card>
-              <CardContent className="pt-6">
-                <h3 className="font-semibold text-gray-900 mb-4">Supplier</h3>
-                <div className="space-y-2 text-sm">
-                  <p className="font-medium text-gray-900">{safeSupplier.name}</p>
-                  {safeSupplier.contactName && (
-                    <p className="text-gray-600">Contact: {safeSupplier.contactName}</p>
-                  )}
-                  {safeSupplier.email && (
-                    <p className="text-gray-600">{safeSupplier.email}</p>
-                  )}
-                  {safeSupplier.phone && (
-                    <p className="text-gray-600">{safeSupplier.phone}</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            {/* Compact Supplier Details */}
+            <div className="bg-gray-50 border rounded-lg p-3 flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-gray-400" />
+                <span className="font-medium text-gray-900">{safeSupplier.name}</span>
+                {safeSupplier.contactName && (
+                  <span className="text-gray-500">• {safeSupplier.contactName}</span>
+                )}
+              </div>
+              <div className="flex items-center gap-3 text-gray-500">
+                {safeSupplier.email && <span>{safeSupplier.email}</span>}
+                {safeSupplier.phone && <span>{safeSupplier.phone}</span>}
+              </div>
+            </div>
 
             <Card>
               <CardContent className="pt-6">
-                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'messages' | 'documents')}>
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'messages' | 'documents' | 'activity')}>
                   <TabsList className="w-full mb-4">
                     <TabsTrigger value="messages" className="flex-1">
                       Messages ({messages.length})
                     </TabsTrigger>
                     <TabsTrigger value="documents" className="flex-1">
                       Documents ({documents.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="activity" className="flex-1">
+                      Activity
                     </TabsTrigger>
                   </TabsList>
 
@@ -1070,6 +1044,34 @@ export default function SupplierOrderPortal() {
                       </div>
                     )}
                   </TabsContent>
+
+                  <TabsContent value="activity" className="mt-0">
+                    {!activities || activities.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        <Clock className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                        <p className="text-sm">No activity yet</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 max-h-96 overflow-y-auto">
+                        {activities.map((activity) => (
+                          <div key={activity.id} className="flex gap-3 text-sm border-b border-gray-100 pb-3 last:border-0">
+                            <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
+                              activity.type === 'PO_SENT' ? 'bg-blue-500' :
+                              activity.type === 'PAYMENT_MADE' || activity.type === 'PAYMENT_RECORDED' ? 'bg-green-500' :
+                              activity.type === 'ORDER_CONFIRMED' ? 'bg-emerald-500' :
+                              activity.type === 'ORDER_SHIPPED' ? 'bg-purple-500' :
+                              activity.type === 'ORDER_DELIVERED' ? 'bg-green-600' :
+                              'bg-gray-400'
+                            }`} />
+                            <div className="flex-1">
+                              <p className="text-gray-700">{activity.message}</p>
+                              <p className="text-xs text-gray-400 mt-0.5">{formatDateTime(activity.createdAt)}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
                 </Tabs>
               </CardContent>
             </Card>
@@ -1143,43 +1145,6 @@ export default function SupplierOrderPortal() {
               </CardContent>
             </Card>
 
-            {/* Activity Timeline */}
-            {activities && activities.length > 0 && (
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Clock className="w-4 h-4 text-gray-500" />
-                    <h3 className="font-semibold text-gray-900">Activity</h3>
-                  </div>
-                  <div className="space-y-3 max-h-64 overflow-y-auto">
-                    {activities.slice(0, 15).map((activity, idx) => (
-                      <div key={activity.id} className="flex gap-3 text-sm">
-                        <div className="flex flex-col items-center">
-                          <div className={`w-2 h-2 rounded-full mt-1.5 ${
-                            activity.type === 'PO_SENT' ? 'bg-blue-500' :
-                            activity.type === 'PAYMENT_MADE' || activity.type === 'PAYMENT_RECORDED' ? 'bg-green-500' :
-                            activity.type === 'ORDER_CONFIRMED' ? 'bg-emerald-500' :
-                            activity.type === 'ORDER_SHIPPED' ? 'bg-purple-500' :
-                            activity.type === 'ORDER_DELIVERED' ? 'bg-green-600' :
-                            activity.type === 'ORDER_CREATED' ? 'bg-gray-400' :
-                            'bg-gray-300'
-                          }`} />
-                          {idx < activities.length - 1 && (
-                            <div className="w-px h-full bg-gray-200 my-1" />
-                          )}
-                        </div>
-                        <div className="flex-1 pb-3">
-                          <p className="text-gray-700">{activity.message}</p>
-                          <p className="text-xs text-gray-400 mt-0.5">
-                            {formatDateTime(activity.createdAt)}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </div>
         </div>
 
