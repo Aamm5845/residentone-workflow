@@ -84,6 +84,7 @@ interface OrderData {
   order: {
     id: string
     orderNumber: string
+    quoteNumber?: string
     status: string
     createdAt: string
     orderedAt?: string
@@ -118,6 +119,7 @@ interface OrderData {
     id: string
     name: string
     address?: string
+    clientName?: string
   }
   supplier: {
     id: string
@@ -414,9 +416,16 @@ export default function SupplierOrderPortal() {
                     <Building2 className="w-4 h-4 text-gray-500" />
                     <h3 className="font-semibold text-gray-900">Bill To</h3>
                   </div>
+                  <p className="font-medium text-gray-900 mb-1">{organization.name}</p>
                   <p className="text-sm text-gray-600 whitespace-pre-line">
                     {order.billingAddress || organization.address || 'No billing address provided'}
                   </p>
+                  {organization.email && (
+                    <p className="text-sm text-gray-500 mt-2">{organization.email}</p>
+                  )}
+                  {organization.phone && (
+                    <p className="text-sm text-gray-500">{organization.phone}</p>
+                  )}
                 </CardContent>
               </Card>
 
@@ -426,6 +435,10 @@ export default function SupplierOrderPortal() {
                     <MapPin className="w-4 h-4 text-gray-500" />
                     <h3 className="font-semibold text-gray-900">Ship To</h3>
                   </div>
+                  {project.clientName && (
+                    <p className="font-medium text-gray-900 mb-1">{project.clientName}</p>
+                  )}
+                  <p className="text-sm text-gray-500 mb-1">Project: {project.name}</p>
                   <p className="text-sm text-gray-600 whitespace-pre-line">
                     {order.shippingAddress || project.address || 'No shipping address provided'}
                   </p>
@@ -711,9 +724,15 @@ export default function SupplierOrderPortal() {
                 <h3 className="font-semibold text-gray-900 mb-4">Order Information</h3>
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Order Number</span>
+                    <span className="text-gray-500">PO Number</span>
                     <span className="font-mono">{order.orderNumber}</span>
                   </div>
+                  {order.quoteNumber && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Quote Ref</span>
+                      <span className="font-mono">{order.quoteNumber}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-gray-500">Status</span>
                     <Badge variant={statusConfig.variant} className="text-xs">

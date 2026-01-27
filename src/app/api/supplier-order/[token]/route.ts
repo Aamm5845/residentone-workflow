@@ -26,7 +26,15 @@ export async function GET(
           select: {
             id: true,
             name: true,
-            address: true
+            address: true,
+            client: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true
+              }
+            }
           }
         },
         supplier: {
@@ -65,7 +73,13 @@ export async function GET(
                 unitPrice: true,
                 leadTime: true,
                 leadTimeWeeks: true,
-                notes: true
+                notes: true,
+                supplierQuote: {
+                  select: {
+                    id: true,
+                    quoteNumber: true
+                  }
+                }
               }
             }
           },
@@ -129,11 +143,16 @@ export async function GET(
       })
     }
 
+    // Extract quote number from items (if they came from a supplier quote)
+    const quoteNumber = order.items.find(item => item.supplierQuoteLineItem?.supplierQuote?.quoteNumber)
+      ?.supplierQuoteLineItem?.supplierQuote?.quoteNumber || null
+
     // Format response
     return NextResponse.json({
       order: {
         id: order.id,
         orderNumber: order.orderNumber,
+        quoteNumber,
         status: order.status,
         createdAt: order.createdAt,
         orderedAt: order.orderedAt,
@@ -165,7 +184,12 @@ export async function GET(
         paymentCardNumber: order.paymentCardNumber,
         paymentCardCvv: order.paymentCardCvv
       },
-      project: order.project,
+      project: {
+        id: order.project.id,
+        name: order.project.name,
+        address: order.project.address,
+        clientName: order.project.client?.name
+      },
       supplier: order.supplier,
       items: order.items.map(item => ({
         id: item.id,
