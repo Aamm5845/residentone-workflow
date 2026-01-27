@@ -694,16 +694,17 @@ function drawTotals(
 
   // Draw line before total
   page.drawLine({
-    start: { x: rightX - 10, y: yPos + 3 },
-    end: { x: width - PAGE_MARGIN, y: yPos + 3 },
+    start: { x: rightX - 10, y: yPos },
+    end: { x: width - PAGE_MARGIN, y: yPos },
     thickness: 1,
     color: COLORS.tableBorder,
   })
+  yPos -= 15
 
   // Total (bold)
   page.drawText('TOTAL:', {
     x: rightX,
-    y: yPos - 5,
+    y: yPos,
     size: 12,
     font: boldFont,
     color: COLORS.primary,
@@ -712,24 +713,25 @@ function drawTotals(
   const totalWidth = boldFont.widthOfTextAtSize(totalText, 12)
   page.drawText(totalText, {
     x: valueX - totalWidth,
-    y: yPos - 5,
+    y: yPos,
     size: 12,
     font: boldFont,
     color: COLORS.accent,
   })
-  yPos -= LINE_HEIGHT + 10
+  yPos -= LINE_HEIGHT + 5
 
   // Deposit information
   if (po.depositRequired && po.depositRequired > 0) {
-    yPos -= 5
+    yPos -= 10
 
     // Draw line before deposit
     page.drawLine({
-      start: { x: rightX - 10, y: yPos + 3 },
-      end: { x: width - PAGE_MARGIN, y: yPos + 3 },
+      start: { x: rightX - 10, y: yPos },
+      end: { x: width - PAGE_MARGIN, y: yPos },
       thickness: 0.5,
       color: COLORS.tableBorder,
     })
+    yPos -= 15
 
     // Deposit Required
     const depositLabel = po.depositPercent
@@ -737,7 +739,7 @@ function drawTotals(
       : 'Deposit Required:'
     page.drawText(depositLabel, {
       x: rightX,
-      y: yPos - 5,
+      y: yPos,
       size: 10,
       font: boldFont,
       color: rgb(0.1, 0.3, 0.6), // Blue color
@@ -746,7 +748,7 @@ function drawTotals(
     const depositWidth = boldFont.widthOfTextAtSize(depositText, 10)
     page.drawText(depositText, {
       x: valueX - depositWidth,
-      y: yPos - 5,
+      y: yPos,
       size: 10,
       font: boldFont,
       color: rgb(0.1, 0.3, 0.6),
@@ -757,7 +759,7 @@ function drawTotals(
     if (po.balanceDue && po.balanceDue > 0) {
       page.drawText('Balance Due:', {
         x: rightX,
-        y: yPos - 5,
+        y: yPos,
         size: 10,
         font: font,
         color: COLORS.secondary,
@@ -766,7 +768,7 @@ function drawTotals(
       const balanceWidth = font.widthOfTextAtSize(balanceText, 10)
       page.drawText(balanceText, {
         x: valueX - balanceWidth,
-        y: yPos - 5,
+        y: yPos,
         size: 10,
         font: font,
         color: COLORS.secondary,

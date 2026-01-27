@@ -103,7 +103,7 @@ export async function GET(
         businessName: true,
         businessPhone: true,
         businessEmail: true,
-        address: true
+        businessAddress: true
       }
     })
 
@@ -214,7 +214,7 @@ export async function GET(
         logo: organization?.logoUrl,
         phone: organization?.businessPhone,
         email: organization?.businessEmail,
-        address: organization?.address
+        address: organization?.businessAddress
       }
     })
 
