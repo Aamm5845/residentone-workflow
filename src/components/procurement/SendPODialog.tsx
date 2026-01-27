@@ -12,15 +12,12 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Loader2,
   Send,
-  FileDown,
   Package,
-  Building2,
-  TestTube
+  Building2
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -63,10 +60,7 @@ export default function SendPODialog({
   onSuccess
 }: SendPODialogProps) {
   const [email, setEmail] = useState(order.vendorEmail || '')
-  const [notes, setNotes] = useState('')
   const [sending, setSending] = useState(false)
-  const [sendingTest, setSendingTest] = useState(false)
-  const [downloading, setDownloading] = useState(false)
 
   // Order items - fetched from API
   const [orderItems, setOrderItems] = useState<OrderItem[]>(order.items || [])
@@ -81,10 +75,6 @@ export default function SendPODialog({
     expectedDelivery: string | null
     savedPaymentMethodId: string | null
   } | null>(null)
-
-  // Test email
-  const [testEmail, setTestEmail] = useState('')
-  const [showTestEmailInput, setShowTestEmailInput] = useState(false)
 
   // Fetch full order details including items
   const fetchOrderDetails = useCallback(async () => {
@@ -137,9 +127,6 @@ export default function SendPODialog({
   useEffect(() => {
     if (open) {
       setEmail(order.vendorEmail || '')
-      setNotes('')
-      setShowTestEmailInput(false)
-      setTestEmail('')
       setOrderItems(order.items || [])
       setOrderData(null)
       // Fetch full order details
@@ -147,33 +134,25 @@ export default function SendPODialog({
     }
   }, [open, order, fetchOrderDetails])
 
-  const handleSend = async (isTest: boolean = false) => {
-    const targetEmail = isTest ? testEmail : email
-
-    if (!targetEmail.trim()) {
-      toast.error(isTest ? 'Please enter a test email address' : 'Please enter a supplier email address')
+  const handleSend = async () => {
+    if (!email.trim()) {
+      toast.error('Please enter a supplier email address')
       return
     }
 
-    if (isTest) {
-      setSendingTest(true)
-    } else {
-      setSending(true)
-    }
+    setSending(true)
 
     try {
       const res = await fetch(`/api/orders/${order.id}/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          supplierEmail: targetEmail,
-          notes: notes || undefined,
+          supplierEmail: email,
           // Use order's existing data
           shippingAddress: orderData?.shippingAddress || order.shippingAddress,
           billingAddress: orderData?.billingAddress || order.billingAddress,
           expectedDelivery: orderData?.expectedDelivery || order.expectedDelivery,
-          savedPaymentMethodId: orderData?.savedPaymentMethodId || order.savedPaymentMethodId,
-          isTest
+          savedPaymentMethodId: orderData?.savedPaymentMethodId || order.savedPaymentMethodId
         })
       })
 
@@ -182,49 +161,13 @@ export default function SendPODialog({
         throw new Error(error.error || 'Failed to send PO')
       }
 
-      if (isTest) {
-        toast.success(`Test email sent to ${targetEmail}`)
-        setShowTestEmailInput(false)
-        setTestEmail('')
-      } else {
-        toast.success(`Purchase Order sent to ${targetEmail}`)
-        onSuccess()
-        onOpenChange(false)
-      }
+      toast.success(`Purchase Order sent to ${email}`)
+      onSuccess()
+      onOpenChange(false)
     } catch (error: any) {
       toast.error(error.message || 'Failed to send Purchase Order')
     } finally {
-      if (isTest) {
-        setSendingTest(false)
-      } else {
-        setSending(false)
-      }
-    }
-  }
-
-  const handleDownloadPDF = async () => {
-    setDownloading(true)
-    try {
-      const res = await fetch(`/api/orders/${order.id}/pdf`)
-      if (!res.ok) {
-        throw new Error('Failed to generate PDF')
-      }
-
-      const blob = await res.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `PO-${order.orderNumber}.pdf`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
-
-      toast.success('PDF downloaded successfully')
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to download PDF')
-    } finally {
-      setDownloading(false)
+      setSending(false)
     }
   }
 
@@ -340,76 +283,6 @@ export default function SendPODialog({
               placeholder="supplier@company.com"
             />
           </div>
-
-          {/* Notes (optional) */}
-          <div>
-            <Label htmlFor="notes">Additional Notes (optional)</Label>
-            <Textarea
-              id="notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add a message for the supplier..."
-              rows={2}
-            />
-          </div>
-
-          {/* Test Email & PDF */}
-          <div className="flex items-center gap-2 pt-2 border-t">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                if (!showTestEmailInput) {
-                  setTestEmail(email)
-                }
-                setShowTestEmailInput(!showTestEmailInput)
-              }}
-              className="text-purple-600 hover:text-purple-700"
-            >
-              <TestTube className="w-4 h-4 mr-1" />
-              Test Email
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDownloadPDF}
-              disabled={downloading}
-            >
-              {downloading ? (
-                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-              ) : (
-                <FileDown className="w-4 h-4 mr-1" />
-              )}
-              Download PDF
-            </Button>
-          </div>
-
-          {showTestEmailInput && (
-            <div className="flex gap-2">
-              <Input
-                type="email"
-                value={testEmail}
-                onChange={(e) => setTestEmail(e.target.value)}
-                placeholder="your@email.com"
-                className="flex-1"
-              />
-              <Button
-                variant="outline"
-                onClick={() => handleSend(true)}
-                disabled={sendingTest || !testEmail.trim()}
-                className="border-purple-200 text-purple-600 hover:bg-purple-50"
-              >
-                {sendingTest ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <>
-                    <Send className="w-4 h-4 mr-1" />
-                    Send Test
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
         </div>
 
         <DialogFooter className="mt-4 gap-2">
@@ -417,7 +290,7 @@ export default function SendPODialog({
             Cancel
           </Button>
           <Button
-            onClick={() => handleSend(false)}
+            onClick={handleSend}
             disabled={sending || !email.trim()}
             className="bg-blue-600 hover:bg-blue-700"
           >
