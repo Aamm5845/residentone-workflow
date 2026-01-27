@@ -312,7 +312,14 @@ export async function GET(
           shippingCost: supplierQuoteLine.supplierQuote?.shippingCost
             ? Number(supplierQuoteLine.supplierQuote.shippingCost)
             : null,
-          currency: supplierQuoteLine.currency || item.tradePriceCurrency || 'CAD'
+          currency: supplierQuoteLine.currency || item.tradePriceCurrency || 'CAD',
+          // Full quote totals from SupplierQuote
+          quoteSubtotal: supplierQuoteLine.supplierQuote?.subtotal
+            ? Number(supplierQuoteLine.supplierQuote.subtotal)
+            : null,
+          quoteTotal: supplierQuoteLine.supplierQuote?.totalAmount
+            ? Number(supplierQuoteLine.supplierQuote.totalAmount)
+            : null
         } : null,
         clientInvoice: clientInvoiceLine ? {
           id: clientInvoiceLine.clientQuote.id,

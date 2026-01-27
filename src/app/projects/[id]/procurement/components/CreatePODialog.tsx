@@ -53,6 +53,8 @@ interface SupplierQuoteInfo {
   totalPrice: number
   shippingCost: number | null
   currency: string
+  quoteSubtotal: number | null
+  quoteTotal: number | null
 }
 
 interface POItem {
@@ -305,40 +307,31 @@ export default function CreatePODialog({
   const totals = calculateTotals()
 
   // Quote comparison - compares PO items total vs supplier quote total
-  // All items (including what we internally call "components") are part of the supplier quote
+  // Uses the actual SupplierQuote total (not calculated from line items)
   const getQuoteComparison = () => {
-    const itemsWithQuotes = items.filter(i => i.hasQuote && i.supplierQuote)
-    if (itemsWithQuotes.length === 0) return null
+    // Find an item with a quote to get the full quote totals
+    const itemWithQuote = items.find(i => i.hasQuote && i.supplierQuote)
+    if (!itemWithQuote || !itemWithQuote.supplierQuote) return null
 
-    let quoteItemsTotal = 0
-    let quoteShipping = 0
+    // Use actual quote totals from SupplierQuote record
+    const quoteSubtotal = itemWithQuote.supplierQuote.quoteSubtotal
+    const quoteTotal = itemWithQuote.supplierQuote.quoteTotal
+    const quoteShipping = itemWithQuote.supplierQuote.shippingCost || 0
 
-    itemsWithQuotes.forEach(item => {
-      if (item.supplierQuote) {
-        quoteItemsTotal += item.supplierQuote.unitPrice * item.quantity
-        if (item.supplierQuote.shippingCost && quoteShipping === 0) {
-          quoteShipping = item.supplierQuote.shippingCost
-        }
-      }
-    })
+    // If we don't have the actual quote total, skip comparison
+    if (quoteSubtotal === null && quoteTotal === null) return null
 
-    const quoteTotal = quoteItemsTotal + quoteShipping
-    // PO items subtotal (all items - they're all part of the quote)
+    // Use quoteSubtotal for comparison (before shipping)
+    const supplierQuoteAmount = quoteSubtotal || quoteTotal || 0
     const poItemsTotal = totals.itemsSubtotal
-    const difference = poItemsTotal - quoteTotal
-
-    // Check if shipping from quote is in extra charges
-    const hasQuoteShippingInCharges = extraCharges.some(c => c.id === 'quote-shipping')
-    const missingShipping = quoteShipping > 0 && !hasQuoteShippingInCharges
+    const difference = poItemsTotal - supplierQuoteAmount
 
     return {
-      quoteItemsTotal,
+      supplierQuoteAmount,
       quoteShipping,
-      quoteTotal,
       poItemsTotal,
       poItemsCount: flatItems.length,
       difference,
-      missingShipping,
       matches: Math.abs(difference) < 0.01
     }
   }
@@ -496,12 +489,12 @@ export default function CreatePODialog({
                 </div>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Supplier Quote:</span>
-                    <span>{formatCurrency(quoteComparison.quoteItemsTotal)}{groupCurrency === 'USD' ? ' USD' : ''}</span>
+                    <span className="text-gray-600">Supplier Quote (subtotal):</span>
+                    <span>{formatCurrency(quoteComparison.supplierQuoteAmount)}{groupCurrency === 'USD' ? ' USD' : ''}</span>
                   </div>
                   {quoteComparison.quoteShipping > 0 && (
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Quote Shipping:</span>
+                      <span className="text-gray-600">Quote Shipping/Freight:</span>
                       <span>{formatCurrency(quoteComparison.quoteShipping)}{groupCurrency === 'USD' ? ' USD' : ''}</span>
                     </div>
                   )}
