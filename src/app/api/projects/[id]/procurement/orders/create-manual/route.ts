@@ -446,12 +446,18 @@ export async function POST(
       // Get quote line item ID if available
       const quoteLineItem = ffeItem.acceptedQuoteLineItem || ffeItem.allQuoteLineItems?.[0]
 
+      // Get room name from the section -> instance -> room
+      const roomName = ffeItem.section?.instance?.room?.name || null
+      const itemImage = ffeItem.images?.[0] || null
+
       // Add main item
       orderItems.push({
         roomFFEItemId: ffeItem.id,
         supplierQuoteLineItemId: quoteLineItem?.id || null,
         name: ffeItem.name,
         description: ffeItem.description,
+        roomName,
+        imageUrl: itemImage,
         quantity,
         unitType: ffeItem.unitType,
         unitPrice: orderItem.unitPrice,
@@ -477,6 +483,8 @@ export async function POST(
               componentId: comp.id,
               name: `  └ ${comp.name}${comp.modelNumber ? ` (${comp.modelNumber})` : ''}`,
               description: `Component of ${ffeItem.name}`,
+              roomName,
+              imageUrl: comp.image || null,
               quantity: compQty,
               unitPrice: compPrice,
               totalPrice: compTotal,

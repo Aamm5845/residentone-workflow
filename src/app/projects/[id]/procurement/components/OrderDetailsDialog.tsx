@@ -57,6 +57,8 @@ interface OrderItem {
   id: string
   name: string
   description: string | null
+  roomName: string | null
+  imageUrl: string | null
   quantity: number
   unitPrice: string
   totalPrice: string
@@ -714,48 +716,53 @@ export default function OrderDetailsDialog({
 
               <TabsContent value="items" className="space-y-2">
                 {/* Show all items as flat list - matches Create PO dialog */}
-                {order.items.map(item => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between p-3 bg-white border rounded-lg"
-                  >
-                    <div className="flex items-center gap-3">
-                      {item.roomFFEItem?.images?.[0] ? (
-                        <img
-                          src={item.roomFFEItem.images[0]}
-                          alt={item.name}
-                          className="w-10 h-10 object-cover rounded border"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 bg-gray-100 rounded border flex items-center justify-center">
-                          <Package className="w-5 h-5 text-gray-400" />
-                        </div>
-                      )}
-                      <div>
-                        <p className="font-medium text-gray-900">{item.name}</p>
-                        <div className="flex items-center gap-2 text-xs text-gray-500">
-                          {item.roomFFEItem?.modelNumber && (
-                            <>
-                              <span>{item.roomFFEItem.modelNumber}</span>
-                              <span>•</span>
-                            </>
-                          )}
-                          <span>Qty: {item.quantity}</span>
+                {order.items.map(item => {
+                  // Use imageUrl from OrderItem, fallback to roomFFEItem.images
+                  const imageUrl = item.imageUrl || item.roomFFEItem?.images?.[0]
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between p-3 bg-white border rounded-lg"
+                    >
+                      <div className="flex items-center gap-3">
+                        {imageUrl ? (
+                          <img
+                            src={imageUrl}
+                            alt={item.name}
+                            className="w-10 h-10 object-cover rounded border"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 bg-gray-100 rounded border flex items-center justify-center">
+                            <Package className="w-5 h-5 text-gray-400" />
+                          </div>
+                        )}
+                        <div>
+                          <p className="font-medium text-gray-900">{item.name}</p>
+                          <div className="flex items-center gap-2 text-xs text-gray-500">
+                            {item.roomName && (
+                              <>
+                                <span>{item.roomName}</span>
+                                <span>•</span>
+                              </>
+                            )}
+                            <span>Qty: {item.quantity}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium text-gray-900">
-                        {formatCurrency(item.totalPrice, order.currency)}
-                      </p>
-                      {item.quantity > 1 && (
-                        <p className="text-xs text-gray-500">
-                          {formatCurrency(item.unitPrice, order.currency)} × {item.quantity}
+                      <div className="text-right">
+                        <p className="font-medium text-gray-900">
+                          {formatCurrency(item.totalPrice, order.currency)}
                         </p>
-                      )}
+                        {item.quantity > 1 && (
+                          <p className="text-xs text-gray-500">
+                            {formatCurrency(item.unitPrice, order.currency)} × {item.quantity}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
 
                 {/* Totals section - matches Create PO dialog */}
                 <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg space-y-2 mt-4">

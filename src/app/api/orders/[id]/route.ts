@@ -105,6 +105,8 @@ export async function GET(
             id: true,
             name: true,
             description: true,
+            roomName: true,
+            imageUrl: true,
             quantity: true,
             unitPrice: true,
             totalPrice: true,

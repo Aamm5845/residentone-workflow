@@ -3839,6 +3839,8 @@ model OrderItem {
   // Item info
   name        String
   description String?
+  roomName    String?  // Room name for display
+  imageUrl    String?  // Image URL for display
   quantity    Int
   unitType    String?
 
