@@ -1274,7 +1274,7 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
           }}
           projectId={projectId}
           supplier={selectedSupplierForPO}
-          defaultShippingAddress={readyToOrder?.project?.defaultShippingAddress}
+          project={readyToOrder?.project}
           onSuccess={handlePOCreated}
         />
       )}

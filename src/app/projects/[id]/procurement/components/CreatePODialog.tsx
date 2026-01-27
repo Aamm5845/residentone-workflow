@@ -87,7 +87,16 @@ interface CreatePODialogProps {
     name: string
     email: string | null
   }
-  defaultShippingAddress?: string
+  project?: {
+    name: string
+    address?: string | null
+    defaultShippingAddress?: string
+    client?: {
+      name: string
+      email: string | null
+      phone: string | null
+    } | null
+  }
   onSuccess: () => void
 }
 
@@ -96,7 +105,7 @@ export default function CreatePODialog({
   onOpenChange,
   projectId,
   supplier,
-  defaultShippingAddress,
+  project,
   onSuccess
 }: CreatePODialogProps) {
   const [loading, setLoading] = useState(false)
@@ -172,11 +181,11 @@ export default function CreatePODialog({
     if (open) {
       fetchItems()
       fetchPaymentMethods()
-      setShippingAddress(defaultShippingAddress || '')
+      setShippingAddress(project?.defaultShippingAddress || '')
       setNotes('')
       setSelectedPaymentMethodId('')
     }
-  }, [open, fetchItems, fetchPaymentMethods, defaultShippingAddress])
+  }, [open, fetchItems, fetchPaymentMethods, project?.defaultShippingAddress])
 
   // Flatten items and components into single list (like OrdersTab)
   const flatItems: FlatItem[] = []
@@ -302,8 +311,33 @@ export default function CreatePODialog({
 
         <div className="flex-1 overflow-y-auto px-1 -mx-1">
           <div className="space-y-6 py-4">
+            {/* Project & Client Info */}
+            {project && (
+              <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg space-y-2">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wide">Project</p>
+                    <p className="font-semibold text-gray-900">{project.name}</p>
+                  </div>
+                  {project.client && (
+                    <div className="text-right">
+                      <p className="text-xs text-gray-500 uppercase tracking-wide">Client</p>
+                      <p className="font-medium text-gray-900">{project.client.name}</p>
+                    </div>
+                  )}
+                </div>
+                {project.defaultShippingAddress && (
+                  <div className="pt-2 border-t border-gray-200">
+                    <p className="text-xs text-gray-500 uppercase tracking-wide">Ship To</p>
+                    <p className="text-sm text-gray-700">{project.defaultShippingAddress}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Supplier Info */}
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-xs text-blue-600 uppercase tracking-wide mb-1">Supplier</p>
               <div className="flex items-center gap-3">
                 <Building2 className="w-5 h-5 text-blue-600" />
                 <div>
