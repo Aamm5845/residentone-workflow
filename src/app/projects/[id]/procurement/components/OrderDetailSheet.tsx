@@ -187,6 +187,7 @@ export default function OrderDetailSheet({
   const [saving, setSaving] = useState(false)
   const [showSendPO, setShowSendPO] = useState(false)
   const [downloadingPDF, setDownloadingPDF] = useState(false)
+  const [sendingTestEmail, setSendingTestEmail] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -325,6 +326,44 @@ export default function OrderDetailSheet({
     const link = `${window.location.origin}/supplier-order/${order.supplierAccessToken}`
     navigator.clipboard.writeText(link)
     toast.success('Supplier portal link copied')
+  }
+
+  const handleSendTestEmail = async () => {
+    if (!order) return
+
+    const supplierEmail = order.supplier?.email || order.vendorEmail
+    if (!supplierEmail) {
+      toast.error('No supplier email configured')
+      return
+    }
+
+    setSendingTestEmail(true)
+    try {
+      const res = await fetch(`/api/orders/${order.id}/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          supplierEmail,
+          isTest: true
+        })
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to send test email')
+      }
+
+      const data = await res.json()
+      toast.success(`Test email sent to ${supplierEmail}`)
+
+      if (data.supplierPortalUrl) {
+        toast.info(`Portal: ${data.supplierPortalUrl}`, { duration: 10000 })
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send test email')
+    } finally {
+      setSendingTestEmail(false)
+    }
   }
 
   const formatCurrency = (amount: string | number | null, currency: string = 'CAD') => {
@@ -758,6 +797,19 @@ export default function OrderDetailSheet({
                         <FileDown className="w-4 h-4 mr-1" />
                       )}
                       PDF
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSendTestEmail}
+                      disabled={sendingTestEmail}
+                    >
+                      {sendingTestEmail ? (
+                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                      ) : (
+                        <Mail className="w-4 h-4 mr-1" />
+                      )}
+                      Test Email
                     </Button>
                     <Button
                       size="sm"
