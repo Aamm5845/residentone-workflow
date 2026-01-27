@@ -242,8 +242,7 @@ export default function CreatePODialog({
   }, [open, fetchItems, fetchPaymentMethods, project?.defaultShippingAddress])
 
   // Flatten items and components into single list
-  // NOTE: If an item has a supplier quote, the quote price includes everything (components are internal tracking only)
-  // Components are only shown separately for items WITHOUT quotes (manual trade price items)
+  // Components are shown as regular items - suppliers see them as standard line items
   const flatItems: FlatItem[] = []
   items.forEach(item => {
     const unitPrice = item.quoteUnitPrice || item.tradePrice
@@ -259,9 +258,8 @@ export default function CreatePODialog({
       hasQuote: item.hasQuote,
       quoteUnitPrice: item.quoteUnitPrice
     })
-    // Only add components as separate items if the main item does NOT have a quote
-    // When item has a quote, the quoted price already includes components
-    if (!item.hasQuote && item.components && item.components.length > 0) {
+    // Add components as regular line items
+    if (item.components && item.components.length > 0) {
       item.components.forEach(comp => {
         flatItems.push({
           id: comp.id,
@@ -590,11 +588,6 @@ export default function CreatePODialog({
                           <div>
                             <p className="font-medium text-gray-900">
                               {item.name}
-                              {item.isComponent && (
-                                <span className="ml-2 text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
-                                  Component
-                                </span>
-                              )}
                               {item.hasQuote && (
                                 <span className="ml-2 text-xs text-green-600 bg-green-50 px-1.5 py-0.5 rounded">
                                   Quoted
@@ -605,12 +598,6 @@ export default function CreatePODialog({
                               {item.roomName && <span>{item.roomName}</span>}
                               {item.roomName && <span>•</span>}
                               <span>Qty: {item.quantity}</span>
-                              {item.isComponent && item.parentName && (
-                                <>
-                                  <span>•</span>
-                                  <span>for {item.parentName}</span>
-                                </>
-                              )}
                             </div>
                           </div>
                         </div>
