@@ -33,8 +33,7 @@ import {
   ExternalLink,
   Download,
   Loader2,
-  CreditCard,
-  ImageIcon
+  CreditCard
 } from 'lucide-react'
 import { toast, Toaster } from 'sonner'
 
@@ -84,7 +83,8 @@ interface OrderData {
   order: {
     id: string
     orderNumber: string
-    quoteNumber?: string
+    supplierQuoteNumber?: string
+    clientQuoteNumber?: string
     status: string
     createdAt: string
     orderedAt?: string
@@ -513,7 +513,7 @@ export default function SupplierOrderPortal() {
                                 {item.images && item.images[0] ? (
                                   <img src={item.images[0]} alt={item.name} className="w-full h-full object-cover" />
                                 ) : (
-                                  <ImageIcon className="w-5 h-5 text-gray-300" />
+                                  <Package className="w-5 h-5 text-gray-300" />
                                 )}
                               </div>
                               <div className="min-w-0">
@@ -545,7 +545,7 @@ export default function SupplierOrderPortal() {
                             </div>
                           </td>
                           <td className="p-3 text-center">
-                            {item.quantity} {item.unitType || ''}
+                            {item.quantity}
                           </td>
                           <td className="p-3 text-right text-gray-600">
                             {formatCurrency(item.unitPrice, order.currency)}
@@ -727,10 +727,16 @@ export default function SupplierOrderPortal() {
                     <span className="text-gray-500">PO Number</span>
                     <span className="font-mono">{order.orderNumber}</span>
                   </div>
-                  {order.quoteNumber && (
+                  {order.clientQuoteNumber && (
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Quote Ref</span>
-                      <span className="font-mono">{order.quoteNumber}</span>
+                      <span className="text-gray-500">Client Quote</span>
+                      <span className="font-mono">{order.clientQuoteNumber}</span>
+                    </div>
+                  )}
+                  {order.supplierQuoteNumber && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Supplier Quote</span>
+                      <span className="font-mono">{order.supplierQuoteNumber}</span>
                     </div>
                   )}
                   <div className="flex justify-between">

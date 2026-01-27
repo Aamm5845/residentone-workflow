@@ -81,6 +81,17 @@ export async function GET(
                   }
                 }
               }
+            },
+            clientQuoteLineItem: {
+              select: {
+                id: true,
+                clientQuote: {
+                  select: {
+                    id: true,
+                    quoteNumber: true
+                  }
+                }
+              }
             }
           },
           orderBy: { createdAt: 'asc' }
@@ -143,16 +154,19 @@ export async function GET(
       })
     }
 
-    // Extract quote number from items (if they came from a supplier quote)
-    const quoteNumber = order.items.find(item => item.supplierQuoteLineItem?.supplierQuote?.quoteNumber)
+    // Extract quote numbers from items
+    const supplierQuoteNumber = order.items.find(item => item.supplierQuoteLineItem?.supplierQuote?.quoteNumber)
       ?.supplierQuoteLineItem?.supplierQuote?.quoteNumber || null
+    const clientQuoteNumber = order.items.find(item => item.clientQuoteLineItem?.clientQuote?.quoteNumber)
+      ?.clientQuoteLineItem?.clientQuote?.quoteNumber || null
 
     // Format response
     return NextResponse.json({
       order: {
         id: order.id,
         orderNumber: order.orderNumber,
-        quoteNumber,
+        supplierQuoteNumber,
+        clientQuoteNumber,
         status: order.status,
         createdAt: order.createdAt,
         orderedAt: order.orderedAt,
