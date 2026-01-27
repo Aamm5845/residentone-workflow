@@ -82,7 +82,7 @@ export function generateMeisnerDeliveryEmailTemplate(data: EmailTemplateData & {
     <div style="max-width: 640px; margin: 0 auto; background: white;">
         <!-- Header -->
         <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); padding: 40px 32px; text-align: center;">
-            <img src="${process.env.NEXT_PUBLIC_BASE_URL || 'https://residentone-workflow.vercel.app'}/meisnerinteriorlogo.png"
+            <img src="https://app.meisnerinteriors.com/meisnerinteriorlogo.png"
                  alt="Meisner Interiors" 
                  style="max-width: 200px; height: auto; margin-bottom: 24px; background-color: white; padding: 16px; border-radius: 8px;" 
                  draggable="false" 
@@ -185,7 +185,7 @@ export function generateProjectUpdateNotificationEmail(data: ProjectUpdateEmailD
     <div style="max-width: 640px; margin: 0 auto; background: white;">
         <!-- Header -->
         <div style="background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); padding: 32px; text-align: center;">
-            <img src="${process.env.NEXT_PUBLIC_BASE_URL || 'https://residentone-workflow.vercel.app'}/meisnerinteriorlogo.png"
+            <img src="https://app.meisnerinteriors.com/meisnerinteriorlogo.png"
                  alt="Meisner Interiors" 
                  style="max-width: 180px; height: auto; margin-bottom: 16px; background-color: white; padding: 12px; border-radius: 8px;"/>
             <h1 style="margin: 0; color: white; font-size: 24px; font-weight: 600;">Project Update</h1>

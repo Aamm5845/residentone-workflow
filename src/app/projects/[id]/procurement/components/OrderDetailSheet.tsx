@@ -375,13 +375,9 @@ export default function OrderDetailSheet({
         throw new Error(data.error || 'Failed to send test email')
       }
 
-      const data = await res.json()
+      await res.json()
       toast.success(`Test email sent to ${testEmailAddress}`)
       setShowTestEmailDialog(false)
-
-      if (data.supplierPortalUrl) {
-        toast.info(`Portal: ${data.supplierPortalUrl}`, { duration: 10000 })
-      }
     } catch (err: any) {
       toast.error(err.message || 'Failed to send test email')
     } finally {

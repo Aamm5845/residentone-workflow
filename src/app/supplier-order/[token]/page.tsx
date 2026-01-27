@@ -33,7 +33,9 @@ import {
   Download,
   Loader2,
   CreditCard,
-  Trash2
+  Trash2,
+  Eye,
+  Paperclip
 } from 'lucide-react'
 import { toast, Toaster } from 'sonner'
 
@@ -164,6 +166,7 @@ export default function SupplierOrderPortal() {
   const [showShipDialog, setShowShipDialog] = useState(false)
   const [showMessageDialog, setShowMessageDialog] = useState(false)
   const [showUploadDialog, setShowUploadDialog] = useState(false)
+  const [viewingDocument, setViewingDocument] = useState<Document | null>(null)
 
   // Form State
   const [confirmName, setConfirmName] = useState('')
@@ -454,6 +457,36 @@ export default function SupplierOrderPortal() {
           </div>
         )}
 
+        {/* Documents Alert Banner */}
+        {documents.length > 0 && (
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Paperclip className="w-5 h-5 text-purple-600" />
+                <div>
+                  <p className="font-medium text-purple-800">
+                    {documents.length} Document{documents.length !== 1 ? 's' : ''} Attached
+                  </p>
+                  <p className="text-sm text-purple-600">
+                    Spec sheets, drawings, and other order documents are available below
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-purple-300 text-purple-700 hover:bg-purple-100"
+                onClick={() => {
+                  // Scroll to documents section
+                  document.getElementById('documents-section')?.scrollIntoView({ behavior: 'smooth' })
+                }}
+              >
+                View Documents
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Order Details */}
@@ -732,7 +765,7 @@ export default function SupplierOrderPortal() {
                     )}
                   </TabsContent>
 
-                  <TabsContent value="documents" className="mt-0">
+                  <TabsContent value="documents" className="mt-0" id="documents-section">
                     <div className="flex justify-end mb-4">
                       <Button size="sm" onClick={() => setShowUploadDialog(true)}>
                         <Upload className="w-4 h-4 mr-2" />
@@ -750,13 +783,19 @@ export default function SupplierOrderPortal() {
                         {documents.map((doc) => {
                           const isImage = doc.mimeType?.startsWith('image/') ||
                             /\.(jpg|jpeg|png|webp|gif)$/i.test(doc.fileName)
+                          const isPdf = doc.mimeType === 'application/pdf' ||
+                            /\.pdf$/i.test(doc.fileName)
+                          const canView = isImage || isPdf
 
                           return (
                             <div
                               key={doc.id}
-                              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                             >
-                              <div className="flex items-center gap-3 min-w-0">
+                              <div
+                                className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer"
+                                onClick={() => canView && setViewingDocument(doc)}
+                              >
                                 {isImage ? (
                                   <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0 bg-gray-200">
                                     <img
@@ -765,15 +804,29 @@ export default function SupplierOrderPortal() {
                                       className="w-full h-full object-cover"
                                     />
                                   </div>
+                                ) : isPdf ? (
+                                  <div className="w-10 h-10 rounded flex-shrink-0 bg-red-100 flex items-center justify-center">
+                                    <FileText className="w-5 h-5 text-red-600" />
+                                  </div>
                                 ) : (
                                   <FileText className="w-5 h-5 text-gray-400 flex-shrink-0" />
                                 )}
                                 <div className="min-w-0">
                                   <p className="font-medium text-sm text-gray-900 truncate">{doc.title}</p>
-                                  <p className="text-xs text-gray-500">{doc.type}</p>
+                                  <p className="text-xs text-gray-500">{doc.type} {isPdf && '• PDF'}</p>
                                 </div>
                               </div>
                               <div className="flex items-center gap-1">
+                                {canView && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setViewingDocument(doc)}
+                                    title="View document"
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </Button>
+                                )}
                                 <Button variant="ghost" size="sm" asChild>
                                   <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer">
                                     <Download className="w-4 h-4" />
@@ -1103,6 +1156,51 @@ export default function SupplierOrderPortal() {
             <Button onClick={handleUpload} disabled={!uploadFile || submitting}>
               {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Upload className="w-4 h-4 mr-2" />}
               Upload
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Document Viewer Dialog */}
+      <Dialog open={!!viewingDocument} onOpenChange={(open) => !open && setViewingDocument(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5" />
+              {viewingDocument?.title || 'Document'}
+            </DialogTitle>
+            <DialogDescription>
+              {viewingDocument?.type} • {viewingDocument?.fileName}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 overflow-auto bg-gray-100 rounded-lg">
+            {viewingDocument && (
+              viewingDocument.mimeType?.startsWith('image/') ||
+              /\.(jpg|jpeg|png|webp|gif)$/i.test(viewingDocument.fileName) ? (
+                <img
+                  src={viewingDocument.fileUrl}
+                  alt={viewingDocument.title}
+                  className="max-w-full h-auto mx-auto"
+                />
+              ) : viewingDocument.mimeType === 'application/pdf' ||
+                /\.pdf$/i.test(viewingDocument.fileName) ? (
+                <iframe
+                  src={viewingDocument.fileUrl}
+                  className="w-full h-[70vh] border-0"
+                  title={viewingDocument.title}
+                />
+              ) : null
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewingDocument(null)}>
+              Close
+            </Button>
+            <Button asChild>
+              <a href={viewingDocument?.fileUrl} target="_blank" rel="noopener noreferrer" download>
+                <Download className="w-4 h-4 mr-2" />
+                Download
+              </a>
             </Button>
           </DialogFooter>
         </DialogContent>
