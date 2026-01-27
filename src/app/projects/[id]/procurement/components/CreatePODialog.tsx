@@ -42,6 +42,15 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 
+// Ensure URLs use https to avoid mixed content warnings
+const ensureHttps = (url: string | null | undefined): string | null => {
+  if (!url) return null
+  if (url.startsWith('http://')) {
+    return url.replace('http://', 'https://')
+  }
+  return url
+}
+
 interface ItemComponent {
   id: string
   name: string
@@ -665,7 +674,7 @@ export default function CreatePODialog({
                         <div className="flex items-center gap-3">
                           {item.imageUrl ? (
                             <img
-                              src={item.imageUrl}
+                              src={ensureHttps(item.imageUrl) || ''}
                               alt={item.name}
                               className="w-10 h-10 object-cover rounded border"
                             />

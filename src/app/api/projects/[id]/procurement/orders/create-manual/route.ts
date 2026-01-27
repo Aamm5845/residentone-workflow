@@ -524,60 +524,70 @@ export async function POST(
     const balanceDue = depositRequired ? totalAmount - depositRequired : null
 
     // Create the order
-    const order = await prisma.order.create({
-      data: {
-        orgId,
-        projectId,
-        orderNumber,
-        supplierId: body.supplierId || null,
-        vendorName: body.vendorName.trim(),
-        vendorEmail: body.vendorEmail?.trim() || null,
-        supplierOrderRef: body.externalOrderNumber?.trim() || null,
-        status: body.alreadyOrdered ? 'ORDERED' : 'PAYMENT_RECEIVED',
-        subtotal,
-        shippingCost,
-        extraCharges: body.extraCharges && body.extraCharges.length > 0 ? body.extraCharges : null,
-        taxAmount,
-        totalAmount,
-        currency: orderCurrency,
-        shippingAddress: body.shippingAddress?.trim() || null,
-        shippingMethod: body.shippingMethod?.trim() || null,
-        notes: body.notes?.trim() || null,
-        internalNotes: body.internalNotes?.trim() || null,
-        // Deposit tracking
-        depositRequired,
-        depositPercent: body.depositPercent ? parseFloat(String(body.depositPercent)) : null,
-        balanceDue,
-        // Payment method for supplier
-        savedPaymentMethodId: body.savedPaymentMethodId || null,
-        orderedAt: body.alreadyOrdered
-          ? (body.orderedAt ? new Date(body.orderedAt) : new Date())
-          : null,
-        createdById: userId,
-        updatedById: userId,
-        items: {
-          create: orderItems
-        },
-        activities: {
-          create: {
-            type: 'CREATED',
-            message: `Manual order created for ${body.vendorName} (${orderItems.length} items)`,
-            userId,
-            metadata: {
-              vendorName: body.vendorName,
-              vendorUrl: body.vendorUrl,
-              itemCount: orderItems.length,
-              isManualOrder: true,
-              externalOrderNumber: body.externalOrderNumber,
-              extraCharges: body.extraCharges
+    let order
+    try {
+      order = await prisma.order.create({
+        data: {
+          orgId,
+          projectId,
+          orderNumber,
+          supplierId: body.supplierId || null,
+          vendorName: body.vendorName.trim(),
+          vendorEmail: body.vendorEmail?.trim() || null,
+          supplierOrderRef: body.externalOrderNumber?.trim() || null,
+          status: body.alreadyOrdered ? 'ORDERED' : 'PAYMENT_RECEIVED',
+          subtotal,
+          shippingCost: shippingCost || null,
+          extraCharges: body.extraCharges && body.extraCharges.length > 0 ? body.extraCharges : null,
+          taxAmount: taxAmount || null,
+          totalAmount,
+          currency: orderCurrency,
+          shippingAddress: body.shippingAddress?.trim() || null,
+          shippingMethod: body.shippingMethod?.trim() || null,
+          notes: body.notes?.trim() || null,
+          internalNotes: body.internalNotes?.trim() || null,
+          // Deposit tracking
+          depositRequired,
+          depositPercent: body.depositPercent ? parseFloat(String(body.depositPercent)) : null,
+          balanceDue,
+          // Payment method for supplier
+          savedPaymentMethodId: body.savedPaymentMethodId || null,
+          orderedAt: body.alreadyOrdered
+            ? (body.orderedAt ? new Date(body.orderedAt) : new Date())
+            : null,
+          createdById: userId,
+          updatedById: userId,
+          items: {
+            create: orderItems
+          },
+          activities: {
+            create: {
+              type: 'CREATED',
+              message: `Manual order created for ${body.vendorName} (${orderItems.length} items)`,
+              userId,
+              metadata: {
+                vendorName: body.vendorName,
+                vendorUrl: body.vendorUrl,
+                itemCount: orderItems.length,
+                isManualOrder: true,
+                externalOrderNumber: body.externalOrderNumber,
+                extraCharges: body.extraCharges
+              }
             }
           }
+        },
+        include: {
+          items: true
         }
-      },
-      include: {
-        items: true
-      }
-    })
+      })
+    } catch (createError) {
+      console.error('Error creating order in database:', createError)
+      const errorMsg = createError instanceof Error ? createError.message : 'Database error'
+      return NextResponse.json(
+        { error: 'Failed to create order in database', details: errorMsg },
+        { status: 500 }
+      )
+    }
 
     // Update FFE item statuses
     await prisma.roomFFEItem.updateMany({
