@@ -242,6 +242,8 @@ export default function CreatePODialog({
   }, [open, fetchItems, fetchPaymentMethods, project?.defaultShippingAddress])
 
   // Flatten items and components into single list
+  // NOTE: If an item has a supplier quote, the quote price includes everything (components are internal tracking only)
+  // Components are only shown separately for items WITHOUT quotes (manual trade price items)
   const flatItems: FlatItem[] = []
   items.forEach(item => {
     const unitPrice = item.quoteUnitPrice || item.tradePrice
@@ -257,8 +259,9 @@ export default function CreatePODialog({
       hasQuote: item.hasQuote,
       quoteUnitPrice: item.quoteUnitPrice
     })
-    // Add components as separate items
-    if (item.components && item.components.length > 0) {
+    // Only add components as separate items if the main item does NOT have a quote
+    // When item has a quote, the quoted price already includes components
+    if (!item.hasQuote && item.components && item.components.length > 0) {
       item.components.forEach(comp => {
         flatItems.push({
           id: comp.id,
@@ -304,7 +307,7 @@ export default function CreatePODialog({
 
   const totals = calculateTotals()
 
-  // Quote comparison
+  // Quote comparison - compares pre-tax totals since taxes are our addition
   const getQuoteComparison = () => {
     const itemsWithQuotes = items.filter(i => i.hasQuote && i.supplierQuote)
     if (itemsWithQuotes.length === 0) return null
@@ -322,8 +325,9 @@ export default function CreatePODialog({
     })
 
     const quoteTotal = quoteItemsTotal + quoteShipping
-    const poTotal = totals.total
-    const difference = poTotal - quoteTotal
+    // Compare pre-tax totals (taxes are our addition, not from supplier)
+    const poSubtotal = totals.subtotalBeforeTax
+    const difference = poSubtotal - quoteTotal
 
     // Check if shipping from quote is in extra charges
     const hasQuoteShippingInCharges = extraCharges.some(c => c.id === 'quote-shipping')
@@ -335,7 +339,7 @@ export default function CreatePODialog({
       quoteItemsTotal,
       quoteShipping,
       quoteTotal,
-      poTotal,
+      poSubtotal,
       difference,
       missingShipping,
       matches: Math.abs(difference) < 0.01
@@ -513,8 +517,8 @@ export default function CreatePODialog({
                     <span>{formatCurrency(quoteComparison.quoteTotal)}{groupCurrency === 'USD' ? ' USD' : ''}</span>
                   </div>
                   <div className="flex justify-between font-medium">
-                    <span>PO Total:</span>
-                    <span>{formatCurrency(quoteComparison.poTotal)}{groupCurrency === 'USD' ? ' USD' : ''}</span>
+                    <span>PO Subtotal (before tax):</span>
+                    <span>{formatCurrency(quoteComparison.poSubtotal)}{groupCurrency === 'USD' ? ' USD' : ''}</span>
                   </div>
                   {!quoteComparison.matches && (
                     <div className={`flex justify-between font-medium ${
@@ -528,7 +532,7 @@ export default function CreatePODialog({
                 {quoteComparison.matches ? (
                   <div className="flex items-center gap-1 mt-2 text-green-700 text-sm">
                     <CheckCircle2 className="w-4 h-4" />
-                    PO matches quote total
+                    PO subtotal matches quote total
                   </div>
                 ) : quoteComparison.missingShipping ? (
                   <div className="flex items-center gap-1 mt-2 text-amber-700 text-sm">
