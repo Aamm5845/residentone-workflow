@@ -364,6 +364,12 @@ export default function SupplierOrderPortal() {
   }
 
   const { order, project, supplier, items, documents, messages, organization } = data
+
+  // Add null safety
+  const safeOrganization = organization || { name: 'Meisner Interiors', logo: null, phone: null, email: null, address: null }
+  const safeProject = project || { id: '', name: 'Project', address: null, clientName: null }
+  const safeSupplier = supplier || { id: '', name: 'Supplier', email: null, phone: null, contactName: null }
+
   const statusConfig = STATUS_CONFIG[order.status] || STATUS_CONFIG.DRAFT
   const isConfirmed = !!order.supplierConfirmedAt
   const isShipped = order.status === 'SHIPPED' || order.status === 'DELIVERED'
@@ -377,14 +383,14 @@ export default function SupplierOrderPortal() {
         <Card className="mb-6 overflow-hidden">
           <div className="bg-gray-900 p-6 text-white">
             <div className="flex items-center justify-between mb-4">
-              {organization.logo ? (
-                <img src={organization.logo} alt={organization.name} className="h-10 bg-white rounded px-2 py-1" />
+              {safeOrganization.logo ? (
+                <img src={safeOrganization.logo} alt={safeOrganization.name} className="h-10 bg-white rounded px-2 py-1" />
               ) : (
-                <span className="text-xl font-bold">{organization.name}</span>
+                <span className="text-xl font-bold">{safeOrganization.name}</span>
               )}
               <div className="text-right text-sm text-gray-300">
-                {organization.email && <div>{organization.email}</div>}
-                {organization.phone && <div>{organization.phone}</div>}
+                {safeOrganization.email && <div>{safeOrganization.email}</div>}
+                {safeOrganization.phone && <div>{safeOrganization.phone}</div>}
               </div>
             </div>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -393,7 +399,7 @@ export default function SupplierOrderPortal() {
                   <h1 className="text-2xl font-bold">Purchase Order #{order.orderNumber}</h1>
                   <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
                 </div>
-                <p className="text-gray-300">Project: {project.name}</p>
+                <p className="text-gray-300">Project: {safeProject.name}</p>
               </div>
               <div className="flex gap-2">
                 {!isConfirmed && !isShipped && (
@@ -460,15 +466,15 @@ export default function SupplierOrderPortal() {
                     <Building2 className="w-4 h-4 text-gray-500" />
                     <h3 className="font-semibold text-gray-900">Bill To</h3>
                   </div>
-                  <p className="font-medium text-gray-900 mb-1">{organization.name}</p>
+                  <p className="font-medium text-gray-900 mb-1">{safeOrganization.name}</p>
                   <p className="text-sm text-gray-600 whitespace-pre-line">
-                    {order.billingAddress || organization.address || 'No billing address provided'}
+                    {order.billingAddress || safeOrganization.address || 'No billing address provided'}
                   </p>
-                  {organization.email && (
-                    <p className="text-sm text-gray-500 mt-2">{organization.email}</p>
+                  {safeOrganization.email && (
+                    <p className="text-sm text-gray-500 mt-2">{safeOrganization.email}</p>
                   )}
-                  {organization.phone && (
-                    <p className="text-sm text-gray-500">{organization.phone}</p>
+                  {safeOrganization.phone && (
+                    <p className="text-sm text-gray-500">{safeOrganization.phone}</p>
                   )}
                 </CardContent>
               </Card>
@@ -479,12 +485,12 @@ export default function SupplierOrderPortal() {
                     <MapPin className="w-4 h-4 text-gray-500" />
                     <h3 className="font-semibold text-gray-900">Ship To</h3>
                   </div>
-                  {project.clientName && (
-                    <p className="font-medium text-gray-900 mb-1">{project.clientName}</p>
+                  {safeProject.clientName && (
+                    <p className="font-medium text-gray-900 mb-1">{safeProject.clientName}</p>
                   )}
-                  <p className="text-sm text-gray-500 mb-1">Project: {project.name}</p>
+                  <p className="text-sm text-gray-500 mb-1">Project: {safeProject.name}</p>
                   <p className="text-sm text-gray-600 whitespace-pre-line">
-                    {order.shippingAddress || project.address || 'No shipping address provided'}
+                    {order.shippingAddress || safeProject.address || 'No shipping address provided'}
                   </p>
                   {order.expectedDelivery && (
                     <div className="mt-3 pt-3 border-t flex items-center gap-2 text-sm">
@@ -652,15 +658,15 @@ export default function SupplierOrderPortal() {
               <CardContent className="pt-6">
                 <h3 className="font-semibold text-gray-900 mb-4">Supplier</h3>
                 <div className="space-y-2 text-sm">
-                  <p className="font-medium text-gray-900">{supplier.name}</p>
-                  {supplier.contactName && (
-                    <p className="text-gray-600">Contact: {supplier.contactName}</p>
+                  <p className="font-medium text-gray-900">{safeSupplier.name}</p>
+                  {safeSupplier.contactName && (
+                    <p className="text-gray-600">Contact: {safeSupplier.contactName}</p>
                   )}
-                  {supplier.email && (
-                    <p className="text-gray-600">{supplier.email}</p>
+                  {safeSupplier.email && (
+                    <p className="text-gray-600">{safeSupplier.email}</p>
                   )}
-                  {supplier.phone && (
-                    <p className="text-gray-600">{supplier.phone}</p>
+                  {safeSupplier.phone && (
+                    <p className="text-gray-600">{safeSupplier.phone}</p>
                   )}
                 </div>
               </CardContent>
@@ -704,7 +710,7 @@ export default function SupplierOrderPortal() {
                           >
                             <div className="flex items-center justify-between mb-1">
                               <span className="font-medium text-gray-900">
-                                {msg.senderType === 'SUPPLIER' ? 'You' : msg.senderName || organization.name}
+                                {msg.senderType === 'SUPPLIER' ? 'You' : msg.senderName || safeOrganization.name}
                               </span>
                               <div className="flex items-center gap-2">
                                 <span className="text-xs text-gray-500">{formatDate(msg.createdAt)}</span>
@@ -866,7 +872,7 @@ export default function SupplierOrderPortal() {
         {/* Footer */}
         <div className="mt-12 pt-8 border-t border-gray-200 text-center">
           <p className="text-sm text-gray-500">
-            Powered by {organization.name}
+            Powered by {safeOrganization.name}
           </p>
         </div>
       </div>
@@ -1000,7 +1006,7 @@ export default function SupplierOrderPortal() {
           <DialogHeader>
             <DialogTitle>Send Message</DialogTitle>
             <DialogDescription>
-              Send a message to {organization.name}.
+              Send a message to {safeOrganization.name}.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">

@@ -202,13 +202,24 @@ export async function GET(
         paymentCardNumber: order.paymentCardNumber,
         paymentCardCvv: order.paymentCardCvv
       },
-      project: {
+      project: order.project ? {
         id: order.project.id,
         name: order.project.name,
         address: order.project.address,
         clientName: order.project.client?.name
+      } : {
+        id: '',
+        name: 'Unknown Project',
+        address: null,
+        clientName: null
       },
-      supplier: order.supplier,
+      supplier: order.supplier || {
+        id: '',
+        name: order.vendorName || 'Supplier',
+        email: order.vendorEmail || null,
+        phone: null,
+        contactName: null
+      },
       items: order.items.map(item => {
         // Get images - prefer OrderItem imageUrl, then roomFFEItem images
         const roomImages = item.roomFFEItem?.images as string[] | null
