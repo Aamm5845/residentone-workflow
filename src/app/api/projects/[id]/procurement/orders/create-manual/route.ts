@@ -6,6 +6,15 @@ import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
 
+// Ensure URLs use https to avoid mixed content warnings
+function ensureHttps(url: string | null | undefined): string | null {
+  if (!url) return null
+  if (url.startsWith('http://')) {
+    return url.replace('http://', 'https://')
+  }
+  return url
+}
+
 /**
  * GET /api/projects/[id]/procurement/orders/create-manual
  *
@@ -162,7 +171,7 @@ export async function GET(
         roomName: item.section?.instance?.room?.name,
         categoryName: item.section?.name,
         quantity: item.quantity || 1,
-        imageUrl: item.images?.[0] || null,
+        imageUrl: ensureHttps(item.images?.[0]),
         specStatus: item.specStatus,
 
         // Pricing
@@ -448,7 +457,7 @@ export async function POST(
 
       // Get room name from the section -> instance -> room
       const roomName = ffeItem.section?.instance?.room?.name || null
-      const itemImage = ffeItem.images?.[0] || null
+      const itemImage = ensureHttps(ffeItem.images?.[0])
 
       // Add main item
       orderItems.push({
@@ -484,7 +493,7 @@ export async function POST(
               name: comp.name + (comp.modelNumber ? ` (${comp.modelNumber})` : ''),
               description: `Component of ${ffeItem.name}`,
               roomName,
-              imageUrl: comp.image || null,
+              imageUrl: ensureHttps(comp.image),
               quantity: compQty,
               unitPrice: compPrice,
               totalPrice: compTotal,
@@ -633,8 +642,11 @@ export async function POST(
     })
   } catch (error) {
     console.error('Error creating manual order:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const errorStack = error instanceof Error ? error.stack : undefined
+    console.error('Stack:', errorStack)
     return NextResponse.json(
-      { error: 'Failed to create order' },
+      { error: 'Failed to create order', details: errorMessage },
       { status: 500 }
     )
   }
