@@ -148,15 +148,16 @@ export async function POST(
       where: { id: orgId },
       select: {
         name: true,
+        businessName: true,
         logoUrl: true,
-        phone: true,
-        email: true,
-        address: true
+        businessPhone: true,
+        businessEmail: true,
+        businessAddress: true
       }
     })
 
     // Determine billing address (use override, or org address)
-    const billingAddress = overrideBillingAddress || organization?.address || null
+    const billingAddress = overrideBillingAddress || organization?.businessAddress || null
 
     // Get payment method details if provided
     let paymentInfo: {
@@ -199,11 +200,11 @@ export async function POST(
       supplierContactName: order.supplier?.contactName || undefined,
       projectName: order.project.name,
       projectAddress: order.project.address,
-      companyName: organization?.name || 'Meisner Interiors',
+      companyName: organization?.businessName || organization?.name || 'Meisner Interiors',
       companyLogo: organization?.logoUrl || `${process.env.NEXT_PUBLIC_BASE_URL || 'https://residentone-workflow.vercel.app'}/meisnerinteriorlogo.png`,
-      companyPhone: organization?.phone || undefined,
-      companyEmail: organization?.email || 'projects@meisnerinteriors.com',
-      companyAddress: organization?.address || undefined,
+      companyPhone: organization?.businessPhone || undefined,
+      companyEmail: organization?.businessEmail || 'projects@meisnerinteriors.com',
+      companyAddress: organization?.businessAddress || undefined,
       billingAddress,
       supplierPortalUrl,
       items: order.items.map(item => ({
@@ -404,10 +405,11 @@ export async function GET(
       where: { id: orgId },
       select: {
         name: true,
+        businessName: true,
         logoUrl: true,
-        phone: true,
-        email: true,
-        address: true
+        businessPhone: true,
+        businessEmail: true,
+        businessAddress: true
       }
     })
 
@@ -418,11 +420,11 @@ export async function GET(
       supplierContactName: order.supplier?.contactName || undefined,
       projectName: order.project.name,
       projectAddress: order.project.address,
-      companyName: organization?.name || 'Meisner Interiors',
+      companyName: organization?.businessName || organization?.name || 'Meisner Interiors',
       companyLogo: organization?.logoUrl || `${process.env.NEXT_PUBLIC_BASE_URL || 'https://residentone-workflow.vercel.app'}/meisnerinteriorlogo.png`,
-      companyPhone: organization?.phone || undefined,
-      companyEmail: organization?.email || 'projects@meisnerinteriors.com',
-      companyAddress: organization?.address || undefined,
+      companyPhone: organization?.businessPhone || undefined,
+      companyEmail: organization?.businessEmail || 'projects@meisnerinteriors.com',
+      companyAddress: organization?.businessAddress || undefined,
       items: order.items.map(item => ({
         name: item.name,
         description: item.description,
