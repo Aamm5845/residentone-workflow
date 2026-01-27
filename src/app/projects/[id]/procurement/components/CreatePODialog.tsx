@@ -242,17 +242,16 @@ export default function CreatePODialog({
   }, [open, fetchItems, fetchPaymentMethods, project?.defaultShippingAddress])
 
   // Flatten items and components into single list
-  // Components are shown as regular items - suppliers see them as standard line items
+  // All prices come from spec trade prices
   const flatItems: FlatItem[] = []
   items.forEach(item => {
-    const unitPrice = item.quoteUnitPrice || item.tradePrice
     flatItems.push({
       id: item.id,
       name: item.name,
       roomName: item.roomName,
       quantity: item.quantity,
       imageUrl: item.imageUrl,
-      unitPrice,
+      unitPrice: item.tradePrice,
       currency: item.currency || groupCurrency,
       isComponent: false,
       hasQuote: item.hasQuote,
