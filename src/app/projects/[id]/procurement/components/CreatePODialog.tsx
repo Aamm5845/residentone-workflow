@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Select,
   SelectContent,
@@ -148,6 +149,14 @@ export default function CreatePODialog({
   const [newChargeLabel, setNewChargeLabel] = useState('')
   const [newChargeAmount, setNewChargeAmount] = useState('')
 
+  // Tax options (default checked)
+  const [includeGst, setIncludeGst] = useState(true)
+  const [includeQst, setIncludeQst] = useState(true)
+
+  // Tax rates
+  const GST_RATE = 0.05 // 5%
+  const QST_RATE = 0.09975 // 9.975%
+
   // Fetch items for this supplier
   const fetchItems = useCallback(async () => {
     setLoading(true)
@@ -227,6 +236,8 @@ export default function CreatePODialog({
       setExtraCharges([])
       setNewChargeLabel('')
       setNewChargeAmount('')
+      setIncludeGst(true)
+      setIncludeQst(true)
     }
   }, [open, fetchItems, fetchPaymentMethods, project?.defaultShippingAddress])
 
@@ -274,11 +285,20 @@ export default function CreatePODialog({
     })
 
     const extraChargesTotal = extraCharges.reduce((sum, c) => sum + c.amount, 0)
+    const subtotalBeforeTax = itemsSubtotal + extraChargesTotal
+
+    const gstAmount = includeGst ? subtotalBeforeTax * GST_RATE : 0
+    const qstAmount = includeQst ? subtotalBeforeTax * QST_RATE : 0
+    const totalTax = gstAmount + qstAmount
 
     return {
       itemsSubtotal,
       extraChargesTotal,
-      total: itemsSubtotal + extraChargesTotal
+      subtotalBeforeTax,
+      gstAmount,
+      qstAmount,
+      totalTax,
+      total: subtotalBeforeTax + totalTax
     }
   }
 
@@ -673,8 +693,35 @@ export default function CreatePODialog({
                 </Button>
               </div>
               <p className="text-xs text-gray-500">
-                Add delivery, tax, installation, or other charges
+                Add delivery, installation, or other charges
               </p>
+            </div>
+
+            {/* Tax Options */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-gray-900">Taxes</h3>
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="include-gst"
+                    checked={includeGst}
+                    onCheckedChange={(checked) => setIncludeGst(checked === true)}
+                  />
+                  <Label htmlFor="include-gst" className="text-sm font-normal cursor-pointer">
+                    GST (5%)
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="include-qst"
+                    checked={includeQst}
+                    onCheckedChange={(checked) => setIncludeQst(checked === true)}
+                  />
+                  <Label htmlFor="include-qst" className="text-sm font-normal cursor-pointer">
+                    QST (9.975%)
+                  </Label>
+                </div>
+              </div>
             </div>
 
             {/* Shipping Address */}
@@ -762,6 +809,32 @@ export default function CreatePODialog({
                     </p>
                   </div>
                 ))}
+                {(includeGst || includeQst) && (
+                  <>
+                    <div className="flex items-center justify-between pt-2 border-t border-emerald-200">
+                      <p className="text-sm text-emerald-700">Subtotal</p>
+                      <p className="font-medium text-emerald-800">
+                        {formatCurrency(totals.subtotalBeforeTax)}{groupCurrency === 'USD' ? ' USD' : ''}
+                      </p>
+                    </div>
+                    {includeGst && (
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-emerald-700">GST (5%)</p>
+                        <p className="font-medium text-emerald-800">
+                          {formatCurrency(totals.gstAmount)}{groupCurrency === 'USD' ? ' USD' : ''}
+                        </p>
+                      </div>
+                    )}
+                    {includeQst && (
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-emerald-700">QST (9.975%)</p>
+                        <p className="font-medium text-emerald-800">
+                          {formatCurrency(totals.qstAmount)}{groupCurrency === 'USD' ? ' USD' : ''}
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
                 <div className="flex items-center justify-between pt-2 border-t border-emerald-200">
                   <p className="font-semibold text-emerald-800">Total</p>
                   <p className="text-xl font-bold text-emerald-900">
