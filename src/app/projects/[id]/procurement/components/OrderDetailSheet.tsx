@@ -407,6 +407,10 @@ export default function OrderDetailSheet({
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-2xl">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Loading Order Details</DialogTitle>
+            <DialogDescription>Please wait while the order details are being loaded.</DialogDescription>
+          </DialogHeader>
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
           </div>
