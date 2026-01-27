@@ -155,6 +155,9 @@ export default function CreatePODialog({
   const [includeGst, setIncludeGst] = useState(true)
   const [includeQst, setIncludeQst] = useState(true)
 
+  // Deposit
+  const [depositPercent, setDepositPercent] = useState<string>('')
+
   // Tax rates
   const GST_RATE = 0.05 // 5%
   const QST_RATE = 0.09975 // 9.975%
@@ -240,6 +243,7 @@ export default function CreatePODialog({
       setNewChargeAmount('')
       setIncludeGst(true)
       setIncludeQst(true)
+      setDepositPercent('')
     }
   }, [open, fetchItems, fetchPaymentMethods, project?.defaultShippingAddress])
 
@@ -292,6 +296,12 @@ export default function CreatePODialog({
     const gstAmount = includeGst ? subtotalBeforeTax * GST_RATE : 0
     const qstAmount = includeQst ? subtotalBeforeTax * QST_RATE : 0
     const totalTax = gstAmount + qstAmount
+    const total = subtotalBeforeTax + totalTax
+
+    // Calculate deposit
+    const depositPercentNum = parseFloat(depositPercent) || 0
+    const depositAmount = depositPercentNum > 0 ? (total * depositPercentNum / 100) : 0
+    const balanceDue = total - depositAmount
 
     return {
       itemsSubtotal,
@@ -300,7 +310,9 @@ export default function CreatePODialog({
       gstAmount,
       qstAmount,
       totalTax,
-      total: subtotalBeforeTax + totalTax
+      total,
+      depositAmount,
+      balanceDue
     }
   }
 
@@ -397,7 +409,14 @@ export default function CreatePODialog({
           notes: notes.trim() || undefined,
           savedPaymentMethodId: selectedPaymentMethodId || undefined,
           shippingCost: extraCharges.find(c => c.label.toLowerCase().includes('shipping'))?.amount || undefined,
-          extraCharges: extraCharges.filter(c => !c.label.toLowerCase().includes('shipping'))
+          extraCharges: extraCharges.filter(c => !c.label.toLowerCase().includes('shipping')),
+          // Tax options
+          includeGst,
+          includeQst,
+          taxAmount: totals.totalTax > 0 ? totals.totalTax : undefined,
+          // Deposit
+          depositPercent: depositPercent ? parseFloat(depositPercent) : undefined,
+          depositRequired: totals.depositAmount > 0 ? totals.depositAmount : undefined
         })
       })
 
@@ -699,6 +718,32 @@ export default function CreatePODialog({
               </div>
             </div>
 
+            {/* Deposit */}
+            <div className="space-y-2">
+              <Label>Deposit Required (%)</Label>
+              <div className="flex items-center gap-3">
+                <Input
+                  type="number"
+                  value={depositPercent}
+                  onChange={(e) => setDepositPercent(e.target.value)}
+                  placeholder="e.g. 50"
+                  className="w-24"
+                  min="0"
+                  max="100"
+                  step="1"
+                />
+                <span className="text-sm text-gray-500">%</span>
+                {totals.depositAmount > 0 && (
+                  <span className="text-sm font-medium text-blue-600">
+                    = {formatCurrency(totals.depositAmount)}{groupCurrency === 'USD' ? ' USD' : ''}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-gray-500">
+                Enter deposit percentage if supplier requires upfront payment
+              </p>
+            </div>
+
             {/* Shipping Address */}
             <div className="space-y-2">
               <Label className="flex items-center gap-2">
@@ -816,6 +861,22 @@ export default function CreatePODialog({
                     {formatCurrency(totals.total)}{groupCurrency === 'USD' ? ' USD' : ''}
                   </p>
                 </div>
+                {totals.depositAmount > 0 && (
+                  <>
+                    <div className="flex items-center justify-between pt-2 border-t border-emerald-200 mt-2">
+                      <p className="text-sm text-blue-700 font-medium">Deposit Required ({depositPercent}%)</p>
+                      <p className="font-bold text-blue-700">
+                        {formatCurrency(totals.depositAmount)}{groupCurrency === 'USD' ? ' USD' : ''}
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-gray-600">Balance Due</p>
+                      <p className="font-medium text-gray-700">
+                        {formatCurrency(totals.balanceDue)}{groupCurrency === 'USD' ? ' USD' : ''}
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
