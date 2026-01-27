@@ -965,18 +965,16 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                   <TableHead className="text-gray-500 font-medium">PO #</TableHead>
                   <TableHead className="text-gray-500 font-medium">Supplier</TableHead>
                   <TableHead className="text-gray-500 font-medium">Items</TableHead>
-                  <TableHead className="text-gray-500 font-medium">Total</TableHead>
+                  <TableHead className="text-gray-500 font-medium">Total / Paid</TableHead>
                   <TableHead className="text-gray-500 font-medium">Status</TableHead>
-                  <TableHead className="text-gray-500 font-medium">Supplier Paid</TableHead>
                   <TableHead className="text-gray-500 font-medium w-[80px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredOrders.map((order) => {
                   const paymentStatus = order.paymentSummary?.paymentStatus || 'NOT_STARTED'
-                  const remainingBalance = order.paymentSummary?.remainingBalance ?? (order.totalAmount || 0)
+                  const paidAmount = order.paymentSummary?.supplierPaymentAmount || 0
                   const isFullyPaid = paymentStatus === 'FULLY_PAID' || paymentStatus === 'OVERPAID'
-                  const isPartiallyPaid = paymentStatus === 'DEPOSIT_PAID'
                   const statusConfig = orderStatusConfig[order.status] || { label: order.status, color: 'bg-gray-100 text-gray-600' }
 
                   return (
@@ -995,29 +993,16 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                           {order._count.items} items
                         </Badge>
                       </TableCell>
-                      <TableCell className="font-medium text-gray-900">{formatCurrency(order.totalAmount)}</TableCell>
+                      <TableCell>
+                        <div className="font-medium text-gray-900">{formatCurrency(order.totalAmount)}</div>
+                        <div className={`text-xs ${isFullyPaid ? 'text-emerald-600' : paidAmount > 0 ? 'text-blue-600' : 'text-gray-400'}`}>
+                          {formatCurrency(paidAmount)} paid
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <Badge className={statusConfig.color}>
                           {statusConfig.label}
                         </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {isFullyPaid ? (
-                          <Badge className="bg-emerald-50 text-emerald-700">
-                            <Check className="w-3 h-3 mr-1" />
-                            Paid
-                          </Badge>
-                        ) : isPartiallyPaid ? (
-                          <Badge className="bg-blue-50 text-blue-700">
-                            <Clock className="w-3 h-3 mr-1" />
-                            Partial ({formatCurrency(remainingBalance)} due)
-                          </Badge>
-                        ) : (
-                          <Badge className="bg-amber-50 text-amber-700">
-                            <Clock className="w-3 h-3 mr-1" />
-                            Unpaid
-                          </Badge>
-                        )}
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>
