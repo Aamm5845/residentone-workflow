@@ -50,8 +50,13 @@ export async function GET(
                 modelNumber: true,
                 color: true,
                 finish: true,
+                material: true,
                 images: true,
-                leadTime: true
+                leadTime: true,
+                supplierLink: true,
+                width: true,
+                height: true,
+                depth: true
               }
             },
             supplierQuoteLineItem: {
@@ -177,8 +182,13 @@ export async function GET(
         brand: item.roomFFEItem?.brand,
         color: item.roomFFEItem?.color,
         finish: item.roomFFEItem?.finish,
+        material: item.roomFFEItem?.material,
         images: item.roomFFEItem?.images,
-        leadTime: item.supplierQuoteLineItem?.leadTime || item.roomFFEItem?.leadTime
+        leadTime: item.supplierQuoteLineItem?.leadTime || item.roomFFEItem?.leadTime,
+        supplierLink: item.roomFFEItem?.supplierLink,
+        dimensions: item.roomFFEItem?.width || item.roomFFEItem?.height || item.roomFFEItem?.depth
+          ? `${item.roomFFEItem?.width || '-'} × ${item.roomFFEItem?.height || '-'} × ${item.roomFFEItem?.depth || '-'}`
+          : null
       })),
       documents: order.documents.map(doc => ({
         id: doc.id,
@@ -329,7 +339,7 @@ export async function POST(
             status: 'IN_TRANSIT',
             trackingNumber,
             carrier,
-            scheduledDate: expectedDelivery ? new Date(expectedDelivery) : null,
+            expectedDate: expectedDelivery ? new Date(expectedDelivery) : null,
             notes: shipNotes
           }
         })
