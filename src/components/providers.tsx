@@ -3,6 +3,7 @@
 import { SessionProvider } from 'next-auth/react'
 import { ReactNode } from 'react'
 import { Toaster } from 'react-hot-toast'
+import { Toaster as SonnerToaster } from 'sonner'
 import { TimerProvider } from '@/contexts/TimerContext'
 import UpdateChecker from '@/components/update-checker'
 import GlobalKeyboardShortcuts from '@/components/GlobalKeyboardShortcuts'
@@ -17,6 +18,7 @@ export default function Providers({ children }: ProvidersProps) {
       <TimerProvider>
         {children}
         <Toaster position="top-right" />
+        <SonnerToaster position="top-right" richColors />
         {/* Global keyboard shortcuts - B for back */}
         <GlobalKeyboardShortcuts />
         {/* Auto-update checker - refreshes when user is idle and update available */}
