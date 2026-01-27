@@ -132,6 +132,8 @@ interface Order {
   internalNotes: string | null
   createdAt: string
   supplierAccessToken?: string
+  supplierConfirmedAt?: string | null
+  supplierConfirmedBy?: string | null
   savedPaymentMethodId?: string | null
   savedPaymentMethod?: SavedPaymentMethod | null
   project: {
@@ -492,6 +494,19 @@ export default function OrderDetailSheet({
                     )}
                   </div>
                 </div>
+                {/* Supplier Confirmation Info */}
+                {order.supplierConfirmedAt && (
+                  <div className="mt-3 pt-3 border-t border-blue-200">
+                    <p className="text-xs text-emerald-600 uppercase tracking-wide mb-1">Supplier Confirmed</p>
+                    <div className="text-sm">
+                      <p className="text-blue-900">
+                        <span className="font-medium">{order.supplierConfirmedBy || 'Supplier'}</span>
+                        {' confirmed on '}
+                        {formatDate(order.supplierConfirmedAt)}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Dates */}

@@ -67,6 +67,7 @@ export async function GET(
         supplierAccessToken: true,
         supplierViewedAt: true,
         supplierConfirmedAt: true,
+        supplierConfirmedBy: true,
         createdById: true,
         updatedById: true,
         createdAt: true,

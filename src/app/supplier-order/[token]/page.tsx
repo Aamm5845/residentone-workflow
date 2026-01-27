@@ -167,10 +167,12 @@ export default function SupplierOrderPortal() {
   const [showMessageDialog, setShowMessageDialog] = useState(false)
   const [showUploadDialog, setShowUploadDialog] = useState(false)
   const [viewingDocument, setViewingDocument] = useState<Document | null>(null)
+  const [activeTab, setActiveTab] = useState<'messages' | 'documents'>('messages')
 
-  // Form State
+  // Form State - Confirm with optional receipt upload
   const [confirmName, setConfirmName] = useState('')
   const [confirmNotes, setConfirmNotes] = useState('')
+  const [confirmReceipt, setConfirmReceipt] = useState<File | null>(null)
   const [trackingNumber, setTrackingNumber] = useState('')
   const [trackingUrl, setTrackingUrl] = useState('')
   const [carrier, setCarrier] = useState('')
@@ -478,8 +480,11 @@ export default function SupplierOrderPortal() {
                 size="sm"
                 className="border-purple-300 text-purple-700 hover:bg-purple-100"
                 onClick={() => {
-                  // Scroll to documents section
-                  document.getElementById('documents-section')?.scrollIntoView({ behavior: 'smooth' })
+                  // Switch to documents tab and scroll to it
+                  setActiveTab('documents')
+                  setTimeout(() => {
+                    document.getElementById('documents-section')?.scrollIntoView({ behavior: 'smooth' })
+                  }, 100)
                 }}
               >
                 View Documents
@@ -752,7 +757,7 @@ export default function SupplierOrderPortal() {
 
             <Card>
               <CardContent className="pt-6">
-                <Tabs defaultValue="messages">
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'messages' | 'documents')}>
                   <TabsList className="w-full mb-4">
                     <TabsTrigger value="messages" className="flex-1">
                       Messages ({messages.length})
@@ -1004,13 +1009,46 @@ export default function SupplierOrderPortal() {
                 rows={3}
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmReceipt">Upload Receipt (optional)</Label>
+              <Input
+                id="confirmReceipt"
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={(e) => setConfirmReceipt(e.target.files?.[0] || null)}
+              />
+              <p className="text-xs text-gray-500">PDF, JPG, or PNG (max 10MB)</p>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
               Cancel
             </Button>
             <Button
-              onClick={() => handleAction('confirm', { confirmedBy: confirmName || 'Supplier', notes: confirmNotes })}
+              onClick={async () => {
+                // If there's a receipt file, upload it first
+                if (confirmReceipt) {
+                  const formData = new FormData()
+                  formData.append('file', confirmReceipt)
+                  formData.append('title', 'Order Receipt')
+                  formData.append('type', 'RECEIPT')
+                  formData.append('description', `Receipt uploaded when confirming order`)
+
+                  try {
+                    const uploadRes = await fetch(`/api/supplier-order/${token}/upload`, {
+                      method: 'POST',
+                      body: formData
+                    })
+                    if (!uploadRes.ok) {
+                      console.error('Failed to upload receipt')
+                    }
+                  } catch (err) {
+                    console.error('Error uploading receipt:', err)
+                  }
+                }
+                // Then confirm the order
+                handleAction('confirm', { confirmedBy: confirmName || 'Supplier', notes: confirmNotes })
+              }}
               disabled={submitting}
             >
               {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
