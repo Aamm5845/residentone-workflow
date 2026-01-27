@@ -967,6 +967,7 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                   <TableHead className="text-gray-500 font-medium">Items</TableHead>
                   <TableHead className="text-gray-500 font-medium">Total / Paid</TableHead>
                   <TableHead className="text-gray-500 font-medium">Status</TableHead>
+                  <TableHead className="text-gray-500 font-medium">Payment</TableHead>
                   <TableHead className="text-gray-500 font-medium w-[80px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -1003,6 +1004,15 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                         <Badge className={statusConfig.color}>
                           {statusConfig.label}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <span className={`text-sm font-medium ${
+                          isFullyPaid ? 'text-emerald-600' :
+                          paidAmount > 0 ? 'text-blue-600' :
+                          'text-amber-600'
+                        }`}>
+                          {isFullyPaid ? 'Fully Paid' : paidAmount > 0 ? 'Partial Paid' : 'Unpaid'}
+                        </span>
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>
