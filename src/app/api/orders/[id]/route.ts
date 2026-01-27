@@ -125,6 +125,20 @@ export async function GET(
           },
           orderBy: { createdAt: 'asc' }
         },
+        documents: {
+          select: {
+            id: true,
+            type: true,
+            title: true,
+            description: true,
+            fileName: true,
+            fileUrl: true,
+            fileSize: true,
+            mimeType: true,
+            createdAt: true
+          },
+          orderBy: { createdAt: 'desc' }
+        },
         activities: {
           select: {
             id: true,

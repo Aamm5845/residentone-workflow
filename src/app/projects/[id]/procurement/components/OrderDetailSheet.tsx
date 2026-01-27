@@ -49,7 +49,8 @@ import {
   Mail,
   Phone,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  Download
 } from 'lucide-react'
 import { toast } from 'sonner'
 import SendPODialog from '@/components/procurement/SendPODialog'
@@ -86,6 +87,18 @@ interface SavedPaymentMethod {
   nickname: string | null
   lastFour: string | null
   cardBrand: string | null
+}
+
+interface OrderDocument {
+  id: string
+  type: string
+  title: string
+  description: string | null
+  fileName: string
+  fileUrl: string
+  fileSize: number | null
+  mimeType: string | null
+  createdAt: string
 }
 
 interface Order {
@@ -143,6 +156,7 @@ interface Order {
     name: string
   }
   items: OrderItem[]
+  documents: OrderDocument[]
   activities: {
     id: string
     type: string
@@ -658,6 +672,52 @@ export default function OrderDetailSheet({
                   <p className="text-sm text-gray-400 italic">No notes</p>
                 )}
               </div>
+
+              {/* Documents */}
+              {order.documents && order.documents.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-gray-500" />
+                    Documents ({order.documents.length})
+                  </Label>
+                  <div className="space-y-2">
+                    {order.documents.map((doc) => {
+                      const isImage = doc.mimeType?.startsWith('image/') ||
+                        /\.(jpg|jpeg|png|webp|gif)$/i.test(doc.fileName)
+
+                      return (
+                        <div
+                          key={doc.id}
+                          className="flex items-center justify-between p-3 bg-white border rounded-lg"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            {isImage ? (
+                              <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0 bg-gray-100">
+                                <img
+                                  src={doc.fileUrl}
+                                  alt={doc.title}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            ) : (
+                              <FileText className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                            )}
+                            <div className="min-w-0">
+                              <p className="font-medium text-sm text-gray-900 truncate">{doc.title}</p>
+                              <p className="text-xs text-gray-500">{doc.type} • {doc.fileName}</p>
+                            </div>
+                          </div>
+                          <Button variant="ghost" size="sm" asChild>
+                            <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer">
+                              <Download className="w-4 h-4" />
+                            </a>
+                          </Button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Totals - matches CreatePODialog exactly */}
               <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg space-y-2">
