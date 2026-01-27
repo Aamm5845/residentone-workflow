@@ -265,12 +265,12 @@ export async function POST(
           shippingAddress: overrideShippingAddress || order.shippingAddress,
           billingAddress: billingAddress,
           expectedDelivery: calculatedExpectedDelivery,
-          savedPaymentMethodId: savedPaymentMethodId || null,
-          // Store payment card info for reference
-          paymentCardBrand: paymentInfo?.cardBrand || null,
-          paymentCardLastFour: paymentInfo?.lastFour || null,
-          paymentCardHolderName: paymentInfo?.holderName || null,
-          paymentCardExpiry: paymentInfo?.expiry || null,
+          savedPaymentMethodId: savedPaymentMethodId || order.savedPaymentMethodId,
+          // Store payment card info for reference - preserve existing values if no new payment method specified
+          paymentCardBrand: paymentInfo?.cardBrand || order.paymentCardBrand || null,
+          paymentCardLastFour: paymentInfo?.lastFour || order.paymentCardLastFour || null,
+          paymentCardHolderName: paymentInfo?.holderName || order.paymentCardHolderName || null,
+          paymentCardExpiry: paymentInfo?.expiry || order.paymentCardExpiry || null,
           updatedById: userId
         }
       })
