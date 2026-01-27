@@ -155,7 +155,7 @@ interface OrderData {
 const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   DRAFT: { label: 'Draft', variant: 'secondary' },
   PENDING_PAYMENT: { label: 'Pending', variant: 'outline' },
-  ORDERED: { label: 'Awaiting Confirmation', variant: 'default' },
+  ORDERED: { label: 'Sent', variant: 'default' },
   CONFIRMED: { label: 'Confirmed', variant: 'default' },
   PROCESSING: { label: 'Processing', variant: 'default' },
   SHIPPED: { label: 'Shipped', variant: 'default' },
