@@ -15,7 +15,7 @@ import {
   ZoomOut
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
@@ -302,9 +302,9 @@ export default function ImageEditorModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b bg-white pr-12">
           <div className="flex items-center gap-3">
-            <h2 className="text-lg font-semibold text-gray-900">
+            <DialogTitle className="text-lg font-semibold text-gray-900">
               {imageTitle || 'Image Editor'}
-            </h2>
+            </DialogTitle>
             {processedImageUrl && (
               <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">
                 Edited
