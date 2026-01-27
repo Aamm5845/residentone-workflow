@@ -152,7 +152,8 @@ export default function SendPODialog({
           shippingAddress: orderData?.shippingAddress || order.shippingAddress,
           billingAddress: orderData?.billingAddress || order.billingAddress,
           expectedDelivery: orderData?.expectedDelivery || order.expectedDelivery,
-          savedPaymentMethodId: orderData?.savedPaymentMethodId || order.savedPaymentMethodId
+          savedPaymentMethodId: orderData?.savedPaymentMethodId || order.savedPaymentMethodId,
+          isTest: false // Explicitly set to false to ensure no [TEST] prefix
         })
       })
 

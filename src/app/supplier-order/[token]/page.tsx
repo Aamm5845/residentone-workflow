@@ -460,6 +460,19 @@ export default function SupplierOrderPortal() {
         </Card>
 
         {/* Status Alerts */}
+        {/* PO Sent Alert - shows when order has been sent but not yet confirmed */}
+        {order.orderedAt && !isConfirmed && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex items-center gap-3">
+            <Send className="w-5 h-5 text-blue-600" />
+            <div>
+              <p className="font-medium text-blue-800">Purchase Order Sent</p>
+              <p className="text-sm text-blue-600">
+                Sent on {formatDateTime(order.orderedAt)} - Awaiting your confirmation
+              </p>
+            </div>
+          </div>
+        )}
+
         {isConfirmed && (
           <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-6 flex items-center gap-3">
             <CheckCircle className="w-5 h-5 text-emerald-600" />
