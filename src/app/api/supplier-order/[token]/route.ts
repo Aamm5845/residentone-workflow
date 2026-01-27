@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { sendEmail } from '@/lib/email-service'
 
 export const dynamic = 'force-dynamic'
+
+// Notification email recipient
+const NOTIFICATION_EMAIL = 'shaya@meisnerinteriors.com'
 
 /**
  * GET /api/supplier-order/[token]
@@ -469,6 +473,34 @@ export async function POST(
           }
         })
 
+        // Send notification email
+        try {
+          const supplierName = order.supplier?.name || 'Supplier'
+          await sendEmail({
+            to: NOTIFICATION_EMAIL,
+            subject: `New Message from ${supplierName} - PO #${order.orderNumber}`,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #1f2937;">New Supplier Message</h2>
+                <p><strong>Order:</strong> ${order.orderNumber}</p>
+                <p><strong>Supplier:</strong> ${supplierName}</p>
+                <p><strong>Message:</strong></p>
+                <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin: 16px 0;">
+                  <p style="white-space: pre-line; margin: 0;">${content}</p>
+                </div>
+                <p style="margin-top: 24px;">
+                  <a href="${process.env.NEXT_PUBLIC_BASE_URL}/supplier-order/${token}"
+                     style="background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
+                    View Order
+                  </a>
+                </p>
+              </div>
+            `
+          })
+        } catch (emailErr) {
+          console.error('Failed to send notification email:', emailErr)
+        }
+
         return NextResponse.json({
           success: true,
           message: 'Message sent',
@@ -478,6 +510,67 @@ export async function POST(
             createdAt: message.createdAt
           }
         })
+      }
+
+      case 'delete_message': {
+        const { messageId } = body
+
+        if (!messageId) {
+          return NextResponse.json({ error: 'Message ID required' }, { status: 400 })
+        }
+
+        // Find and verify the message belongs to this order and was sent by supplier
+        const messageToDelete = await prisma.supplierMessage.findFirst({
+          where: {
+            id: messageId,
+            orderId: order.id,
+            senderType: 'SUPPLIER'
+          }
+        })
+
+        if (!messageToDelete) {
+          return NextResponse.json({ error: 'Message not found or cannot be deleted' }, { status: 404 })
+        }
+
+        await prisma.supplierMessage.delete({
+          where: { id: messageId }
+        })
+
+        return NextResponse.json({ success: true, message: 'Message deleted' })
+      }
+
+      case 'delete_document': {
+        const { documentId } = body
+
+        if (!documentId) {
+          return NextResponse.json({ error: 'Document ID required' }, { status: 400 })
+        }
+
+        // Find and verify the document belongs to this order
+        const docToDelete = await prisma.rFQDocument.findFirst({
+          where: {
+            id: documentId,
+            orderId: order.id
+          }
+        })
+
+        if (!docToDelete) {
+          return NextResponse.json({ error: 'Document not found' }, { status: 404 })
+        }
+
+        await prisma.rFQDocument.delete({
+          where: { id: documentId }
+        })
+
+        await prisma.orderActivity.create({
+          data: {
+            orderId: order.id,
+            type: 'DOCUMENT_DELETED',
+            message: `Supplier deleted document: ${docToDelete.title}`
+          }
+        })
+
+        return NextResponse.json({ success: true, message: 'Document deleted' })
       }
 
       default:

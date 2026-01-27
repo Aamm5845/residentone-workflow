@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { put } from '@vercel/blob'
+import { sendEmail } from '@/lib/email-service'
 
 export const dynamic = 'force-dynamic'
+
+// Notification email recipient
+const NOTIFICATION_EMAIL = 'shaya@meisnerinteriors.com'
 
 /**
  * POST /api/supplier-order/[token]/upload
@@ -119,6 +123,37 @@ export async function POST(
         }
       }
     })
+
+    // Send notification email
+    try {
+      const supplierName = order.supplier?.name || 'Supplier'
+      await sendEmail({
+        to: NOTIFICATION_EMAIL,
+        subject: `New Document from ${supplierName} - PO #${order.orderNumber}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #1f2937;">New Document Uploaded</h2>
+            <p><strong>Order:</strong> ${order.orderNumber}</p>
+            <p><strong>Supplier:</strong> ${supplierName}</p>
+            <p><strong>Document:</strong> ${title}</p>
+            <p><strong>File:</strong> ${file.name}</p>
+            ${description ? `<p><strong>Description:</strong> ${description}</p>` : ''}
+            <p style="margin-top: 24px;">
+              <a href="${blob.url}"
+                 style="background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-right: 12px;">
+                Download Document
+              </a>
+              <a href="${process.env.NEXT_PUBLIC_BASE_URL}/supplier-order/${token}"
+                 style="background: #059669; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
+                View Order
+              </a>
+            </p>
+          </div>
+        `
+      })
+    } catch (emailErr) {
+      console.error('Failed to send notification email:', emailErr)
+    }
 
     return NextResponse.json({
       success: true,

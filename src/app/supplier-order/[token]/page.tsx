@@ -32,7 +32,8 @@ import {
   ExternalLink,
   Download,
   Loader2,
-  CreditCard
+  CreditCard,
+  Trash2
 } from 'lucide-react'
 import { toast, Toaster } from 'sonner'
 
@@ -262,6 +263,50 @@ export default function SupplierOrderPortal() {
       toast.error(err.message)
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!confirm('Are you sure you want to delete this message?')) return
+
+    try {
+      const res = await fetch(`/api/supplier-order/${token}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete_message', messageId })
+      })
+
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Failed to delete message')
+      }
+
+      toast.success('Message deleted')
+      await fetchOrder()
+    } catch (err: any) {
+      toast.error(err.message)
+    }
+  }
+
+  const handleDeleteDocument = async (documentId: string) => {
+    if (!confirm('Are you sure you want to delete this document?')) return
+
+    try {
+      const res = await fetch(`/api/supplier-order/${token}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete_document', documentId })
+      })
+
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Failed to delete document')
+      }
+
+      toast.success('Document deleted')
+      await fetchOrder()
+    } catch (err: any) {
+      toast.error(err.message)
     }
   }
 
@@ -660,7 +705,18 @@ export default function SupplierOrderPortal() {
                               <span className="font-medium text-gray-900">
                                 {msg.senderType === 'SUPPLIER' ? 'You' : msg.senderName || organization.name}
                               </span>
-                              <span className="text-xs text-gray-500">{formatDate(msg.createdAt)}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-500">{formatDate(msg.createdAt)}</span>
+                                {msg.senderType === 'SUPPLIER' && (
+                                  <button
+                                    onClick={() => handleDeleteMessage(msg.id)}
+                                    className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                                    title="Delete message"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </div>
                             </div>
                             <p className="text-gray-600 whitespace-pre-line">{msg.content}</p>
                           </div>
@@ -696,11 +752,21 @@ export default function SupplierOrderPortal() {
                                 <p className="text-xs text-gray-500">{doc.type}</p>
                               </div>
                             </div>
-                            <Button variant="ghost" size="sm" asChild>
-                              <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer">
-                                <Download className="w-4 h-4" />
-                              </a>
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              <Button variant="ghost" size="sm" asChild>
+                                <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer">
+                                  <Download className="w-4 h-4" />
+                                </a>
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteDocument(doc.id)}
+                                className="text-gray-400 hover:text-red-500"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </div>
                         ))}
                       </div>
