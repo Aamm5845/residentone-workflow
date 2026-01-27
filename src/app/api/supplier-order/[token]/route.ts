@@ -206,7 +206,7 @@ export async function GET(
         status: del.status,
         trackingNumber: del.trackingNumber,
         carrier: del.carrier,
-        scheduledDate: del.scheduledDate,
+        expectedDate: del.expectedDate,
         actualDate: del.actualDate,
         notes: del.notes,
         createdAt: del.createdAt

@@ -440,8 +440,15 @@ export async function GET(
       subtotal: parseFloat(order.subtotal?.toString() || '0'),
       taxAmount: order.taxAmount ? parseFloat(order.taxAmount.toString()) : undefined,
       shippingCost: order.shippingCost ? parseFloat(order.shippingCost.toString()) : undefined,
+      extraCharges: order.extraCharges as Array<{ label: string; amount: number }> | null,
       totalAmount: parseFloat(order.totalAmount?.toString() || '0'),
       currency: order.currency,
+      // Deposit info
+      depositPercent: order.depositPercent ? parseFloat(order.depositPercent.toString()) : undefined,
+      depositRequired: order.depositRequired ? parseFloat(order.depositRequired.toString()) : undefined,
+      balanceDue: order.depositRequired
+        ? parseFloat(order.totalAmount?.toString() || '0') - parseFloat(order.depositRequired.toString())
+        : undefined,
       shippingAddress: order.shippingAddress,
       shippingMethod: order.shippingMethod,
       expectedDelivery: order.expectedDelivery,
