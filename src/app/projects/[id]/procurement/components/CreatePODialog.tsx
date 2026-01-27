@@ -305,7 +305,7 @@ export default function CreatePODialog({
 
   const totals = calculateTotals()
 
-  // Quote comparison - compares pre-tax totals since taxes are our addition
+  // Quote comparison - compares quoted items vs supplier quote
   const getQuoteComparison = () => {
     const itemsWithQuotes = items.filter(i => i.hasQuote && i.supplierQuote)
     if (itemsWithQuotes.length === 0) return null
@@ -322,10 +322,27 @@ export default function CreatePODialog({
       }
     })
 
+    // Calculate PO items with quotes (same calculation method)
+    let poQuotedItemsTotal = 0
+    flatItems.forEach(item => {
+      if (item.hasQuote && item.quoteUnitPrice) {
+        poQuotedItemsTotal += item.quoteUnitPrice * item.quantity
+      }
+    })
+
+    // Calculate non-quoted items (components and trade price items)
+    let nonQuotedItemsTotal = 0
+    let nonQuotedCount = 0
+    flatItems.forEach(item => {
+      if (!item.hasQuote) {
+        nonQuotedItemsTotal += (item.unitPrice || 0) * item.quantity
+        nonQuotedCount++
+      }
+    })
+
     const quoteTotal = quoteItemsTotal + quoteShipping
-    // Compare pre-tax totals (taxes are our addition, not from supplier)
-    const poSubtotal = totals.subtotalBeforeTax
-    const difference = poSubtotal - quoteTotal
+    // Compare only quoted items portion
+    const difference = poQuotedItemsTotal - quoteItemsTotal
 
     // Check if shipping from quote is in extra charges
     const hasQuoteShippingInCharges = extraCharges.some(c => c.id === 'quote-shipping')
@@ -334,10 +351,13 @@ export default function CreatePODialog({
     return {
       itemsWithQuotes: itemsWithQuotes.length,
       totalItems: items.length,
+      totalFlatItems: flatItems.length,
       quoteItemsTotal,
       quoteShipping,
       quoteTotal,
-      poSubtotal,
+      poQuotedItemsTotal,
+      nonQuotedItemsTotal,
+      nonQuotedCount,
       difference,
       missingShipping,
       matches: Math.abs(difference) < 0.01
@@ -483,25 +503,21 @@ export default function CreatePODialog({
               <div className={`p-4 rounded-lg border ${
                 quoteComparison.matches
                   ? 'bg-green-50 border-green-200'
-                  : quoteComparison.missingShipping
-                    ? 'bg-amber-50 border-amber-200'
-                    : 'bg-blue-50 border-blue-200'
+                  : 'bg-blue-50 border-blue-200'
               }`}>
                 <div className="flex items-center gap-2 mb-2">
                   <FileCheck className={`w-4 h-4 ${
-                    quoteComparison.matches ? 'text-green-600' :
-                    quoteComparison.missingShipping ? 'text-amber-600' : 'text-blue-600'
+                    quoteComparison.matches ? 'text-green-600' : 'text-blue-600'
                   }`} />
                   <p className={`text-sm font-medium ${
-                    quoteComparison.matches ? 'text-green-800' :
-                    quoteComparison.missingShipping ? 'text-amber-800' : 'text-blue-800'
+                    quoteComparison.matches ? 'text-green-800' : 'text-blue-800'
                   }`}>
-                    Quote Comparison ({quoteComparison.itemsWithQuotes}/{quoteComparison.totalItems} items have quotes)
+                    Quote Comparison
                   </p>
                 </div>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Quote Items Total:</span>
+                    <span className="text-gray-600">Supplier Quote ({quoteComparison.itemsWithQuotes} items):</span>
                     <span>{formatCurrency(quoteComparison.quoteItemsTotal)}{groupCurrency === 'USD' ? ' USD' : ''}</span>
                   </div>
                   {quoteComparison.quoteShipping > 0 && (
@@ -514,15 +530,21 @@ export default function CreatePODialog({
                     <span>Quote Total:</span>
                     <span>{formatCurrency(quoteComparison.quoteTotal)}{groupCurrency === 'USD' ? ' USD' : ''}</span>
                   </div>
-                  <div className="flex justify-between font-medium">
-                    <span>PO Subtotal (before tax):</span>
-                    <span>{formatCurrency(quoteComparison.poSubtotal)}{groupCurrency === 'USD' ? ' USD' : ''}</span>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">PO Quoted Items:</span>
+                    <span>{formatCurrency(quoteComparison.poQuotedItemsTotal)}{groupCurrency === 'USD' ? ' USD' : ''}</span>
                   </div>
+                  {quoteComparison.nonQuotedCount > 0 && (
+                    <div className="flex justify-between text-amber-700">
+                      <span>Additional Items ({quoteComparison.nonQuotedCount} not in quote):</span>
+                      <span>{formatCurrency(quoteComparison.nonQuotedItemsTotal)}{groupCurrency === 'USD' ? ' USD' : ''}</span>
+                    </div>
+                  )}
                   {!quoteComparison.matches && (
                     <div className={`flex justify-between font-medium ${
                       quoteComparison.difference > 0 ? 'text-amber-700' : 'text-green-700'
                     }`}>
-                      <span>Difference:</span>
+                      <span>Quoted Items Difference:</span>
                       <span>{quoteComparison.difference > 0 ? '+' : ''}{formatCurrency(quoteComparison.difference)}</span>
                     </div>
                   )}
@@ -530,7 +552,7 @@ export default function CreatePODialog({
                 {quoteComparison.matches ? (
                   <div className="flex items-center gap-1 mt-2 text-green-700 text-sm">
                     <CheckCircle2 className="w-4 h-4" />
-                    PO subtotal matches quote total
+                    Quoted items match supplier quote
                   </div>
                 ) : quoteComparison.missingShipping ? (
                   <div className="flex items-center gap-1 mt-2 text-amber-700 text-sm">
