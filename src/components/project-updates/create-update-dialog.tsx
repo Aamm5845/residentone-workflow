@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { upload } from '@vercel/blob/client'
 import {
@@ -62,9 +62,20 @@ export default function CreateUpdateDialog({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [previewUrls, setPreviewUrls] = useState<Map<string, string>>(new Map())
   const [uploadProgress, setUploadProgress] = useState<string>('')
   const fileInputRef = useRef<HTMLInputElement>(null)
-  
+
+  // Cleanup preview URLs when component unmounts
+  useEffect(() => {
+    return () => {
+      previewUrls.forEach((url) => URL.revokeObjectURL(url))
+    }
+  }, [])
+
+  // Generate a unique key for each file
+  const getFileKey = (file: File) => `${file.name}-${file.size}-${file.lastModified}`
+
   const [formData, setFormData] = useState({
     type: 'GENERAL',
     priority: 'MEDIUM',
@@ -85,14 +96,47 @@ export default function CreateUpdateDialog({
       const isValidSize = file.size <= maxSize
       return isValidType && isValidSize
     })
-    setSelectedFiles(prev => [...prev, ...validFiles])
+
+    // Create preview URLs for image and video files
+    setSelectedFiles(prev => {
+      const newFiles = [...prev, ...validFiles]
+      const newPreviewUrls = new Map(previewUrls)
+
+      validFiles.forEach((file) => {
+        if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+          const key = getFileKey(file)
+          if (!newPreviewUrls.has(key)) {
+            newPreviewUrls.set(key, URL.createObjectURL(file))
+          }
+        }
+      })
+
+      setPreviewUrls(newPreviewUrls)
+      return newFiles
+    })
+
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
   }
 
   const removeFile = (index: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index))
+    setSelectedFiles(prev => {
+      const fileToRemove = prev[index]
+      const key = getFileKey(fileToRemove)
+
+      // Revoke the preview URL if it exists
+      if (previewUrls.has(key)) {
+        URL.revokeObjectURL(previewUrls.get(key)!)
+        setPreviewUrls(current => {
+          const newUrls = new Map(current)
+          newUrls.delete(key)
+          return newUrls
+        })
+      }
+
+      return prev.filter((_, i) => i !== index)
+    })
   }
 
   const getFileIcon = (file: File) => {
@@ -181,7 +225,7 @@ export default function CreateUpdateDialog({
         }
       }
       
-      // Reset form
+      // Reset form and clean up preview URLs
       setFormData({
         type: 'GENERAL',
         priority: 'MEDIUM',
@@ -189,6 +233,9 @@ export default function CreateUpdateDialog({
         description: '',
         roomId: ''
       })
+      // Revoke all preview URLs before clearing
+      previewUrls.forEach((url) => URL.revokeObjectURL(url))
+      setPreviewUrls(new Map())
       setSelectedFiles([])
       setUploadProgress('')
       
@@ -331,27 +378,60 @@ export default function CreateUpdateDialog({
               </label>
             </div>
             
-            {/* Selected Files List */}
+            {/* Selected Files List with Previews */}
             {selectedFiles.length > 0 && (
               <div className="space-y-2 mt-3">
-                {selectedFiles.map((file, index) => (
-                  <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-2 min-w-0">
-                      {getFileIcon(file)}
-                      <span className="text-sm truncate">{file.name}</span>
-                      <span className="text-xs text-gray-400 flex-shrink-0">({formatFileSize(file.size)})</span>
+                {selectedFiles.map((file, index) => {
+                  const fileKey = getFileKey(file)
+                  const previewUrl = previewUrls.get(fileKey)
+                  const isImage = file.type.startsWith('image/')
+                  const isVideo = file.type.startsWith('video/')
+
+                  return (
+                    <div key={`${fileKey}-${index}`} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-3 min-w-0">
+                        {/* Image/Video Preview or File Icon */}
+                        {isImage && previewUrl ? (
+                          <div className="relative w-12 h-12 flex-shrink-0 rounded overflow-hidden bg-gray-200">
+                            <img
+                              src={previewUrl}
+                              alt={file.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ) : isVideo && previewUrl ? (
+                          <div className="relative w-12 h-12 flex-shrink-0 rounded overflow-hidden bg-gray-200">
+                            <video
+                              src={previewUrl}
+                              className="w-full h-full object-cover"
+                              muted
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                              <Video className="w-5 h-5 text-white" />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="w-12 h-12 flex-shrink-0 rounded bg-gray-100 flex items-center justify-center">
+                            {getFileIcon(file)}
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <span className="text-sm truncate block">{file.name}</span>
+                          <span className="text-xs text-gray-400">{formatFileSize(file.size)}</span>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 flex-shrink-0"
+                        onClick={() => removeFile(index)}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0 flex-shrink-0"
-                      onClick={() => removeFile(index)}
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>
