@@ -116,6 +116,9 @@ interface OrderData {
     paymentCardExpiry?: string
     paymentCardNumber?: string
     paymentCardCvv?: string
+    supplierPaidAt?: string
+    supplierPaymentAmount?: number
+    supplierPaymentMethod?: string
   }
   project: {
     id: string
@@ -164,6 +167,7 @@ export default function SupplierOrderPortal() {
   // Dialog State
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [showShipDialog, setShowShipDialog] = useState(false)
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false)
   const [showMessageDialog, setShowMessageDialog] = useState(false)
   const [showUploadDialog, setShowUploadDialog] = useState(false)
   const [viewingDocument, setViewingDocument] = useState<Document | null>(null)
@@ -173,6 +177,13 @@ export default function SupplierOrderPortal() {
   const [confirmName, setConfirmName] = useState('')
   const [confirmNotes, setConfirmNotes] = useState('')
   const [confirmReceipt, setConfirmReceipt] = useState<File | null>(null)
+
+  // Form State - Record Payment
+  const [paymentAmount, setPaymentAmount] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState('CARD')
+  const [paymentReference, setPaymentReference] = useState('')
+  const [paymentNotes, setPaymentNotes] = useState('')
+  const [paymentChargedBy, setPaymentChargedBy] = useState('')
   const [trackingNumber, setTrackingNumber] = useState('')
   const [trackingUrl, setTrackingUrl] = useState('')
   const [carrier, setCarrier] = useState('')
@@ -228,6 +239,7 @@ export default function SupplierOrderPortal() {
 
       setShowConfirmDialog(false)
       setShowShipDialog(false)
+      setShowPaymentDialog(false)
       setShowMessageDialog(false)
     } catch (err: any) {
       toast.error(err.message)
@@ -418,6 +430,15 @@ export default function SupplierOrderPortal() {
                   <Button onClick={() => setShowShipDialog(true)} variant="secondary">
                     <Truck className="w-4 h-4 mr-2" />
                     Mark Shipped
+                  </Button>
+                )}
+                {order.paymentCardNumber && !order.supplierPaidAt && (
+                  <Button onClick={() => {
+                    setPaymentAmount(order.totalAmount?.toString() || '')
+                    setShowPaymentDialog(true)
+                  }} variant="secondary">
+                    <CreditCard className="w-4 h-4 mr-2" />
+                    Record Payment
                   </Button>
                 )}
               </div>
@@ -1131,6 +1152,96 @@ export default function SupplierOrderPortal() {
             >
               {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Truck className="w-4 h-4 mr-2" />}
               Mark Shipped
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment Dialog */}
+      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Record Payment</DialogTitle>
+            <DialogDescription>
+              Record the payment you've charged to the customer's card.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="paymentAmount">Amount Charged *</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                <Input
+                  id="paymentAmount"
+                  type="number"
+                  step="0.01"
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="pl-7"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="paymentMethod">Payment Method</Label>
+              <select
+                id="paymentMethod"
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2"
+              >
+                <option value="CARD">Credit/Debit Card</option>
+                <option value="CHECK">Check</option>
+                <option value="WIRE">Wire Transfer</option>
+                <option value="ACH">ACH</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="paymentReference">Reference/Confirmation # (optional)</Label>
+              <Input
+                id="paymentReference"
+                value={paymentReference}
+                onChange={(e) => setPaymentReference(e.target.value)}
+                placeholder="Transaction ID, check number, etc."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="paymentChargedBy">Processed By (optional)</Label>
+              <Input
+                id="paymentChargedBy"
+                value={paymentChargedBy}
+                onChange={(e) => setPaymentChargedBy(e.target.value)}
+                placeholder="Your name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="paymentNotes">Notes (optional)</Label>
+              <Textarea
+                id="paymentNotes"
+                value={paymentNotes}
+                onChange={(e) => setPaymentNotes(e.target.value)}
+                placeholder="Any additional notes..."
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => handleAction('record_payment', {
+                amount: parseFloat(paymentAmount),
+                method: paymentMethod,
+                reference: paymentReference || undefined,
+                notes: paymentNotes || undefined,
+                chargedBy: paymentChargedBy || undefined
+              })}
+              disabled={!paymentAmount || parseFloat(paymentAmount) <= 0 || submitting}
+            >
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CreditCard className="w-4 h-4 mr-2" />}
+              Record Payment
             </Button>
           </DialogFooter>
         </DialogContent>

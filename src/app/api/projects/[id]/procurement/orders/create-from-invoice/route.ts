@@ -5,6 +5,48 @@ import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
 
+// Helper to get payment card details from saved payment method
+async function getPaymentCardData(savedPaymentMethodId: string | null) {
+  if (!savedPaymentMethodId) {
+    return {
+      paymentCardBrand: null,
+      paymentCardLastFour: null,
+      paymentCardHolderName: null,
+      paymentCardExpiry: null,
+      paymentCardNumber: null,
+      paymentCardCvv: null
+    }
+  }
+
+  const paymentMethod = await prisma.savedPaymentMethod.findUnique({
+    where: { id: savedPaymentMethodId }
+  })
+
+  if (!paymentMethod) {
+    return {
+      paymentCardBrand: null,
+      paymentCardLastFour: null,
+      paymentCardHolderName: null,
+      paymentCardExpiry: null,
+      paymentCardNumber: null,
+      paymentCardCvv: null
+    }
+  }
+
+  const expiry = paymentMethod.expiryMonth && paymentMethod.expiryYear
+    ? `${String(paymentMethod.expiryMonth).padStart(2, '0')}/${String(paymentMethod.expiryYear).slice(-2)}`
+    : null
+
+  return {
+    paymentCardBrand: paymentMethod.cardBrand,
+    paymentCardLastFour: paymentMethod.lastFour,
+    paymentCardHolderName: paymentMethod.holderName,
+    paymentCardExpiry: expiry,
+    paymentCardNumber: paymentMethod.encryptedCardNumber,
+    paymentCardCvv: paymentMethod.encryptedCvv
+  }
+}
+
 interface OrderLineItem {
   roomFFEItemId: string
   clientQuoteLineItemId: string
@@ -59,7 +101,10 @@ export async function POST(
 
     const { id: projectId } = await params
     const body = await request.json()
-    const { clientQuoteId, itemIds, shippingAddress: requestShippingAddress, notes: requestNotes } = body
+    const { clientQuoteId, itemIds, shippingAddress: requestShippingAddress, notes: requestNotes, savedPaymentMethodId } = body
+
+    // Get payment card details if a payment method is specified
+    const paymentCardData = await getPaymentCardData(savedPaymentMethodId || null)
 
     if (!clientQuoteId) {
       return NextResponse.json({ error: 'Client quote/invoice ID is required' }, { status: 400 })
@@ -348,6 +393,9 @@ export async function POST(
           depositRequired: depositRequired || null,
           depositPercent: group.depositPercent,
           balanceDue: balanceDue,
+          // Payment method
+          savedPaymentMethodId: savedPaymentMethodId || null,
+          ...paymentCardData,
           createdById: userId,
           updatedById: userId,
           internalNotes: group.paymentTerms || group.shippingTerms

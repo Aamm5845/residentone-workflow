@@ -201,7 +201,11 @@ export async function GET(
         paymentCardHolderName: order.paymentCardHolderName,
         paymentCardExpiry: order.paymentCardExpiry,
         paymentCardNumber: order.paymentCardNumber ? decrypt(order.paymentCardNumber) : null,
-        paymentCardCvv: order.paymentCardCvv ? decrypt(order.paymentCardCvv) : null
+        paymentCardCvv: order.paymentCardCvv ? decrypt(order.paymentCardCvv) : null,
+        // Payment status
+        supplierPaidAt: order.supplierPaidAt?.toISOString() || null,
+        supplierPaymentAmount: order.supplierPaymentAmount ? Number(order.supplierPaymentAmount) : null,
+        supplierPaymentMethod: order.supplierPaymentMethod
       },
       project: order.project ? {
         id: order.project.id,
@@ -584,6 +588,63 @@ export async function POST(
         })
 
         return NextResponse.json({ success: true, message: 'Document deleted' })
+      }
+
+      case 'record_payment': {
+        // Supplier records that they've charged the card or received payment
+        const { amount, method, reference, notes: paymentNotes, chargedBy } = body
+
+        if (!amount || amount <= 0) {
+          return NextResponse.json({ error: 'Payment amount is required' }, { status: 400 })
+        }
+
+        // Update order with payment info
+        await prisma.order.update({
+          where: { id: order.id },
+          data: {
+            supplierPaidAt: new Date(),
+            supplierPaymentMethod: method || 'CARD',
+            supplierPaymentAmount: amount,
+            supplierPaymentRef: reference || null,
+            notes: paymentNotes
+              ? `${order.notes || ''}\n\nPayment Note (${new Date().toLocaleDateString()}): ${paymentNotes}`.trim()
+              : order.notes
+          }
+        })
+
+        await prisma.orderActivity.create({
+          data: {
+            orderId: order.id,
+            type: 'PAYMENT_RECORDED',
+            message: `Supplier recorded payment: $${amount.toFixed(2)} via ${method || 'card'}${reference ? ` (Ref: ${reference})` : ''}`,
+            metadata: { amount, method, reference, chargedBy, notes: paymentNotes }
+          }
+        })
+
+        // Send notification email
+        try {
+          const supplierName = order.supplier?.name || order.vendorName || 'Supplier'
+          await sendEmail({
+            to: NOTIFICATION_EMAIL,
+            subject: `Payment Recorded by ${supplierName} - PO #${order.orderNumber}`,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #1f2937;">Payment Recorded</h2>
+                <p><strong>Order:</strong> ${order.orderNumber}</p>
+                <p><strong>Supplier:</strong> ${supplierName}</p>
+                <p><strong>Amount:</strong> $${amount.toFixed(2)}</p>
+                <p><strong>Method:</strong> ${method || 'Card'}</p>
+                ${reference ? `<p><strong>Reference:</strong> ${reference}</p>` : ''}
+                ${chargedBy ? `<p><strong>Processed By:</strong> ${chargedBy}</p>` : ''}
+                ${paymentNotes ? `<p><strong>Notes:</strong> ${paymentNotes}</p>` : ''}
+              </div>
+            `
+          })
+        } catch (emailErr) {
+          console.error('Failed to send payment notification:', emailErr)
+        }
+
+        return NextResponse.json({ success: true, message: 'Payment recorded' })
       }
 
       default:
