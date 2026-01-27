@@ -184,8 +184,8 @@ function formatRelativeTime(dateString: string): string {
 }
 
 // File upload limits
-const MAX_FILE_SIZE = 4.5 * 1024 * 1024 // 4.5MB - Vercel serverless limit
-const MAX_FILE_SIZE_DISPLAY = '4.5MB'
+const MAX_FILE_SIZE = 25 * 1024 * 1024 // 25MB
+const MAX_FILE_SIZE_DISPLAY = '25MB'
 
 interface ClientSourcesWorkspaceProps {
   project: Project
