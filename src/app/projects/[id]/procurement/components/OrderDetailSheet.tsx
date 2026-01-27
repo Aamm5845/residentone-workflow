@@ -498,10 +498,13 @@ export default function OrderDetailSheet({
               <ShoppingCart className="w-5 h-5 text-blue-600" />
               {order.orderNumber}
             </DialogTitle>
-            <DialogDescription className="flex items-center gap-2">
+            <DialogDescription className="sr-only">
+              Order details for {order.orderNumber}
+            </DialogDescription>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Badge className={status.color}>{status.label}</Badge>
               <span>Created {formatDate(order.createdAt)}</span>
-            </DialogDescription>
+            </div>
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto px-1 -mx-1">

@@ -568,15 +568,6 @@ export async function DELETE(
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     }
 
-    // Only allow deletion of orders that haven't been shipped/delivered
-    const nonDeletableStatuses = ['SHIPPED', 'IN_TRANSIT', 'DELIVERED', 'INSTALLED', 'COMPLETED']
-    if (nonDeletableStatuses.includes(existing.status)) {
-      return NextResponse.json(
-        { error: 'Cannot delete orders that have been shipped or delivered' },
-        { status: 400 }
-      )
-    }
-
     // Get the RoomFFEItem IDs to reset their status
     const roomFFEItemIds = existing.items
       .map(item => item.roomFFEItemId)

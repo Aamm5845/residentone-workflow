@@ -249,7 +249,7 @@ export async function POST(
     // Send email
     const emailResult = await sendEmail({
       to: supplierEmail,
-      subject: isTest ? `[TEST] ${subject}` : subject,
+      subject,
       html
     })
 

@@ -36,7 +36,8 @@ import {
   Trash2,
   Eye,
   Paperclip,
-  DollarSign
+  DollarSign,
+  Clock
 } from 'lucide-react'
 import { toast, Toaster } from 'sonner'
 
@@ -80,6 +81,13 @@ interface Message {
   attachments?: any
   createdAt: string
   readAt?: string
+}
+
+interface Activity {
+  id: string
+  type: string
+  message: string
+  createdAt: string
 }
 
 interface OrderData {
@@ -143,6 +151,7 @@ interface OrderData {
   items: OrderItem[]
   documents: Document[]
   messages: Message[]
+  activities?: Activity[]
   organization: {
     name: string
     logo?: string
@@ -388,7 +397,7 @@ export default function SupplierOrderPortal() {
     )
   }
 
-  const { order, project, supplier, items, documents, messages, organization } = data
+  const { order, project, supplier, items, documents, messages, activities, organization } = data
 
   // Add null safety
   const safeOrganization = organization || { name: 'Meisner Interiors', logo: null, phone: null, email: null, address: null }
@@ -1133,6 +1142,44 @@ export default function SupplierOrderPortal() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Activity Timeline */}
+            {activities && activities.length > 0 && (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Clock className="w-4 h-4 text-gray-500" />
+                    <h3 className="font-semibold text-gray-900">Activity</h3>
+                  </div>
+                  <div className="space-y-3 max-h-64 overflow-y-auto">
+                    {activities.slice(0, 15).map((activity, idx) => (
+                      <div key={activity.id} className="flex gap-3 text-sm">
+                        <div className="flex flex-col items-center">
+                          <div className={`w-2 h-2 rounded-full mt-1.5 ${
+                            activity.type === 'PO_SENT' ? 'bg-blue-500' :
+                            activity.type === 'PAYMENT_MADE' || activity.type === 'PAYMENT_RECORDED' ? 'bg-green-500' :
+                            activity.type === 'ORDER_CONFIRMED' ? 'bg-emerald-500' :
+                            activity.type === 'ORDER_SHIPPED' ? 'bg-purple-500' :
+                            activity.type === 'ORDER_DELIVERED' ? 'bg-green-600' :
+                            activity.type === 'ORDER_CREATED' ? 'bg-gray-400' :
+                            'bg-gray-300'
+                          }`} />
+                          {idx < activities.length - 1 && (
+                            <div className="w-px h-full bg-gray-200 my-1" />
+                          )}
+                        </div>
+                        <div className="flex-1 pb-3">
+                          <p className="text-gray-700">{activity.message}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {formatDateTime(activity.createdAt)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
 

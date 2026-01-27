@@ -116,6 +116,22 @@ export async function GET(
         },
         deliveries: {
           orderBy: { createdAt: 'desc' }
+        },
+        activities: {
+          where: {
+            // Filter out internal activities like SUPPLIER_VIEWED
+            NOT: {
+              type: { in: ['SUPPLIER_VIEWED'] }
+            }
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+          select: {
+            id: true,
+            type: true,
+            message: true,
+            createdAt: true
+          }
         }
       }
     })
@@ -290,6 +306,12 @@ export async function GET(
         actualDate: del.actualDate,
         notes: del.notes,
         createdAt: del.createdAt
+      })),
+      activities: order.activities.map(act => ({
+        id: act.id,
+        type: act.type,
+        message: act.message,
+        createdAt: act.createdAt
       })),
       organization: {
         name: organization?.businessName || organization?.name || 'Company',

@@ -130,21 +130,41 @@ export async function POST(request: NextRequest) {
     if ((type === 'CREDIT_CARD' || type === 'DEBIT_CARD') && cardNumber) {
       const cleanCardNumber = cardNumber.replace(/\D/g, '')
 
-      // Validate card number
-      if (!validateCardNumber(cleanCardNumber)) {
-        return NextResponse.json({ error: 'Invalid card number' }, { status: 400 })
+      // Check card number length first
+      if (cleanCardNumber.length < 13 || cleanCardNumber.length > 19) {
+        return NextResponse.json({ error: 'Card number must be 13-19 digits' }, { status: 400 })
       }
 
-      // Validate expiry
-      if (expiryMonth && expiryYear && !validateExpiry(expiryMonth, expiryYear)) {
+      // Validate card number using Luhn algorithm
+      if (!validateCardNumber(cleanCardNumber)) {
+        return NextResponse.json({ error: 'Invalid card number - please check the number and try again' }, { status: 400 })
+      }
+
+      // Validate expiry is provided
+      if (!expiryMonth || !expiryYear) {
+        return NextResponse.json({ error: 'Expiry month and year are required' }, { status: 400 })
+      }
+
+      // Validate expiry values
+      const expMonth = parseInt(expiryMonth)
+      const expYear = parseInt(expiryYear)
+
+      if (isNaN(expMonth) || isNaN(expYear)) {
+        return NextResponse.json({ error: 'Invalid expiry date format' }, { status: 400 })
+      }
+
+      if (!validateExpiry(expMonth, expYear)) {
         return NextResponse.json({ error: 'Card has expired or invalid expiry date' }, { status: 400 })
       }
 
       const detectedBrand = detectCardBrand(cleanCardNumber)
 
       // Validate CVV if provided
-      if (cvv && !validateCvv(cvv, detectedBrand)) {
-        return NextResponse.json({ error: 'Invalid CVV' }, { status: 400 })
+      if (cvv) {
+        if (!validateCvv(cvv, detectedBrand)) {
+          const expectedLength = detectedBrand === 'AMEX' ? '4' : '3'
+          return NextResponse.json({ error: `Invalid CVV - ${detectedBrand === 'AMEX' ? 'AMEX' : 'this card'} requires ${expectedLength} digits` }, { status: 400 })
+        }
       }
 
       // If setting as default, unset other defaults
