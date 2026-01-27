@@ -67,7 +67,7 @@ export async function GET(
       where: { id: orgId },
       select: {
         name: true,
-        logo: true,
+        logoUrl: true,
         businessName: true,
         businessAddress: true,
         businessCity: true,
@@ -139,7 +139,7 @@ export async function GET(
 
     const organizationData = {
       name: organization?.name || 'Company',
-      logoUrl: organization?.logo,
+      logoUrl: organization?.logoUrl,
       businessName: organization?.businessName,
       businessAddress: organization?.businessAddress,
       businessCity: organization?.businessCity,

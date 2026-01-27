@@ -50,7 +50,6 @@ export async function GET(
                 modelNumber: true,
                 color: true,
                 finish: true,
-                dimensions: true,
                 images: true,
                 leadTime: true
               }
@@ -100,7 +99,7 @@ export async function GET(
       where: { id: order.orgId },
       select: {
         name: true,
-        logo: true,
+        logoUrl: true,
         businessName: true,
         businessPhone: true,
         businessEmail: true,
@@ -178,7 +177,6 @@ export async function GET(
         brand: item.roomFFEItem?.brand,
         color: item.roomFFEItem?.color,
         finish: item.roomFFEItem?.finish,
-        dimensions: item.roomFFEItem?.dimensions,
         images: item.roomFFEItem?.images,
         leadTime: item.supplierQuoteLineItem?.leadTime || item.roomFFEItem?.leadTime
       })),
@@ -213,7 +211,7 @@ export async function GET(
       })),
       organization: {
         name: organization?.businessName || organization?.name || 'Company',
-        logo: organization?.logo,
+        logo: organization?.logoUrl,
         phone: organization?.businessPhone,
         email: organization?.businessEmail,
         address: organization?.address

@@ -148,7 +148,7 @@ export async function POST(
       where: { id: orgId },
       select: {
         name: true,
-        logo: true,
+        logoUrl: true,
         phone: true,
         email: true,
         address: true
@@ -200,7 +200,7 @@ export async function POST(
       projectName: order.project.name,
       projectAddress: order.project.address,
       companyName: organization?.name || 'Meisner Interiors',
-      companyLogo: organization?.logo || `${process.env.NEXT_PUBLIC_BASE_URL || 'https://residentone-workflow.vercel.app'}/meisnerinteriorlogo.png`,
+      companyLogo: organization?.logoUrl || `${process.env.NEXT_PUBLIC_BASE_URL || 'https://residentone-workflow.vercel.app'}/meisnerinteriorlogo.png`,
       companyPhone: organization?.phone || undefined,
       companyEmail: organization?.email || 'projects@meisnerinteriors.com',
       companyAddress: organization?.address || undefined,
@@ -404,7 +404,7 @@ export async function GET(
       where: { id: orgId },
       select: {
         name: true,
-        logo: true,
+        logoUrl: true,
         phone: true,
         email: true,
         address: true
@@ -419,7 +419,7 @@ export async function GET(
       projectName: order.project.name,
       projectAddress: order.project.address,
       companyName: organization?.name || 'Meisner Interiors',
-      companyLogo: organization?.logo || `${process.env.NEXT_PUBLIC_BASE_URL || 'https://residentone-workflow.vercel.app'}/meisnerinteriorlogo.png`,
+      companyLogo: organization?.logoUrl || `${process.env.NEXT_PUBLIC_BASE_URL || 'https://residentone-workflow.vercel.app'}/meisnerinteriorlogo.png`,
       companyPhone: organization?.phone || undefined,
       companyEmail: organization?.email || 'projects@meisnerinteriors.com',
       companyAddress: organization?.address || undefined,
