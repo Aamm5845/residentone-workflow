@@ -399,17 +399,6 @@ export default function OrderDetailsDialog({
   const status = statusConfig[order.status] || { label: order.status, color: 'bg-gray-100 text-gray-600' }
   const canDelete = order.status === 'PENDING_PAYMENT' || order.status === 'PAYMENT_RECEIVED'
 
-  // Group items by parent
-  const mainItems = order.items.filter(i => !i.isComponent)
-  const componentsByParent = order.items
-    .filter(i => i.isComponent)
-    .reduce((acc, item) => {
-      const parentId = item.parentItemId || 'unknown'
-      if (!acc[parentId]) acc[parentId] = []
-      acc[parentId].push(item)
-      return acc
-    }, {} as Record<string, OrderItem[]>)
-
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -483,34 +472,40 @@ export default function OrderDetailsDialog({
               </TabsList>
 
               <TabsContent value="details" className="space-y-6">
-                {/* Supplier Info */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                    <Building2 className="w-4 h-4" />
-                    Supplier
-                  </h3>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                {/* Project & Client Info - matches Create PO */}
+                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg space-y-2">
+                  <div className="flex items-start justify-between">
                     <div>
-                      <p className="font-medium">{order.supplier?.name || order.vendorName}</p>
-                      {order.supplier?.contactName && (
-                        <p className="text-gray-500 flex items-center gap-1">
-                          <User className="w-3 h-3" />
-                          {order.supplier.contactName}
-                        </p>
-                      )}
+                      <p className="text-xs text-gray-500 uppercase tracking-wide">Project</p>
+                      <p className="font-semibold text-gray-900">{order.project.name}</p>
                     </div>
-                    <div className="space-y-1">
+                    {order.project.client && (
+                      <div className="text-right">
+                        <p className="text-xs text-gray-500 uppercase tracking-wide">Client</p>
+                        <p className="font-medium text-gray-900">{order.project.client.name}</p>
+                      </div>
+                    )}
+                  </div>
+                  {order.shippingAddress && (
+                    <div className="pt-2 border-t border-gray-200">
+                      <p className="text-xs text-gray-500 uppercase tracking-wide">Ship To</p>
+                      <p className="text-sm text-gray-700">{order.shippingAddress}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Supplier Info - matches Create PO */}
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-xs text-blue-600 uppercase tracking-wide mb-1">Supplier</p>
+                  <div className="flex items-center gap-3">
+                    <Building2 className="w-5 h-5 text-blue-600" />
+                    <div>
+                      <p className="font-medium text-blue-900">{order.supplier?.name || order.vendorName}</p>
                       {(order.supplier?.email || order.vendorEmail) && (
-                        <p className="text-gray-500 flex items-center gap-1">
-                          <Mail className="w-3 h-3" />
-                          {order.supplier?.email || order.vendorEmail}
-                        </p>
+                        <p className="text-sm text-blue-700">{order.supplier?.email || order.vendorEmail}</p>
                       )}
                       {order.supplier?.phone && (
-                        <p className="text-gray-500 flex items-center gap-1">
-                          <Phone className="w-3 h-3" />
-                          {order.supplier.phone}
-                        </p>
+                        <p className="text-sm text-blue-700">{order.supplier.phone}</p>
                       )}
                     </div>
                   </div>
@@ -705,58 +700,82 @@ export default function OrderDetailsDialog({
                 </div>
               </TabsContent>
 
-              <TabsContent value="items" className="space-y-4">
-                {mainItems.map(item => {
-                  const components = componentsByParent[item.roomFFEItem?.id || ''] || []
-                  return (
-                    <div key={item.id} className="border rounded-lg overflow-hidden">
-                      <div className="p-3 bg-white">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-start gap-3">
-                            {item.roomFFEItem?.images?.[0] && (
-                              <img
-                                src={item.roomFFEItem.images[0]}
-                                alt={item.name}
-                                className="w-12 h-12 object-cover rounded"
-                              />
-                            )}
-                            <div>
-                              <p className="font-medium text-gray-900">{item.name}</p>
-                              {item.roomFFEItem?.modelNumber && (
-                                <p className="text-xs text-gray-500">{item.roomFFEItem.modelNumber}</p>
-                              )}
-                              <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-medium">{formatCurrency(item.totalPrice, order.currency)}</p>
-                            <p className="text-xs text-gray-500">
-                              {formatCurrency(item.unitPrice, order.currency)} each
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      {components.length > 0 && (
-                        <div className="border-t bg-gray-50 px-3 py-2">
-                          <div className="space-y-1">
-                            {components.map(comp => (
-                              <div
-                                key={comp.id}
-                                className="flex items-center justify-between text-sm text-gray-600"
-                              >
-                                <span>
-                                  {comp.name}
-                                  {comp.quantity > 1 && <span className="ml-1">×{comp.quantity}</span>}
-                                </span>
-                                <span>{formatCurrency(comp.totalPrice, order.currency)}</span>
-                              </div>
-                            ))}
-                          </div>
+              <TabsContent value="items" className="space-y-2">
+                {/* Show all items as flat list - matches Create PO dialog */}
+                {order.items.map(item => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between p-3 bg-white border rounded-lg"
+                  >
+                    <div className="flex items-center gap-3">
+                      {item.roomFFEItem?.images?.[0] ? (
+                        <img
+                          src={item.roomFFEItem.images[0]}
+                          alt={item.name}
+                          className="w-10 h-10 object-cover rounded border"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 bg-gray-100 rounded border flex items-center justify-center">
+                          <Package className="w-5 h-5 text-gray-400" />
                         </div>
                       )}
+                      <div>
+                        <p className="font-medium text-gray-900">{item.name}</p>
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          {item.roomFFEItem?.modelNumber && (
+                            <>
+                              <span>{item.roomFFEItem.modelNumber}</span>
+                              <span>•</span>
+                            </>
+                          )}
+                          <span>Qty: {item.quantity}</span>
+                        </div>
+                      </div>
                     </div>
-                  )
-                })}
+                    <div className="text-right">
+                      <p className="font-medium text-gray-900">
+                        {formatCurrency(item.totalPrice, order.currency)}
+                      </p>
+                      {item.quantity > 1 && (
+                        <p className="text-xs text-gray-500">
+                          {formatCurrency(item.unitPrice, order.currency)} × {item.quantity}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {/* Totals section - matches Create PO dialog */}
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg space-y-2 mt-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-emerald-700">Items Subtotal ({order.items.length})</p>
+                    <p className="font-medium text-emerald-800">
+                      {formatCurrency(order.subtotal, order.currency)}
+                    </p>
+                  </div>
+                  {order.shippingCost && parseFloat(order.shippingCost) > 0 && (
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-emerald-700">Shipping</p>
+                      <p className="font-medium text-emerald-800">
+                        {formatCurrency(order.shippingCost, order.currency)}
+                      </p>
+                    </div>
+                  )}
+                  {order.taxAmount && parseFloat(order.taxAmount) > 0 && (
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-emerald-700">Tax</p>
+                      <p className="font-medium text-emerald-800">
+                        {formatCurrency(order.taxAmount, order.currency)}
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between pt-2 border-t border-emerald-200">
+                    <p className="font-semibold text-emerald-800">Total</p>
+                    <p className="text-xl font-bold text-emerald-900">
+                      {formatCurrency(order.totalAmount, order.currency)}
+                    </p>
+                  </div>
+                </div>
               </TabsContent>
 
               <TabsContent value="payment" className="space-y-4">
