@@ -10,6 +10,7 @@ import {
   DialogDescription
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
@@ -27,7 +28,12 @@ import {
   Building2,
   CreditCard,
   Truck,
-  AlertCircle
+  AlertCircle,
+  Plus,
+  X,
+  FileCheck,
+  AlertTriangle,
+  CheckCircle2
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -38,6 +44,14 @@ interface ItemComponent {
   price: number | null
   quantity: number
   imageUrl: string | null
+}
+
+interface SupplierQuoteInfo {
+  id: string
+  unitPrice: number
+  totalPrice: number
+  shippingCost: number | null
+  currency: string
 }
 
 interface POItem {
@@ -52,6 +66,7 @@ interface POItem {
   hasQuote: boolean
   quoteUnitPrice: number | null
   quoteShippingCost: number | null
+  supplierQuote: SupplierQuoteInfo | null
   components: ItemComponent[]
 }
 
@@ -65,6 +80,14 @@ interface FlatItem {
   currency: string
   isComponent: boolean
   parentName?: string
+  hasQuote: boolean
+  quoteUnitPrice: number | null
+}
+
+interface ExtraCharge {
+  id: string
+  label: string
+  amount: number
 }
 
 interface SavedPaymentMethod {
@@ -120,6 +143,11 @@ export default function CreatePODialog({
   const [notes, setNotes] = useState('')
   const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string>('')
 
+  // Extra charges
+  const [extraCharges, setExtraCharges] = useState<ExtraCharge[]>([])
+  const [newChargeLabel, setNewChargeLabel] = useState('')
+  const [newChargeAmount, setNewChargeAmount] = useState('')
+
   // Fetch items for this supplier
   const fetchItems = useCallback(async () => {
     setLoading(true)
@@ -134,7 +162,7 @@ export default function CreatePODialog({
         )
         if (supplierGroup) {
           setGroupCurrency(supplierGroup.currency || 'CAD')
-          setItems(supplierGroup.items.map((item: any) => ({
+          const fetchedItems = supplierGroup.items.map((item: any) => ({
             id: item.id,
             name: item.name,
             description: item.description,
@@ -146,8 +174,20 @@ export default function CreatePODialog({
             hasQuote: !!item.supplierQuote,
             quoteUnitPrice: item.supplierQuote?.unitPrice || null,
             quoteShippingCost: item.supplierQuote?.shippingCost || null,
+            supplierQuote: item.supplierQuote || null,
             components: item.components || []
-          })))
+          }))
+          setItems(fetchedItems)
+
+          // Auto-add shipping from quote if exists
+          const quoteShipping = fetchedItems.find((i: POItem) => i.quoteShippingCost && i.quoteShippingCost > 0)
+          if (quoteShipping && quoteShipping.quoteShippingCost) {
+            setExtraCharges([{
+              id: 'quote-shipping',
+              label: 'Shipping (from quote)',
+              amount: quoteShipping.quoteShippingCost
+            }])
+          }
         } else {
           setItems([])
         }
@@ -184,10 +224,13 @@ export default function CreatePODialog({
       setShippingAddress(project?.defaultShippingAddress || '')
       setNotes('')
       setSelectedPaymentMethodId('')
+      setExtraCharges([])
+      setNewChargeLabel('')
+      setNewChargeAmount('')
     }
   }, [open, fetchItems, fetchPaymentMethods, project?.defaultShippingAddress])
 
-  // Flatten items and components into single list (like OrdersTab)
+  // Flatten items and components into single list
   const flatItems: FlatItem[] = []
   items.forEach(item => {
     const unitPrice = item.quoteUnitPrice || item.tradePrice
@@ -199,7 +242,9 @@ export default function CreatePODialog({
       imageUrl: item.imageUrl,
       unitPrice,
       currency: item.currency || groupCurrency,
-      isComponent: false
+      isComponent: false,
+      hasQuote: item.hasQuote,
+      quoteUnitPrice: item.quoteUnitPrice
     })
     // Add components as separate items
     if (item.components && item.components.length > 0) {
@@ -213,35 +258,97 @@ export default function CreatePODialog({
           unitPrice: comp.price,
           currency: item.currency || groupCurrency,
           isComponent: true,
-          parentName: item.name
+          parentName: item.name,
+          hasQuote: false,
+          quoteUnitPrice: null
         })
       })
     }
   })
 
-  // Calculate total
-  const calculateTotal = () => {
-    let subtotal = 0
-    let shipping = 0
+  // Calculate totals
+  const calculateTotals = () => {
+    let itemsSubtotal = 0
     flatItems.forEach(item => {
-      subtotal += (item.unitPrice || 0) * item.quantity
+      itemsSubtotal += (item.unitPrice || 0) * item.quantity
     })
-    // Add shipping from first item with quote shipping
-    const itemWithShipping = items.find(i => i.quoteShippingCost && i.quoteShippingCost > 0)
-    if (itemWithShipping) {
-      shipping = itemWithShipping.quoteShippingCost || 0
+
+    const extraChargesTotal = extraCharges.reduce((sum, c) => sum + c.amount, 0)
+
+    return {
+      itemsSubtotal,
+      extraChargesTotal,
+      total: itemsSubtotal + extraChargesTotal
     }
-    return { subtotal, shipping, total: subtotal + shipping }
   }
 
-  const totals = calculateTotal()
+  const totals = calculateTotals()
+
+  // Quote comparison
+  const getQuoteComparison = () => {
+    const itemsWithQuotes = items.filter(i => i.hasQuote && i.supplierQuote)
+    if (itemsWithQuotes.length === 0) return null
+
+    let quoteItemsTotal = 0
+    let quoteShipping = 0
+
+    itemsWithQuotes.forEach(item => {
+      if (item.supplierQuote) {
+        quoteItemsTotal += item.supplierQuote.unitPrice * item.quantity
+        if (item.supplierQuote.shippingCost && quoteShipping === 0) {
+          quoteShipping = item.supplierQuote.shippingCost
+        }
+      }
+    })
+
+    const quoteTotal = quoteItemsTotal + quoteShipping
+    const poTotal = totals.total
+    const difference = poTotal - quoteTotal
+
+    // Check if shipping from quote is in extra charges
+    const hasQuoteShippingInCharges = extraCharges.some(c => c.id === 'quote-shipping')
+    const missingShipping = quoteShipping > 0 && !hasQuoteShippingInCharges
+
+    return {
+      itemsWithQuotes: itemsWithQuotes.length,
+      totalItems: items.length,
+      quoteItemsTotal,
+      quoteShipping,
+      quoteTotal,
+      poTotal,
+      difference,
+      missingShipping,
+      matches: Math.abs(difference) < 0.01
+    }
+  }
+
+  const quoteComparison = getQuoteComparison()
 
   const formatCurrency = (amount: number) => {
-    // Always use CAD format for consistent "$" symbol
     return new Intl.NumberFormat('en-CA', {
       style: 'currency',
       currency: 'CAD'
     }).format(amount)
+  }
+
+  const addExtraCharge = () => {
+    if (!newChargeLabel.trim() || !newChargeAmount) return
+    const amount = parseFloat(newChargeAmount)
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Please enter a valid amount')
+      return
+    }
+    setExtraCharges([...extraCharges, {
+      id: `charge-${Date.now()}`,
+      label: newChargeLabel.trim(),
+      amount
+    }])
+    setNewChargeLabel('')
+    setNewChargeAmount('')
+  }
+
+  const removeExtraCharge = (id: string) => {
+    setExtraCharges(extraCharges.filter(c => c.id !== id))
   }
 
   const handleCreate = async () => {
@@ -250,7 +357,6 @@ export default function CreatePODialog({
       return
     }
 
-    // Check if all items have prices
     const itemsWithoutPrices = flatItems.filter(i => !i.unitPrice)
     if (itemsWithoutPrices.length > 0) {
       toast.error(`${itemsWithoutPrices.length} item(s) don't have trade prices`)
@@ -259,7 +365,6 @@ export default function CreatePODialog({
 
     setCreating(true)
     try {
-      // Only send main items (not components) - components are linked to parent items
       const mainItems = items.map(item => ({
         roomFFEItemId: item.id,
         unitPrice: item.quoteUnitPrice || item.tradePrice || 0,
@@ -276,7 +381,9 @@ export default function CreatePODialog({
           items: mainItems,
           shippingAddress: shippingAddress.trim() || undefined,
           notes: notes.trim() || undefined,
-          savedPaymentMethodId: selectedPaymentMethodId || undefined
+          savedPaymentMethodId: selectedPaymentMethodId || undefined,
+          shippingCost: extraCharges.find(c => c.label.toLowerCase().includes('shipping'))?.amount || undefined,
+          extraCharges: extraCharges.filter(c => !c.label.toLowerCase().includes('shipping'))
         })
       })
 
@@ -349,6 +456,69 @@ export default function CreatePODialog({
               </div>
             </div>
 
+            {/* Quote Comparison */}
+            {quoteComparison && (
+              <div className={`p-4 rounded-lg border ${
+                quoteComparison.matches
+                  ? 'bg-green-50 border-green-200'
+                  : quoteComparison.missingShipping
+                    ? 'bg-amber-50 border-amber-200'
+                    : 'bg-blue-50 border-blue-200'
+              }`}>
+                <div className="flex items-center gap-2 mb-2">
+                  <FileCheck className={`w-4 h-4 ${
+                    quoteComparison.matches ? 'text-green-600' :
+                    quoteComparison.missingShipping ? 'text-amber-600' : 'text-blue-600'
+                  }`} />
+                  <p className={`text-sm font-medium ${
+                    quoteComparison.matches ? 'text-green-800' :
+                    quoteComparison.missingShipping ? 'text-amber-800' : 'text-blue-800'
+                  }`}>
+                    Quote Comparison ({quoteComparison.itemsWithQuotes}/{quoteComparison.totalItems} items have quotes)
+                  </p>
+                </div>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Quote Items Total:</span>
+                    <span>{formatCurrency(quoteComparison.quoteItemsTotal)}{groupCurrency === 'USD' ? ' USD' : ''}</span>
+                  </div>
+                  {quoteComparison.quoteShipping > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Quote Shipping:</span>
+                      <span>{formatCurrency(quoteComparison.quoteShipping)}{groupCurrency === 'USD' ? ' USD' : ''}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-medium border-t pt-1 mt-1">
+                    <span>Quote Total:</span>
+                    <span>{formatCurrency(quoteComparison.quoteTotal)}{groupCurrency === 'USD' ? ' USD' : ''}</span>
+                  </div>
+                  <div className="flex justify-between font-medium">
+                    <span>PO Total:</span>
+                    <span>{formatCurrency(quoteComparison.poTotal)}{groupCurrency === 'USD' ? ' USD' : ''}</span>
+                  </div>
+                  {!quoteComparison.matches && (
+                    <div className={`flex justify-between font-medium ${
+                      quoteComparison.difference > 0 ? 'text-amber-700' : 'text-green-700'
+                    }`}>
+                      <span>Difference:</span>
+                      <span>{quoteComparison.difference > 0 ? '+' : ''}{formatCurrency(quoteComparison.difference)}</span>
+                    </div>
+                  )}
+                </div>
+                {quoteComparison.matches ? (
+                  <div className="flex items-center gap-1 mt-2 text-green-700 text-sm">
+                    <CheckCircle2 className="w-4 h-4" />
+                    PO matches quote total
+                  </div>
+                ) : quoteComparison.missingShipping ? (
+                  <div className="flex items-center gap-1 mt-2 text-amber-700 text-sm">
+                    <AlertTriangle className="w-4 h-4" />
+                    Quote has shipping cost not included in PO
+                  </div>
+                ) : null}
+              </div>
+            )}
+
             {/* Items */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -382,7 +552,6 @@ export default function CreatePODialog({
                         className="flex items-center justify-between p-3 bg-white border rounded-lg"
                       >
                         <div className="flex items-center gap-3">
-                          {/* Item Image */}
                           {item.imageUrl ? (
                             <img
                               src={item.imageUrl}
@@ -400,6 +569,11 @@ export default function CreatePODialog({
                               {item.isComponent && (
                                 <span className="ml-2 text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
                                   Component
+                                </span>
+                              )}
+                              {item.hasQuote && (
+                                <span className="ml-2 text-xs text-green-600 bg-green-50 px-1.5 py-0.5 rounded">
+                                  Quoted
                                 </span>
                               )}
                             </p>
@@ -439,6 +613,68 @@ export default function CreatePODialog({
                   })}
                 </div>
               )}
+            </div>
+
+            {/* Extra Charges */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-gray-900">
+                Additional Charges
+              </h3>
+
+              {extraCharges.length > 0 && (
+                <div className="space-y-2">
+                  {extraCharges.map(charge => (
+                    <div
+                      key={charge.id}
+                      className="flex items-center justify-between p-3 bg-white border rounded-lg"
+                    >
+                      <span className="text-sm text-gray-700">{charge.label}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">
+                          {formatCurrency(charge.amount)}{groupCurrency === 'USD' ? ' USD' : ''}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 text-gray-400 hover:text-red-500"
+                          onClick={() => removeExtraCharge(charge.id)}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="Delivery, Tax, Installation..."
+                  value={newChargeLabel}
+                  onChange={(e) => setNewChargeLabel(e.target.value)}
+                  className="flex-1"
+                />
+                <Input
+                  type="number"
+                  placeholder="Amount"
+                  value={newChargeAmount}
+                  onChange={(e) => setNewChargeAmount(e.target.value)}
+                  className="w-28"
+                  step="0.01"
+                  min="0"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={addExtraCharge}
+                  disabled={!newChargeLabel.trim() || !newChargeAmount}
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500">
+                Add delivery, tax, installation, or other charges
+              </p>
             </div>
 
             {/* Shipping Address */}
@@ -513,19 +749,19 @@ export default function CreatePODialog({
             {flatItems.length > 0 && (
               <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg space-y-2">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm text-emerald-700">Subtotal ({flatItems.length} items)</p>
+                  <p className="text-sm text-emerald-700">Items Subtotal ({flatItems.length})</p>
                   <p className="font-medium text-emerald-800">
-                    {formatCurrency(totals.subtotal)}{groupCurrency === 'USD' ? ' USD' : ''}
+                    {formatCurrency(totals.itemsSubtotal)}{groupCurrency === 'USD' ? ' USD' : ''}
                   </p>
                 </div>
-                {totals.shipping > 0 && (
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-emerald-700">Shipping (from quote)</p>
+                {extraCharges.map(charge => (
+                  <div key={charge.id} className="flex items-center justify-between">
+                    <p className="text-sm text-emerald-700">{charge.label}</p>
                     <p className="font-medium text-emerald-800">
-                      {formatCurrency(totals.shipping)}{groupCurrency === 'USD' ? ' USD' : ''}
+                      {formatCurrency(charge.amount)}{groupCurrency === 'USD' ? ' USD' : ''}
                     </p>
                   </div>
-                )}
+                ))}
                 <div className="flex items-center justify-between pt-2 border-t border-emerald-200">
                   <p className="font-semibold text-emerald-800">Total</p>
                   <p className="text-xl font-bold text-emerald-900">
