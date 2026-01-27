@@ -200,6 +200,14 @@ interface Order {
     items: number
     deliveries: number
   }
+  paymentSummary?: {
+    totalAmount: number
+    depositRequired: number
+    depositPaid: number
+    supplierPaymentAmount: number
+    remainingBalance: number
+    paymentStatus: 'NOT_STARTED' | 'DEPOSIT_PAID' | 'FULLY_PAID' | 'OVERPAID'
+  }
 }
 
 const orderStatusConfig: Record<string, { label: string; color: string }> = {
@@ -275,14 +283,18 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
       acc.inProgressValue += orderValue
     }
 
-    // Supplier payment tracking
+    // Supplier payment tracking - use paymentSummary for accurate tracking
     if (!isCancelled) {
-      if (order.supplierPaidAt) {
+      const paymentStatus = order.paymentSummary?.paymentStatus || 'NOT_STARTED'
+      const remainingBalance = order.paymentSummary?.remainingBalance ?? orderValue
+
+      if (paymentStatus === 'FULLY_PAID' || paymentStatus === 'OVERPAID') {
         acc.supplierPaid++
-        acc.supplierPaidValue += order.supplierPaymentAmount || orderValue
+        acc.supplierPaidValue += order.paymentSummary?.supplierPaymentAmount || orderValue
       } else {
+        // NOT_STARTED or DEPOSIT_PAID = still has unpaid balance
         acc.supplierUnpaid++
-        acc.supplierUnpaidValue += orderValue
+        acc.supplierUnpaidValue += remainingBalance
       }
     }
 
@@ -432,6 +444,8 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
     if (filterStatus) {
       const isCancelled = order.status === 'CANCELLED' || order.status === 'RETURNED'
       const isDelivered = order.status === 'DELIVERED' || order.status === 'INSTALLED' || order.status === 'COMPLETED'
+      const paymentStatus = order.paymentSummary?.paymentStatus || 'NOT_STARTED'
+      const isFullyPaid = paymentStatus === 'FULLY_PAID' || paymentStatus === 'OVERPAID'
 
       if (filterStatus === 'IN_PROGRESS') {
         // Everything that's not delivered or cancelled (includes shipped)
@@ -439,9 +453,10 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
       } else if (filterStatus === 'DELIVERED') {
         matchesStatus = isDelivered
       } else if (filterStatus === 'SUPPLIER_PAID') {
-        matchesStatus = !!order.supplierPaidAt && !isCancelled
+        matchesStatus = isFullyPaid && !isCancelled
       } else if (filterStatus === 'SUPPLIER_UNPAID') {
-        matchesStatus = !order.supplierPaidAt && !isCancelled
+        // Not fully paid = NOT_STARTED or DEPOSIT_PAID
+        matchesStatus = !isFullyPaid && !isCancelled
       } else {
         matchesStatus = order.status === filterStatus
       }
@@ -958,7 +973,10 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
               </TableHeader>
               <TableBody>
                 {filteredOrders.map((order) => {
-                  const supplierPaid = !!order.supplierPaidAt
+                  const paymentStatus = order.paymentSummary?.paymentStatus || 'NOT_STARTED'
+                  const remainingBalance = order.paymentSummary?.remainingBalance ?? (order.totalAmount || 0)
+                  const isFullyPaid = paymentStatus === 'FULLY_PAID' || paymentStatus === 'OVERPAID'
+                  const isPartiallyPaid = paymentStatus === 'DEPOSIT_PAID'
                   const statusConfig = orderStatusConfig[order.status] || { label: order.status, color: 'bg-gray-100 text-gray-600' }
 
                   return (
@@ -982,17 +1000,17 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                         <Badge className={statusConfig.color}>
                           {statusConfig.label}
                         </Badge>
-                        {order.orderedAt && (
-                          <div className="text-xs text-gray-400 mt-0.5">
-                            {formatDate(order.orderedAt)}
-                          </div>
-                        )}
                       </TableCell>
                       <TableCell>
-                        {supplierPaid ? (
+                        {isFullyPaid ? (
                           <Badge className="bg-emerald-50 text-emerald-700">
                             <Check className="w-3 h-3 mr-1" />
                             Paid
+                          </Badge>
+                        ) : isPartiallyPaid ? (
+                          <Badge className="bg-blue-50 text-blue-700">
+                            <Clock className="w-3 h-3 mr-1" />
+                            Partial ({formatCurrency(remainingBalance)} due)
                           </Badge>
                         ) : (
                           <Badge className="bg-amber-50 text-amber-700">
@@ -1019,7 +1037,7 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
 
                             <DropdownMenuSeparator />
 
-                            {!supplierPaid && (
+                            {!isFullyPaid && (
                               <DropdownMenuItem onClick={() => handleOpenPaymentDialog(order)}>
                                 <DollarSign className="w-4 h-4 mr-2" />
                                 Record Supplier Payment
