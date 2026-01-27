@@ -177,10 +177,10 @@ interface OrderDetailSheetProps {
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   PENDING_PAYMENT: { label: 'Pending Payment', color: 'bg-gray-100 text-gray-600' },
-  PAYMENT_RECEIVED: { label: 'Payment Received', color: 'bg-blue-50 text-blue-700' },
+  PAYMENT_RECEIVED: { label: 'Ready to Send', color: 'bg-blue-50 text-blue-700' },
   DEPOSIT_PAID: { label: 'Deposit Paid', color: 'bg-indigo-50 text-indigo-700' },
   PAID_TO_SUPPLIER: { label: 'Paid to Supplier', color: 'bg-purple-50 text-purple-700' },
-  ORDERED: { label: 'Ordered', color: 'bg-purple-50 text-purple-700' },
+  ORDERED: { label: 'Sent', color: 'bg-purple-50 text-purple-700' },
   CONFIRMED: { label: 'Confirmed', color: 'bg-indigo-50 text-indigo-700' },
   IN_PRODUCTION: { label: 'In Production', color: 'bg-amber-50 text-amber-700' },
   SHIPPED: { label: 'Shipped', color: 'bg-cyan-50 text-cyan-700' },
@@ -914,6 +914,47 @@ export default function OrderDetailSheet({
                   </Button>
                 </div>
               )}
+
+              {/* Activity Timeline */}
+              {order.activities && order.activities.length > 0 && (
+                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    Activity Timeline
+                  </h3>
+                  <div className="space-y-3">
+                    {order.activities.slice(0, 10).map((activity, idx) => (
+                      <div key={activity.id} className="flex gap-3 text-sm">
+                        <div className="flex flex-col items-center">
+                          <div className={`w-2 h-2 rounded-full ${
+                            activity.type === 'PO_SENT' ? 'bg-blue-500' :
+                            activity.type === 'PAYMENT_MADE' || activity.type === 'PAYMENT_RECORDED' ? 'bg-green-500' :
+                            activity.type === 'SUPPLIER_CONFIRMED' ? 'bg-purple-500' :
+                            activity.type === 'SHIPPED' ? 'bg-cyan-500' :
+                            activity.type === 'DELIVERED' ? 'bg-emerald-500' :
+                            'bg-gray-400'
+                          }`} />
+                          {idx < order.activities.slice(0, 10).length - 1 && (
+                            <div className="w-px h-full bg-gray-200 mt-1" />
+                          )}
+                        </div>
+                        <div className="flex-1 pb-3">
+                          <p className="text-gray-700">{activity.message}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {formatDate(activity.createdAt)}
+                            {activity.user?.name && ` • ${activity.user.name}`}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {order.activities.length > 10 && (
+                    <p className="text-xs text-gray-500 mt-2 text-center">
+                      +{order.activities.length - 10} more activities
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -978,7 +1019,7 @@ export default function OrderDetailSheet({
                       className="bg-blue-600 hover:bg-blue-700"
                     >
                       <Send className="w-4 h-4 mr-1" />
-                      Send PO
+                      {order?.orderedAt ? 'Resend PO' : 'Send PO'}
                     </Button>
                   </>
                 )}
@@ -1159,6 +1200,7 @@ export default function OrderDetailSheet({
             currency: order.currency,
             shippingAddress: order.shippingAddress || undefined,
             expectedDelivery: order.expectedDelivery || undefined,
+            orderedAt: order.orderedAt,  // Track if already sent
             items: order.items.map(item => ({
               id: item.id,
               name: item.name,

@@ -204,8 +204,8 @@ interface Order {
 
 const orderStatusConfig: Record<string, { label: string; color: string }> = {
   PENDING_PAYMENT: { label: 'Pending Payment', color: 'bg-gray-100 text-gray-600' },
-  PAYMENT_RECEIVED: { label: 'Payment Received', color: 'bg-blue-50 text-blue-700' },
-  ORDERED: { label: 'Ordered', color: 'bg-purple-50 text-purple-700' },
+  PAYMENT_RECEIVED: { label: 'Ready to Send', color: 'bg-blue-50 text-blue-700' },
+  ORDERED: { label: 'Sent', color: 'bg-purple-50 text-purple-700' },
   CONFIRMED: { label: 'Confirmed', color: 'bg-indigo-50 text-indigo-700' },
   IN_PRODUCTION: { label: 'In Production', color: 'bg-amber-50 text-amber-700' },
   SHIPPED: { label: 'Shipped', color: 'bg-cyan-50 text-cyan-700' },
@@ -215,6 +215,22 @@ const orderStatusConfig: Record<string, { label: string; color: string }> = {
   COMPLETED: { label: 'Completed', color: 'bg-green-100 text-green-800' },
   CANCELLED: { label: 'Cancelled', color: 'bg-red-50 text-red-700' },
   RETURNED: { label: 'Returned', color: 'bg-orange-50 text-orange-700' },
+}
+
+// Stats interface for summary cards
+interface OrderStats {
+  total: number
+  totalValue: number
+  inProgress: number         // Active orders (not delivered/cancelled)
+  inProgressValue: number
+  shipped: number            // SHIPPED or IN_TRANSIT
+  shippedValue: number
+  delivered: number          // DELIVERED, INSTALLED, COMPLETED
+  deliveredValue: number
+  supplierPaid: number       // Orders where supplier has been paid
+  supplierPaidValue: number
+  supplierUnpaid: number     // Orders where supplier hasn't been paid
+  supplierUnpaidValue: number
 }
 
 const paymentMethods = [
@@ -231,6 +247,60 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+  const [filterStatus, setFilterStatus] = useState<string | null>(null)
+
+  // Calculate stats from orders
+  const stats: OrderStats = orders.reduce((acc, order) => {
+    const orderValue = order.totalAmount || 0
+    const isCancelled = order.status === 'CANCELLED' || order.status === 'RETURNED'
+
+    if (!isCancelled) {
+      acc.total++
+      acc.totalValue += orderValue
+    }
+
+    // Fulfillment status counts
+    const isDelivered = order.status === 'DELIVERED' || order.status === 'INSTALLED' || order.status === 'COMPLETED'
+    const isShipped = order.status === 'SHIPPED' || order.status === 'IN_TRANSIT'
+
+    if (isDelivered) {
+      acc.delivered++
+      acc.deliveredValue += orderValue
+    } else if (isShipped) {
+      acc.shipped++
+      acc.shippedValue += orderValue
+    } else if (!isCancelled) {
+      // In progress = everything else (PAYMENT_RECEIVED, ORDERED, CONFIRMED, IN_PRODUCTION)
+      acc.inProgress++
+      acc.inProgressValue += orderValue
+    }
+
+    // Supplier payment tracking
+    if (!isCancelled) {
+      if (order.supplierPaidAt) {
+        acc.supplierPaid++
+        acc.supplierPaidValue += order.supplierPaymentAmount || orderValue
+      } else {
+        acc.supplierUnpaid++
+        acc.supplierUnpaidValue += orderValue
+      }
+    }
+
+    return acc
+  }, {
+    total: 0,
+    totalValue: 0,
+    inProgress: 0,
+    inProgressValue: 0,
+    shipped: 0,
+    shippedValue: 0,
+    delivered: 0,
+    deliveredValue: 0,
+    supplierPaid: 0,
+    supplierPaidValue: 0,
+    supplierUnpaid: 0,
+    supplierUnpaidValue: 0
+  } as OrderStats)
 
   // Ready to order state
   const [readyToOrder, setReadyToOrder] = useState<ReadyToOrderData | null>(null)
@@ -350,11 +420,38 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
   }
 
   // Filter orders based on search
-  const filteredOrders = orders.filter(order =>
-    !searchQuery ||
-    order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (order.supplier?.name || order.vendorName || '').toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  // Filter orders based on search and status filter
+  const filteredOrders = orders.filter(order => {
+    // Search filter
+    const matchesSearch = !searchQuery ||
+      order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (order.supplier?.name || order.vendorName || '').toLowerCase().includes(searchQuery.toLowerCase())
+
+    // Status filter
+    let matchesStatus = true
+    if (filterStatus) {
+      const isCancelled = order.status === 'CANCELLED' || order.status === 'RETURNED'
+      const isDelivered = order.status === 'DELIVERED' || order.status === 'INSTALLED' || order.status === 'COMPLETED'
+      const isShipped = order.status === 'SHIPPED' || order.status === 'IN_TRANSIT'
+
+      if (filterStatus === 'IN_PROGRESS') {
+        // Everything that's not shipped, delivered, or cancelled
+        matchesStatus = !isCancelled && !isDelivered && !isShipped
+      } else if (filterStatus === 'SHIPPED') {
+        matchesStatus = isShipped
+      } else if (filterStatus === 'DELIVERED') {
+        matchesStatus = isDelivered
+      } else if (filterStatus === 'SUPPLIER_PAID') {
+        matchesStatus = !!order.supplierPaidAt && !isCancelled
+      } else if (filterStatus === 'SUPPLIER_UNPAID') {
+        matchesStatus = !order.supplierPaidAt && !isCancelled
+      } else {
+        matchesStatus = order.status === filterStatus
+      }
+    }
+
+    return matchesSearch && matchesStatus
+  })
 
   const formatCurrency = (amount: number | null) => {
     if (amount === null) return '-'
@@ -720,11 +817,159 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
         </Card>
       )}
 
+      {/* Orders Summary Cards */}
+      {orders.length > 0 && (
+        <div className="grid grid-cols-3 gap-4">
+          {/* Total Orders */}
+          <Card className="border-gray-200">
+            <CardContent className="pt-5 pb-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Total Orders</p>
+                  <p className="text-2xl font-semibold text-gray-900 mt-1">{formatCurrency(stats.totalValue)}</p>
+                  <p className="text-xs text-gray-400 mt-1">{stats.total} orders</p>
+                </div>
+                <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center">
+                  <Package className="w-4 h-4 text-gray-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Paid to Supplier */}
+          <Card
+            className={`border-gray-200 cursor-pointer transition-all hover:shadow-md ${filterStatus === 'SUPPLIER_PAID' ? 'ring-2 ring-emerald-500' : ''}`}
+            onClick={() => setFilterStatus(filterStatus === 'SUPPLIER_PAID' ? null : 'SUPPLIER_PAID')}
+          >
+            <CardContent className="pt-5 pb-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Paid to Suppliers</p>
+                  <p className="text-2xl font-semibold text-emerald-600 mt-1">{formatCurrency(stats.supplierPaidValue)}</p>
+                  <p className="text-xs text-gray-400 mt-1">{stats.supplierPaid} orders paid</p>
+                </div>
+                <div className="w-9 h-9 bg-emerald-50 rounded-lg flex items-center justify-center">
+                  <Check className="w-4 h-4 text-emerald-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Needs Payment */}
+          <Card
+            className={`border-gray-200 cursor-pointer transition-all hover:shadow-md ${filterStatus === 'SUPPLIER_UNPAID' ? 'ring-2 ring-amber-500' : ''} ${stats.supplierUnpaid > 0 ? 'ring-1 ring-amber-200' : ''}`}
+            onClick={() => setFilterStatus(filterStatus === 'SUPPLIER_UNPAID' ? null : 'SUPPLIER_UNPAID')}
+          >
+            <CardContent className="pt-5 pb-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Needs Payment</p>
+                  <p className={`text-2xl font-semibold mt-1 ${stats.supplierUnpaid > 0 ? 'text-amber-600' : 'text-gray-400'}`}>
+                    {formatCurrency(stats.supplierUnpaidValue)}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">{stats.supplierUnpaid} orders unpaid</p>
+                </div>
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${stats.supplierUnpaid > 0 ? 'bg-amber-50' : 'bg-gray-100'}`}>
+                  <DollarSign className={`w-4 h-4 ${stats.supplierUnpaid > 0 ? 'text-amber-600' : 'text-gray-400'}`} />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Order Progress Cards */}
+      {orders.length > 0 && (
+        <div className="grid grid-cols-3 gap-4">
+          {/* In Progress */}
+          <Card
+            className={`border-gray-200 cursor-pointer transition-all hover:shadow-md ${filterStatus === 'IN_PROGRESS' ? 'ring-2 ring-blue-500' : ''}`}
+            onClick={() => setFilterStatus(filterStatus === 'IN_PROGRESS' ? null : 'IN_PROGRESS')}
+          >
+            <CardContent className="pt-4 pb-3 px-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-500">In Progress</p>
+                  <p className="text-xl font-semibold text-blue-600">{stats.inProgress}</p>
+                  <p className="text-xs text-gray-400">{formatCurrency(stats.inProgressValue)}</p>
+                </div>
+                <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+                  <RefreshCw className="w-4 h-4 text-blue-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Shipped */}
+          <Card
+            className={`border-gray-200 cursor-pointer transition-all hover:shadow-md ${filterStatus === 'SHIPPED' ? 'ring-2 ring-cyan-500' : ''}`}
+            onClick={() => setFilterStatus(filterStatus === 'SHIPPED' ? null : 'SHIPPED')}
+          >
+            <CardContent className="pt-4 pb-3 px-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-500">Shipped</p>
+                  <p className="text-xl font-semibold text-cyan-600">{stats.shipped}</p>
+                  <p className="text-xs text-gray-400">{formatCurrency(stats.shippedValue)}</p>
+                </div>
+                <div className="w-8 h-8 bg-cyan-50 rounded-lg flex items-center justify-center">
+                  <Truck className="w-4 h-4 text-cyan-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Delivered */}
+          <Card
+            className={`border-gray-200 cursor-pointer transition-all hover:shadow-md ${filterStatus === 'DELIVERED' ? 'ring-2 ring-emerald-500' : ''}`}
+            onClick={() => setFilterStatus(filterStatus === 'DELIVERED' ? null : 'DELIVERED')}
+          >
+            <CardContent className="pt-4 pb-3 px-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-500">Delivered</p>
+                  <p className="text-xl font-semibold text-emerald-600">{stats.delivered}</p>
+                  <p className="text-xs text-gray-400">{formatCurrency(stats.deliveredValue)}</p>
+                </div>
+                <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center">
+                  <Check className="w-4 h-4 text-emerald-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Orders Table */}
       <Card className="border-gray-200">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-semibold">Purchase Orders</CardTitle>
+            <div className="flex items-center gap-3">
+              <CardTitle className="text-base font-semibold">Purchase Orders</CardTitle>
+              {filterStatus && (
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="text-xs">
+                    Filtered: {
+                      filterStatus === 'IN_PROGRESS' ? 'In Progress' :
+                      filterStatus === 'SHIPPED' ? 'Shipped' :
+                      filterStatus === 'DELIVERED' ? 'Delivered' :
+                      filterStatus === 'SUPPLIER_PAID' ? 'Paid to Supplier' :
+                      filterStatus === 'SUPPLIER_UNPAID' ? 'Needs Payment' :
+                      filterStatus
+                    }
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs text-gray-500 hover:text-gray-700"
+                    onClick={() => setFilterStatus(null)}
+                  >
+                    <XCircle className="w-3 h-3 mr-1" />
+                    Clear
+                  </Button>
+                </div>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -788,10 +1033,9 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                   <TableHead className="text-gray-500 font-medium">PO #</TableHead>
                   <TableHead className="text-gray-500 font-medium">Supplier</TableHead>
                   <TableHead className="text-gray-500 font-medium">Items</TableHead>
-                  <TableHead className="text-gray-500 font-medium">Cost</TableHead>
-                  <TableHead className="text-gray-500 font-medium">Supplier Paid</TableHead>
+                  <TableHead className="text-gray-500 font-medium">Total</TableHead>
                   <TableHead className="text-gray-500 font-medium">Status</TableHead>
-                  <TableHead className="text-gray-500 font-medium">Ordered</TableHead>
+                  <TableHead className="text-gray-500 font-medium">Supplier Paid</TableHead>
                   <TableHead className="text-gray-500 font-medium w-[80px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -818,6 +1062,16 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                       </TableCell>
                       <TableCell className="font-medium text-gray-900">{formatCurrency(order.totalAmount)}</TableCell>
                       <TableCell>
+                        <Badge className={statusConfig.color}>
+                          {statusConfig.label}
+                        </Badge>
+                        {order.orderedAt && (
+                          <div className="text-xs text-gray-400 mt-0.5">
+                            {formatDate(order.orderedAt)}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
                         {supplierPaid ? (
                           <Badge className="bg-emerald-50 text-emerald-700">
                             <Check className="w-3 h-3 mr-1" />
@@ -829,14 +1083,6 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                             Unpaid
                           </Badge>
                         )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={statusConfig.color}>
-                          {statusConfig.label}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-gray-600 text-sm">
-                        {order.orderedAt ? formatDate(order.orderedAt) : '-'}
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>
@@ -854,12 +1100,13 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                               View Details
                             </DropdownMenuItem>
 
-                            {order.status === 'PENDING_PAYMENT' || order.status === 'PAYMENT_RECEIVED' ? (
+                            {/* Send/Resend PO - Show for all non-cancelled/completed orders */}
+                            {order.status !== 'CANCELLED' && order.status !== 'RETURNED' && (
                               <DropdownMenuItem onClick={() => handleOpenSendPO(order)}>
                                 <Send className="w-4 h-4 mr-2" />
-                                Send PO to Supplier
+                                {order.orderedAt ? 'Resend PO to Supplier' : 'Send PO to Supplier'}
                               </DropdownMenuItem>
-                            ) : null}
+                            )}
 
                             <DropdownMenuSeparator />
 
@@ -942,6 +1189,7 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
             currency: selectedOrder.currency,
             shippingAddress: undefined,
             expectedDelivery: selectedOrder.expectedDelivery || undefined,
+            orderedAt: selectedOrder.orderedAt,  // Track if already sent
             items: [] // Items are fetched by the dialog from the API
           }}
           onSuccess={() => {

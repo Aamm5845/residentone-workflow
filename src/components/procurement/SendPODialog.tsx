@@ -48,6 +48,7 @@ interface SendPODialogProps {
     expectedDelivery?: string | null
     billingAddress?: string | null
     savedPaymentMethodId?: string | null
+    orderedAt?: string | null  // Track if already sent
     items: OrderItem[]
   }
   onSuccess: () => void
@@ -191,10 +192,13 @@ export default function SendPODialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Send className="w-5 h-5 text-blue-600" />
-            Send Purchase Order
+            {order.orderedAt ? 'Resend Purchase Order' : 'Send Purchase Order'}
           </DialogTitle>
           <DialogDescription>
-            Review and send PO {order.orderNumber} to {order.vendorName}
+            {order.orderedAt
+              ? `Resend PO ${order.orderNumber} to ${order.vendorName} (previously sent)`
+              : `Review and send PO ${order.orderNumber} to ${order.vendorName}`
+            }
           </DialogDescription>
         </DialogHeader>
 
@@ -300,7 +304,7 @@ export default function SendPODialog({
             ) : (
               <Send className="w-4 h-4 mr-2" />
             )}
-            Send Purchase Order
+            {order.orderedAt ? 'Resend Purchase Order' : 'Send Purchase Order'}
           </Button>
         </DialogFooter>
       </DialogContent>

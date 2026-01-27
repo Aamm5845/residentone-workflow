@@ -161,27 +161,21 @@ export async function POST(
     }
 
     // Update deposit tracking based on payment type
+    // NOTE: We intentionally do NOT update the order status here
+    // The status field tracks fulfillment (ORDERED → SHIPPED → DELIVERED)
+    // Payment status is tracked separately via supplierPaymentAmount, depositPaid, etc.
     if (paymentType === 'DEPOSIT') {
       updateData.depositPaid = depositPaid + amount
       updateData.depositPaidAt = new Date()
       updateData.balanceDue = totalAmount - (depositPaid + amount)
-      // Update status to show deposit paid
-      if (depositPaid + amount >= depositRequired) {
-        updateData.status = 'DEPOSIT_PAID'
-      }
     } else if (paymentType === 'BALANCE' || paymentType === 'FULL') {
       updateData.balancePaidAt = new Date()
       if (currentPaid + amount >= totalAmount) {
         updateData.balanceDue = 0
-        updateData.status = 'PAID_TO_SUPPLIER'
       }
     }
 
-    // Check if fully paid
     const newTotalPaid = currentPaid + amount
-    if (newTotalPaid >= totalAmount) {
-      updateData.status = 'PAID_TO_SUPPLIER'
-    }
 
     const updatedOrder = await prisma.order.update({
       where: { id: orderId },
