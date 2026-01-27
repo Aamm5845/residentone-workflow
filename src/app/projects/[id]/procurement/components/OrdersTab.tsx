@@ -965,7 +965,8 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                   <TableHead className="text-gray-500 font-medium">PO #</TableHead>
                   <TableHead className="text-gray-500 font-medium">Supplier</TableHead>
                   <TableHead className="text-gray-500 font-medium">Items</TableHead>
-                  <TableHead className="text-gray-500 font-medium">Total / Paid</TableHead>
+                  <TableHead className="text-gray-500 font-medium">Total</TableHead>
+                  <TableHead className="text-gray-500 font-medium">Paid</TableHead>
                   <TableHead className="text-gray-500 font-medium">Status</TableHead>
                   <TableHead className="text-gray-500 font-medium">Payment</TableHead>
                   <TableHead className="text-gray-500 font-medium w-[80px]">Actions</TableHead>
@@ -994,11 +995,11 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                           {order._count.items} items
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        <div className="font-medium text-gray-900">{formatCurrency(order.totalAmount)}</div>
-                        <div className={`text-xs ${isFullyPaid ? 'text-emerald-600' : paidAmount > 0 ? 'text-blue-600' : 'text-gray-400'}`}>
-                          {formatCurrency(paidAmount)} paid
-                        </div>
+                      <TableCell className="font-medium text-gray-900">
+                        {formatCurrency(order.totalAmount)}
+                      </TableCell>
+                      <TableCell className={`font-medium ${isFullyPaid ? 'text-emerald-600' : paidAmount > 0 ? 'text-blue-600' : 'text-gray-400'}`}>
+                        {formatCurrency(paidAmount)}
                       </TableCell>
                       <TableCell>
                         <Badge className={statusConfig.color}>
