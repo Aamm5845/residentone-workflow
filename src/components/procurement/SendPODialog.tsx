@@ -457,7 +457,13 @@ export default function SendPODialog({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setShowTestEmailInput(!showTestEmailInput)}
+                    onClick={() => {
+                      if (!showTestEmailInput) {
+                        // Pre-fill with the supplier email when opening
+                        setTestEmail(email)
+                      }
+                      setShowTestEmailInput(!showTestEmailInput)
+                    }}
                     className="text-purple-600 hover:text-purple-700"
                   >
                     <TestTube className="w-4 h-4 mr-1" />

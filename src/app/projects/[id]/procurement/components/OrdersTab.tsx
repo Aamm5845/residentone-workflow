@@ -73,6 +73,7 @@ import {
 import { toast } from 'sonner'
 import CreatePODialog from './CreatePODialog'
 import OrderDetailSheet from './OrderDetailSheet'
+import SendPODialog from '@/components/procurement/SendPODialog'
 
 interface OrdersTabProps {
   projectId: string
@@ -253,17 +254,8 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
   const [orderToDelete, setOrderToDelete] = useState<Order | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  // Dialog states
-  const [sendPOOpen, setSendPOOpen] = useState(false)
-  const [sendingPO, setSendingPO] = useState(false)
-  const [poPreviewHtml, setPOPreviewHtml] = useState('')
-  const [poFormData, setPOFormData] = useState({
-    supplierEmail: '',
-    notes: '',
-    shippingAddress: '',
-    expectedDelivery: '',
-    paymentTerms: 'Net 30'
-  })
+  // Send PO dialog state
+  const [showSendPO, setShowSendPO] = useState(false)
 
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
   const [recordingPayment, setRecordingPayment] = useState(false)
@@ -382,59 +374,10 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
     }).format(new Date(dateStr))
   }
 
-  // Send PO handlers
-  const handleOpenSendPO = async (order: Order) => {
+  // Send PO handler - opens the shared SendPODialog
+  const handleOpenSendPO = (order: Order) => {
     setSelectedOrder(order)
-    setPOFormData({
-      supplierEmail: order.supplier?.email || order.vendorEmail || '',
-      notes: order.notes || '',
-      shippingAddress: '',
-      expectedDelivery: order.expectedDelivery ? order.expectedDelivery.split('T')[0] : '',
-      paymentTerms: 'Net 30'
-    })
-    setSendPOOpen(true)
-
-    // Fetch preview
-    try {
-      const res = await fetch(`/api/orders/${order.id}/send`)
-      if (res.ok) {
-        const data = await res.json()
-        setPOPreviewHtml(data.email.html)
-      }
-    } catch (error) {
-      console.error('Error fetching PO preview:', error)
-    }
-  }
-
-  const handleSendPO = async () => {
-    if (!selectedOrder) return
-
-    if (!poFormData.supplierEmail) {
-      toast.error('Supplier email is required')
-      return
-    }
-
-    try {
-      setSendingPO(true)
-      const res = await fetch(`/api/orders/${selectedOrder.id}/send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(poFormData)
-      })
-
-      if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.error || 'Failed to send PO')
-      }
-
-      toast.success(`Purchase order sent to ${poFormData.supplierEmail}`)
-      setSendPOOpen(false)
-      fetchOrders()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to send PO')
-    } finally {
-      setSendingPO(false)
-    }
+    setShowSendPO(true)
   }
 
   // Record payment handlers
@@ -982,119 +925,31 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
         </CardContent>
       </Card>
 
-      {/* Send PO Dialog */}
-      <Dialog open={sendPOOpen} onOpenChange={setSendPOOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Send className="w-5 h-5" />
-              Send Purchase Order
-            </DialogTitle>
-            <DialogDescription>
-              Send {selectedOrder?.orderNumber} to {selectedOrder?.supplier?.name || selectedOrder?.vendorName}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="supplierEmail">Supplier Email *</Label>
-                <Input
-                  id="supplierEmail"
-                  type="email"
-                  value={poFormData.supplierEmail}
-                  onChange={(e) => setPOFormData(prev => ({ ...prev, supplierEmail: e.target.value }))}
-                  placeholder="supplier@example.com"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="expectedDelivery">Expected Delivery</Label>
-                  <Input
-                    id="expectedDelivery"
-                    type="date"
-                    value={poFormData.expectedDelivery}
-                    onChange={(e) => setPOFormData(prev => ({ ...prev, expectedDelivery: e.target.value }))}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="paymentTerms">Payment Terms</Label>
-                  <Select
-                    value={poFormData.paymentTerms}
-                    onValueChange={(value) => setPOFormData(prev => ({ ...prev, paymentTerms: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Net 15">Net 15</SelectItem>
-                      <SelectItem value="Net 30">Net 30</SelectItem>
-                      <SelectItem value="Net 45">Net 45</SelectItem>
-                      <SelectItem value="Net 60">Net 60</SelectItem>
-                      <SelectItem value="Due on Receipt">Due on Receipt</SelectItem>
-                      <SelectItem value="50% Deposit">50% Deposit</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="shippingAddress">Shipping Address</Label>
-                <Textarea
-                  id="shippingAddress"
-                  value={poFormData.shippingAddress}
-                  onChange={(e) => setPOFormData(prev => ({ ...prev, shippingAddress: e.target.value }))}
-                  placeholder="Enter delivery address..."
-                  rows={2}
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="notes">Special Instructions</Label>
-                <Textarea
-                  id="notes"
-                  value={poFormData.notes}
-                  onChange={(e) => setPOFormData(prev => ({ ...prev, notes: e.target.value }))}
-                  placeholder="Any special instructions for the supplier..."
-                  rows={2}
-                />
-              </div>
-            </div>
-
-            {poPreviewHtml && (
-              <div className="border rounded-lg overflow-hidden">
-                <div className="bg-gray-50 px-3 py-2 border-b text-sm font-medium text-gray-600">
-                  Email Preview
-                </div>
-                <div
-                  className="p-4 max-h-[300px] overflow-y-auto bg-white"
-                  dangerouslySetInnerHTML={{ __html: poPreviewHtml }}
-                />
-              </div>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSendPOOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSendPO} disabled={sendingPO}>
-              {sendingPO ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Sending...
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4 mr-2" />
-                  Send PO
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Send PO Dialog - uses shared component */}
+      {selectedOrder && (
+        <SendPODialog
+          open={showSendPO}
+          onOpenChange={setShowSendPO}
+          order={{
+            id: selectedOrder.id,
+            orderNumber: selectedOrder.orderNumber,
+            vendorName: selectedOrder.supplier?.name || selectedOrder.vendorName || 'Supplier',
+            vendorEmail: selectedOrder.supplier?.email || selectedOrder.vendorEmail || undefined,
+            totalAmount: selectedOrder.totalAmount || 0,
+            subtotal: selectedOrder.subtotal || 0,
+            shippingCost: selectedOrder.shippingCost || 0,
+            taxAmount: selectedOrder.taxAmount || 0,
+            currency: selectedOrder.currency,
+            shippingAddress: undefined,
+            expectedDelivery: selectedOrder.expectedDelivery || undefined,
+            items: [] // Items are fetched by the dialog from the API
+          }}
+          onSuccess={() => {
+            setShowSendPO(false)
+            fetchOrders()
+          }}
+        />
+      )}
 
       {/* Record Supplier Payment Dialog */}
       <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>

@@ -182,6 +182,7 @@ export default function SupplierOrderPortal() {
   const [uploadDescription, setUploadDescription] = useState('')
   const [uploadType, setUploadType] = useState('OTHER')
   const [submitting, setSubmitting] = useState(false)
+  const [showFullCardDetails, setShowFullCardDetails] = useState(false)
 
   const fetchOrder = useCallback(async () => {
     try {
@@ -537,7 +538,7 @@ export default function SupplierOrderPortal() {
             </div>
 
             {/* Payment Card */}
-            {order.paymentCardNumber && (
+            {(order.paymentCardLastFour || order.paymentCardNumber) && (
               <Card>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-2 mb-4">
@@ -546,24 +547,68 @@ export default function SupplierOrderPortal() {
                     <span className="text-xs text-gray-500 ml-auto">Please charge the order total to this card</span>
                   </div>
                   <div className="bg-gray-50 rounded-lg p-4 border">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <p className="text-gray-500 mb-1">Card Number</p>
-                        <p className="font-mono font-medium">{order.paymentCardNumber}</p>
+                    {showFullCardDetails && order.paymentCardNumber ? (
+                      // Full card details visible
+                      <>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                          <div>
+                            <p className="text-gray-500 mb-1">Card Number</p>
+                            <p className="font-mono font-medium">{order.paymentCardNumber}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500 mb-1">Expiry</p>
+                            <p className="font-medium">{order.paymentCardExpiry || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500 mb-1">CVV</p>
+                            <p className="font-mono font-medium">{order.paymentCardCvv || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500 mb-1">Cardholder</p>
+                            <p className="font-medium">{order.paymentCardHolderName || 'N/A'}</p>
+                          </div>
+                        </div>
+                        <div className="mt-3 pt-3 border-t">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowFullCardDetails(false)}
+                            className="text-gray-500"
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            Hide Details
+                          </Button>
+                        </div>
+                      </>
+                    ) : (
+                      // Masked card details (default view)
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <CreditCard className="w-8 h-8 text-gray-400" />
+                            <div>
+                              <p className="font-medium text-gray-900">
+                                {order.paymentCardBrand || 'Card'} ending in {order.paymentCardLastFour || order.paymentCardNumber?.slice(-4) || '****'}
+                              </p>
+                              {order.paymentCardHolderName && (
+                                <p className="text-sm text-gray-500">{order.paymentCardHolderName}</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        {order.paymentCardNumber && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowFullCardDetails(true)}
+                            className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            Show Full Details
+                          </Button>
+                        )}
                       </div>
-                      <div>
-                        <p className="text-gray-500 mb-1">Expiry</p>
-                        <p className="font-medium">{order.paymentCardExpiry || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500 mb-1">CVV</p>
-                        <p className="font-mono font-medium">{order.paymentCardCvv || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500 mb-1">Cardholder</p>
-                        <p className="font-medium">{order.paymentCardHolderName || 'N/A'}</p>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
