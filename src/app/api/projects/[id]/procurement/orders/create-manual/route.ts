@@ -481,7 +481,7 @@ export async function POST(
               roomFFEItemId: ffeItem.id,
               supplierQuoteLineItemId: null,
               componentId: comp.id,
-              name: `  └ ${comp.name}${comp.modelNumber ? ` (${comp.modelNumber})` : ''}`,
+              name: comp.name + (comp.modelNumber ? ` (${comp.modelNumber})` : ''),
               description: `Component of ${ffeItem.name}`,
               roomName,
               imageUrl: comp.image || null,

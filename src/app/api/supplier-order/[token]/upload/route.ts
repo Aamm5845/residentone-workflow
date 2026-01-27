@@ -2,11 +2,34 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { put } from '@vercel/blob'
 import { sendEmail } from '@/lib/email-service'
+import { dropboxService } from '@/lib/dropbox-service'
 
 export const dynamic = 'force-dynamic'
 
 // Notification email recipient
 const NOTIFICATION_EMAIL = 'shaya@meisnerinteriors.com'
+
+// Map document type to Dropbox folder
+function getDropboxFolderForType(docType: string): string {
+  switch (docType) {
+    case 'DRAWING':
+    case 'SPEC_SHEET':
+      return 'Drawings'
+    case 'SUPPLIER_QUOTE':
+    case 'QUOTE_REQUEST':
+      return 'Quotes'
+    case 'PHOTO':
+      return 'Photos'
+    case 'INVOICE':
+    case 'RECEIPT':
+      return 'Invoices'
+    case 'SHIPPING_DOC':
+    case 'PACKING_SLIP':
+      return 'Shipping'
+    default:
+      return 'Other'
+  }
+}
 
 /**
  * POST /api/supplier-order/[token]/upload
@@ -23,10 +46,19 @@ export async function POST(
       return NextResponse.json({ error: 'Token required' }, { status: 400 })
     }
 
-    // Find order
+    // Find order with project info for Dropbox folder
     const order = await prisma.order.findUnique({
       where: { supplierAccessToken: token },
-      include: { supplier: true }
+      include: {
+        supplier: true,
+        project: {
+          select: {
+            id: true,
+            name: true,
+            dropboxFolder: true
+          }
+        }
+      }
     })
 
     if (!order) {
@@ -76,13 +108,6 @@ export async function POST(
       )
     }
 
-    // Upload to Vercel Blob
-    const fileName = `supplier-orders/${order.id}/${Date.now()}-${file.name}`
-    const blob = await put(fileName, file, {
-      access: 'public',
-      addRandomSuffix: false
-    })
-
     // Map document type
     const validTypes = [
       'QUOTE_REQUEST', 'SUPPLIER_QUOTE', 'CLIENT_QUOTE', 'INVOICE',
@@ -90,6 +115,60 @@ export async function POST(
       'RETURN_AUTHORIZATION', 'SPEC_SHEET', 'DRAWING', 'PHOTO', 'OTHER'
     ]
     const documentType = validTypes.includes(docType) ? docType : 'OTHER'
+
+    // Prepare file buffer for upload
+    const arrayBuffer = await file.arrayBuffer()
+    const fileBuffer = Buffer.from(arrayBuffer)
+
+    // Generate unique filename with timestamp
+    const timestamp = Date.now()
+    const sanitizedFileName = `${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
+
+    let fileUrl: string
+    let dropboxPath: string | null = null
+    let provider = 'vercel-blob'
+
+    // Try to upload to Dropbox if project has dropbox folder configured
+    if (order.project?.dropboxFolder && dropboxService.isConfigured()) {
+      try {
+        // Use supplier name or order number as category for organization
+        const categoryName = `Orders/${order.orderNumber}`
+        const dropboxFolderType = getDropboxFolderForType(documentType)
+
+        console.log(`[Upload] Uploading to Dropbox: ${order.project.dropboxFolder}/${categoryName}/${dropboxFolderType}`)
+
+        const result = await dropboxService.uploadShoppingFile(
+          order.project.dropboxFolder,
+          categoryName,
+          dropboxFolderType,
+          sanitizedFileName,
+          fileBuffer
+        )
+
+        dropboxPath = result.path
+        fileUrl = result.sharedLink || result.path
+        provider = 'dropbox'
+
+        console.log(`[Upload] Successfully uploaded to Dropbox: ${dropboxPath}`)
+      } catch (dropboxError) {
+        console.error('[Upload] Dropbox upload failed, falling back to Vercel Blob:', dropboxError)
+        // Fall back to Vercel Blob
+        const blobFileName = `supplier-orders/${order.id}/${sanitizedFileName}`
+        const blob = await put(blobFileName, file, {
+          access: 'public',
+          addRandomSuffix: false
+        })
+        fileUrl = blob.url
+      }
+    } else {
+      // Upload to Vercel Blob as fallback
+      const blobFileName = `supplier-orders/${order.id}/${sanitizedFileName}`
+      const blob = await put(blobFileName, file, {
+        access: 'public',
+        addRandomSuffix: false
+      })
+      fileUrl = blob.url
+    }
 
     // Create document record
     const document = await prisma.rFQDocument.create({
@@ -100,10 +179,11 @@ export async function POST(
         title,
         description,
         fileName: file.name,
-        fileUrl: blob.url,
+        fileUrl,
         fileSize: file.size,
         mimeType: file.type,
-        provider: 'vercel-blob',
+        provider,
+        dropboxPath,
         visibleToSupplier: true,
         uploadedById: order.createdById // Use order creator as fallback
       }
@@ -137,9 +217,10 @@ export async function POST(
             <p><strong>Supplier:</strong> ${supplierName}</p>
             <p><strong>Document:</strong> ${title}</p>
             <p><strong>File:</strong> ${file.name}</p>
+            <p><strong>Storage:</strong> ${provider === 'dropbox' ? 'Dropbox' : 'Cloud Storage'}</p>
             ${description ? `<p><strong>Description:</strong> ${description}</p>` : ''}
             <p style="margin-top: 24px;">
-              <a href="${blob.url}"
+              <a href="${fileUrl}"
                  style="background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-right: 12px;">
                 Download Document
               </a>

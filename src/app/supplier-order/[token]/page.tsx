@@ -64,6 +64,7 @@ interface Document {
   description?: string
   fileName: string
   fileUrl: string
+  mimeType?: string
   createdAt: string
 }
 
@@ -740,35 +741,50 @@ export default function SupplierOrderPortal() {
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        {documents.map((doc) => (
-                          <div
-                            key={doc.id}
-                            className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                          >
-                            <div className="flex items-center gap-3 min-w-0">
-                              <FileText className="w-5 h-5 text-gray-400 flex-shrink-0" />
-                              <div className="min-w-0">
-                                <p className="font-medium text-sm text-gray-900 truncate">{doc.title}</p>
-                                <p className="text-xs text-gray-500">{doc.type}</p>
+                        {documents.map((doc) => {
+                          const isImage = doc.mimeType?.startsWith('image/') ||
+                            /\.(jpg|jpeg|png|webp|gif)$/i.test(doc.fileName)
+
+                          return (
+                            <div
+                              key={doc.id}
+                              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                {isImage ? (
+                                  <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0 bg-gray-200">
+                                    <img
+                                      src={doc.fileUrl}
+                                      alt={doc.title}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                ) : (
+                                  <FileText className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                                )}
+                                <div className="min-w-0">
+                                  <p className="font-medium text-sm text-gray-900 truncate">{doc.title}</p>
+                                  <p className="text-xs text-gray-500">{doc.type}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Button variant="ghost" size="sm" asChild>
+                                  <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer">
+                                    <Download className="w-4 h-4" />
+                                  </a>
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteDocument(doc.id)}
+                                  className="text-gray-400 hover:text-red-500"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
                               </div>
                             </div>
-                            <div className="flex items-center gap-1">
-                              <Button variant="ghost" size="sm" asChild>
-                                <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer">
-                                  <Download className="w-4 h-4" />
-                                </a>
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteDocument(doc.id)}
-                                className="text-gray-400 hover:text-red-500"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     )}
                   </TabsContent>
@@ -866,7 +882,7 @@ export default function SupplierOrderPortal() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="confirmName">Your Name *</Label>
+              <Label htmlFor="confirmName">Your Name (optional)</Label>
               <Input
                 id="confirmName"
                 value={confirmName}
@@ -890,8 +906,8 @@ export default function SupplierOrderPortal() {
               Cancel
             </Button>
             <Button
-              onClick={() => handleAction('confirm', { confirmedBy: confirmName, notes: confirmNotes })}
-              disabled={!confirmName.trim() || submitting}
+              onClick={() => handleAction('confirm', { confirmedBy: confirmName || 'Supplier', notes: confirmNotes })}
+              disabled={submitting}
             >
               {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
               Confirm Order

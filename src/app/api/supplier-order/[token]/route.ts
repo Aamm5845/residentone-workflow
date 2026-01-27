@@ -246,6 +246,7 @@ export async function GET(
         description: doc.description,
         fileName: doc.fileName,
         fileUrl: doc.fileUrl,
+        mimeType: doc.mimeType,
         createdAt: doc.createdAt
       })),
       messages: order.messages.map(msg => ({

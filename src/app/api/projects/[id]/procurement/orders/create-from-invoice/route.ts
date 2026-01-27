@@ -269,7 +269,7 @@ export async function POST(
             roomFFEItemId: roomFFEItem.id, // Link to parent item
             clientQuoteLineItemId: lineItem.id,
             supplierQuoteLineItemId: null, // Components don't have separate quote lines
-            name: `  └ ${comp.name}${comp.modelNumber ? ` (${comp.modelNumber})` : ''}`,
+            name: comp.name + (comp.modelNumber ? ` (${comp.modelNumber})` : ''),
             description: `Component of ${roomFFEItem.name}`,
             quantity: comp.quantity || 1,
             unitPrice: Number(comp.price),
@@ -617,7 +617,7 @@ export async function GET(
           const compTotal = Number(comp.price) * (comp.quantity || 1)
           supplierGroups[supplierId].items.push({
             id: comp.id,
-            name: `  └ ${comp.name}${comp.modelNumber ? ` (${comp.modelNumber})` : ''}`,
+            name: comp.name + (comp.modelNumber ? ` (${comp.modelNumber})` : ''),
             quantity: comp.quantity || 1,
             unitPrice: Number(comp.price),
             totalPrice: compTotal,

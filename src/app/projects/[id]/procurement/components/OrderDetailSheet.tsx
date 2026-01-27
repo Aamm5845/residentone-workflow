@@ -188,6 +188,8 @@ export default function OrderDetailSheet({
   const [showSendPO, setShowSendPO] = useState(false)
   const [downloadingPDF, setDownloadingPDF] = useState(false)
   const [sendingTestEmail, setSendingTestEmail] = useState(false)
+  const [showTestEmailDialog, setShowTestEmailDialog] = useState(false)
+  const [testEmailAddress, setTestEmailAddress] = useState('')
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -328,12 +330,18 @@ export default function OrderDetailSheet({
     toast.success('Supplier portal link copied')
   }
 
+  const handleOpenTestEmailDialog = () => {
+    // Pre-fill with supplier email if available
+    const defaultEmail = order?.supplier?.email || order?.vendorEmail || ''
+    setTestEmailAddress(defaultEmail)
+    setShowTestEmailDialog(true)
+  }
+
   const handleSendTestEmail = async () => {
     if (!order) return
 
-    const supplierEmail = order.supplier?.email || order.vendorEmail
-    if (!supplierEmail) {
-      toast.error('No supplier email configured')
+    if (!testEmailAddress.trim()) {
+      toast.error('Please enter an email address')
       return
     }
 
@@ -343,7 +351,7 @@ export default function OrderDetailSheet({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          supplierEmail,
+          supplierEmail: testEmailAddress.trim(),
           isTest: true
         })
       })
@@ -354,7 +362,8 @@ export default function OrderDetailSheet({
       }
 
       const data = await res.json()
-      toast.success(`Test email sent to ${supplierEmail}`)
+      toast.success(`Test email sent to ${testEmailAddress}`)
+      setShowTestEmailDialog(false)
 
       if (data.supplierPortalUrl) {
         toast.info(`Portal: ${data.supplierPortalUrl}`, { duration: 10000 })
@@ -801,14 +810,9 @@ export default function OrderDetailSheet({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={handleSendTestEmail}
-                      disabled={sendingTestEmail}
+                      onClick={handleOpenTestEmailDialog}
                     >
-                      {sendingTestEmail ? (
-                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                      ) : (
-                        <Mail className="w-4 h-4 mr-1" />
-                      )}
+                      <Mail className="w-4 h-4 mr-1" />
                       Test Email
                     </Button>
                     <Button
@@ -849,6 +853,49 @@ export default function OrderDetailSheet({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Test Email Dialog */}
+      <Dialog open={showTestEmailDialog} onOpenChange={setShowTestEmailDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Send Test Email</DialogTitle>
+            <DialogDescription>
+              Send a test PO email to preview how suppliers will receive it.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="testEmail">Email Address</Label>
+              <Input
+                id="testEmail"
+                type="email"
+                value={testEmailAddress}
+                onChange={(e) => setTestEmailAddress(e.target.value)}
+                placeholder="Enter email address"
+              />
+              <p className="text-xs text-gray-500">
+                The test email will include the supplier portal link.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTestEmailDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSendTestEmail}
+              disabled={!testEmailAddress.trim() || sendingTestEmail}
+            >
+              {sendingTestEmail ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4 mr-2" />
+              )}
+              Send Test
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Send PO Dialog */}
       {order && (
