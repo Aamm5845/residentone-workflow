@@ -137,6 +137,15 @@ export async function GET(
           },
           orderBy: { createdAt: 'desc' },
           take: 50
+        },
+        savedPaymentMethod: {
+          select: {
+            id: true,
+            type: true,
+            nickname: true,
+            lastFour: true,
+            cardBrand: true
+          }
         }
       }
     })

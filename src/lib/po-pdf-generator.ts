@@ -24,6 +24,7 @@ interface POData {
   // Project info
   projectName: string
   projectAddress?: string | null
+  clientName?: string | null
 
   // Shipping
   shippingAddress?: string | null
@@ -39,6 +40,11 @@ interface POData {
   taxAmount: number
   totalAmount: number
   currency: string
+
+  // Deposit
+  depositPercent?: number | null
+  depositRequired?: number | null
+  balanceDue?: number | null
 
   // Notes
   notes?: string | null
@@ -712,6 +718,62 @@ function drawTotals(
     color: COLORS.accent,
   })
   yPos -= LINE_HEIGHT + 10
+
+  // Deposit information
+  if (po.depositRequired && po.depositRequired > 0) {
+    yPos -= 5
+
+    // Draw line before deposit
+    page.drawLine({
+      start: { x: rightX - 10, y: yPos + 3 },
+      end: { x: width - PAGE_MARGIN, y: yPos + 3 },
+      thickness: 0.5,
+      color: COLORS.tableBorder,
+    })
+
+    // Deposit Required
+    const depositLabel = po.depositPercent
+      ? `Deposit Required (${po.depositPercent}%):`
+      : 'Deposit Required:'
+    page.drawText(depositLabel, {
+      x: rightX,
+      y: yPos - 5,
+      size: 10,
+      font: boldFont,
+      color: rgb(0.1, 0.3, 0.6), // Blue color
+    })
+    const depositText = formatCurrency(po.depositRequired, po.currency)
+    const depositWidth = boldFont.widthOfTextAtSize(depositText, 10)
+    page.drawText(depositText, {
+      x: valueX - depositWidth,
+      y: yPos - 5,
+      size: 10,
+      font: boldFont,
+      color: rgb(0.1, 0.3, 0.6),
+    })
+    yPos -= LINE_HEIGHT
+
+    // Balance Due
+    if (po.balanceDue && po.balanceDue > 0) {
+      page.drawText('Balance Due:', {
+        x: rightX,
+        y: yPos - 5,
+        size: 10,
+        font: font,
+        color: COLORS.secondary,
+      })
+      const balanceText = formatCurrency(po.balanceDue, po.currency)
+      const balanceWidth = font.widthOfTextAtSize(balanceText, 10)
+      page.drawText(balanceText, {
+        x: valueX - balanceWidth,
+        y: yPos - 5,
+        size: 10,
+        font: font,
+        color: COLORS.secondary,
+      })
+      yPos -= LINE_HEIGHT
+    }
+  }
 
   return yPos
 }

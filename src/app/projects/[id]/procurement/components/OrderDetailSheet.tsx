@@ -6,8 +6,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
-  DialogFooter
+  DialogFooter,
+  DialogDescription
 } from '@/components/ui/dialog'
 import {
   AlertDialog,
@@ -24,27 +24,32 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 import {
   Loader2,
   Send,
-  DollarSign,
-  Copy,
-  ExternalLink,
+  Package,
+  ShoppingCart,
+  Building2,
+  CreditCard,
+  Truck,
   FileDown,
   FileText,
   Clock,
-  CheckCircle,
-  AlertCircle,
-  Package,
-  Building2,
-  Mail,
-  Phone,
-  Truck,
-  CreditCard,
   Edit,
   Trash2,
-  ShoppingCart
+  Copy,
+  ExternalLink,
+  Mail,
+  Phone,
+  CheckCircle2,
+  AlertTriangle
 } from 'lucide-react'
 import { toast } from 'sonner'
 import SendPODialog from '@/components/procurement/SendPODialog'
@@ -73,6 +78,14 @@ interface OrderItem {
 interface ExtraCharge {
   label: string
   amount: number
+}
+
+interface SavedPaymentMethod {
+  id: string
+  type: string
+  nickname: string | null
+  lastFour: string | null
+  cardBrand: string | null
 }
 
 interface Order {
@@ -106,6 +119,8 @@ interface Order {
   internalNotes: string | null
   createdAt: string
   supplierAccessToken?: string
+  savedPaymentMethodId?: string | null
+  savedPaymentMethod?: SavedPaymentMethod | null
   project: {
     id: string
     name: string
@@ -174,22 +189,12 @@ export default function OrderDetailSheet({
   const [downloadingPDF, setDownloadingPDF] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [showPaymentForm, setShowPaymentForm] = useState(false)
-  const [paymentSaving, setPaymentSaving] = useState(false)
 
   const [editForm, setEditForm] = useState({
     shippingAddress: '',
     expectedDelivery: '',
     notes: '',
     internalNotes: ''
-  })
-
-  const [paymentForm, setPaymentForm] = useState({
-    paymentType: 'DEPOSIT' as 'DEPOSIT' | 'BALANCE' | 'FULL',
-    amount: '',
-    method: 'CREDIT_CARD',
-    reference: '',
-    notes: ''
   })
 
   useEffect(() => {
@@ -312,52 +317,6 @@ export default function OrderDetailSheet({
     }
   }
 
-  const handleRecordPayment = async () => {
-    if (!order) return
-
-    const amount = parseFloat(paymentForm.amount)
-    if (isNaN(amount) || amount <= 0) {
-      toast.error('Please enter a valid amount')
-      return
-    }
-
-    setPaymentSaving(true)
-    try {
-      const res = await fetch(`/api/orders/${order.id}/supplier-payment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount,
-          paymentType: paymentForm.paymentType,
-          method: paymentForm.method,
-          reference: paymentForm.reference || null,
-          notes: paymentForm.notes || null
-        })
-      })
-
-      if (res.ok) {
-        toast.success('Payment recorded')
-        setShowPaymentForm(false)
-        setPaymentForm({
-          paymentType: 'DEPOSIT',
-          amount: '',
-          method: 'CREDIT_CARD',
-          reference: '',
-          notes: ''
-        })
-        fetchOrder()
-        onUpdate()
-      } else {
-        const data = await res.json()
-        toast.error(data.error || 'Failed to record payment')
-      }
-    } catch (error) {
-      toast.error('Failed to record payment')
-    } finally {
-      setPaymentSaving(false)
-    }
-  }
-
   const handleCopyPortalLink = () => {
     if (!order?.supplierAccessToken) {
       toast.error('Portal link not available')
@@ -368,12 +327,13 @@ export default function OrderDetailSheet({
     toast.success('Supplier portal link copied')
   }
 
-  const formatCurrency = (amount: string | null, currency: string = 'CAD') => {
-    if (!amount) return '-'
+  const formatCurrency = (amount: string | number | null, currency: string = 'CAD') => {
+    if (amount === null || amount === undefined) return '-'
+    const num = typeof amount === 'string' ? parseFloat(amount) : amount
     return new Intl.NumberFormat('en-CA', {
       style: 'currency',
       currency
-    }).format(parseFloat(amount))
+    }).format(num)
   }
 
   const formatDate = (dateStr: string | null) => {
@@ -382,17 +342,6 @@ export default function OrderDetailSheet({
       month: 'short',
       day: 'numeric',
       year: 'numeric'
-    }).format(new Date(dateStr))
-  }
-
-  const formatDateTime = (dateStr: string | null) => {
-    if (!dateStr) return '-'
-    return new Intl.DateTimeFormat('en-CA', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit'
     }).format(new Date(dateStr))
   }
 
@@ -413,12 +362,13 @@ export default function OrderDetailSheet({
   const status = statusConfig[order.status] || { label: order.status, color: 'bg-gray-100 text-gray-600' }
   const canDelete = order.status === 'PENDING_PAYMENT' || order.status === 'PAYMENT_RECEIVED'
 
-  // Calculate payment status
+  // Calculate values
   const totalAmount = parseFloat(order.totalAmount || '0')
   const depositRequired = parseFloat(order.depositRequired || '0')
+  const depositPercent = parseFloat(order.depositPercent || '0')
   const depositPaid = parseFloat(order.depositPaid || '0')
   const supplierPaid = parseFloat(order.supplierPaymentAmount || '0')
-  const balanceDue = totalAmount - supplierPaid
+  const balanceDue = totalAmount - depositRequired
 
   return (
     <>
@@ -431,215 +381,113 @@ export default function OrderDetailSheet({
             </DialogTitle>
             <DialogDescription className="flex items-center gap-2">
               <Badge className={status.color}>{status.label}</Badge>
-              <span>•</span>
-              <span>{order.supplier?.name || order.vendorName}</span>
+              <span>Created {formatDate(order.createdAt)}</span>
             </DialogDescription>
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto px-1 -mx-1">
-            <Tabs defaultValue="details" className="w-full">
-              <TabsList className="mb-4">
-                <TabsTrigger value="details">Details</TabsTrigger>
-                <TabsTrigger value="items">Items ({order.items.length})</TabsTrigger>
-                <TabsTrigger value="payment">Payment</TabsTrigger>
-                <TabsTrigger value="activity">Activity</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="details" className="space-y-4">
-                {/* Project & Client Info */}
-                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg space-y-2">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-xs text-gray-500 uppercase tracking-wide">Project</p>
-                      <p className="font-semibold text-gray-900">{order.project.name}</p>
-                    </div>
-                    {order.project.client && (
-                      <div className="text-right">
-                        <p className="text-xs text-gray-500 uppercase tracking-wide">Client</p>
-                        <p className="font-medium text-gray-900">{order.project.client.name}</p>
-                      </div>
-                    )}
+            <div className="space-y-6 py-4">
+              {/* Project & Client Info */}
+              <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg space-y-2">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wide">Project</p>
+                    <p className="font-semibold text-gray-900">{order.project.name}</p>
                   </div>
-                  {order.shippingAddress && (
-                    <div className="pt-2 border-t border-gray-200">
-                      <p className="text-xs text-gray-500 uppercase tracking-wide">Ship To</p>
-                      <p className="text-sm text-gray-700 whitespace-pre-line">{order.shippingAddress}</p>
+                  {order.project.client && (
+                    <div className="text-right">
+                      <p className="text-xs text-gray-500 uppercase tracking-wide">Client</p>
+                      <p className="font-medium text-gray-900">{order.project.client.name}</p>
                     </div>
                   )}
                 </div>
-
-                {/* Supplier Info */}
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-xs text-blue-600 uppercase tracking-wide mb-1">Supplier</p>
-                  <div className="flex items-center gap-3">
-                    <Building2 className="w-5 h-5 text-blue-600" />
-                    <div>
-                      <p className="font-medium text-blue-900">{order.supplier?.name || order.vendorName}</p>
-                      {(order.supplier?.email || order.vendorEmail) && (
-                        <p className="text-sm text-blue-700 flex items-center gap-1">
-                          <Mail className="w-3 h-3" />
-                          {order.supplier?.email || order.vendorEmail}
-                        </p>
-                      )}
-                      {order.supplier?.phone && (
-                        <p className="text-sm text-blue-700 flex items-center gap-1">
-                          <Phone className="w-3 h-3" />
-                          {order.supplier.phone}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Dates & Tracking */}
-                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                    <Clock className="w-4 h-4" />
-                    Dates & Tracking
-                  </h3>
-                  {editing ? (
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-xs">Expected Delivery</Label>
-                        <Input
-                          type="date"
-                          value={editForm.expectedDelivery}
-                          onChange={e => setEditForm(prev => ({ ...prev, expectedDelivery: e.target.value }))}
-                          className="mt-1"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs">Shipping Address</Label>
-                        <Textarea
-                          value={editForm.shippingAddress}
-                          onChange={e => setEditForm(prev => ({ ...prev, shippingAddress: e.target.value }))}
-                          rows={2}
-                          className="mt-1"
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-gray-500">Created</span>
-                          <span>{formatDateTime(order.createdAt)}</span>
-                        </div>
-                        {order.orderedAt && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">Ordered</span>
-                            <span>{formatDateTime(order.orderedAt)}</span>
-                          </div>
-                        )}
-                        {order.expectedDelivery && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">Expected</span>
-                            <span>{formatDate(order.expectedDelivery)}</span>
-                          </div>
-                        )}
-                        {order.actualDelivery && (
-                          <div className="flex justify-between text-emerald-600">
-                            <span>Delivered</span>
-                            <span>{formatDate(order.actualDelivery)}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        {order.trackingNumber && (
-                          <div>
-                            <span className="text-gray-500">Tracking</span>
-                            <div className="flex items-center gap-1 mt-0.5">
-                              <Truck className="w-3 h-3 text-gray-400" />
-                              {order.trackingUrl ? (
-                                <a
-                                  href={order.trackingUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 hover:underline flex items-center gap-1"
-                                >
-                                  {order.trackingNumber}
-                                  <ExternalLink className="w-3 h-3" />
-                                </a>
-                              ) : (
-                                <span>{order.trackingNumber}</span>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Notes */}
-                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                    <FileText className="w-4 h-4" />
-                    Notes
-                  </h3>
-                  {editing ? (
-                    <div className="space-y-3">
-                      <div>
-                        <Label className="text-xs">Order Notes (visible on PO)</Label>
-                        <Textarea
-                          value={editForm.notes}
-                          onChange={e => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
-                          rows={2}
-                          className="mt-1"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs">Internal Notes (private)</Label>
-                        <Textarea
-                          value={editForm.internalNotes}
-                          onChange={e => setEditForm(prev => ({ ...prev, internalNotes: e.target.value }))}
-                          rows={2}
-                          className="mt-1"
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-2 text-sm">
-                      {order.notes && (
-                        <div>
-                          <span className="text-gray-500">Order Notes</span>
-                          <p className="text-gray-700 whitespace-pre-line">{order.notes}</p>
-                        </div>
-                      )}
-                      {order.internalNotes && (
-                        <div>
-                          <span className="text-gray-500">Internal Notes</span>
-                          <p className="text-gray-700 whitespace-pre-line">{order.internalNotes}</p>
-                        </div>
-                      )}
-                      {!order.notes && !order.internalNotes && (
-                        <p className="text-gray-400 italic">No notes</p>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Quick Links */}
-                {order.supplierAccessToken && (
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={handleCopyPortalLink}>
-                      <Copy className="w-4 h-4 mr-1.5" />
-                      Copy Portal Link
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => window.open(`/supplier-order/${order.supplierAccessToken}`, '_blank')}
-                    >
-                      <ExternalLink className="w-4 h-4 mr-1.5" />
-                      Supplier Portal
-                    </Button>
+                {order.shippingAddress && (
+                  <div className="pt-2 border-t border-gray-200">
+                    <p className="text-xs text-gray-500 uppercase tracking-wide">Ship To</p>
+                    <p className="text-sm text-gray-700 whitespace-pre-line">{order.shippingAddress}</p>
                   </div>
                 )}
-              </TabsContent>
+              </div>
 
-              <TabsContent value="items" className="space-y-3">
-                {/* Items List - matching CreatePODialog style */}
+              {/* Supplier Info */}
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-xs text-blue-600 uppercase tracking-wide mb-1">Supplier</p>
+                <div className="flex items-center gap-3">
+                  <Building2 className="w-5 h-5 text-blue-600" />
+                  <div>
+                    <p className="font-medium text-blue-900">{order.supplier?.name || order.vendorName}</p>
+                    {(order.supplier?.email || order.vendorEmail) && (
+                      <p className="text-sm text-blue-700 flex items-center gap-1">
+                        <Mail className="w-3 h-3" />
+                        {order.supplier?.email || order.vendorEmail}
+                      </p>
+                    )}
+                    {order.supplier?.phone && (
+                      <p className="text-sm text-blue-700 flex items-center gap-1">
+                        <Phone className="w-3 h-3" />
+                        {order.supplier.phone}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Dates */}
+              <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  Dates & Delivery
+                </h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Created</span>
+                    <span>{formatDate(order.createdAt)}</span>
+                  </div>
+                  {order.orderedAt && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Ordered</span>
+                      <span>{formatDate(order.orderedAt)}</span>
+                    </div>
+                  )}
+                  {order.expectedDelivery && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Expected</span>
+                      <span>{formatDate(order.expectedDelivery)}</span>
+                    </div>
+                  )}
+                  {order.actualDelivery && (
+                    <div className="flex justify-between text-emerald-600">
+                      <span>Delivered</span>
+                      <span>{formatDate(order.actualDelivery)}</span>
+                    </div>
+                  )}
+                </div>
+                {order.trackingNumber && (
+                  <div className="mt-3 pt-3 border-t border-gray-200 flex items-center gap-2 text-sm">
+                    <Truck className="w-4 h-4 text-gray-400" />
+                    <span className="text-gray-500">Tracking:</span>
+                    {order.trackingUrl ? (
+                      <a
+                        href={order.trackingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline flex items-center gap-1"
+                      >
+                        {order.trackingNumber}
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    ) : (
+                      <span>{order.trackingNumber}</span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Items */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-gray-900">
+                  Items ({order.items.length})
+                </h3>
                 <div className="space-y-2">
                   {order.items.map((item) => {
                     const imageUrl = item.imageUrl || item.roomFFEItem?.images?.[0]
@@ -701,255 +549,167 @@ export default function OrderDetailSheet({
                     )
                   })}
                 </div>
+              </div>
 
-                {/* Totals - matching CreatePODialog emerald style */}
-                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-emerald-700">Items Subtotal ({order.items.length})</p>
-                    <p className="font-medium text-emerald-800">
-                      {formatCurrency(order.subtotal, order.currency)}
-                    </p>
-                  </div>
-                  {order.shippingCost && parseFloat(order.shippingCost) > 0 && (
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-emerald-700">Shipping</p>
-                      <p className="font-medium text-emerald-800">
-                        {formatCurrency(order.shippingCost, order.currency)}
-                      </p>
-                    </div>
-                  )}
-                  {order.extraCharges && order.extraCharges.length > 0 && order.extraCharges.map((charge, idx) => (
-                    <div key={idx} className="flex items-center justify-between">
-                      <p className="text-sm text-emerald-700">{charge.label}</p>
-                      <p className="font-medium text-emerald-800">
-                        {formatCurrency(String(charge.amount), order.currency)}
-                      </p>
-                    </div>
-                  ))}
-                  {order.taxAmount && parseFloat(order.taxAmount) > 0 && (
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-emerald-700">Tax</p>
-                      <p className="font-medium text-emerald-800">
-                        {formatCurrency(order.taxAmount, order.currency)}
-                      </p>
-                    </div>
-                  )}
-                  {depositRequired > 0 && (
-                    <>
-                      <div className="flex items-center justify-between pt-2 border-t border-emerald-200">
-                        <p className="text-sm text-blue-700 font-medium">
-                          Deposit Required ({order.depositPercent || 0}%)
-                        </p>
-                        <p className="font-bold text-blue-700">
-                          {formatCurrency(order.depositRequired, order.currency)}
-                        </p>
-                      </div>
-                      {balanceDue > 0 && (
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm text-gray-600">Balance Due</p>
-                          <p className="font-medium text-gray-700">
-                            {formatCurrency(String(balanceDue), order.currency)}
-                          </p>
-                        </div>
-                      )}
-                    </>
-                  )}
-                  <div className="flex items-center justify-between pt-2 border-t border-emerald-200">
-                    <p className="font-semibold text-emerald-800">Total</p>
-                    <p className="text-xl font-bold text-emerald-900">
-                      {formatCurrency(order.totalAmount, order.currency)}
-                    </p>
-                  </div>
+              {/* Shipping Address (editable) */}
+              {editing ? (
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Truck className="w-4 h-4 text-gray-500" />
+                    Ship To Address
+                  </Label>
+                  <Textarea
+                    value={editForm.shippingAddress}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, shippingAddress: e.target.value }))}
+                    placeholder="Enter shipping address..."
+                    rows={3}
+                  />
                 </div>
-              </TabsContent>
+              ) : null}
 
-              <TabsContent value="payment" className="space-y-4">
-                {/* Payment Summary */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Order Total</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {formatCurrency(order.totalAmount, order.currency)}
-                    </p>
-                  </div>
-                  <div className={`p-4 rounded-lg border ${
-                    supplierPaid >= totalAmount && totalAmount > 0
-                      ? 'bg-green-50 border-green-200'
-                      : depositPaid > 0
-                        ? 'bg-yellow-50 border-yellow-200'
-                        : 'bg-gray-50 border-gray-200'
-                  }`}>
-                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Payment Status</p>
-                    <Badge className={
-                      supplierPaid >= totalAmount && totalAmount > 0
-                        ? 'bg-green-100 text-green-700'
-                        : depositPaid > 0
-                          ? 'bg-yellow-100 text-yellow-700'
-                          : 'bg-gray-100 text-gray-600'
-                    }>
-                      {supplierPaid >= totalAmount && totalAmount > 0
-                        ? 'Paid to Supplier'
-                        : depositPaid > 0
-                          ? 'Deposit Paid'
-                          : 'Not Paid'
-                      }
-                    </Badge>
-                  </div>
-                </div>
-
-                {/* Payment Details */}
-                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                  <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                    <DollarSign className="w-4 h-4" />
-                    Supplier Payment Tracking
-                  </h4>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Total Amount</span>
-                        <span className="font-medium">{formatCurrency(order.totalAmount, order.currency)}</span>
-                      </div>
-                      {depositRequired > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-500">Deposit Required</span>
-                          <span>{formatCurrency(order.depositRequired, order.currency)}</span>
-                        </div>
-                      )}
-                      {depositPaid > 0 && (
-                        <div className="flex justify-between text-green-600">
-                          <span>Deposit Paid</span>
-                          <span>{formatCurrency(order.depositPaid, order.currency)}</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      {supplierPaid > 0 && (
-                        <div className="flex justify-between text-green-600">
-                          <span>Total Paid to Supplier</span>
-                          <span className="font-medium">{formatCurrency(order.supplierPaymentAmount, order.currency)}</span>
-                        </div>
-                      )}
-                      {balanceDue > 0 && (
-                        <div className="flex justify-between text-amber-600">
-                          <span>Balance Due</span>
-                          <span>{formatCurrency(String(balanceDue), order.currency)}</span>
-                        </div>
-                      )}
-                      {order.supplierPaymentMethod && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-500">Payment Method</span>
-                          <span>{order.supplierPaymentMethod}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Record Payment Form */}
-                {!showPaymentForm ? (
-                  <Button onClick={() => setShowPaymentForm(true)} className="w-full">
-                    <CreditCard className="w-4 h-4 mr-2" />
-                    Record Payment to Supplier
-                  </Button>
-                ) : (
-                  <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg space-y-4">
-                    <h4 className="font-medium text-emerald-900">Record Supplier Payment</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-xs">Payment Type</Label>
-                        <select
-                          value={paymentForm.paymentType}
-                          onChange={(e) => setPaymentForm(prev => ({
-                            ...prev,
-                            paymentType: e.target.value as 'DEPOSIT' | 'BALANCE' | 'FULL'
-                          }))}
-                          className="w-full mt-1 h-9 rounded-md border border-input bg-background px-3 text-sm"
-                        >
-                          <option value="DEPOSIT">Deposit Payment</option>
-                          <option value="BALANCE">Balance Payment</option>
-                          <option value="FULL">Full Payment</option>
-                        </select>
-                      </div>
-                      <div>
-                        <Label className="text-xs">Amount ({order.currency})</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={paymentForm.amount}
-                          onChange={(e) => setPaymentForm(prev => ({ ...prev, amount: e.target.value }))}
-                          placeholder="0.00"
-                          className="mt-1"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs">Payment Method</Label>
-                        <select
-                          value={paymentForm.method}
-                          onChange={(e) => setPaymentForm(prev => ({ ...prev, method: e.target.value }))}
-                          className="w-full mt-1 h-9 rounded-md border border-input bg-background px-3 text-sm"
-                        >
-                          <option value="CREDIT_CARD">Credit Card</option>
-                          <option value="WIRE_TRANSFER">Wire Transfer</option>
-                          <option value="CHECK">Check</option>
-                          <option value="ETRANSFER">E-Transfer</option>
-                          <option value="CASH">Cash</option>
-                          <option value="OTHER">Other</option>
-                        </select>
-                      </div>
-                      <div>
-                        <Label className="text-xs">Reference #</Label>
-                        <Input
-                          value={paymentForm.reference}
-                          onChange={(e) => setPaymentForm(prev => ({ ...prev, reference: e.target.value }))}
-                          placeholder="Confirmation number"
-                          className="mt-1"
-                        />
-                      </div>
-                    </div>
+              {/* Payment Method */}
+              {order.savedPaymentMethod && (
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <CreditCard className="w-4 h-4 text-gray-500" />
+                    Payment Method for Supplier
+                  </Label>
+                  <div className="p-3 bg-white border rounded-lg flex items-center gap-3">
+                    <CreditCard className="w-5 h-5 text-gray-400" />
                     <div>
-                      <Label className="text-xs">Notes</Label>
-                      <Textarea
-                        value={paymentForm.notes}
-                        onChange={(e) => setPaymentForm(prev => ({ ...prev, notes: e.target.value }))}
-                        rows={2}
-                        placeholder="Optional notes about this payment"
-                        className="mt-1"
-                      />
-                    </div>
-                    <div className="flex justify-end gap-2">
-                      <Button variant="outline" onClick={() => setShowPaymentForm(false)}>
-                        Cancel
-                      </Button>
-                      <Button onClick={handleRecordPayment} disabled={paymentSaving}>
-                        {paymentSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                        Record Payment
-                      </Button>
+                      <p className="font-medium text-gray-900">
+                        {order.savedPaymentMethod.nickname ||
+                          `${order.savedPaymentMethod.cardBrand} ****${order.savedPaymentMethod.lastFour}`}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {order.savedPaymentMethod.cardBrand} ending in {order.savedPaymentMethod.lastFour}
+                      </p>
                     </div>
                   </div>
-                )}
-              </TabsContent>
+                </div>
+              )}
 
-              <TabsContent value="activity" className="space-y-3">
-                {order.activities.length === 0 ? (
-                  <p className="text-gray-400 text-center py-8">No activity yet</p>
+              {/* Notes */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-gray-500" />
+                  Order Notes
+                </Label>
+                {editing ? (
+                  <Textarea
+                    value={editForm.notes}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
+                    placeholder="Notes visible on PO..."
+                    rows={2}
+                  />
+                ) : order.notes ? (
+                  <div className="p-3 bg-white border rounded-lg">
+                    <p className="text-sm text-gray-700 whitespace-pre-line">{order.notes}</p>
+                  </div>
                 ) : (
-                  order.activities.map(activity => (
-                    <div key={activity.id} className="flex items-start gap-3 text-sm">
-                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                        <Clock className="w-4 h-4 text-gray-400" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-gray-900">{activity.message}</p>
-                        <p className="text-gray-500 text-xs">
-                          {activity.user?.name || 'System'} • {formatDateTime(activity.createdAt)}
-                        </p>
-                      </div>
-                    </div>
-                  ))
+                  <p className="text-sm text-gray-400 italic">No notes</p>
                 )}
-              </TabsContent>
-            </Tabs>
+              </div>
+
+              {/* Totals - matches CreatePODialog exactly */}
+              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-emerald-700">Items Subtotal ({order.items.length})</p>
+                  <p className="font-medium text-emerald-800">
+                    {formatCurrency(order.subtotal, order.currency)}
+                  </p>
+                </div>
+                {order.shippingCost && parseFloat(order.shippingCost) > 0 && (
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-emerald-700">Shipping</p>
+                    <p className="font-medium text-emerald-800">
+                      {formatCurrency(order.shippingCost, order.currency)}
+                    </p>
+                  </div>
+                )}
+                {order.extraCharges && order.extraCharges.length > 0 && order.extraCharges.map((charge, idx) => (
+                  <div key={idx} className="flex items-center justify-between">
+                    <p className="text-sm text-emerald-700">{charge.label}</p>
+                    <p className="font-medium text-emerald-800">
+                      {formatCurrency(charge.amount, order.currency)}
+                    </p>
+                  </div>
+                ))}
+                {order.taxAmount && parseFloat(order.taxAmount) > 0 && (
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-emerald-700">Tax</p>
+                    <p className="font-medium text-emerald-800">
+                      {formatCurrency(order.taxAmount, order.currency)}
+                    </p>
+                  </div>
+                )}
+                <div className="flex items-center justify-between pt-2 border-t border-emerald-200">
+                  <p className="font-semibold text-emerald-800">Total</p>
+                  <p className="text-xl font-bold text-emerald-900">
+                    {formatCurrency(order.totalAmount, order.currency)}
+                  </p>
+                </div>
+                {depositRequired > 0 && (
+                  <>
+                    <div className="flex items-center justify-between pt-2 border-t border-emerald-200 mt-2">
+                      <p className="text-sm text-blue-700 font-medium">
+                        Deposit Required ({depositPercent}%)
+                      </p>
+                      <p className="font-bold text-blue-700">
+                        {formatCurrency(depositRequired, order.currency)}
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-gray-600">Balance Due</p>
+                      <p className="font-medium text-gray-700">
+                        {formatCurrency(balanceDue, order.currency)}
+                      </p>
+                    </div>
+                  </>
+                )}
+                {/* Payment Status */}
+                {(depositPaid > 0 || supplierPaid > 0) && (
+                  <div className="pt-2 border-t border-emerald-200 mt-2 space-y-1">
+                    {depositPaid > 0 && (
+                      <div className="flex items-center justify-between text-green-600">
+                        <span className="text-sm flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          Deposit Paid
+                        </span>
+                        <span className="font-medium">{formatCurrency(depositPaid, order.currency)}</span>
+                      </div>
+                    )}
+                    {supplierPaid > 0 && (
+                      <div className="flex items-center justify-between text-green-600">
+                        <span className="text-sm flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          Paid to Supplier
+                        </span>
+                        <span className="font-medium">{formatCurrency(supplierPaid, order.currency)}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Quick Links */}
+              {order.supplierAccessToken && (
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={handleCopyPortalLink}>
+                    <Copy className="w-4 h-4 mr-1.5" />
+                    Copy Portal Link
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.open(`/supplier-order/${order.supplierAccessToken}`, '_blank')}
+                  >
+                    <ExternalLink className="w-4 h-4 mr-1.5" />
+                    Supplier Portal
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
 
           <DialogFooter className="flex-shrink-0 border-t pt-4">

@@ -82,6 +82,12 @@ export async function GET(
       }
     })
 
+    // Calculate deposit values
+    const totalAmount = parseFloat(order.totalAmount?.toString() || '0')
+    const depositRequired = parseFloat(order.depositRequired?.toString() || '0')
+    const depositPercent = parseFloat(order.depositPercent?.toString() || '0')
+    const balanceDue = depositRequired > 0 ? totalAmount - depositRequired : 0
+
     // Build PO data for PDF
     const poData = {
       orderNumber: order.orderNumber,
@@ -118,8 +124,13 @@ export async function GET(
       shippingCost: parseFloat(order.shippingCost?.toString() || '0'),
       extraCharges: order.extraCharges as Array<{ label: string; amount: number }> | null,
       taxAmount: parseFloat(order.taxAmount?.toString() || '0'),
-      totalAmount: parseFloat(order.totalAmount?.toString() || '0'),
+      totalAmount: totalAmount,
       currency: order.currency || 'CAD',
+
+      // Deposit
+      depositPercent: depositPercent > 0 ? depositPercent : null,
+      depositRequired: depositRequired > 0 ? depositRequired : null,
+      balanceDue: balanceDue > 0 ? balanceDue : null,
 
       // Notes
       notes: order.notes,
