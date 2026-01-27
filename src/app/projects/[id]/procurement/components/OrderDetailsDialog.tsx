@@ -176,6 +176,7 @@ export default function OrderDetailsDialog({
   const [deleting, setDeleting] = useState(false)
   const [showSendPO, setShowSendPO] = useState(false)
   const [downloadingPDF, setDownloadingPDF] = useState(false)
+  const [sendingTestEmail, setSendingTestEmail] = useState(false)
   const [showPaymentForm, setShowPaymentForm] = useState(false)
   const [paymentSaving, setPaymentSaving] = useState(false)
   const [paymentForm, setPaymentForm] = useState({
@@ -316,6 +317,45 @@ export default function OrderDetailsDialog({
     }
   }
 
+  const handleSendTestEmail = async () => {
+    if (!order) return
+
+    const supplierEmail = order.supplier?.email || order.vendorEmail
+    if (!supplierEmail) {
+      toast.error('No supplier email configured')
+      return
+    }
+
+    setSendingTestEmail(true)
+    try {
+      const res = await fetch(`/api/orders/${order.id}/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          supplierEmail,
+          isTest: true
+        })
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to send test email')
+      }
+
+      const data = await res.json()
+      toast.success(`Test email sent to ${supplierEmail}`)
+
+      // Show the supplier portal URL if available
+      if (data.supplierPortalUrl) {
+        toast.info(`Supplier Portal: ${data.supplierPortalUrl}`, { duration: 10000 })
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send test email')
+    } finally {
+      setSendingTestEmail(false)
+    }
+  }
+
   const handleRecordPayment = async () => {
     if (!order) return
 
@@ -437,6 +477,20 @@ export default function OrderDetailsDialog({
                     <FileDown className="w-4 h-4 mr-1" />
                   )}
                   PDF
+                </Button>
+                {/* Test Email - sends same email as supplier receives */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSendTestEmail}
+                  disabled={sendingTestEmail}
+                >
+                  {sendingTestEmail ? (
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  ) : (
+                    <Mail className="w-4 h-4 mr-1" />
+                  )}
+                  Test Email
                 </Button>
                 {/* Send PO - show if not already ordered */}
                 {order.status !== 'ORDERED' && order.status !== 'SHIPPED' && order.status !== 'DELIVERED' && (
