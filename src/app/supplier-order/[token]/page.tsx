@@ -670,18 +670,11 @@ export default function SupplierOrderPortal() {
 
                         {order.depositRequired && order.depositRequired > 0 && (
                           <>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-gray-600">
-                                Deposit Required {order.depositPercent && `(${order.depositPercent}%)`}
-                              </span>
-                              <span className="font-medium">{formatCurrency(order.depositRequired, order.currency)}</span>
-                            </div>
-
                             {(order.depositPaid && order.depositPaid > 0) ? (
                               <div className="flex justify-between text-sm">
                                 <span className="text-emerald-600 flex items-center gap-1">
                                   <CheckCircle className="w-4 h-4" />
-                                  Deposit Paid
+                                  Deposit Paid {order.depositPercent && `(${order.depositPercent}%)`}
                                 </span>
                                 <span className="font-medium text-emerald-600">
                                   {formatCurrency(order.depositPaid, order.currency)}
@@ -691,7 +684,7 @@ export default function SupplierOrderPortal() {
                               <div className="flex justify-between text-sm">
                                 <span className="text-amber-600 flex items-center gap-1">
                                   <AlertCircle className="w-4 h-4" />
-                                  Deposit Pending
+                                  Deposit Due {order.depositPercent && `(${order.depositPercent}%)`}
                                 </span>
                                 <span className="font-medium text-amber-600">
                                   {formatCurrency(order.depositRequired, order.currency)}
@@ -701,7 +694,7 @@ export default function SupplierOrderPortal() {
 
                             <div className="border-t pt-3 mt-3">
                               <div className="flex justify-between text-sm font-semibold">
-                                <span>Balance Due</span>
+                                <span>Remaining Balance</span>
                                 <span>
                                   {formatCurrency(
                                     order.totalAmount - (order.depositPaid || 0),
@@ -885,19 +878,23 @@ export default function SupplierOrderPortal() {
           {/* Right Column - Messages, Documents & Activity */}
           <div className="space-y-6">
             {/* Compact Supplier Details */}
-            <div className="bg-gray-50 border rounded-lg p-3 flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-gray-400" />
-                <span className="font-medium text-gray-900">{safeSupplier.name}</span>
-                {safeSupplier.contactName && (
-                  <span className="text-gray-500">• {safeSupplier.contactName}</span>
-                )}
-              </div>
-              <div className="flex items-center gap-3 text-gray-500">
-                {safeSupplier.email && <span>{safeSupplier.email}</span>}
-                {safeSupplier.phone && <span>{safeSupplier.phone}</span>}
-              </div>
-            </div>
+            <Card>
+              <CardContent className="py-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                    <Building2 className="w-5 h-5 text-gray-500" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-gray-900 truncate">{safeSupplier.name}</p>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500">
+                      {safeSupplier.contactName && <span>{safeSupplier.contactName}</span>}
+                      {safeSupplier.email && <span>{safeSupplier.email}</span>}
+                      {safeSupplier.phone && <span>{safeSupplier.phone}</span>}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
             <Card>
               <CardContent className="pt-6">
@@ -1328,30 +1325,24 @@ export default function SupplierOrderPortal() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             {/* Payment context info */}
-            {order.depositRequired && order.depositRequired > 0 && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-blue-700">Order Total</span>
-                  <span className="font-medium text-blue-900">{formatCurrency(order.totalAmount, order.currency)}</span>
-                </div>
-                <div className="flex justify-between mt-1">
-                  <span className="text-blue-700">Deposit Required</span>
-                  <span className="font-medium text-blue-900">{formatCurrency(order.depositRequired, order.currency)}</span>
-                </div>
-                {order.depositPaid && order.depositPaid > 0 && (
-                  <div className="flex justify-between mt-1">
-                    <span className="text-emerald-600">Already Paid</span>
-                    <span className="font-medium text-emerald-700">{formatCurrency(order.depositPaid, order.currency)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between mt-2 pt-2 border-t border-blue-200">
-                  <span className="text-blue-700 font-medium">Balance Due</span>
-                  <span className="font-semibold text-blue-900">
-                    {formatCurrency(order.totalAmount - (order.depositPaid || 0), order.currency)}
-                  </span>
-                </div>
+            <div className="bg-gray-50 border rounded-lg p-3 text-sm space-y-1">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Order Total</span>
+                <span className="font-medium">{formatCurrency(order.totalAmount, order.currency)}</span>
               </div>
-            )}
+              {order.depositPaid && order.depositPaid > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-emerald-600">Already Paid</span>
+                  <span className="font-medium text-emerald-600">{formatCurrency(order.depositPaid, order.currency)}</span>
+                </div>
+              )}
+              <div className="flex justify-between pt-2 border-t">
+                <span className="font-medium">Remaining</span>
+                <span className="font-semibold">
+                  {formatCurrency(order.totalAmount - (order.depositPaid || 0), order.currency)}
+                </span>
+              </div>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="paymentAmount">Amount Charged *</Label>
               <div className="relative">
