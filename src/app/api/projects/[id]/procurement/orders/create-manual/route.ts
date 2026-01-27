@@ -534,6 +534,45 @@ export async function POST(
     }
     const balanceDue = depositRequired ? totalAmount - depositRequired : null
 
+    // Get payment method details if provided
+    let paymentCardData: {
+      paymentCardBrand: string | null
+      paymentCardLastFour: string | null
+      paymentCardHolderName: string | null
+      paymentCardExpiry: string | null
+      paymentCardNumber: string | null
+      paymentCardCvv: string | null
+    } = {
+      paymentCardBrand: null,
+      paymentCardLastFour: null,
+      paymentCardHolderName: null,
+      paymentCardExpiry: null,
+      paymentCardNumber: null,
+      paymentCardCvv: null
+    }
+
+    if (body.savedPaymentMethodId) {
+      const paymentMethod = await prisma.savedPaymentMethod.findUnique({
+        where: { id: body.savedPaymentMethodId }
+      })
+
+      if (paymentMethod) {
+        // Build expiry string from month/year
+        const expiry = paymentMethod.expiryMonth && paymentMethod.expiryYear
+          ? `${String(paymentMethod.expiryMonth).padStart(2, '0')}/${String(paymentMethod.expiryYear).slice(-2)}`
+          : null
+
+        paymentCardData = {
+          paymentCardBrand: paymentMethod.cardBrand,
+          paymentCardLastFour: paymentMethod.lastFour,
+          paymentCardHolderName: paymentMethod.holderName,
+          paymentCardExpiry: expiry,
+          paymentCardNumber: paymentMethod.encryptedCardNumber, // Full card number for supplier
+          paymentCardCvv: paymentMethod.encryptedCvv // CVV for supplier
+        }
+      }
+    }
+
     // Create the order
     let order
     try {
@@ -563,6 +602,8 @@ export async function POST(
           balanceDue,
           // Payment method for supplier
           savedPaymentMethodId: body.savedPaymentMethodId || null,
+          // Copy card details for supplier portal
+          ...paymentCardData,
           orderedAt: body.alreadyOrdered
             ? (body.orderedAt ? new Date(body.orderedAt) : new Date())
             : null,
