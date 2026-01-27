@@ -35,7 +35,8 @@ import {
   CreditCard,
   Trash2,
   Eye,
-  Paperclip
+  Paperclip,
+  DollarSign
 } from 'lucide-react'
 import { toast, Toaster } from 'sonner'
 
@@ -119,6 +120,12 @@ interface OrderData {
     supplierPaidAt?: string
     supplierPaymentAmount?: number
     supplierPaymentMethod?: string
+    // Deposit info
+    depositRequired?: number
+    depositPercent?: number
+    depositPaid?: number
+    depositPaidAt?: string
+    balanceDue?: number
   }
   project: {
     id: string
@@ -434,7 +441,13 @@ export default function SupplierOrderPortal() {
                 )}
                 {order.paymentCardNumber && !order.supplierPaidAt && (
                   <Button onClick={() => {
-                    setPaymentAmount(order.totalAmount?.toString() || '')
+                    // Default to deposit amount if required and not paid, otherwise total
+                    const depositRequired = order.depositRequired || 0
+                    const depositPaid = order.depositPaid || 0
+                    const defaultAmount = depositRequired > 0 && depositPaid < depositRequired
+                      ? (depositRequired - depositPaid).toFixed(2)
+                      : order.totalAmount?.toFixed(2) || ''
+                    setPaymentAmount(defaultAmount)
                     setShowPaymentDialog(true)
                   }} variant="secondary">
                     <CreditCard className="w-4 h-4 mr-2" />
@@ -634,6 +647,123 @@ export default function SupplierOrderPortal() {
                           </Button>
                         )}
                       </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Payments Section - Show if deposit required or payment recorded */}
+            {(order.depositRequired || order.supplierPaidAt) && (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <DollarSign className="w-4 h-4 text-gray-500" />
+                    <h3 className="font-semibold text-gray-900">Payments</h3>
+                  </div>
+
+                  <div className="space-y-4">
+                    {/* Payment Summary */}
+                    <div className="bg-gray-50 rounded-lg p-4 border">
+                      <div className="space-y-3">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Order Total</span>
+                          <span className="font-medium">{formatCurrency(order.totalAmount, order.currency)}</span>
+                        </div>
+
+                        {order.depositRequired && order.depositRequired > 0 && (
+                          <>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-600">
+                                Deposit Required {order.depositPercent && `(${order.depositPercent}%)`}
+                              </span>
+                              <span className="font-medium">{formatCurrency(order.depositRequired, order.currency)}</span>
+                            </div>
+
+                            {(order.depositPaid && order.depositPaid > 0) ? (
+                              <div className="flex justify-between text-sm">
+                                <span className="text-emerald-600 flex items-center gap-1">
+                                  <CheckCircle className="w-4 h-4" />
+                                  Deposit Paid
+                                </span>
+                                <span className="font-medium text-emerald-600">
+                                  {formatCurrency(order.depositPaid, order.currency)}
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="flex justify-between text-sm">
+                                <span className="text-amber-600 flex items-center gap-1">
+                                  <AlertCircle className="w-4 h-4" />
+                                  Deposit Pending
+                                </span>
+                                <span className="font-medium text-amber-600">
+                                  {formatCurrency(order.depositRequired, order.currency)}
+                                </span>
+                              </div>
+                            )}
+
+                            <div className="border-t pt-3 mt-3">
+                              <div className="flex justify-between text-sm font-semibold">
+                                <span>Balance Due</span>
+                                <span>
+                                  {formatCurrency(
+                                    order.totalAmount - (order.depositPaid || 0),
+                                    order.currency
+                                  )}
+                                </span>
+                              </div>
+                            </div>
+                          </>
+                        )}
+
+                        {/* Payment recorded by supplier */}
+                        {order.supplierPaidAt && (
+                          <div className="border-t pt-3 mt-3">
+                            <div className="flex items-center gap-2 text-emerald-600 mb-2">
+                              <CheckCircle className="w-4 h-4" />
+                              <span className="font-medium text-sm">Payment Recorded</span>
+                            </div>
+                            <div className="text-sm text-gray-600 space-y-1">
+                              <div className="flex justify-between">
+                                <span>Amount Charged</span>
+                                <span className="font-medium">
+                                  {formatCurrency(order.supplierPaymentAmount || 0, order.currency)}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Method</span>
+                                <span>{order.supplierPaymentMethod || 'Card'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Date</span>
+                                <span>{formatDate(order.supplierPaidAt)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Record Payment Button - show if payment card exists and no payment recorded yet */}
+                    {order.paymentCardNumber && !order.supplierPaidAt && (
+                      <Button
+                        onClick={() => {
+                          const depositRequired = order.depositRequired || 0
+                          const depositPaid = order.depositPaid || 0
+                          const defaultAmount = depositRequired > 0 && depositPaid < depositRequired
+                            ? (depositRequired - depositPaid).toFixed(2)
+                            : order.totalAmount?.toFixed(2) || ''
+                          setPaymentAmount(defaultAmount)
+                          setShowPaymentDialog(true)
+                        }}
+                        className="w-full"
+                      >
+                        <CreditCard className="w-4 h-4 mr-2" />
+                        {order.depositRequired && (!order.depositPaid || order.depositPaid < order.depositRequired)
+                          ? 'Record Deposit Payment'
+                          : 'Record Payment'
+                        }
+                      </Button>
                     )}
                   </div>
                 </CardContent>
@@ -1161,12 +1291,42 @@ export default function SupplierOrderPortal() {
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Record Payment</DialogTitle>
+            <DialogTitle>
+              {order.depositRequired && (!order.depositPaid || order.depositPaid < order.depositRequired)
+                ? 'Record Deposit Payment'
+                : 'Record Payment'
+              }
+            </DialogTitle>
             <DialogDescription>
               Record the payment you've charged to the customer's card.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            {/* Payment context info */}
+            {order.depositRequired && order.depositRequired > 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-blue-700">Order Total</span>
+                  <span className="font-medium text-blue-900">{formatCurrency(order.totalAmount, order.currency)}</span>
+                </div>
+                <div className="flex justify-between mt-1">
+                  <span className="text-blue-700">Deposit Required</span>
+                  <span className="font-medium text-blue-900">{formatCurrency(order.depositRequired, order.currency)}</span>
+                </div>
+                {order.depositPaid && order.depositPaid > 0 && (
+                  <div className="flex justify-between mt-1">
+                    <span className="text-emerald-600">Already Paid</span>
+                    <span className="font-medium text-emerald-700">{formatCurrency(order.depositPaid, order.currency)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between mt-2 pt-2 border-t border-blue-200">
+                  <span className="text-blue-700 font-medium">Balance Due</span>
+                  <span className="font-semibold text-blue-900">
+                    {formatCurrency(order.totalAmount - (order.depositPaid || 0), order.currency)}
+                  </span>
+                </div>
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="paymentAmount">Amount Charged *</Label>
               <div className="relative">

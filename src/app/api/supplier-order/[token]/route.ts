@@ -205,7 +205,13 @@ export async function GET(
         // Payment status
         supplierPaidAt: order.supplierPaidAt?.toISOString() || null,
         supplierPaymentAmount: order.supplierPaymentAmount ? Number(order.supplierPaymentAmount) : null,
-        supplierPaymentMethod: order.supplierPaymentMethod
+        supplierPaymentMethod: order.supplierPaymentMethod,
+        // Deposit info
+        depositPercent: order.depositPercent ? parseFloat(order.depositPercent.toString()) : null,
+        depositRequired: order.depositRequired ? parseFloat(order.depositRequired.toString()) : null,
+        depositPaid: order.depositPaid ? parseFloat(order.depositPaid.toString()) : null,
+        depositPaidAt: order.depositPaidAt?.toISOString() || null,
+        balanceDue: order.balanceDue ? parseFloat(order.balanceDue.toString()) : null
       },
       project: order.project ? {
         id: order.project.id,
@@ -598,13 +604,16 @@ export async function POST(
           return NextResponse.json({ error: 'Payment amount is required' }, { status: 400 })
         }
 
+        // Round amount to 2 decimal places
+        const paymentAmountRounded = Math.round(amount * 100) / 100
+
         // Update order with payment info
         await prisma.order.update({
           where: { id: order.id },
           data: {
             supplierPaidAt: new Date(),
             supplierPaymentMethod: method || 'CARD',
-            supplierPaymentAmount: amount,
+            supplierPaymentAmount: paymentAmountRounded,
             supplierPaymentRef: reference || null,
             notes: paymentNotes
               ? `${order.notes || ''}\n\nPayment Note (${new Date().toLocaleDateString()}): ${paymentNotes}`.trim()
@@ -616,8 +625,8 @@ export async function POST(
           data: {
             orderId: order.id,
             type: 'PAYMENT_RECORDED',
-            message: `Supplier recorded payment: $${amount.toFixed(2)} via ${method || 'card'}${reference ? ` (Ref: ${reference})` : ''}`,
-            metadata: { amount, method, reference, chargedBy, notes: paymentNotes }
+            message: `Supplier recorded payment: $${paymentAmountRounded.toFixed(2)} via ${method || 'card'}${reference ? ` (Ref: ${reference})` : ''}`,
+            metadata: { amount: paymentAmountRounded, method, reference, chargedBy, notes: paymentNotes }
           }
         })
 
@@ -632,7 +641,7 @@ export async function POST(
                 <h2 style="color: #1f2937;">Payment Recorded</h2>
                 <p><strong>Order:</strong> ${order.orderNumber}</p>
                 <p><strong>Supplier:</strong> ${supplierName}</p>
-                <p><strong>Amount:</strong> $${amount.toFixed(2)}</p>
+                <p><strong>Amount:</strong> $${paymentAmountRounded.toFixed(2)}</p>
                 <p><strong>Method:</strong> ${method || 'Card'}</p>
                 ${reference ? `<p><strong>Reference:</strong> ${reference}</p>` : ''}
                 ${chargedBy ? `<p><strong>Processed By:</strong> ${chargedBy}</p>` : ''}
