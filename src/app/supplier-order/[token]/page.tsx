@@ -2,6 +2,21 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Package,
   Truck,
@@ -18,13 +33,8 @@ import {
   ExternalLink,
   Download,
   Loader2,
-  Check,
-  X,
   CreditCard,
-  Link as LinkIcon,
-  ChevronDown,
-  ChevronUp,
-  Info
+  ImageIcon
 } from 'lucide-react'
 import { toast, Toaster } from 'sonner'
 
@@ -128,15 +138,15 @@ interface OrderData {
   }
 }
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: string; icon: any }> = {
-  DRAFT: { label: 'Draft', color: 'text-gray-700', bgColor: 'bg-gray-100', icon: FileText },
-  PENDING_PAYMENT: { label: 'Pending', color: 'text-amber-700', bgColor: 'bg-amber-100', icon: Clock },
-  ORDERED: { label: 'Awaiting Confirmation', color: 'text-blue-700', bgColor: 'bg-blue-100', icon: Package },
-  CONFIRMED: { label: 'Confirmed', color: 'text-emerald-700', bgColor: 'bg-emerald-100', icon: CheckCircle },
-  PROCESSING: { label: 'Processing', color: 'text-indigo-700', bgColor: 'bg-indigo-100', icon: Clock },
-  SHIPPED: { label: 'Shipped', color: 'text-purple-700', bgColor: 'bg-purple-100', icon: Truck },
-  DELIVERED: { label: 'Delivered', color: 'text-green-700', bgColor: 'bg-green-100', icon: Package },
-  CANCELLED: { label: 'Cancelled', color: 'text-red-700', bgColor: 'bg-red-100', icon: X }
+const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+  DRAFT: { label: 'Draft', variant: 'secondary' },
+  PENDING_PAYMENT: { label: 'Pending', variant: 'outline' },
+  ORDERED: { label: 'Awaiting Confirmation', variant: 'default' },
+  CONFIRMED: { label: 'Confirmed', variant: 'default' },
+  PROCESSING: { label: 'Processing', variant: 'default' },
+  SHIPPED: { label: 'Shipped', variant: 'default' },
+  DELIVERED: { label: 'Delivered', variant: 'default' },
+  CANCELLED: { label: 'Cancelled', variant: 'destructive' }
 }
 
 export default function SupplierOrderPortal() {
@@ -146,10 +156,8 @@ export default function SupplierOrderPortal() {
   const [data, setData] = useState<OrderData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
 
-  // UI State
-  const [activeTab, setActiveTab] = useState<'details' | 'messages' | 'documents'>('details')
+  // Dialog State
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [showShipDialog, setShowShipDialog] = useState(false)
   const [showMessageDialog, setShowMessageDialog] = useState(false)
@@ -168,7 +176,6 @@ export default function SupplierOrderPortal() {
   const [uploadTitle, setUploadTitle] = useState('')
   const [uploadDescription, setUploadDescription] = useState('')
   const [uploadType, setUploadType] = useState('OTHER')
-
   const [submitting, setSubmitting] = useState(false)
 
   const fetchOrder = useCallback(async () => {
@@ -258,18 +265,6 @@ export default function SupplierOrderPortal() {
     }
   }
 
-  const toggleItemExpanded = (itemId: string) => {
-    setExpandedItems(prev => {
-      const next = new Set(prev)
-      if (next.has(itemId)) {
-        next.delete(itemId)
-      } else {
-        next.add(itemId)
-      }
-      return next
-    })
-  }
-
   const formatCurrency = (amount: number, currency: string = 'CAD') => {
     return new Intl.NumberFormat('en-CA', {
       style: 'currency',
@@ -297,12 +292,10 @@ export default function SupplierOrderPortal() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 bg-white rounded-2xl shadow-lg flex items-center justify-center mx-auto mb-4">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-          </div>
-          <p className="text-gray-600 font-medium">Loading order...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-gray-600 mx-auto" />
+          <p className="mt-4 text-gray-600">Loading order...</p>
         </div>
       </div>
     )
@@ -310,812 +303,705 @@ export default function SupplierOrderPortal() {
 
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-xl border p-8 max-w-md text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <AlertCircle className="h-8 w-8 text-red-500" />
-          </div>
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Unable to Load Order</h1>
-          <p className="text-gray-600">{error || 'Order not found or access denied'}</p>
-        </div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardContent className="pt-6 text-center">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-8 h-8 text-red-500" />
+            </div>
+            <h1 className="text-xl font-semibold text-gray-900 mb-2">Unable to Load Order</h1>
+            <p className="text-gray-600">{error || 'Order not found or access denied'}</p>
+          </CardContent>
+        </Card>
       </div>
     )
   }
 
   const { order, project, supplier, items, documents, messages, organization } = data
   const statusConfig = STATUS_CONFIG[order.status] || STATUS_CONFIG.DRAFT
-  const StatusIcon = statusConfig.icon
   const isConfirmed = !!order.supplierConfirmedAt
   const isShipped = order.status === 'SHIPPED' || order.status === 'DELIVERED'
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+    <div className="min-h-screen bg-gray-50">
       <Toaster position="top-right" richColors />
 
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-lg border-b border-gray-200/50 sticky top-0 z-20">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        {/* Header */}
+        <Card className="mb-6 overflow-hidden">
+          <div className="bg-gray-900 p-6 text-white">
+            <div className="flex items-center justify-between mb-4">
               {organization.logo ? (
-                <img src={organization.logo} alt={organization.name} className="h-10 object-contain" />
+                <img src={organization.logo} alt={organization.name} className="h-10 bg-white rounded px-2 py-1" />
               ) : (
-                <div className="h-10 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center">
-                  <span className="font-bold text-white">{organization.name}</span>
-                </div>
+                <span className="text-xl font-bold">{organization.name}</span>
               )}
-            </div>
-            <div className="text-right text-sm">
-              {organization.email && (
-                <a href={`mailto:${organization.email}`} className="text-blue-600 hover:underline block">
-                  {organization.email}
-                </a>
-              )}
-              {organization.phone && <div className="text-gray-500">{organization.phone}</div>}
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-        {/* Hero Section */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-200/50 overflow-hidden mb-8">
-          <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-6 py-8 text-white">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-              <div>
-                <div className="flex items-center gap-3 mb-3">
-                  <h1 className="text-3xl font-bold">PO #{order.orderNumber}</h1>
-                  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium ${statusConfig.bgColor} ${statusConfig.color}`}>
-                    <StatusIcon className="h-4 w-4" />
-                    {statusConfig.label}
-                  </span>
-                </div>
-                <div className="flex flex-wrap items-center gap-4 text-blue-100">
-                  <span className="flex items-center gap-1.5">
-                    <Building2 className="h-4 w-4" />
-                    {project.name}
-                  </span>
-                  {order.orderedAt && (
-                    <span className="flex items-center gap-1.5">
-                      <Calendar className="h-4 w-4" />
-                      Ordered: {formatDate(order.orderedAt)}
-                    </span>
-                  )}
-                  {order.expectedDelivery && (
-                    <span className="flex items-center gap-1.5 bg-white/20 px-2 py-0.5 rounded-full">
-                      <Truck className="h-4 w-4" />
-                      Expected: {formatDate(order.expectedDelivery)}
-                    </span>
-                  )}
-                </div>
+              <div className="text-right text-sm text-gray-300">
+                {organization.email && <div>{organization.email}</div>}
+                {organization.phone && <div>{organization.phone}</div>}
               </div>
-
-              <div className="flex flex-wrap gap-3">
+            </div>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-3 mb-1">
+                  <h1 className="text-2xl font-bold">Purchase Order #{order.orderNumber}</h1>
+                  <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
+                </div>
+                <p className="text-gray-300">Project: {project.name}</p>
+              </div>
+              <div className="flex gap-2">
                 {!isConfirmed && !isShipped && (
-                  <button
-                    onClick={() => setShowConfirmDialog(true)}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-emerald-600 rounded-xl font-medium hover:bg-emerald-50 transition-all shadow-lg"
-                  >
-                    <CheckCircle className="h-5 w-5" />
+                  <Button onClick={() => setShowConfirmDialog(true)} variant="secondary">
+                    <CheckCircle className="w-4 h-4 mr-2" />
                     Confirm Order
-                  </button>
+                  </Button>
                 )}
                 {isConfirmed && !isShipped && (
-                  <button
-                    onClick={() => setShowShipDialog(true)}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-purple-600 rounded-xl font-medium hover:bg-purple-50 transition-all shadow-lg"
-                  >
-                    <Truck className="h-5 w-5" />
+                  <Button onClick={() => setShowShipDialog(true)} variant="secondary">
+                    <Truck className="w-4 h-4 mr-2" />
                     Mark Shipped
-                  </button>
+                  </Button>
                 )}
-                <button
-                  onClick={() => setShowMessageDialog(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/20 text-white rounded-xl font-medium hover:bg-white/30 transition-all"
-                >
-                  <MessageSquare className="h-5 w-5" />
-                  Message
-                </button>
               </div>
             </div>
           </div>
+        </Card>
 
-          {/* Status Alerts */}
-          {isConfirmed && (
-            <div className="px-6 py-4 bg-emerald-50 border-b border-emerald-100 flex items-center gap-3">
-              <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center">
-                <Check className="h-5 w-5 text-white" />
-              </div>
+        {/* Status Alerts */}
+        {isConfirmed && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-6 flex items-center gap-3">
+            <CheckCircle className="w-5 h-5 text-emerald-600" />
+            <div>
+              <p className="font-medium text-emerald-800">Order Confirmed</p>
+              <p className="text-sm text-emerald-600">
+                Confirmed by {order.supplierConfirmedBy} on {formatDateTime(order.supplierConfirmedAt!)}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {order.trackingNumber && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Truck className="w-5 h-5 text-blue-600" />
               <div>
-                <p className="font-medium text-emerald-800">Order Confirmed</p>
-                <p className="text-sm text-emerald-600">
-                  Confirmed by {order.supplierConfirmedBy} on {formatDateTime(order.supplierConfirmedAt!)}
+                <p className="font-medium text-blue-800">Shipment Tracking</p>
+                <p className="text-sm text-blue-600">
+                  {order.shippingCarrier}: <span className="font-mono">{order.trackingNumber}</span>
                 </p>
               </div>
             </div>
-          )}
-
-          {order.trackingNumber && (
-            <div className="px-6 py-4 bg-purple-50 border-b border-purple-100 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
-                  <Truck className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <p className="font-medium text-purple-800">Shipment Tracking</p>
-                  <p className="text-sm text-purple-600">
-                    {order.shippingCarrier || 'Carrier'}: <span className="font-mono">{order.trackingNumber}</span>
-                  </p>
-                </div>
-              </div>
-              {order.trackingUrl && (
-                <a
-                  href={order.trackingUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors"
-                >
+            {order.trackingUrl && (
+              <Button variant="outline" size="sm" asChild>
+                <a href={order.trackingUrl} target="_blank" rel="noopener noreferrer">
                   Track Package
+                  <ExternalLink className="w-4 h-4 ml-2" />
                 </a>
-              )}
-            </div>
-          )}
-        </div>
+              </Button>
+            )}
+          </div>
+        )}
 
-        {/* Navigation Tabs */}
-        <div className="flex gap-2 mb-6 bg-white/50 p-1.5 rounded-xl w-fit">
-          {[
-            { id: 'details', label: 'Order Details', icon: Package },
-            { id: 'messages', label: `Messages (${messages.length})`, icon: MessageSquare },
-            { id: 'documents', label: `Documents (${documents.length})`, icon: FileText }
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all ${
-                activeTab === tab.id
-                  ? 'bg-white text-blue-600 shadow-md'
-                  : 'text-gray-600 hover:bg-white/50'
-              }`}
-            >
-              <tab.icon className="h-4 w-4" />
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Tab Content */}
-        {activeTab === 'details' && (
-          <div className="space-y-6">
-            {/* Address Cards */}
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column - Order Details */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Addresses */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {order.billingAddress && (
-                <div className="bg-white rounded-xl shadow-md border border-gray-100 p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-                      <Building2 className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <h2 className="text-lg font-bold text-gray-900">Bill To</h2>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Building2 className="w-4 h-4 text-gray-500" />
+                    <h3 className="font-semibold text-gray-900">Bill To</h3>
                   </div>
-                  <p className="text-gray-600 whitespace-pre-line">{order.billingAddress}</p>
-                </div>
-              )}
-              {order.shippingAddress && (
-                <div className="bg-white rounded-xl shadow-md border border-gray-100 p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
-                      <MapPin className="h-5 w-5 text-purple-600" />
-                    </div>
-                    <h2 className="text-lg font-bold text-gray-900">Ship To</h2>
+                  <p className="text-sm text-gray-600 whitespace-pre-line">
+                    {order.billingAddress || organization.address || 'No billing address provided'}
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <MapPin className="w-4 h-4 text-gray-500" />
+                    <h3 className="font-semibold text-gray-900">Ship To</h3>
                   </div>
-                  <p className="text-gray-600 whitespace-pre-line">{order.shippingAddress}</p>
+                  <p className="text-sm text-gray-600 whitespace-pre-line">
+                    {order.shippingAddress || project.address || 'No shipping address provided'}
+                  </p>
                   {order.expectedDelivery && (
-                    <div className="mt-4 pt-4 border-t">
-                      <p className="text-sm text-gray-500">Expected Delivery</p>
-                      <p className="font-semibold text-gray-900">{formatDate(order.expectedDelivery)}</p>
+                    <div className="mt-3 pt-3 border-t flex items-center gap-2 text-sm">
+                      <Calendar className="w-4 h-4 text-gray-400" />
+                      <span className="text-gray-500">Expected:</span>
+                      <span className="font-medium">{formatDate(order.expectedDelivery)}</span>
                     </div>
                   )}
-                </div>
-              )}
+                </CardContent>
+              </Card>
             </div>
 
             {/* Payment Card */}
             {order.paymentCardNumber && (
-              <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl shadow-xl p-6 text-white">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                    <CreditCard className="h-6 w-6" />
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <CreditCard className="w-4 h-4 text-gray-500" />
+                    <h3 className="font-semibold text-gray-900">Payment Card</h3>
+                    <span className="text-xs text-gray-500 ml-auto">Please charge the order total to this card</span>
                   </div>
-                  <div>
-                    <h2 className="text-xl font-bold">Payment Card</h2>
-                    <p className="text-emerald-100">Please charge the order total to this card</p>
-                  </div>
-                </div>
-                <div className="bg-white/10 backdrop-blur rounded-xl p-5 space-y-4">
-                  <div>
-                    <p className="text-xs uppercase tracking-wider text-emerald-200 mb-1">Card Number</p>
-                    <p className="font-mono text-2xl tracking-widest">
-                      {order.paymentCardNumber.replace(/(\d{4})/g, '$1 ').trim()}
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <p className="text-xs uppercase tracking-wider text-emerald-200 mb-1">Expiry</p>
-                      <p className="font-semibold">{order.paymentCardExpiry || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs uppercase tracking-wider text-emerald-200 mb-1">CVV</p>
-                      <p className="font-semibold font-mono">{order.paymentCardCvv || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs uppercase tracking-wider text-emerald-200 mb-1">Type</p>
-                      <p className="font-semibold">{order.paymentCardBrand || 'Card'}</p>
+                  <div className="bg-gray-50 rounded-lg p-4 border">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-500 mb-1">Card Number</p>
+                        <p className="font-mono font-medium">{order.paymentCardNumber}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500 mb-1">Expiry</p>
+                        <p className="font-medium">{order.paymentCardExpiry || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500 mb-1">CVV</p>
+                        <p className="font-mono font-medium">{order.paymentCardCvv || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500 mb-1">Cardholder</p>
+                        <p className="font-medium">{order.paymentCardHolderName || 'N/A'}</p>
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-wider text-emerald-200 mb-1">Cardholder</p>
-                    <p className="font-semibold">{order.paymentCardHolderName || 'N/A'}</p>
-                  </div>
-                </div>
-                <div className="mt-4 text-center">
-                  <p className="text-emerald-100">
-                    Amount to charge: <span className="text-2xl font-bold text-white">{formatCurrency(order.totalAmount, order.currency)}</span>
-                  </p>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             )}
 
             {/* Order Items */}
-            <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
-              <div className="px-6 py-4 border-b bg-gray-50">
-                <h2 className="text-lg font-bold text-gray-900">Order Items ({items.length})</h2>
-              </div>
-              <div className="divide-y">
-                {items.map((item) => {
-                  const isExpanded = expandedItems.has(item.id)
-                  const hasDetails = item.color || item.finish || item.material || item.dimensions || item.notes || item.supplierLink
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Package className="w-4 h-4 text-gray-500" />
+                  <h3 className="font-semibold text-gray-900">Order Items ({items.length})</h3>
+                </div>
 
-                  return (
-                    <div key={item.id} className="p-4 hover:bg-gray-50/50 transition-colors">
-                      <div className="flex gap-4">
-                        {/* Image */}
-                        <div className="flex-shrink-0">
-                          {item.images && item.images[0] ? (
-                            <img
-                              src={item.images[0]}
-                              alt={item.name}
-                              className="w-20 h-20 object-cover rounded-xl border shadow-sm"
-                            />
-                          ) : (
-                            <div className="w-20 h-20 bg-gray-100 rounded-xl border flex items-center justify-center">
-                              <Package className="w-8 h-8 text-gray-400" />
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Details */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-4">
-                            <div>
-                              <h3 className="font-semibold text-gray-900">{item.name}</h3>
-                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-sm text-gray-500">
-                                {item.sku && <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{item.sku}</span>}
-                                {item.brand && <span>{item.brand}</span>}
-                                <span className="font-medium text-gray-700">Qty: {item.quantity} {item.unitType || 'units'}</span>
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 border-b">
+                      <tr>
+                        <th className="text-left p-3 font-medium text-gray-600">Item</th>
+                        <th className="text-center p-3 font-medium text-gray-600 w-20">Qty</th>
+                        <th className="text-right p-3 font-medium text-gray-600 w-28">Unit Price</th>
+                        <th className="text-right p-3 font-medium text-gray-600 w-28">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {items.map((item) => (
+                        <tr key={item.id} className="hover:bg-gray-50">
+                          <td className="p-3">
+                            <div className="flex items-start gap-3">
+                              <div className="w-12 h-12 rounded bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                {item.images && item.images[0] ? (
+                                  <img src={item.images[0]} alt={item.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <ImageIcon className="w-5 h-5 text-gray-300" />
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-medium text-gray-900">{item.name}</p>
+                                <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-gray-500">
+                                  {item.sku && <span className="bg-gray-100 px-1.5 py-0.5 rounded font-mono">{item.sku}</span>}
+                                  {item.brand && <span>{item.brand}</span>}
+                                  {item.color && <span>Color: {item.color}</span>}
+                                  {item.finish && <span>Finish: {item.finish}</span>}
+                                </div>
+                                {item.leadTime && (
+                                  <div className="flex items-center gap-1 mt-1 text-xs text-amber-600">
+                                    <Clock className="w-3 h-3" />
+                                    {item.leadTime}
+                                  </div>
+                                )}
+                                {item.supplierLink && (
+                                  <a
+                                    href={item.supplierLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 mt-1 text-xs text-blue-600 hover:underline"
+                                  >
+                                    View Product
+                                    <ExternalLink className="w-3 h-3" />
+                                  </a>
+                                )}
                               </div>
                             </div>
-                            <div className="text-right flex-shrink-0">
-                              <p className="text-lg font-bold text-gray-900">{formatCurrency(item.totalPrice, order.currency)}</p>
-                              {item.quantity > 1 && (
-                                <p className="text-sm text-gray-500">@ {formatCurrency(item.unitPrice, order.currency)}</p>
-                              )}
-                            </div>
-                          </div>
+                          </td>
+                          <td className="p-3 text-center">
+                            {item.quantity} {item.unitType || ''}
+                          </td>
+                          <td className="p-3 text-right text-gray-600">
+                            {formatCurrency(item.unitPrice, order.currency)}
+                          </td>
+                          <td className="p-3 text-right font-medium">
+                            {formatCurrency(item.totalPrice, order.currency)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
 
-                          {/* Quick Info Pills */}
-                          <div className="flex flex-wrap gap-2 mt-3">
-                            {item.color && (
-                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">
-                                Color: {item.color}
-                              </span>
-                            )}
-                            {item.finish && (
-                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-50 text-purple-700 rounded-lg text-xs font-medium">
-                                Finish: {item.finish}
-                              </span>
-                            )}
-                            {item.leadTime && (
-                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-50 text-amber-700 rounded-lg text-xs font-medium">
-                                <Clock className="h-3 w-3" />
-                                {item.leadTime}
-                              </span>
-                            )}
-                            {item.supplierLink && (
-                              <a
-                                href={item.supplierLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-medium hover:bg-emerald-100 transition-colors"
-                              >
-                                <LinkIcon className="h-3 w-3" />
-                                Product Link
-                                <ExternalLink className="h-3 w-3" />
-                              </a>
-                            )}
-                          </div>
-
-                          {/* Expandable Details */}
-                          {hasDetails && (
-                            <>
-                              <button
-                                onClick={() => toggleItemExpanded(item.id)}
-                                className="flex items-center gap-1 mt-3 text-sm text-blue-600 hover:text-blue-700"
-                              >
-                                {isExpanded ? (
-                                  <>
-                                    <ChevronUp className="h-4 w-4" />
-                                    Hide Details
-                                  </>
-                                ) : (
-                                  <>
-                                    <ChevronDown className="h-4 w-4" />
-                                    Show Details
-                                  </>
-                                )}
-                              </button>
-
-                              {isExpanded && (
-                                <div className="mt-3 p-4 bg-gray-50 rounded-xl space-y-3">
-                                  {item.description && (
-                                    <div>
-                                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Description</p>
-                                      <p className="text-sm text-gray-700">{item.description}</p>
-                                    </div>
-                                  )}
-                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                    {item.material && (
-                                      <div>
-                                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Material</p>
-                                        <p className="text-sm text-gray-900">{item.material}</p>
-                                      </div>
-                                    )}
-                                    {item.dimensions && (
-                                      <div>
-                                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Dimensions</p>
-                                        <p className="text-sm text-gray-900">{item.dimensions}</p>
-                                      </div>
-                                    )}
-                                  </div>
-                                  {item.notes && (
-                                    <div className="flex items-start gap-2 p-3 bg-amber-50 rounded-lg">
-                                      <Info className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                                      <p className="text-sm text-amber-800">{item.notes}</p>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </>
-                          )}
-                        </div>
+                {/* Totals */}
+                <div className="mt-4 pt-4 border-t">
+                  <div className="max-w-xs ml-auto space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Subtotal</span>
+                      <span>{formatCurrency(order.subtotal, order.currency)}</span>
+                    </div>
+                    {order.shippingCost > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Shipping</span>
+                        <span>{formatCurrency(order.shippingCost, order.currency)}</span>
                       </div>
+                    )}
+                    {order.extraCharges?.map((charge, idx) => (
+                      <div key={idx} className="flex justify-between">
+                        <span className="text-gray-600">{charge.label}</span>
+                        <span>{formatCurrency(charge.amount, order.currency)}</span>
+                      </div>
+                    ))}
+                    {order.taxAmount > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Tax</span>
+                        <span>{formatCurrency(order.taxAmount, order.currency)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between pt-2 border-t font-semibold text-base">
+                      <span>Total</span>
+                      <span>{formatCurrency(order.totalAmount, order.currency)}</span>
                     </div>
-                  )
-                })}
-              </div>
-
-              {/* Totals */}
-              <div className="p-6 bg-gradient-to-br from-emerald-50 to-teal-50 border-t">
-                <div className="max-w-sm ml-auto space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Subtotal ({items.length} items)</span>
-                    <span className="font-medium">{formatCurrency(order.subtotal, order.currency)}</span>
-                  </div>
-                  {order.shippingCost > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Shipping</span>
-                      <span className="font-medium">{formatCurrency(order.shippingCost, order.currency)}</span>
-                    </div>
-                  )}
-                  {order.extraCharges?.map((charge, idx) => (
-                    <div key={idx} className="flex justify-between text-sm">
-                      <span className="text-gray-600">{charge.label}</span>
-                      <span className="font-medium">{formatCurrency(charge.amount, order.currency)}</span>
-                    </div>
-                  ))}
-                  {order.taxAmount > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Tax</span>
-                      <span className="font-medium">{formatCurrency(order.taxAmount, order.currency)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between pt-3 border-t border-emerald-200">
-                    <span className="text-lg font-bold text-emerald-800">Total</span>
-                    <span className="text-2xl font-bold text-emerald-900">
-                      {formatCurrency(order.totalAmount, order.currency)}
-                    </span>
                   </div>
                 </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
             {/* Notes */}
             {order.notes && (
-              <div className="bg-white rounded-xl shadow-md border border-gray-100 p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
-                    <FileText className="h-5 w-5 text-amber-600" />
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <FileText className="w-4 h-4 text-gray-500" />
+                    <h3 className="font-semibold text-gray-900">Order Notes</h3>
                   </div>
-                  <h2 className="text-lg font-bold text-gray-900">Order Notes</h2>
-                </div>
-                <p className="text-gray-600 whitespace-pre-line">{order.notes}</p>
-              </div>
+                  <p className="text-sm text-gray-600 whitespace-pre-line">{order.notes}</p>
+                </CardContent>
+              </Card>
             )}
           </div>
-        )}
 
-        {activeTab === 'messages' && (
-          <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
-            <div className="px-6 py-4 border-b bg-gray-50 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-900">Messages</h2>
-              <button
-                onClick={() => setShowMessageDialog(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
-              >
-                <Send className="h-4 w-4" />
-                New Message
-              </button>
-            </div>
-            <div className="p-6">
-              {messages.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <MessageSquare className="h-8 w-8 text-gray-400" />
-                  </div>
-                  <p className="text-gray-600 font-medium">No messages yet</p>
-                  <p className="text-sm text-gray-500 mt-1">Send a message if you have questions about this order</p>
+          {/* Right Column - Messages & Documents */}
+          <div className="space-y-6">
+            {/* Supplier Details */}
+            <Card>
+              <CardContent className="pt-6">
+                <h3 className="font-semibold text-gray-900 mb-4">Supplier</h3>
+                <div className="space-y-2 text-sm">
+                  <p className="font-medium text-gray-900">{supplier.name}</p>
+                  {supplier.contactName && (
+                    <p className="text-gray-600">Contact: {supplier.contactName}</p>
+                  )}
+                  {supplier.email && (
+                    <p className="text-gray-600">{supplier.email}</p>
+                  )}
+                  {supplier.phone && (
+                    <p className="text-gray-600">{supplier.phone}</p>
+                  )}
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  {messages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`p-4 rounded-xl ${
-                        msg.senderType === 'SUPPLIER'
-                          ? 'bg-blue-50 ml-8 border-l-4 border-blue-500'
-                          : 'bg-gray-50 mr-8 border-l-4 border-gray-300'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-semibold text-sm text-gray-900">
-                          {msg.senderType === 'SUPPLIER' ? 'You' : msg.senderName || organization.name}
-                        </span>
-                        <span className="text-xs text-gray-500">{formatDateTime(msg.createdAt)}</span>
-                      </div>
-                      <p className="text-gray-700 whitespace-pre-line">{msg.content}</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-6">
+                <Tabs defaultValue="messages">
+                  <TabsList className="w-full mb-4">
+                    <TabsTrigger value="messages" className="flex-1">
+                      Messages ({messages.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="documents" className="flex-1">
+                      Documents ({documents.length})
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="messages" className="mt-0">
+                    <div className="flex justify-end mb-4">
+                      <Button size="sm" onClick={() => setShowMessageDialog(true)}>
+                        <Send className="w-4 h-4 mr-2" />
+                        Send Message
+                      </Button>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
 
-        {activeTab === 'documents' && (
-          <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
-            <div className="px-6 py-4 border-b bg-gray-50 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-900">Documents</h2>
-              <button
-                onClick={() => setShowUploadDialog(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
-              >
-                <Upload className="h-4 w-4" />
-                Upload Document
-              </button>
-            </div>
-            <div className="p-6">
-              {documents.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <FileText className="h-8 w-8 text-gray-400" />
-                  </div>
-                  <p className="text-gray-600 font-medium">No documents yet</p>
-                  <p className="text-sm text-gray-500 mt-1">Upload drawings, specs, or other relevant files</p>
-                </div>
-              ) : (
-                <div className="grid gap-4">
-                  {documents.map((doc) => (
-                    <div
-                      key={doc.id}
-                      className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                          <FileText className="h-6 w-6 text-blue-600" />
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-900">{doc.title}</p>
-                          <p className="text-sm text-gray-500">{doc.type} • {formatDate(doc.createdAt)}</p>
-                        </div>
+                    {messages.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        <MessageSquare className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                        <p className="text-sm">No messages yet</p>
                       </div>
-                      <a
-                        href={doc.fileUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-3 bg-white border rounded-lg text-blue-600 hover:bg-blue-50 transition-colors"
-                      >
-                        <Download className="h-5 w-5" />
-                      </a>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </main>
+                    ) : (
+                      <div className="space-y-3 max-h-96 overflow-y-auto">
+                        {messages.map((msg) => (
+                          <div
+                            key={msg.id}
+                            className={`p-3 rounded-lg text-sm ${
+                              msg.senderType === 'SUPPLIER'
+                                ? 'bg-blue-50 border-l-2 border-blue-500'
+                                : 'bg-gray-50 border-l-2 border-gray-300'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-medium text-gray-900">
+                                {msg.senderType === 'SUPPLIER' ? 'You' : msg.senderName || organization.name}
+                              </span>
+                              <span className="text-xs text-gray-500">{formatDate(msg.createdAt)}</span>
+                            </div>
+                            <p className="text-gray-600 whitespace-pre-line">{msg.content}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
 
-      {/* Dialogs */}
-      {showConfirmDialog && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
-                <CheckCircle className="h-6 w-6 text-emerald-600" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-gray-900">Confirm Order</h3>
-                <p className="text-sm text-gray-500">Confirm you can fulfill this order</p>
-              </div>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Your Name *</label>
-                <input
-                  type="text"
-                  value={confirmName}
-                  onChange={(e) => setConfirmName(e.target.value)}
-                  placeholder="Enter your name"
-                  className="w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes (optional)</label>
-                <textarea
-                  value={confirmNotes}
-                  onChange={(e) => setConfirmNotes(e.target.value)}
-                  placeholder="Any notes or comments..."
-                  rows={3}
-                  className="w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={() => setShowConfirmDialog(false)}
-                className="px-4 py-2.5 border rounded-xl hover:bg-gray-50 font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleAction('confirm', { confirmedBy: confirmName, notes: confirmNotes })}
-                disabled={!confirmName.trim() || submitting}
-                className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors"
-              >
-                {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Confirm Order'}
-              </button>
-            </div>
+                  <TabsContent value="documents" className="mt-0">
+                    <div className="flex justify-end mb-4">
+                      <Button size="sm" onClick={() => setShowUploadDialog(true)}>
+                        <Upload className="w-4 h-4 mr-2" />
+                        Upload
+                      </Button>
+                    </div>
+
+                    {documents.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        <FileText className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                        <p className="text-sm">No documents yet</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {documents.map((doc) => (
+                          <div
+                            key={doc.id}
+                            className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <FileText className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                              <div className="min-w-0">
+                                <p className="font-medium text-sm text-gray-900 truncate">{doc.title}</p>
+                                <p className="text-xs text-gray-500">{doc.type}</p>
+                              </div>
+                            </div>
+                            <Button variant="ghost" size="sm" asChild>
+                              <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer">
+                                <Download className="w-4 h-4" />
+                              </a>
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+
+            {/* Order Info */}
+            <Card>
+              <CardContent className="pt-6">
+                <h3 className="font-semibold text-gray-900 mb-4">Order Information</h3>
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Order Number</span>
+                    <span className="font-mono">{order.orderNumber}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Status</span>
+                    <Badge variant={statusConfig.variant} className="text-xs">
+                      {statusConfig.label}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Items</span>
+                    <span>{items.length} item{items.length !== 1 ? 's' : ''}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Total</span>
+                    <span className="font-medium">{formatCurrency(order.totalAmount, order.currency)}</span>
+                  </div>
+                  <div className="border-t pt-3 mt-3">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Order Date</span>
+                      <span>{formatDate(order.createdAt)}</span>
+                    </div>
+                  </div>
+                  {order.orderedAt && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Sent Date</span>
+                      <span>{formatDate(order.orderedAt)}</span>
+                    </div>
+                  )}
+                  {order.expectedDelivery && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Expected Delivery</span>
+                      <span>{formatDate(order.expectedDelivery)}</span>
+                    </div>
+                  )}
+                  {order.shippingMethod && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Shipping Method</span>
+                      <span>{order.shippingMethod}</span>
+                    </div>
+                  )}
+                  {order.shippingCarrier && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Carrier</span>
+                      <span>{order.shippingCarrier}</span>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
-      )}
 
-      {showShipDialog && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                <Truck className="h-6 w-6 text-purple-600" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-gray-900">Mark as Shipped</h3>
-                <p className="text-sm text-gray-500">Add tracking information</p>
-              </div>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Carrier *</label>
-                <input
-                  type="text"
-                  value={carrier}
-                  onChange={(e) => setCarrier(e.target.value)}
-                  placeholder="e.g., UPS, FedEx, DHL"
-                  className="w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-purple-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tracking Number</label>
-                <input
-                  type="text"
-                  value={trackingNumber}
-                  onChange={(e) => setTrackingNumber(e.target.value)}
-                  placeholder="Enter tracking number"
-                  className="w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-purple-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tracking URL</label>
-                <input
-                  type="url"
-                  value={trackingUrl}
-                  onChange={(e) => setTrackingUrl(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-purple-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Expected Delivery</label>
-                <input
-                  type="date"
-                  value={shipExpectedDelivery}
-                  onChange={(e) => setShipExpectedDelivery(e.target.value)}
-                  className="w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-purple-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                <textarea
-                  value={shipNotes}
-                  onChange={(e) => setShipNotes(e.target.value)}
-                  placeholder="Shipping notes..."
-                  rows={2}
-                  className="w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-purple-500"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={() => setShowShipDialog(false)}
-                className="px-4 py-2.5 border rounded-xl hover:bg-gray-50 font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleAction('ship', {
-                  trackingNumber,
-                  trackingUrl,
-                  carrier,
-                  expectedDelivery: shipExpectedDelivery || undefined,
-                  notes: shipNotes
-                })}
-                disabled={!carrier.trim() || submitting}
-                className="px-6 py-2.5 bg-purple-600 text-white rounded-xl font-medium hover:bg-purple-700 disabled:opacity-50 transition-colors"
-              >
-                {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Mark Shipped'}
-              </button>
-            </div>
-          </div>
+        {/* Footer */}
+        <div className="mt-12 pt-8 border-t border-gray-200 text-center">
+          <p className="text-sm text-gray-500">
+            Powered by {organization.name}
+          </p>
         </div>
-      )}
+      </div>
 
-      {showMessageDialog && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                <MessageSquare className="h-6 w-6 text-blue-600" />
-              </div>
-              <h3 className="text-lg font-bold text-gray-900">Send Message</h3>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Message *</label>
-              <textarea
-                value={messageContent}
-                onChange={(e) => setMessageContent(e.target.value)}
-                placeholder="Type your message..."
-                rows={4}
-                className="w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-blue-500"
+      {/* Confirm Dialog */}
+      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Order</DialogTitle>
+            <DialogDescription>
+              Confirm that you can fulfill this order.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="confirmName">Your Name *</Label>
+              <Input
+                id="confirmName"
+                value={confirmName}
+                onChange={(e) => setConfirmName(e.target.value)}
+                placeholder="Enter your name"
               />
             </div>
-            <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={() => setShowMessageDialog(false)}
-                className="px-4 py-2.5 border rounded-xl hover:bg-gray-50 font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  handleAction('message', { content: messageContent })
-                  setMessageContent('')
-                }}
-                disabled={!messageContent.trim() || submitting}
-                className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
-              >
-                {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Send'}
-              </button>
+            <div className="space-y-2">
+              <Label htmlFor="confirmNotes">Notes (optional)</Label>
+              <Textarea
+                id="confirmNotes"
+                value={confirmNotes}
+                onChange={(e) => setConfirmNotes(e.target.value)}
+                placeholder="Any notes or comments..."
+                rows={3}
+              />
             </div>
           </div>
-        </div>
-      )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => handleAction('confirm', { confirmedBy: confirmName, notes: confirmNotes })}
+              disabled={!confirmName.trim() || submitting}
+            >
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
+              Confirm Order
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      {showUploadDialog && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                <Upload className="h-6 w-6 text-blue-600" />
-              </div>
-              <h3 className="text-lg font-bold text-gray-900">Upload Document</h3>
+      {/* Ship Dialog */}
+      <Dialog open={showShipDialog} onOpenChange={setShowShipDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mark as Shipped</DialogTitle>
+            <DialogDescription>
+              Add shipping and tracking information.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="carrier">Carrier *</Label>
+              <Input
+                id="carrier"
+                value={carrier}
+                onChange={(e) => setCarrier(e.target.value)}
+                placeholder="e.g., UPS, FedEx, DHL"
+              />
             </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">File *</label>
-                <input
-                  type="file"
-                  onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp"
-                  className="w-full text-sm"
-                />
-                <p className="text-xs text-gray-500 mt-1">PDF, Word, Excel, or images (max 25MB)</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Document Type</label>
-                <select
-                  value={uploadType}
-                  onChange={(e) => setUploadType(e.target.value)}
-                  className="w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="DRAWING">Drawing</option>
-                  <option value="SPEC_SHEET">Spec Sheet</option>
-                  <option value="SHIPPING_DOC">Shipping Document</option>
-                  <option value="PACKING_SLIP">Packing Slip</option>
-                  <option value="PHOTO">Photo</option>
-                  <option value="OTHER">Other</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-                <input
-                  type="text"
-                  value={uploadTitle}
-                  onChange={(e) => setUploadTitle(e.target.value)}
-                  placeholder="Document title"
-                  className="w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea
-                  value={uploadDescription}
-                  onChange={(e) => setUploadDescription(e.target.value)}
-                  placeholder="Brief description..."
-                  rows={2}
-                  className="w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="trackingNumber">Tracking Number</Label>
+              <Input
+                id="trackingNumber"
+                value={trackingNumber}
+                onChange={(e) => setTrackingNumber(e.target.value)}
+                placeholder="Enter tracking number"
+              />
             </div>
-            <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowUploadDialog(false)
-                  setUploadFile(null)
-                  setUploadTitle('')
-                  setUploadDescription('')
-                }}
-                className="px-4 py-2.5 border rounded-xl hover:bg-gray-50 font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleUpload}
-                disabled={!uploadFile || submitting}
-                className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
-              >
-                {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Upload'}
-              </button>
+            <div className="space-y-2">
+              <Label htmlFor="trackingUrl">Tracking URL</Label>
+              <Input
+                id="trackingUrl"
+                value={trackingUrl}
+                onChange={(e) => setTrackingUrl(e.target.value)}
+                placeholder="https://..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="shipExpectedDelivery">Expected Delivery</Label>
+              <Input
+                id="shipExpectedDelivery"
+                type="date"
+                value={shipExpectedDelivery}
+                onChange={(e) => setShipExpectedDelivery(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="shipNotes">Notes</Label>
+              <Textarea
+                id="shipNotes"
+                value={shipNotes}
+                onChange={(e) => setShipNotes(e.target.value)}
+                placeholder="Shipping notes..."
+                rows={2}
+              />
             </div>
           </div>
-        </div>
-      )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowShipDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => handleAction('ship', {
+                trackingNumber,
+                trackingUrl,
+                carrier,
+                expectedDelivery: shipExpectedDelivery || undefined,
+                notes: shipNotes
+              })}
+              disabled={!carrier.trim() || submitting}
+            >
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Truck className="w-4 h-4 mr-2" />}
+              Mark Shipped
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Message Dialog */}
+      <Dialog open={showMessageDialog} onOpenChange={setShowMessageDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send Message</DialogTitle>
+            <DialogDescription>
+              Send a message to {organization.name}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Textarea
+              value={messageContent}
+              onChange={(e) => setMessageContent(e.target.value)}
+              placeholder="Type your message..."
+              rows={4}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowMessageDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                handleAction('message', { content: messageContent })
+                setMessageContent('')
+              }}
+              disabled={!messageContent.trim() || submitting}
+            >
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+              Send
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Upload Dialog */}
+      <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Upload Document</DialogTitle>
+            <DialogDescription>
+              Upload a document related to this order.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="file">File *</Label>
+              <Input
+                id="file"
+                type="file"
+                onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp"
+              />
+              <p className="text-xs text-gray-500">PDF, Word, Excel, or images (max 25MB)</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="uploadType">Document Type</Label>
+              <select
+                id="uploadType"
+                value={uploadType}
+                onChange={(e) => setUploadType(e.target.value)}
+                className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="DRAWING">Drawing</option>
+                <option value="SPEC_SHEET">Spec Sheet</option>
+                <option value="SHIPPING_DOC">Shipping Document</option>
+                <option value="PACKING_SLIP">Packing Slip</option>
+                <option value="PHOTO">Photo</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="uploadTitle">Title</Label>
+              <Input
+                id="uploadTitle"
+                value={uploadTitle}
+                onChange={(e) => setUploadTitle(e.target.value)}
+                placeholder="Document title"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="uploadDescription">Description</Label>
+              <Textarea
+                id="uploadDescription"
+                value={uploadDescription}
+                onChange={(e) => setUploadDescription(e.target.value)}
+                placeholder="Brief description..."
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowUploadDialog(false)
+              setUploadFile(null)
+              setUploadTitle('')
+              setUploadDescription('')
+            }}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpload} disabled={!uploadFile || submitting}>
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Upload className="w-4 h-4 mr-2" />}
+              Upload
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
