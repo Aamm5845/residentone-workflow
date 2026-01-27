@@ -21,7 +21,6 @@ import {
   Package,
   Truck,
   CheckCircle,
-  Clock,
   AlertCircle,
   Building2,
   FileText,
@@ -52,7 +51,6 @@ interface OrderItem {
   material?: string
   dimensions?: string
   images?: string[]
-  leadTime?: string
   status?: string
   supplierLink?: string
   notes?: string
@@ -524,12 +522,6 @@ export default function SupplierOrderPortal() {
                                   {item.color && <span>Color: {item.color}</span>}
                                   {item.finish && <span>Finish: {item.finish}</span>}
                                 </div>
-                                {item.leadTime && (
-                                  <div className="flex items-center gap-1 mt-1 text-xs text-amber-600">
-                                    <Clock className="w-3 h-3" />
-                                    {item.leadTime}
-                                  </div>
-                                )}
                                 {item.supplierLink && (
                                   <a
                                     href={item.supplierLink}

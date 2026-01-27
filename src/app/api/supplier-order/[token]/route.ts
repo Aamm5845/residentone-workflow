@@ -205,29 +205,36 @@ export async function GET(
         clientName: order.project.client?.name
       },
       supplier: order.supplier,
-      items: order.items.map(item => ({
-        id: item.id,
-        name: item.name,
-        description: item.description,
-        quantity: item.quantity,
-        unitType: item.unitType,
-        unitPrice: parseFloat(item.unitPrice.toString()),
-        totalPrice: parseFloat(item.totalPrice.toString()),
-        expectedDelivery: item.expectedDelivery,
-        status: item.status,
-        notes: item.notes,
-        sku: item.roomFFEItem?.sku || item.roomFFEItem?.modelNumber,
-        brand: item.roomFFEItem?.brand,
-        color: item.roomFFEItem?.color,
-        finish: item.roomFFEItem?.finish,
-        material: item.roomFFEItem?.material,
-        images: item.roomFFEItem?.images,
-        leadTime: item.supplierQuoteLineItem?.leadTime || item.roomFFEItem?.leadTime,
-        supplierLink: item.roomFFEItem?.supplierLink,
-        dimensions: item.roomFFEItem?.width || item.roomFFEItem?.height || item.roomFFEItem?.depth
-          ? `${item.roomFFEItem?.width || '-'} × ${item.roomFFEItem?.height || '-'} × ${item.roomFFEItem?.depth || '-'}`
-          : null
-      })),
+      items: order.items.map(item => {
+        // Get images - prefer OrderItem imageUrl, then roomFFEItem images
+        const roomImages = item.roomFFEItem?.images as string[] | null
+        const images = item.imageUrl
+          ? [item.imageUrl]
+          : (roomImages && roomImages.length > 0 ? roomImages : null)
+
+        return {
+          id: item.id,
+          name: item.name,
+          description: item.description,
+          quantity: item.quantity,
+          unitType: item.unitType,
+          unitPrice: parseFloat(item.unitPrice.toString()),
+          totalPrice: parseFloat(item.totalPrice.toString()),
+          expectedDelivery: item.expectedDelivery,
+          status: item.status,
+          notes: item.notes,
+          sku: item.roomFFEItem?.sku || item.roomFFEItem?.modelNumber,
+          brand: item.roomFFEItem?.brand,
+          color: item.roomFFEItem?.color,
+          finish: item.roomFFEItem?.finish,
+          material: item.roomFFEItem?.material,
+          images,
+          supplierLink: item.roomFFEItem?.supplierLink,
+          dimensions: item.roomFFEItem?.width || item.roomFFEItem?.height || item.roomFFEItem?.depth
+            ? `${item.roomFFEItem?.width || '-'} × ${item.roomFFEItem?.height || '-'} × ${item.roomFFEItem?.depth || '-'}`
+            : null
+        }
+      }),
       documents: order.documents.map(doc => ({
         id: doc.id,
         type: doc.type,
