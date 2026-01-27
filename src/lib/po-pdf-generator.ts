@@ -44,6 +44,10 @@ interface POData {
   // Deposit
   depositPercent?: number | null
   depositRequired?: number | null
+  depositPaid?: number | null
+
+  // Payment
+  amountPaid?: number | null
   balanceDue?: number | null
 
   // Notes
@@ -720,11 +724,13 @@ function drawTotals(
   })
   yPos -= LINE_HEIGHT + 5
 
-  // Deposit information
-  if (po.depositRequired && po.depositRequired > 0) {
+  // Deposit and Payment information
+  const hasDepositOrPayment = (po.depositRequired && po.depositRequired > 0) || (po.amountPaid && po.amountPaid > 0)
+
+  if (hasDepositOrPayment) {
     yPos -= 10
 
-    // Draw line before deposit
+    // Draw line before deposit/payment section
     page.drawLine({
       start: { x: rightX - 10, y: yPos },
       end: { x: width - PAGE_MARGIN, y: yPos },
@@ -733,27 +739,50 @@ function drawTotals(
     })
     yPos -= 15
 
-    // Deposit Required
-    const depositLabel = po.depositPercent
-      ? `Deposit Required (${po.depositPercent}%):`
-      : 'Deposit Required:'
-    page.drawText(depositLabel, {
-      x: rightX,
-      y: yPos,
-      size: 10,
-      font: boldFont,
-      color: rgb(0.1, 0.3, 0.6), // Blue color
-    })
-    const depositText = formatCurrency(po.depositRequired, po.currency)
-    const depositWidth = boldFont.widthOfTextAtSize(depositText, 10)
-    page.drawText(depositText, {
-      x: valueX - depositWidth,
-      y: yPos,
-      size: 10,
-      font: boldFont,
-      color: rgb(0.1, 0.3, 0.6),
-    })
-    yPos -= LINE_HEIGHT
+    // Deposit Required (if applicable)
+    if (po.depositRequired && po.depositRequired > 0) {
+      const depositLabel = po.depositPercent
+        ? `Deposit Required (${po.depositPercent}%):`
+        : 'Deposit Required:'
+      page.drawText(depositLabel, {
+        x: rightX,
+        y: yPos,
+        size: 10,
+        font: font,
+        color: COLORS.secondary,
+      })
+      const depositText = formatCurrency(po.depositRequired, po.currency)
+      const depositWidth = font.widthOfTextAtSize(depositText, 10)
+      page.drawText(depositText, {
+        x: valueX - depositWidth,
+        y: yPos,
+        size: 10,
+        font: font,
+        color: COLORS.secondary,
+      })
+      yPos -= LINE_HEIGHT
+    }
+
+    // Amount Paid
+    if (po.amountPaid && po.amountPaid > 0) {
+      page.drawText('Amount Paid:', {
+        x: rightX,
+        y: yPos,
+        size: 10,
+        font: font,
+        color: rgb(0.1, 0.5, 0.3), // Green color
+      })
+      const paidText = formatCurrency(po.amountPaid, po.currency)
+      const paidWidth = font.widthOfTextAtSize(paidText, 10)
+      page.drawText(paidText, {
+        x: valueX - paidWidth,
+        y: yPos,
+        size: 10,
+        font: font,
+        color: rgb(0.1, 0.5, 0.3),
+      })
+      yPos -= LINE_HEIGHT
+    }
 
     // Balance Due
     if (po.balanceDue && po.balanceDue > 0) {
@@ -761,17 +790,17 @@ function drawTotals(
         x: rightX,
         y: yPos,
         size: 10,
-        font: font,
-        color: COLORS.secondary,
+        font: boldFont,
+        color: rgb(0.7, 0.3, 0.1), // Orange/amber color
       })
       const balanceText = formatCurrency(po.balanceDue, po.currency)
-      const balanceWidth = font.widthOfTextAtSize(balanceText, 10)
+      const balanceWidth = boldFont.widthOfTextAtSize(balanceText, 10)
       page.drawText(balanceText, {
         x: valueX - balanceWidth,
         y: yPos,
         size: 10,
-        font: font,
-        color: COLORS.secondary,
+        font: boldFont,
+        color: rgb(0.7, 0.3, 0.1),
       })
       yPos -= LINE_HEIGHT
     }

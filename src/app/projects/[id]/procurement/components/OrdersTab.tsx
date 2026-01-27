@@ -489,6 +489,27 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
     setShowSendPO(true)
   }
 
+  // Download PDF handler
+  const handleDownloadPDF = async (order: Order) => {
+    try {
+      const res = await fetch(`/api/orders/${order.id}/pdf`)
+      if (!res.ok) throw new Error('Failed to generate PDF')
+
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `PO-${order.orderNumber}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+      toast.success('PDF downloaded')
+    } catch (error) {
+      toast.error('Failed to download PDF')
+    }
+  }
+
   // Record payment handlers
   const handleOpenPaymentDialog = (order: Order) => {
     setSelectedOrder(order)
@@ -1063,7 +1084,7 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
 
                             <DropdownMenuSeparator />
 
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDownloadPDF(order)}>
                               <FileText className="w-4 h-4 mr-2" />
                               Download PO PDF
                             </DropdownMenuItem>

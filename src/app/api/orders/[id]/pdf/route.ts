@@ -82,11 +82,13 @@ export async function GET(
       }
     })
 
-    // Calculate deposit values
+    // Calculate deposit and payment values
     const totalAmount = parseFloat(order.totalAmount?.toString() || '0')
     const depositRequired = parseFloat(order.depositRequired?.toString() || '0')
     const depositPercent = parseFloat(order.depositPercent?.toString() || '0')
-    const balanceDue = depositRequired > 0 ? totalAmount - depositRequired : 0
+    const depositPaid = parseFloat(order.depositPaid?.toString() || '0')
+    const supplierPaymentAmount = parseFloat(order.supplierPaymentAmount?.toString() || '0')
+    const balanceDue = Math.max(0, totalAmount - supplierPaymentAmount)
 
     // Build PO data for PDF
     const poData = {
@@ -130,6 +132,10 @@ export async function GET(
       // Deposit
       depositPercent: depositPercent > 0 ? depositPercent : null,
       depositRequired: depositRequired > 0 ? depositRequired : null,
+      depositPaid: depositPaid > 0 ? depositPaid : null,
+
+      // Payment
+      amountPaid: supplierPaymentAmount > 0 ? supplierPaymentAmount : null,
       balanceDue: balanceDue > 0 ? balanceDue : null,
 
       // Notes
