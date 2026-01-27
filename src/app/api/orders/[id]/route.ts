@@ -36,6 +36,7 @@ export async function GET(
         subtotal: true,
         taxAmount: true,
         shippingCost: true,
+        extraCharges: true,
         totalAmount: true,
         currency: true,
         orderedAt: true,

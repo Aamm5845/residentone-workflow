@@ -72,6 +72,11 @@ interface OrderItem {
   } | null
 }
 
+interface ExtraCharge {
+  label: string
+  amount: number
+}
+
 interface Order {
   id: string
   orderNumber: string
@@ -81,6 +86,7 @@ interface Order {
   subtotal: string | null
   taxAmount: string | null
   shippingCost: string | null
+  extraCharges: ExtraCharge[] | null
   totalAmount: string | null
   currency: string
   orderedAt: string | null
@@ -529,6 +535,12 @@ export default function OrderDetailsDialog({
                           <span>{formatCurrency(order.shippingCost, order.currency)}</span>
                         </div>
                       )}
+                      {order.extraCharges && order.extraCharges.length > 0 && order.extraCharges.map((charge, idx) => (
+                        <div key={idx} className="flex justify-between">
+                          <span className="text-gray-500">{charge.label}</span>
+                          <span>{formatCurrency(String(charge.amount), order.currency)}</span>
+                        </div>
+                      ))}
                       {order.taxAmount && parseFloat(order.taxAmount) > 0 && (
                         <div className="flex justify-between">
                           <span className="text-gray-500">Tax</span>
@@ -761,11 +773,35 @@ export default function OrderDetailsDialog({
                       </p>
                     </div>
                   )}
+                  {order.extraCharges && order.extraCharges.length > 0 && order.extraCharges.map((charge, idx) => (
+                    <div key={idx} className="flex items-center justify-between">
+                      <p className="text-sm text-emerald-700">{charge.label}</p>
+                      <p className="font-medium text-emerald-800">
+                        {formatCurrency(String(charge.amount), order.currency)}
+                      </p>
+                    </div>
+                  ))}
                   {order.taxAmount && parseFloat(order.taxAmount) > 0 && (
                     <div className="flex items-center justify-between">
                       <p className="text-sm text-emerald-700">Tax</p>
                       <p className="font-medium text-emerald-800">
                         {formatCurrency(order.taxAmount, order.currency)}
+                      </p>
+                    </div>
+                  )}
+                  {order.depositRequired && parseFloat(order.depositRequired) > 0 && (
+                    <div className="flex items-center justify-between pt-2 border-t border-emerald-200">
+                      <p className="text-sm text-emerald-700">Deposit Required</p>
+                      <p className="font-medium text-emerald-800">
+                        {formatCurrency(order.depositRequired, order.currency)}
+                      </p>
+                    </div>
+                  )}
+                  {order.balanceDue && parseFloat(order.balanceDue) > 0 && (
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-emerald-700">Balance Due</p>
+                      <p className="font-medium text-emerald-800">
+                        {formatCurrency(order.balanceDue, order.currency)}
                       </p>
                     </div>
                   )}

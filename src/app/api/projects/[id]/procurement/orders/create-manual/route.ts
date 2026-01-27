@@ -259,6 +259,11 @@ interface ManualOrderItem {
   includeComponents?: boolean // Whether to include components as separate line items
 }
 
+interface ExtraCharge {
+  label: string
+  amount: number
+}
+
 interface CreateManualOrderBody {
   // Vendor/Supplier info
   supplierId?: string // Link to existing supplier
@@ -273,10 +278,15 @@ interface CreateManualOrderBody {
   shippingAddress?: string
   shippingMethod?: string
   shippingCost?: number
+  extraCharges?: ExtraCharge[] // Additional charges like customs, handling, etc.
   taxAmount?: number
   currency?: string // CAD or USD - defaults to items' currency or CAD
   notes?: string
   internalNotes?: string
+
+  // Tax options
+  includeGst?: boolean
+  includeQst?: boolean
 
   // Deposit tracking
   depositRequired?: number
@@ -481,10 +491,11 @@ export async function POST(
       }
     }
 
-    // Calculate total with shipping and tax
+    // Calculate total with shipping, extra charges, and tax
     const shippingCost = body.shippingCost || 0
+    const extraChargesTotal = (body.extraCharges || []).reduce((sum, c) => sum + (c.amount || 0), 0)
     const taxAmount = body.taxAmount || 0
-    const totalAmount = subtotal + shippingCost + taxAmount
+    const totalAmount = subtotal + shippingCost + extraChargesTotal + taxAmount
 
     // Calculate deposit if provided
     let depositRequired: number | null = null
@@ -508,6 +519,7 @@ export async function POST(
         status: body.alreadyOrdered ? 'ORDERED' : 'PAYMENT_RECEIVED',
         subtotal,
         shippingCost,
+        extraCharges: body.extraCharges && body.extraCharges.length > 0 ? body.extraCharges : null,
         taxAmount,
         totalAmount,
         currency: orderCurrency,
@@ -539,7 +551,8 @@ export async function POST(
               vendorUrl: body.vendorUrl,
               itemCount: orderItems.length,
               isManualOrder: true,
-              externalOrderNumber: body.externalOrderNumber
+              externalOrderNumber: body.externalOrderNumber,
+              extraCharges: body.extraCharges
             }
           }
         }

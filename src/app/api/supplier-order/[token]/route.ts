@@ -150,6 +150,7 @@ export async function GET(
         subtotal: order.subtotal ? parseFloat(order.subtotal.toString()) : 0,
         taxAmount: order.taxAmount ? parseFloat(order.taxAmount.toString()) : 0,
         shippingCost: order.shippingCost ? parseFloat(order.shippingCost.toString()) : 0,
+        extraCharges: order.extraCharges as Array<{ label: string; amount: number }> | null,
         totalAmount: order.totalAmount ? parseFloat(order.totalAmount.toString()) : 0,
         currency: order.currency,
         // Payment card info for supplier to charge

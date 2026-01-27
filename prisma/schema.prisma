@@ -3747,6 +3747,7 @@ model Order {
   subtotal     Decimal?
   taxAmount    Decimal?
   shippingCost Decimal?
+  extraCharges Json?    // Array of {label: string, amount: number} for customs, handling, etc.
   totalAmount  Decimal?
   currency     String   @default("CAD")
 

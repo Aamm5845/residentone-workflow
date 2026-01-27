@@ -86,6 +86,7 @@ interface OrderData {
     subtotal: number
     taxAmount: number
     shippingCost: number
+    extraCharges?: Array<{ label: string; amount: number }>
     totalAmount: number
     currency: string
     // Payment method info for supplier to charge
@@ -613,6 +614,14 @@ export default function SupplierOrderPortal() {
                     </p>
                   </div>
                 )}
+                {order.extraCharges && order.extraCharges.length > 0 && order.extraCharges.map((charge, idx) => (
+                  <div key={idx} className="flex items-center justify-between">
+                    <p className="text-sm text-emerald-700">{charge.label}</p>
+                    <p className="font-medium text-emerald-800">
+                      {formatCurrency(charge.amount, order.currency)}
+                    </p>
+                  </div>
+                ))}
                 {order.taxAmount > 0 && (
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-emerald-700">Tax</p>

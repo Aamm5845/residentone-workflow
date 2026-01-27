@@ -116,6 +116,7 @@ export async function GET(
       // Pricing
       subtotal: parseFloat(order.subtotal?.toString() || '0'),
       shippingCost: parseFloat(order.shippingCost?.toString() || '0'),
+      extraCharges: order.extraCharges as Array<{ label: string; amount: number }> | null,
       taxAmount: parseFloat(order.taxAmount?.toString() || '0'),
       totalAmount: parseFloat(order.totalAmount?.toString() || '0'),
       currency: order.currency || 'CAD',

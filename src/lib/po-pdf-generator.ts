@@ -35,6 +35,7 @@ interface POData {
   // Pricing
   subtotal: number
   shippingCost: number
+  extraCharges?: Array<{ label: string; amount: number }> | null
   taxAmount: number
   totalAmount: number
   currency: string
@@ -637,6 +638,29 @@ function drawTotals(
       color: COLORS.secondary,
     })
     yPos -= LINE_HEIGHT
+  }
+
+  // Extra charges (customs, handling, etc.)
+  if (po.extraCharges && po.extraCharges.length > 0) {
+    for (const charge of po.extraCharges) {
+      page.drawText(`${charge.label}:`, {
+        x: rightX,
+        y: yPos,
+        size: 10,
+        font: font,
+        color: COLORS.secondary,
+      })
+      const chargeText = formatCurrency(charge.amount, po.currency)
+      const chargeWidth = font.widthOfTextAtSize(chargeText, 10)
+      page.drawText(chargeText, {
+        x: valueX - chargeWidth,
+        y: yPos,
+        size: 10,
+        font: font,
+        color: COLORS.secondary,
+      })
+      yPos -= LINE_HEIGHT
+    }
   }
 
   // Tax
