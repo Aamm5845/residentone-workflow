@@ -19,9 +19,7 @@ import {
   Download,
   Loader2,
   Check,
-  X,
-  ChevronDown,
-  ChevronUp
+  X
 } from 'lucide-react'
 import { toast, Toaster } from 'sonner'
 
@@ -147,7 +145,6 @@ export default function SupplierOrderPortal() {
   const [showShipDialog, setShowShipDialog] = useState(false)
   const [showMessageDialog, setShowMessageDialog] = useState(false)
   const [showUploadDialog, setShowUploadDialog] = useState(false)
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
 
   // Form State
   const [confirmName, setConfirmName] = useState('')
@@ -276,16 +273,6 @@ export default function SupplierOrderPortal() {
       hour: '2-digit',
       minute: '2-digit'
     })
-  }
-
-  const toggleItemExpand = (itemId: string) => {
-    const newExpanded = new Set(expandedItems)
-    if (newExpanded.has(itemId)) {
-      newExpanded.delete(itemId)
-    } else {
-      newExpanded.add(itemId)
-    }
-    setExpandedItems(newExpanded)
   }
 
   if (loading) {
@@ -554,122 +541,91 @@ export default function SupplierOrderPortal() {
               </div>
             )}
 
-            {/* Order Items */}
+            {/* Order Items - matches Create PO and Order Details layout */}
             <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
               <div className="px-6 py-4 border-b">
                 <h2 className="text-lg font-semibold text-gray-900">Order Items ({items.length})</h2>
               </div>
-              <div className="divide-y">
+              <div className="p-4 space-y-2">
                 {items.map((item) => (
-                  <div key={item.id} className="p-4">
-                    <div
-                      className="flex items-start gap-4 cursor-pointer"
-                      onClick={() => toggleItemExpand(item.id)}
-                    >
-                      {/* Image */}
-                      <div className="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
-                        {item.images && item.images[0] ? (
-                          <img
-                            src={item.images[0]}
-                            alt={item.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-400">
-                            <Package className="h-8 w-8" />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Details */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <p className="font-medium text-gray-900">{item.name}</p>
-                            {item.sku && (
-                              <p className="text-sm text-gray-500">SKU: {item.sku}</p>
-                            )}
-                            {item.brand && (
-                              <p className="text-sm text-gray-500">{item.brand}</p>
-                            )}
-                          </div>
-                          <div className="text-right">
-                            <p className="font-semibold text-gray-900">
-                              {formatCurrency(item.totalPrice, order.currency)}
-                            </p>
-                            <p className="text-sm text-gray-500">
-                              {formatCurrency(item.unitPrice, order.currency)} × {item.quantity}
-                              {item.unitType && ` ${item.unitType}`}
-                            </p>
-                          </div>
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between p-3 bg-white border rounded-lg"
+                  >
+                    <div className="flex items-center gap-3">
+                      {item.images && item.images[0] ? (
+                        <img
+                          src={item.images[0]}
+                          alt={item.name}
+                          className="w-10 h-10 object-cover rounded border"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 bg-gray-100 rounded border flex items-center justify-center">
+                          <Package className="w-5 h-5 text-gray-400" />
                         </div>
-
-                        {/* Expand indicator */}
-                        <button className="mt-2 text-sm text-blue-600 flex items-center gap-1">
-                          {expandedItems.has(item.id) ? (
+                      )}
+                      <div>
+                        <p className="font-medium text-gray-900">{item.name}</p>
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          {item.sku && (
                             <>
-                              <ChevronUp className="h-4 w-4" />
-                              Less details
-                            </>
-                          ) : (
-                            <>
-                              <ChevronDown className="h-4 w-4" />
-                              More details
+                              <span>{item.sku}</span>
+                              <span>•</span>
                             </>
                           )}
-                        </button>
+                          {item.brand && (
+                            <>
+                              <span>{item.brand}</span>
+                              <span>•</span>
+                            </>
+                          )}
+                          <span>Qty: {item.quantity}</span>
+                        </div>
                       </div>
                     </div>
-
-                    {/* Expanded Details */}
-                    {expandedItems.has(item.id) && (
-                      <div className="mt-4 ml-20 p-4 bg-gray-50 rounded-lg text-sm space-y-2">
-                        {item.description && (
-                          <p><span className="font-medium">Description:</span> {item.description}</p>
-                        )}
-                        {item.color && (
-                          <p><span className="font-medium">Color:</span> {item.color}</p>
-                        )}
-                        {item.finish && (
-                          <p><span className="font-medium">Finish:</span> {item.finish}</p>
-                        )}
-                        {item.dimensions && (
-                          <p><span className="font-medium">Dimensions:</span> {item.dimensions}</p>
-                        )}
-                        {item.leadTime && (
-                          <p><span className="font-medium">Lead Time:</span> {item.leadTime}</p>
-                        )}
-                      </div>
-                    )}
+                    <div className="text-right">
+                      <p className="font-medium text-gray-900">
+                        {formatCurrency(item.totalPrice, order.currency)}
+                      </p>
+                      {item.quantity > 1 && (
+                        <p className="text-xs text-gray-500">
+                          {formatCurrency(item.unitPrice, order.currency)} × {item.quantity}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
 
-              {/* Totals */}
-              <div className="px-6 py-4 bg-gray-50 border-t">
-                <div className="space-y-2 text-right">
-                  <div className="flex justify-end gap-8">
-                    <span className="text-gray-600">Subtotal</span>
-                    <span className="font-medium w-28">{formatCurrency(order.subtotal, order.currency)}</span>
+              {/* Totals - matches Create PO emerald styling */}
+              <div className="p-4 bg-emerald-50 border-t border-emerald-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-emerald-700">Items Subtotal ({items.length})</p>
+                  <p className="font-medium text-emerald-800">
+                    {formatCurrency(order.subtotal, order.currency)}
+                  </p>
+                </div>
+                {order.shippingCost > 0 && (
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-emerald-700">Shipping</p>
+                    <p className="font-medium text-emerald-800">
+                      {formatCurrency(order.shippingCost, order.currency)}
+                    </p>
                   </div>
-                  {order.shippingCost > 0 && (
-                    <div className="flex justify-end gap-8">
-                      <span className="text-gray-600">Shipping</span>
-                      <span className="w-28">{formatCurrency(order.shippingCost, order.currency)}</span>
-                    </div>
-                  )}
-                  {order.taxAmount > 0 && (
-                    <div className="flex justify-end gap-8">
-                      <span className="text-gray-600">Tax</span>
-                      <span className="w-28">{formatCurrency(order.taxAmount, order.currency)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-end gap-8 pt-2 border-t">
-                    <span className="font-semibold text-lg">Total</span>
-                    <span className="font-bold text-lg text-blue-600 w-28">
-                      {formatCurrency(order.totalAmount, order.currency)}
-                    </span>
+                )}
+                {order.taxAmount > 0 && (
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-emerald-700">Tax</p>
+                    <p className="font-medium text-emerald-800">
+                      {formatCurrency(order.taxAmount, order.currency)}
+                    </p>
                   </div>
+                )}
+                <div className="flex items-center justify-between pt-2 border-t border-emerald-200">
+                  <p className="font-semibold text-emerald-800">Total</p>
+                  <p className="text-xl font-bold text-emerald-900">
+                    {formatCurrency(order.totalAmount, order.currency)}
+                  </p>
                 </div>
               </div>
             </div>
