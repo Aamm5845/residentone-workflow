@@ -2,25 +2,36 @@
 
 import { useState, useEffect } from 'react'
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle
-} from '@/components/ui/sheet'
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Loader2,
   Send,
   DollarSign,
   Copy,
   ExternalLink,
-  Download,
+  FileDown,
   FileText,
   Clock,
   CheckCircle,
@@ -29,16 +40,12 @@ import {
   Building2,
   Mail,
   Phone,
-  MapPin,
   Truck,
-  Calendar,
   CreditCard,
   Edit,
-  Save,
-  X,
-  TestTube
+  Trash2,
+  ShoppingCart
 } from 'lucide-react'
-import { format } from 'date-fns'
 import { toast } from 'sonner'
 import SendPODialog from '@/components/procurement/SendPODialog'
 
@@ -46,6 +53,8 @@ interface OrderItem {
   id: string
   name: string
   description: string | null
+  roomName: string | null
+  imageUrl: string | null
   quantity: number
   unitPrice: string
   totalPrice: string
@@ -61,6 +70,11 @@ interface OrderItem {
   } | null
 }
 
+interface ExtraCharge {
+  label: string
+  amount: number
+}
+
 interface Order {
   id: string
   orderNumber: string
@@ -70,6 +84,7 @@ interface Order {
   subtotal: string | null
   taxAmount: string | null
   shippingCost: string | null
+  extraCharges: ExtraCharge[] | null
   totalAmount: string | null
   currency: string
   orderedAt: string | null
@@ -129,20 +144,20 @@ interface OrderDetailSheetProps {
   onUpdate: () => void
 }
 
-const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
-  PENDING_PAYMENT: { label: 'Pending Payment', color: 'bg-gray-100 text-gray-600', icon: Clock },
-  PAYMENT_RECEIVED: { label: 'Payment Received', color: 'bg-blue-50 text-blue-700', icon: DollarSign },
-  DEPOSIT_PAID: { label: 'Deposit Paid', color: 'bg-indigo-50 text-indigo-700', icon: CreditCard },
-  PAID_TO_SUPPLIER: { label: 'Paid to Supplier', color: 'bg-purple-50 text-purple-700', icon: CheckCircle },
-  ORDERED: { label: 'Ordered', color: 'bg-purple-50 text-purple-700', icon: Send },
-  CONFIRMED: { label: 'Confirmed', color: 'bg-indigo-50 text-indigo-700', icon: CheckCircle },
-  IN_PRODUCTION: { label: 'In Production', color: 'bg-amber-50 text-amber-700', icon: Package },
-  SHIPPED: { label: 'Shipped', color: 'bg-cyan-50 text-cyan-700', icon: Truck },
-  IN_TRANSIT: { label: 'In Transit', color: 'bg-sky-50 text-sky-700', icon: Truck },
-  DELIVERED: { label: 'Delivered', color: 'bg-emerald-50 text-emerald-700', icon: CheckCircle },
-  INSTALLED: { label: 'Installed', color: 'bg-green-50 text-green-700', icon: CheckCircle },
-  COMPLETED: { label: 'Completed', color: 'bg-green-100 text-green-800', icon: CheckCircle },
-  CANCELLED: { label: 'Cancelled', color: 'bg-red-50 text-red-700', icon: AlertCircle }
+const statusConfig: Record<string, { label: string; color: string }> = {
+  PENDING_PAYMENT: { label: 'Pending Payment', color: 'bg-gray-100 text-gray-600' },
+  PAYMENT_RECEIVED: { label: 'Payment Received', color: 'bg-blue-50 text-blue-700' },
+  DEPOSIT_PAID: { label: 'Deposit Paid', color: 'bg-indigo-50 text-indigo-700' },
+  PAID_TO_SUPPLIER: { label: 'Paid to Supplier', color: 'bg-purple-50 text-purple-700' },
+  ORDERED: { label: 'Ordered', color: 'bg-purple-50 text-purple-700' },
+  CONFIRMED: { label: 'Confirmed', color: 'bg-indigo-50 text-indigo-700' },
+  IN_PRODUCTION: { label: 'In Production', color: 'bg-amber-50 text-amber-700' },
+  SHIPPED: { label: 'Shipped', color: 'bg-cyan-50 text-cyan-700' },
+  IN_TRANSIT: { label: 'In Transit', color: 'bg-sky-50 text-sky-700' },
+  DELIVERED: { label: 'Delivered', color: 'bg-emerald-50 text-emerald-700' },
+  INSTALLED: { label: 'Installed', color: 'bg-green-50 text-green-700' },
+  COMPLETED: { label: 'Completed', color: 'bg-green-100 text-green-800' },
+  CANCELLED: { label: 'Cancelled', color: 'bg-red-50 text-red-700' }
 }
 
 export default function OrderDetailSheet({
@@ -157,10 +172,10 @@ export default function OrderDetailSheet({
   const [saving, setSaving] = useState(false)
   const [showSendPO, setShowSendPO] = useState(false)
   const [downloadingPDF, setDownloadingPDF] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [showPaymentForm, setShowPaymentForm] = useState(false)
   const [paymentSaving, setPaymentSaving] = useState(false)
-  const [sendingTestEmail, setSendingTestEmail] = useState(false)
-  const [testEmail, setTestEmail] = useState('')
 
   const [editForm, setEditForm] = useState({
     shippingAddress: '',
@@ -176,40 +191,12 @@ export default function OrderDetailSheet({
     reference: '',
     notes: ''
   })
-  const [showDepositSettings, setShowDepositSettings] = useState(false)
-  const [depositForm, setDepositForm] = useState({
-    depositPercent: '50',
-    depositAmount: ''
-  })
-  const [savingDeposit, setSavingDeposit] = useState(false)
-  const [savedPaymentMethods, setSavedPaymentMethods] = useState<Array<{
-    id: string
-    nickname: string | null
-    type: string
-    lastFour: string | null
-    cardBrand: string | null
-    isDefault: boolean
-  }>>([])
-  const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string>('')
 
   useEffect(() => {
     if (open && orderId) {
       fetchOrder()
-      fetchSavedPaymentMethods()
     }
   }, [open, orderId])
-
-  const fetchSavedPaymentMethods = async () => {
-    try {
-      const res = await fetch('/api/saved-payment-methods')
-      if (res.ok) {
-        const data = await res.json()
-        setSavedPaymentMethods(data.paymentMethods || [])
-      }
-    } catch (error) {
-      console.error('Failed to fetch saved payment methods:', error)
-    }
-  }
 
   useEffect(() => {
     if (order) {
@@ -274,6 +261,31 @@ export default function OrderDetailSheet({
     }
   }
 
+  const handleDelete = async () => {
+    if (!order) return
+
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/orders/${order.id}`, {
+        method: 'DELETE'
+      })
+
+      if (res.ok) {
+        toast.success('Order deleted')
+        onOpenChange(false)
+        onUpdate()
+      } else {
+        const data = await res.json()
+        toast.error(data.error || 'Failed to delete order')
+      }
+    } catch (error) {
+      toast.error('Failed to delete order')
+    } finally {
+      setDeleting(false)
+      setDeleteDialogOpen(false)
+    }
+  }
+
   const handleDownloadPDF = async () => {
     if (!order) return
 
@@ -286,7 +298,7 @@ export default function OrderDetailSheet({
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `${order.orderNumber}.pdf`
+      a.download = `PO-${order.orderNumber}.pdf`
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)
@@ -297,37 +309,6 @@ export default function OrderDetailSheet({
       toast.error('Failed to download PDF')
     } finally {
       setDownloadingPDF(false)
-    }
-  }
-
-  const handleSendTestEmail = async () => {
-    if (!order || !testEmail) {
-      toast.error('Please enter an email address')
-      return
-    }
-
-    setSendingTestEmail(true)
-    try {
-      const res = await fetch(`/api/orders/${order.id}/send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          supplierEmail: testEmail,
-          isTest: true
-        })
-      })
-
-      if (res.ok) {
-        toast.success(`Test email sent to ${testEmail}`)
-        setTestEmail('')
-      } else {
-        const data = await res.json()
-        toast.error(data.error || 'Failed to send test email')
-      }
-    } catch (error) {
-      toast.error('Failed to send test email')
-    } finally {
-      setSendingTestEmail(false)
     }
   }
 
@@ -348,8 +329,7 @@ export default function OrderDetailSheet({
         body: JSON.stringify({
           amount,
           paymentType: paymentForm.paymentType,
-          method: selectedPaymentMethodId ? 'SAVED_CARD' : paymentForm.method,
-          savedPaymentMethodId: selectedPaymentMethodId || null,
+          method: paymentForm.method,
           reference: paymentForm.reference || null,
           notes: paymentForm.notes || null
         })
@@ -365,7 +345,6 @@ export default function OrderDetailSheet({
           reference: '',
           notes: ''
         })
-        setSelectedPaymentMethodId('')
         fetchOrder()
         onUpdate()
       } else {
@@ -379,41 +358,6 @@ export default function OrderDetailSheet({
     }
   }
 
-  const handleSaveDepositSettings = async () => {
-    if (!order) return
-
-    setSavingDeposit(true)
-    try {
-      const depositPercent = parseFloat(depositForm.depositPercent) || 0
-      const depositAmount = depositForm.depositAmount
-        ? parseFloat(depositForm.depositAmount)
-        : (parseFloat(order.totalAmount || '0') * depositPercent / 100)
-
-      const res = await fetch(`/api/orders/${order.id}/supplier-payment`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          depositRequired: depositAmount,
-          depositPercent
-        })
-      })
-
-      if (res.ok) {
-        toast.success('Deposit requirements updated')
-        setShowDepositSettings(false)
-        fetchOrder()
-        onUpdate()
-      } else {
-        const data = await res.json()
-        toast.error(data.error || 'Failed to update deposit settings')
-      }
-    } catch (error) {
-      toast.error('Failed to update deposit settings')
-    } finally {
-      setSavingDeposit(false)
-    }
-  }
-
   const handleCopyPortalLink = () => {
     if (!order?.supplierAccessToken) {
       toast.error('Portal link not available')
@@ -422,14 +366,6 @@ export default function OrderDetailSheet({
     const link = `${window.location.origin}/supplier-order/${order.supplierAccessToken}`
     navigator.clipboard.writeText(link)
     toast.success('Supplier portal link copied')
-  }
-
-  const handleOpenPortal = () => {
-    if (!order?.supplierAccessToken) {
-      toast.error('Portal link not available')
-      return
-    }
-    window.open(`/supplier-order/${order.supplierAccessToken}`, '_blank')
   }
 
   const formatCurrency = (amount: string | null, currency: string = 'CAD') => {
@@ -442,25 +378,40 @@ export default function OrderDetailSheet({
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '-'
-    return format(new Date(dateStr), 'MMM d, yyyy')
+    return new Intl.DateTimeFormat('en-CA', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    }).format(new Date(dateStr))
+  }
+
+  const formatDateTime = (dateStr: string | null) => {
+    if (!dateStr) return '-'
+    return new Intl.DateTimeFormat('en-CA', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    }).format(new Date(dateStr))
   }
 
   if (!order && loading) {
     return (
-      <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent className="w-full sm:max-w-xl flex flex-col">
-          <div className="flex items-center justify-center flex-1">
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-2xl">
+          <div className="flex items-center justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
           </div>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     )
   }
 
   if (!order) return null
 
-  const status = statusConfig[order.status] || { label: order.status, color: 'bg-gray-100 text-gray-600', icon: Package }
-  const StatusIcon = status.icon
+  const status = statusConfig[order.status] || { label: order.status, color: 'bg-gray-100 text-gray-600' }
+  const canDelete = order.status === 'PENDING_PAYMENT' || order.status === 'PAYMENT_RECEIVED'
 
   // Calculate payment status
   const totalAmount = parseFloat(order.totalAmount || '0')
@@ -469,397 +420,441 @@ export default function OrderDetailSheet({
   const supplierPaid = parseFloat(order.supplierPaymentAmount || '0')
   const balanceDue = totalAmount - supplierPaid
 
-  // Group items - main items and components
-  const mainItems = order.items.filter(i => !i.isComponent)
-
   return (
     <>
-      <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent className="w-full sm:max-w-xl flex flex-col p-0">
-          <SheetHeader className="flex-shrink-0 p-6 pb-4">
-            <div className="flex items-start justify-between">
-              <div>
-                <SheetTitle className="text-lg">{order.orderNumber}</SheetTitle>
-                <p className="text-sm text-gray-500">
-                  {order.supplier?.name || order.vendorName}
-                </p>
-              </div>
-              <Badge className={`${status.color} gap-1`}>
-                <StatusIcon className="w-3 h-3" />
-                {status.label}
-              </Badge>
-            </div>
-          </SheetHeader>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <ShoppingCart className="w-5 h-5 text-blue-600" />
+              {order.orderNumber}
+            </DialogTitle>
+            <DialogDescription className="flex items-center gap-2">
+              <Badge className={status.color}>{status.label}</Badge>
+              <span>•</span>
+              <span>{order.supplier?.name || order.vendorName}</span>
+            </DialogDescription>
+          </DialogHeader>
 
-          <ScrollArea className="flex-1 px-6">
-            <div className="space-y-6 pb-6">
-              {/* Supplier Info */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wider">Supplier</p>
-                  <p className="font-medium">{order.supplier?.name || order.vendorName}</p>
-                  {order.supplier?.contactName && (
-                    <p className="text-sm text-gray-500">{order.supplier.contactName}</p>
-                  )}
-                  {(order.supplier?.email || order.vendorEmail) && (
-                    <p className="text-sm text-gray-500 flex items-center gap-1">
-                      <Mail className="w-3 h-3" />
-                      {order.supplier?.email || order.vendorEmail}
-                    </p>
-                  )}
-                  {order.supplier?.phone && (
-                    <p className="text-sm text-gray-500 flex items-center gap-1">
-                      <Phone className="w-3 h-3" />
-                      {order.supplier.phone}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wider">Project</p>
-                  <p className="font-medium">{order.project.name}</p>
-                  {order.project.client && (
-                    <p className="text-sm text-gray-500">{order.project.client.name}</p>
-                  )}
-                </div>
-              </div>
+          <div className="flex-1 overflow-y-auto px-1 -mx-1">
+            <Tabs defaultValue="details" className="w-full">
+              <TabsList className="mb-4">
+                <TabsTrigger value="details">Details</TabsTrigger>
+                <TabsTrigger value="items">Items ({order.items.length})</TabsTrigger>
+                <TabsTrigger value="payment">Payment</TabsTrigger>
+                <TabsTrigger value="activity">Activity</TabsTrigger>
+              </TabsList>
 
-              {/* Dates */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wider">Created</p>
-                  <p className="text-sm">{formatDate(order.createdAt)}</p>
-                </div>
-                {order.orderedAt && (
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wider">Ordered</p>
-                    <p className="text-sm">{formatDate(order.orderedAt)}</p>
-                  </div>
-                )}
-                {editing ? (
-                  <div>
-                    <Label className="text-xs text-gray-400 uppercase tracking-wider">Expected Delivery</Label>
-                    <Input
-                      type="date"
-                      value={editForm.expectedDelivery}
-                      onChange={e => setEditForm(prev => ({ ...prev, expectedDelivery: e.target.value }))}
-                      className="mt-1"
-                    />
-                  </div>
-                ) : (
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wider">Expected Delivery</p>
-                    <p className="text-sm">
-                      {order.expectedDelivery ? formatDate(order.expectedDelivery) : <span className="text-gray-400 italic">Not set</span>}
-                    </p>
-                  </div>
-                )}
-                {order.actualDelivery && (
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wider">Delivered</p>
-                    <p className="text-sm text-emerald-600">{formatDate(order.actualDelivery)}</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Shipping Address */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-xs text-gray-400 uppercase tracking-wider">Ship To</p>
-                  {!editing && (
-                    <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setEditing(true)}>
-                      <Edit className="w-3 h-3 mr-1" />
-                      Edit
-                    </Button>
-                  )}
-                </div>
-                {editing ? (
-                  <Textarea
-                    value={editForm.shippingAddress}
-                    onChange={e => setEditForm(prev => ({ ...prev, shippingAddress: e.target.value }))}
-                    rows={3}
-                    placeholder="Enter shipping address..."
-                  />
-                ) : (
-                  <p className="text-sm text-gray-700 whitespace-pre-line">
-                    {order.shippingAddress || <span className="text-gray-400 italic">No shipping address</span>}
-                  </p>
-                )}
-              </div>
-
-              {/* Tracking Info */}
-              {order.trackingNumber && (
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wider">Tracking</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Truck className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm">{order.shippingCarrier && `${order.shippingCarrier}: `}</span>
-                    {order.trackingUrl ? (
-                      <a
-                        href={order.trackingUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-blue-600 hover:underline flex items-center gap-1"
-                      >
-                        {order.trackingNumber}
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    ) : (
-                      <span className="text-sm">{order.trackingNumber}</span>
+              <TabsContent value="details" className="space-y-4">
+                {/* Project & Client Info */}
+                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg space-y-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-xs text-gray-500 uppercase tracking-wide">Project</p>
+                      <p className="font-semibold text-gray-900">{order.project.name}</p>
+                    </div>
+                    {order.project.client && (
+                      <div className="text-right">
+                        <p className="text-xs text-gray-500 uppercase tracking-wide">Client</p>
+                        <p className="font-medium text-gray-900">{order.project.client.name}</p>
+                      </div>
                     )}
                   </div>
+                  {order.shippingAddress && (
+                    <div className="pt-2 border-t border-gray-200">
+                      <p className="text-xs text-gray-500 uppercase tracking-wide">Ship To</p>
+                      <p className="text-sm text-gray-700 whitespace-pre-line">{order.shippingAddress}</p>
+                    </div>
+                  )}
                 </div>
-              )}
 
-              <Separator />
+                {/* Supplier Info */}
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-xs text-blue-600 uppercase tracking-wide mb-1">Supplier</p>
+                  <div className="flex items-center gap-3">
+                    <Building2 className="w-5 h-5 text-blue-600" />
+                    <div>
+                      <p className="font-medium text-blue-900">{order.supplier?.name || order.vendorName}</p>
+                      {(order.supplier?.email || order.vendorEmail) && (
+                        <p className="text-sm text-blue-700 flex items-center gap-1">
+                          <Mail className="w-3 h-3" />
+                          {order.supplier?.email || order.vendorEmail}
+                        </p>
+                      )}
+                      {order.supplier?.phone && (
+                        <p className="text-sm text-blue-700 flex items-center gap-1">
+                          <Phone className="w-3 h-3" />
+                          {order.supplier.phone}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
 
-              {/* Items */}
-              <div>
-                <h4 className="font-medium mb-3">Items ({order.items.length})</h4>
+                {/* Dates & Tracking */}
+                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    Dates & Tracking
+                  </h3>
+                  {editing ? (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-xs">Expected Delivery</Label>
+                        <Input
+                          type="date"
+                          value={editForm.expectedDelivery}
+                          onChange={e => setEditForm(prev => ({ ...prev, expectedDelivery: e.target.value }))}
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Shipping Address</Label>
+                        <Textarea
+                          value={editForm.shippingAddress}
+                          onChange={e => setEditForm(prev => ({ ...prev, shippingAddress: e.target.value }))}
+                          rows={2}
+                          className="mt-1"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Created</span>
+                          <span>{formatDateTime(order.createdAt)}</span>
+                        </div>
+                        {order.orderedAt && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Ordered</span>
+                            <span>{formatDateTime(order.orderedAt)}</span>
+                          </div>
+                        )}
+                        {order.expectedDelivery && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Expected</span>
+                            <span>{formatDate(order.expectedDelivery)}</span>
+                          </div>
+                        )}
+                        {order.actualDelivery && (
+                          <div className="flex justify-between text-emerald-600">
+                            <span>Delivered</span>
+                            <span>{formatDate(order.actualDelivery)}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        {order.trackingNumber && (
+                          <div>
+                            <span className="text-gray-500">Tracking</span>
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <Truck className="w-3 h-3 text-gray-400" />
+                              {order.trackingUrl ? (
+                                <a
+                                  href={order.trackingUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:underline flex items-center gap-1"
+                                >
+                                  {order.trackingNumber}
+                                  <ExternalLink className="w-3 h-3" />
+                                </a>
+                              ) : (
+                                <span>{order.trackingNumber}</span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Notes */}
+                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    Notes
+                  </h3>
+                  {editing ? (
+                    <div className="space-y-3">
+                      <div>
+                        <Label className="text-xs">Order Notes (visible on PO)</Label>
+                        <Textarea
+                          value={editForm.notes}
+                          onChange={e => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
+                          rows={2}
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Internal Notes (private)</Label>
+                        <Textarea
+                          value={editForm.internalNotes}
+                          onChange={e => setEditForm(prev => ({ ...prev, internalNotes: e.target.value }))}
+                          rows={2}
+                          className="mt-1"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 text-sm">
+                      {order.notes && (
+                        <div>
+                          <span className="text-gray-500">Order Notes</span>
+                          <p className="text-gray-700 whitespace-pre-line">{order.notes}</p>
+                        </div>
+                      )}
+                      {order.internalNotes && (
+                        <div>
+                          <span className="text-gray-500">Internal Notes</span>
+                          <p className="text-gray-700 whitespace-pre-line">{order.internalNotes}</p>
+                        </div>
+                      )}
+                      {!order.notes && !order.internalNotes && (
+                        <p className="text-gray-400 italic">No notes</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Quick Links */}
+                {order.supplierAccessToken && (
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={handleCopyPortalLink}>
+                      <Copy className="w-4 h-4 mr-1.5" />
+                      Copy Portal Link
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(`/supplier-order/${order.supplierAccessToken}`, '_blank')}
+                    >
+                      <ExternalLink className="w-4 h-4 mr-1.5" />
+                      Supplier Portal
+                    </Button>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="items" className="space-y-3">
+                {/* Items List - matching CreatePODialog style */}
                 <div className="space-y-2">
-                  {mainItems.map((item) => {
-                    const components = order.items.filter(i => i.isComponent && i.parentItemId === item.roomFFEItem?.id)
+                  {order.items.map((item) => {
+                    const imageUrl = item.imageUrl || item.roomFFEItem?.images?.[0]
+
                     return (
-                      <div key={item.id}>
-                        <div className="flex items-start gap-3 p-2 rounded-lg bg-gray-50">
-                          {item.roomFFEItem?.images?.[0] ? (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between p-3 bg-white border rounded-lg"
+                      >
+                        <div className="flex items-center gap-3">
+                          {imageUrl ? (
                             <img
-                              src={item.roomFFEItem.images[0]}
-                              alt=""
-                              className="w-12 h-12 rounded object-cover flex-shrink-0"
+                              src={imageUrl}
+                              alt={item.name}
+                              className="w-10 h-10 object-cover rounded border"
                             />
                           ) : (
-                            <div className="w-12 h-12 rounded bg-gray-200 flex items-center justify-center flex-shrink-0">
+                            <div className="w-10 h-10 bg-gray-100 rounded border flex items-center justify-center">
                               <Package className="w-5 h-5 text-gray-400" />
                             </div>
                           )}
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm">{item.name}</p>
-                            {item.roomFFEItem?.modelNumber && (
-                              <p className="text-xs text-gray-500">{item.roomFFEItem.modelNumber}</p>
-                            )}
-                            <p className="text-xs text-gray-400">Qty: {item.quantity}</p>
-                          </div>
-                          <div className="text-right flex-shrink-0">
-                            <p className="font-medium text-sm">{formatCurrency(item.totalPrice, order.currency)}</p>
-                            <p className="text-xs text-gray-500">
-                              {formatCurrency(item.unitPrice, order.currency)} ea
+                          <div>
+                            <p className="font-medium text-gray-900">
+                              {item.name}
+                              {item.isComponent && (
+                                <span className="ml-2 text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
+                                  Component
+                                </span>
+                              )}
                             </p>
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              {item.roomName && (
+                                <>
+                                  <span>{item.roomName}</span>
+                                  <span>•</span>
+                                </>
+                              )}
+                              <span>Qty: {item.quantity}</span>
+                              {item.roomFFEItem?.modelNumber && (
+                                <>
+                                  <span>•</span>
+                                  <span>{item.roomFFEItem.modelNumber}</span>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
-                        {/* Components */}
-                        {components.length > 0 && (
-                          <div className="ml-4 mt-1 space-y-1">
-                            {components.map(comp => (
-                              <div key={comp.id} className="flex items-center justify-between p-2 rounded bg-blue-50/50 text-sm">
-                                <span className="text-gray-600">
-                                  <span className="text-blue-400 mr-1">└</span>
-                                  {comp.name}
-                                  {comp.quantity > 1 && <span className="text-gray-400 ml-1">×{comp.quantity}</span>}
-                                </span>
-                                <span className="text-gray-700">{formatCurrency(comp.totalPrice, order.currency)}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                        <div className="text-right">
+                          <p className="font-medium text-gray-900">
+                            {formatCurrency(item.totalPrice, order.currency)}
+                          </p>
+                          {item.quantity > 1 && (
+                            <p className="text-xs text-gray-500">
+                              {formatCurrency(item.unitPrice, order.currency)} × {item.quantity}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     )
                   })}
                 </div>
-              </div>
 
-              <Separator />
-
-              {/* Totals */}
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Subtotal</span>
-                  <span>{formatCurrency(order.subtotal, order.currency)}</span>
-                </div>
-                {order.shippingCost && parseFloat(order.shippingCost) > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Shipping</span>
-                    <span>{formatCurrency(order.shippingCost, order.currency)}</span>
+                {/* Totals - matching CreatePODialog emerald style */}
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-emerald-700">Items Subtotal ({order.items.length})</p>
+                    <p className="font-medium text-emerald-800">
+                      {formatCurrency(order.subtotal, order.currency)}
+                    </p>
                   </div>
-                )}
-                {order.taxAmount && parseFloat(order.taxAmount) > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Tax</span>
-                    <span>{formatCurrency(order.taxAmount, order.currency)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between font-medium pt-2 border-t">
-                  <span>Total</span>
-                  <span className="text-lg">{formatCurrency(order.totalAmount, order.currency)}</span>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Supplier Payment Tracking */}
-              <div>
-                <h4 className="font-medium mb-3 flex items-center gap-2">
-                  <CreditCard className="w-4 h-4" />
-                  Supplier Payment
-                </h4>
-                <div className="space-y-2 bg-gray-50 rounded-lg p-3">
-                  {/* Deposit Section */}
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Deposit Required</span>
-                    <span>
-                      {depositRequired > 0
-                        ? `${formatCurrency(order.depositRequired, order.currency)} (${order.depositPercent || 0}%)`
-                        : <span className="text-gray-400 italic">Not set</span>
-                      }
-                    </span>
-                  </div>
-                  {depositRequired > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Deposit Paid</span>
-                      <span className={depositPaid > 0 ? 'text-emerald-600' : ''}>
-                        {formatCurrency(order.depositPaid, order.currency)}
-                        {depositPaid >= depositRequired && depositRequired > 0 && (
-                          <CheckCircle className="w-3 h-3 inline ml-1 text-emerald-600" />
-                        )}
-                      </span>
-                    </div>
-                  )}
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Total Paid to Supplier</span>
-                    <span className={supplierPaid > 0 ? 'text-emerald-600 font-medium' : ''}>
-                      {formatCurrency(order.supplierPaymentAmount, order.currency)}
-                    </span>
-                  </div>
-                  {balanceDue > 0 && (
-                    <div className="flex justify-between text-sm font-medium pt-2 border-t">
-                      <span className="text-amber-600">Balance Due</span>
-                      <span className="text-amber-600">{formatCurrency(String(balanceDue), order.currency)}</span>
-                    </div>
-                  )}
-                  {supplierPaid >= totalAmount && totalAmount > 0 && (
-                    <div className="flex items-center gap-2 pt-2 text-emerald-600">
-                      <CheckCircle className="w-4 h-4" />
-                      <span className="text-sm font-medium">Fully Paid</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Deposit Settings Form */}
-                {showDepositSettings && (
-                  <div className="mt-3 p-3 bg-blue-50 rounded-lg space-y-3">
+                  {order.shippingCost && parseFloat(order.shippingCost) > 0 && (
                     <div className="flex items-center justify-between">
-                      <h5 className="font-medium text-blue-900">Set Deposit Requirements</h5>
-                      <Button variant="ghost" size="sm" onClick={() => setShowDepositSettings(false)}>
-                        <X className="w-4 h-4" />
-                      </Button>
+                      <p className="text-sm text-emerald-700">Shipping</p>
+                      <p className="font-medium text-emerald-800">
+                        {formatCurrency(order.shippingCost, order.currency)}
+                      </p>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Label className="text-xs">Deposit %</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={depositForm.depositPercent}
-                          onChange={(e) => {
-                            const pct = parseFloat(e.target.value) || 0
-                            const amt = (totalAmount * pct / 100).toFixed(2)
-                            setDepositForm({ depositPercent: e.target.value, depositAmount: amt })
-                          }}
-                          placeholder="50"
-                          className="mt-1"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs">Amount ({order.currency})</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={depositForm.depositAmount}
-                          onChange={(e) => {
-                            const amt = parseFloat(e.target.value) || 0
-                            const pct = totalAmount > 0 ? ((amt / totalAmount) * 100).toFixed(0) : '0'
-                            setDepositForm({ depositAmount: e.target.value, depositPercent: pct })
-                          }}
-                          placeholder="0.00"
-                          className="mt-1"
-                        />
-                      </div>
+                  )}
+                  {order.extraCharges && order.extraCharges.length > 0 && order.extraCharges.map((charge, idx) => (
+                    <div key={idx} className="flex items-center justify-between">
+                      <p className="text-sm text-emerald-700">{charge.label}</p>
+                      <p className="font-medium text-emerald-800">
+                        {formatCurrency(String(charge.amount), order.currency)}
+                      </p>
                     </div>
-                    <Button
-                      className="w-full bg-blue-600 hover:bg-blue-700"
-                      onClick={handleSaveDepositSettings}
-                      disabled={savingDeposit}
-                    >
-                      {savingDeposit && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                      Save Deposit Requirements
-                    </Button>
-                  </div>
-                )}
-
-                {/* Action Buttons */}
-                <div className="flex gap-2 mt-3">
-                  {!showDepositSettings && !showPaymentForm && (
+                  ))}
+                  {order.taxAmount && parseFloat(order.taxAmount) > 0 && (
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-emerald-700">Tax</p>
+                      <p className="font-medium text-emerald-800">
+                        {formatCurrency(order.taxAmount, order.currency)}
+                      </p>
+                    </div>
+                  )}
+                  {depositRequired > 0 && (
                     <>
-                      <Button
-                        variant="outline"
-                        className="flex-1"
-                        onClick={() => {
-                          setDepositForm({
-                            depositPercent: order.depositPercent?.toString() || '50',
-                            depositAmount: order.depositRequired?.toString() || (totalAmount * 0.5).toFixed(2)
-                          })
-                          setShowDepositSettings(true)
-                        }}
-                      >
-                        Set Deposit
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="flex-1"
-                        onClick={() => setShowPaymentForm(true)}
-                      >
-                        <DollarSign className="w-4 h-4 mr-2" />
-                        Record Payment
-                      </Button>
+                      <div className="flex items-center justify-between pt-2 border-t border-emerald-200">
+                        <p className="text-sm text-blue-700 font-medium">
+                          Deposit Required ({order.depositPercent || 0}%)
+                        </p>
+                        <p className="font-bold text-blue-700">
+                          {formatCurrency(order.depositRequired, order.currency)}
+                        </p>
+                      </div>
+                      {balanceDue > 0 && (
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm text-gray-600">Balance Due</p>
+                          <p className="font-medium text-gray-700">
+                            {formatCurrency(String(balanceDue), order.currency)}
+                          </p>
+                        </div>
+                      )}
                     </>
                   )}
+                  <div className="flex items-center justify-between pt-2 border-t border-emerald-200">
+                    <p className="font-semibold text-emerald-800">Total</p>
+                    <p className="text-xl font-bold text-emerald-900">
+                      {formatCurrency(order.totalAmount, order.currency)}
+                    </p>
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="payment" className="space-y-4">
+                {/* Payment Summary */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Order Total</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {formatCurrency(order.totalAmount, order.currency)}
+                    </p>
+                  </div>
+                  <div className={`p-4 rounded-lg border ${
+                    supplierPaid >= totalAmount && totalAmount > 0
+                      ? 'bg-green-50 border-green-200'
+                      : depositPaid > 0
+                        ? 'bg-yellow-50 border-yellow-200'
+                        : 'bg-gray-50 border-gray-200'
+                  }`}>
+                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Payment Status</p>
+                    <Badge className={
+                      supplierPaid >= totalAmount && totalAmount > 0
+                        ? 'bg-green-100 text-green-700'
+                        : depositPaid > 0
+                          ? 'bg-yellow-100 text-yellow-700'
+                          : 'bg-gray-100 text-gray-600'
+                    }>
+                      {supplierPaid >= totalAmount && totalAmount > 0
+                        ? 'Paid to Supplier'
+                        : depositPaid > 0
+                          ? 'Deposit Paid'
+                          : 'Not Paid'
+                      }
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Payment Details */}
+                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <DollarSign className="w-4 h-4" />
+                    Supplier Payment Tracking
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Total Amount</span>
+                        <span className="font-medium">{formatCurrency(order.totalAmount, order.currency)}</span>
+                      </div>
+                      {depositRequired > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Deposit Required</span>
+                          <span>{formatCurrency(order.depositRequired, order.currency)}</span>
+                        </div>
+                      )}
+                      {depositPaid > 0 && (
+                        <div className="flex justify-between text-green-600">
+                          <span>Deposit Paid</span>
+                          <span>{formatCurrency(order.depositPaid, order.currency)}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      {supplierPaid > 0 && (
+                        <div className="flex justify-between text-green-600">
+                          <span>Total Paid to Supplier</span>
+                          <span className="font-medium">{formatCurrency(order.supplierPaymentAmount, order.currency)}</span>
+                        </div>
+                      )}
+                      {balanceDue > 0 && (
+                        <div className="flex justify-between text-amber-600">
+                          <span>Balance Due</span>
+                          <span>{formatCurrency(String(balanceDue), order.currency)}</span>
+                        </div>
+                      )}
+                      {order.supplierPaymentMethod && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Payment Method</span>
+                          <span>{order.supplierPaymentMethod}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Record Payment Form */}
-                {showPaymentForm && (
-                  <div className="mt-3 p-3 bg-emerald-50 rounded-lg space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h5 className="font-medium text-emerald-900">Record Payment</h5>
-                      <Button variant="ghost" size="sm" onClick={() => setShowPaymentForm(false)}>
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-
-                    {/* Saved Payment Methods */}
-                    {savedPaymentMethods.length > 0 && (
-                      <div>
-                        <Label className="text-xs">Saved Payment Method</Label>
-                        <select
-                          value={selectedPaymentMethodId}
-                          onChange={(e) => {
-                            setSelectedPaymentMethodId(e.target.value)
-                            if (e.target.value) {
-                              setPaymentForm(prev => ({ ...prev, method: 'SAVED_CARD' }))
-                            }
-                          }}
-                          className="w-full mt-1 h-9 rounded-md border border-input bg-background px-3 text-sm"
-                        >
-                          <option value="">Use manual payment method</option>
-                          {savedPaymentMethods.map(pm => (
-                            <option key={pm.id} value={pm.id}>
-                              {pm.cardBrand} ****{pm.lastFour} {pm.nickname ? `(${pm.nickname})` : ''} {pm.isDefault ? '★' : ''}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-2 gap-3">
+                {!showPaymentForm ? (
+                  <Button onClick={() => setShowPaymentForm(true)} className="w-full">
+                    <CreditCard className="w-4 h-4 mr-2" />
+                    Record Payment to Supplier
+                  </Button>
+                ) : (
+                  <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg space-y-4">
+                    <h4 className="font-medium text-emerald-900">Record Supplier Payment</h4>
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
                         <Label className="text-xs">Payment Type</Label>
                         <select
@@ -870,8 +865,8 @@ export default function OrderDetailSheet({
                           }))}
                           className="w-full mt-1 h-9 rounded-md border border-input bg-background px-3 text-sm"
                         >
-                          <option value="DEPOSIT">Deposit</option>
-                          <option value="BALANCE">Balance</option>
+                          <option value="DEPOSIT">Deposit Payment</option>
+                          <option value="BALANCE">Balance Payment</option>
                           <option value="FULL">Full Payment</option>
                         </select>
                       </div>
@@ -880,191 +875,168 @@ export default function OrderDetailSheet({
                         <Input
                           type="number"
                           step="0.01"
+                          min="0"
                           value={paymentForm.amount}
                           onChange={(e) => setPaymentForm(prev => ({ ...prev, amount: e.target.value }))}
                           placeholder="0.00"
                           className="mt-1"
                         />
                       </div>
-                      {!selectedPaymentMethodId && (
-                        <div>
-                          <Label className="text-xs">Method</Label>
-                          <select
-                            value={paymentForm.method}
-                            onChange={(e) => setPaymentForm(prev => ({ ...prev, method: e.target.value }))}
-                            className="w-full mt-1 h-9 rounded-md border border-input bg-background px-3 text-sm"
-                          >
-                            <option value="CREDIT_CARD">Credit Card</option>
-                            <option value="WIRE_TRANSFER">Wire Transfer</option>
-                            <option value="CHECK">Check</option>
-                            <option value="ETRANSFER">E-Transfer</option>
-                            <option value="CASH">Cash</option>
-                          </select>
-                        </div>
-                      )}
+                      <div>
+                        <Label className="text-xs">Payment Method</Label>
+                        <select
+                          value={paymentForm.method}
+                          onChange={(e) => setPaymentForm(prev => ({ ...prev, method: e.target.value }))}
+                          className="w-full mt-1 h-9 rounded-md border border-input bg-background px-3 text-sm"
+                        >
+                          <option value="CREDIT_CARD">Credit Card</option>
+                          <option value="WIRE_TRANSFER">Wire Transfer</option>
+                          <option value="CHECK">Check</option>
+                          <option value="ETRANSFER">E-Transfer</option>
+                          <option value="CASH">Cash</option>
+                          <option value="OTHER">Other</option>
+                        </select>
+                      </div>
                       <div>
                         <Label className="text-xs">Reference #</Label>
                         <Input
                           value={paymentForm.reference}
                           onChange={(e) => setPaymentForm(prev => ({ ...prev, reference: e.target.value }))}
-                          placeholder="Optional"
+                          placeholder="Confirmation number"
                           className="mt-1"
                         />
                       </div>
                     </div>
-                    <Button
-                      className="w-full"
-                      onClick={handleRecordPayment}
-                      disabled={paymentSaving}
-                    >
-                      {paymentSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                      Record Payment
-                    </Button>
+                    <div>
+                      <Label className="text-xs">Notes</Label>
+                      <Textarea
+                        value={paymentForm.notes}
+                        onChange={(e) => setPaymentForm(prev => ({ ...prev, notes: e.target.value }))}
+                        rows={2}
+                        placeholder="Optional notes about this payment"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" onClick={() => setShowPaymentForm(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleRecordPayment} disabled={paymentSaving}>
+                        {paymentSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                        Record Payment
+                      </Button>
+                    </div>
                   </div>
                 )}
-              </div>
+              </TabsContent>
 
-              {/* Notes - Always visible */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-medium flex items-center gap-2">
-                    <FileText className="w-4 h-4" />
-                    Notes
-                  </h4>
-                  {!editing && (
-                    <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setEditing(true)}>
-                      <Edit className="w-3 h-3 mr-1" />
-                      Edit
-                    </Button>
-                  )}
-                </div>
-                {editing ? (
-                  <div className="space-y-3">
-                    <div>
-                      <Label className="text-xs text-gray-500">Order Notes (visible on PO)</Label>
-                      <Textarea
-                        value={editForm.notes}
-                        onChange={e => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
-                        rows={2}
-                        placeholder="Notes visible on PO..."
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs text-gray-500">Internal Notes (private)</Label>
-                      <Textarea
-                        value={editForm.internalNotes}
-                        onChange={e => setEditForm(prev => ({ ...prev, internalNotes: e.target.value }))}
-                        rows={2}
-                        placeholder="Private notes..."
-                        className="mt-1"
-                      />
-                    </div>
-                  </div>
+              <TabsContent value="activity" className="space-y-3">
+                {order.activities.length === 0 ? (
+                  <p className="text-gray-400 text-center py-8">No activity yet</p>
                 ) : (
-                  <div className="space-y-2 bg-gray-50 rounded-lg p-3">
-                    <div>
-                      <p className="text-xs text-gray-400">Order Notes</p>
-                      <p className="text-sm text-gray-700 whitespace-pre-line">
-                        {order.notes || <span className="text-gray-400 italic">No notes</span>}
-                      </p>
+                  order.activities.map(activity => (
+                    <div key={activity.id} className="flex items-start gap-3 text-sm">
+                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                        <Clock className="w-4 h-4 text-gray-400" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-gray-900">{activity.message}</p>
+                        <p className="text-gray-500 text-xs">
+                          {activity.user?.name || 'System'} • {formatDateTime(activity.createdAt)}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs text-gray-400">Internal Notes</p>
-                      <p className="text-sm text-gray-700 whitespace-pre-line">
-                        {order.internalNotes || <span className="text-gray-400 italic">No internal notes</span>}
-                      </p>
-                    </div>
-                  </div>
+                  ))
                 )}
-              </div>
+              </TabsContent>
+            </Tabs>
+          </div>
 
-              <Separator />
-
-              {/* Test Email */}
-              <div>
-                <h4 className="font-medium mb-2 flex items-center gap-2">
-                  <TestTube className="w-4 h-4" />
-                  Test Email
-                </h4>
-                <p className="text-xs text-gray-500 mb-2">
-                  Send a test PO email to preview what the supplier will receive
-                </p>
-                <div className="flex gap-2">
-                  <Input
-                    type="email"
-                    value={testEmail}
-                    onChange={(e) => setTestEmail(e.target.value)}
-                    placeholder="your@email.com"
-                    className="flex-1"
-                  />
+          <DialogFooter className="flex-shrink-0 border-t pt-4">
+            <div className="flex items-center justify-between w-full gap-2">
+              <div className="flex items-center gap-2">
+                {canDelete && (
                   <Button
                     variant="outline"
-                    onClick={handleSendTestEmail}
-                    disabled={sendingTestEmail || !testEmail}
+                    size="sm"
+                    className="text-red-600 hover:bg-red-50"
+                    onClick={() => setDeleteDialogOpen(true)}
                   >
-                    {sendingTestEmail ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Send className="w-4 h-4" />
-                    )}
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    Delete
                   </Button>
-                </div>
+                )}
+                {!editing && (
+                  <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+                    <Edit className="w-4 h-4 mr-1" />
+                    Edit
+                  </Button>
+                )}
               </div>
-
-              {/* Quick Actions */}
-              <div className="flex flex-wrap gap-2">
-                {order.supplierAccessToken && (
+              <div className="flex items-center gap-2">
+                {editing ? (
                   <>
-                    <Button variant="outline" size="sm" onClick={handleCopyPortalLink}>
-                      <Copy className="w-4 h-4 mr-1.5" />
-                      Copy Portal Link
+                    <Button variant="outline" onClick={() => setEditing(false)}>
+                      Cancel
                     </Button>
-                    <Button variant="outline" size="sm" onClick={handleOpenPortal}>
-                      <ExternalLink className="w-4 h-4 mr-1.5" />
-                      Supplier Portal
+                    <Button onClick={handleSave} disabled={saving}>
+                      {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                      Save Changes
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleDownloadPDF}
+                      disabled={downloadingPDF}
+                    >
+                      {downloadingPDF ? (
+                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                      ) : (
+                        <FileDown className="w-4 h-4 mr-1" />
+                      )}
+                      PDF
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => setShowSendPO(true)}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <Send className="w-4 h-4 mr-1" />
+                      Send PO
                     </Button>
                   </>
                 )}
-                <Button variant="outline" size="sm" onClick={handleDownloadPDF} disabled={downloadingPDF}>
-                  {downloadingPDF ? (
-                    <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-                  ) : (
-                    <Download className="w-4 h-4 mr-1.5" />
-                  )}
-                  PDF
-                </Button>
               </div>
             </div>
-          </ScrollArea>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-          {/* Footer Actions */}
-          <div className="flex-shrink-0 p-4 border-t bg-white">
-            {editing ? (
-              <div className="flex gap-2">
-                <Button variant="outline" className="flex-1" onClick={() => setEditing(false)}>
-                  Cancel
-                </Button>
-                <Button className="flex-1" onClick={handleSave} disabled={saving}>
-                  {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Changes
-                </Button>
-              </div>
-            ) : (
-              <div className="flex gap-2">
-                <Button
-                  className="flex-1 bg-blue-600 hover:bg-blue-700"
-                  onClick={() => setShowSendPO(true)}
-                >
-                  <Send className="w-4 h-4 mr-2" />
-                  Send PO to Supplier
-                </Button>
-              </div>
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Order?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {order.orderNumber}? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={deleting}
+            >
+              {deleting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Send PO Dialog */}
       {order && (
