@@ -13,7 +13,6 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Select,
   SelectContent,
@@ -32,19 +31,40 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 
+interface ItemComponent {
+  id: string
+  name: string
+  modelNumber: string | null
+  price: number | null
+  quantity: number
+  imageUrl: string | null
+}
+
 interface POItem {
   id: string
   name: string
   description: string | null
   roomName: string | null
   quantity: number
+  imageUrl: string | null
   tradePrice: number | null
   currency: string
-  // Quote info if available
   hasQuote: boolean
   quoteUnitPrice: number | null
   quoteShippingCost: number | null
-  quoteCurrency: string | null
+  components: ItemComponent[]
+}
+
+interface FlatItem {
+  id: string
+  name: string
+  roomName: string | null
+  quantity: number
+  imageUrl: string | null
+  unitPrice: number | null
+  currency: string
+  isComponent: boolean
+  parentName?: string
 }
 
 interface SavedPaymentMethod {
@@ -84,6 +104,7 @@ export default function CreatePODialog({
   const [items, setItems] = useState<POItem[]>([])
   const [paymentMethods, setPaymentMethods] = useState<SavedPaymentMethod[]>([])
   const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(false)
+  const [groupCurrency, setGroupCurrency] = useState('CAD')
 
   // Form state
   const [shippingAddress, setShippingAddress] = useState('')
@@ -99,40 +120,27 @@ export default function CreatePODialog({
       )
       if (res.ok) {
         const data = await res.json()
-        // Transform to our simplified format
         const supplierGroup = data.supplierGroups?.find(
-          (g: any) => g.supplierId === supplier.id
+          (g: any) => g.supplierId === supplier.id || g.supplierName === supplier.name
         )
         if (supplierGroup) {
+          setGroupCurrency(supplierGroup.currency || 'CAD')
           setItems(supplierGroup.items.map((item: any) => ({
             id: item.id,
             name: item.name,
             description: item.description,
             roomName: item.roomName,
             quantity: item.quantity || 1,
-            tradePrice: item.tradePrice || item.supplierQuote?.unitPrice || null,
-            currency: item.tradePriceCurrency || item.supplierQuote?.currency || 'CAD',
+            imageUrl: item.imageUrl,
+            tradePrice: item.tradePrice,
+            currency: item.tradePriceCurrency || supplierGroup.currency || 'CAD',
             hasQuote: !!item.supplierQuote,
             quoteUnitPrice: item.supplierQuote?.unitPrice || null,
             quoteShippingCost: item.supplierQuote?.shippingCost || null,
-            quoteCurrency: item.supplierQuote?.currency || null
+            components: item.components || []
           })))
         } else {
-          // No items with quotes, check itemsWithoutQuotes
-          const noQuoteItems = data.itemsWithoutQuotes || []
-          setItems(noQuoteItems.map((item: any) => ({
-            id: item.id,
-            name: item.name,
-            description: item.description,
-            roomName: item.roomName,
-            quantity: item.quantity || 1,
-            tradePrice: item.tradePrice || null,
-            currency: item.tradePriceCurrency || 'CAD',
-            hasQuote: false,
-            quoteUnitPrice: null,
-            quoteShippingCost: null,
-            quoteCurrency: null
-          })))
+          setItems([])
         }
       }
     } catch (error) {
@@ -141,7 +149,7 @@ export default function CreatePODialog({
     } finally {
       setLoading(false)
     }
-  }, [projectId, supplier.id])
+  }, [projectId, supplier.id, supplier.name])
 
   // Fetch payment methods
   const fetchPaymentMethods = useCallback(async () => {
@@ -170,46 +178,71 @@ export default function CreatePODialog({
     }
   }, [open, fetchItems, fetchPaymentMethods, defaultShippingAddress])
 
-  // Calculate totals - group by currency
-  const calculateTotals = () => {
-    const byCurrency: Record<string, { subtotal: number; shipping: number; items: number }> = {}
-
-    items.forEach(item => {
-      const currency = item.currency || 'CAD'
-      if (!byCurrency[currency]) {
-        byCurrency[currency] = { subtotal: 0, shipping: 0, items: 0 }
-      }
-      const price = item.tradePrice || item.quoteUnitPrice || 0
-      byCurrency[currency].subtotal += price * item.quantity
-      byCurrency[currency].items += 1
-      // Add shipping from quote if first item with that currency
-      if (item.quoteShippingCost && byCurrency[currency].shipping === 0) {
-        byCurrency[currency].shipping = item.quoteShippingCost
-      }
+  // Flatten items and components into single list (like OrdersTab)
+  const flatItems: FlatItem[] = []
+  items.forEach(item => {
+    const unitPrice = item.quoteUnitPrice || item.tradePrice
+    flatItems.push({
+      id: item.id,
+      name: item.name,
+      roomName: item.roomName,
+      quantity: item.quantity,
+      imageUrl: item.imageUrl,
+      unitPrice,
+      currency: item.currency || groupCurrency,
+      isComponent: false
     })
+    // Add components as separate items
+    if (item.components && item.components.length > 0) {
+      item.components.forEach(comp => {
+        flatItems.push({
+          id: comp.id,
+          name: comp.name,
+          roomName: item.roomName,
+          quantity: comp.quantity || 1,
+          imageUrl: comp.imageUrl,
+          unitPrice: comp.price,
+          currency: item.currency || groupCurrency,
+          isComponent: true,
+          parentName: item.name
+        })
+      })
+    }
+  })
 
-    return byCurrency
+  // Calculate total
+  const calculateTotal = () => {
+    let subtotal = 0
+    let shipping = 0
+    flatItems.forEach(item => {
+      subtotal += (item.unitPrice || 0) * item.quantity
+    })
+    // Add shipping from first item with quote shipping
+    const itemWithShipping = items.find(i => i.quoteShippingCost && i.quoteShippingCost > 0)
+    if (itemWithShipping) {
+      shipping = itemWithShipping.quoteShippingCost || 0
+    }
+    return { subtotal, shipping, total: subtotal + shipping }
   }
 
-  const totals = calculateTotals()
-  const currencies = Object.keys(totals)
-  const hasMultipleCurrencies = currencies.length > 1
+  const totals = calculateTotal()
 
-  const formatCurrency = (amount: number, currency: string = 'CAD') => {
+  const formatCurrency = (amount: number) => {
+    // Always use CAD format for consistent "$" symbol
     return new Intl.NumberFormat('en-CA', {
       style: 'currency',
-      currency
+      currency: 'CAD'
     }).format(amount)
   }
 
   const handleCreate = async () => {
-    if (items.length === 0) {
+    if (flatItems.length === 0) {
       toast.error('No items to order')
       return
     }
 
     // Check if all items have prices
-    const itemsWithoutPrices = items.filter(i => !i.tradePrice && !i.quoteUnitPrice)
+    const itemsWithoutPrices = flatItems.filter(i => !i.unitPrice)
     if (itemsWithoutPrices.length > 0) {
       toast.error(`${itemsWithoutPrices.length} item(s) don't have trade prices`)
       return
@@ -217,6 +250,13 @@ export default function CreatePODialog({
 
     setCreating(true)
     try {
+      // Only send main items (not components) - components are linked to parent items
+      const mainItems = items.map(item => ({
+        roomFFEItemId: item.id,
+        unitPrice: item.quoteUnitPrice || item.tradePrice || 0,
+        quantity: item.quantity
+      }))
+
       const res = await fetch(`/api/projects/${projectId}/procurement/orders/create-manual`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -224,14 +264,9 @@ export default function CreatePODialog({
           supplierId: supplier.id,
           vendorName: supplier.name,
           vendorEmail: supplier.email,
-          items: items.map(item => ({
-            roomFFEItemId: item.id,
-            unitPrice: item.tradePrice || item.quoteUnitPrice || 0,
-            quantity: item.quantity
-          })),
+          items: mainItems,
           shippingAddress: shippingAddress.trim() || undefined,
           notes: notes.trim() || undefined,
-          // Currency will be determined from items
           savedPaymentMethodId: selectedPaymentMethodId || undefined
         })
       })
@@ -254,8 +289,8 @@ export default function CreatePODialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <ShoppingCart className="w-5 h-5 text-blue-600" />
             Create Purchase Order
@@ -265,7 +300,7 @@ export default function CreatePODialog({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 -mx-6 px-6">
+        <div className="flex-1 overflow-y-auto px-1 -mx-1">
           <div className="space-y-6 py-4">
             {/* Supplier Info */}
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -284,12 +319,11 @@ export default function CreatePODialog({
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-gray-900">
-                  Items ({items.length})
+                  Items ({flatItems.length})
                 </h3>
-                {hasMultipleCurrencies && (
-                  <Badge variant="outline" className="text-amber-700 border-amber-200 bg-amber-50">
-                    <AlertCircle className="w-3 h-3 mr-1" />
-                    Multiple currencies
+                {groupCurrency === 'USD' && (
+                  <Badge variant="outline" className="text-blue-700 border-blue-200 bg-blue-50">
+                    USD
                   </Badge>
                 )}
               </div>
@@ -298,46 +332,67 @@ export default function CreatePODialog({
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
                 </div>
-              ) : items.length === 0 ? (
+              ) : flatItems.length === 0 ? (
                 <div className="text-center py-8 text-gray-500 border border-dashed rounded-lg">
                   <Package className="w-8 h-8 mx-auto mb-2 text-gray-300" />
                   <p>No items ready to order for this supplier</p>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {items.map(item => {
-                    const price = item.tradePrice || item.quoteUnitPrice
-                    const currency = item.currency || 'CAD'
+                  {flatItems.map((item, idx) => {
+                    const totalPrice = (item.unitPrice || 0) * item.quantity
 
                     return (
                       <div
-                        key={item.id}
+                        key={`${item.id}-${idx}`}
                         className="flex items-center justify-between p-3 bg-white border rounded-lg"
                       >
                         <div className="flex items-center gap-3">
-                          <Package className="w-4 h-4 text-gray-400" />
+                          {/* Item Image */}
+                          {item.imageUrl ? (
+                            <img
+                              src={item.imageUrl}
+                              alt={item.name}
+                              className="w-10 h-10 object-cover rounded border"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 bg-gray-100 rounded border flex items-center justify-center">
+                              <Package className="w-5 h-5 text-gray-400" />
+                            </div>
+                          )}
                           <div>
-                            <p className="font-medium text-gray-900">{item.name}</p>
+                            <p className="font-medium text-gray-900">
+                              {item.name}
+                              {item.isComponent && (
+                                <span className="ml-2 text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
+                                  Component
+                                </span>
+                              )}
+                            </p>
                             <div className="flex items-center gap-2 text-xs text-gray-500">
                               {item.roomName && <span>{item.roomName}</span>}
+                              {item.roomName && <span>•</span>}
                               <span>Qty: {item.quantity}</span>
-                              {item.hasQuote && (
-                                <Badge variant="outline" className="text-xs text-green-700 border-green-200">
-                                  Has Quote
-                                </Badge>
+                              {item.isComponent && item.parentName && (
+                                <>
+                                  <span>•</span>
+                                  <span>for {item.parentName}</span>
+                                </>
                               )}
                             </div>
                           </div>
                         </div>
                         <div className="text-right">
-                          {price ? (
+                          {item.unitPrice ? (
                             <>
                               <p className="font-medium text-gray-900">
-                                {formatCurrency(price * item.quantity, currency)}
+                                {formatCurrency(totalPrice)}{groupCurrency === 'USD' ? ' USD' : ''}
                               </p>
-                              <p className="text-xs text-gray-500">
-                                {formatCurrency(price, currency)} × {item.quantity}
-                              </p>
+                              {item.quantity > 1 && (
+                                <p className="text-xs text-gray-500">
+                                  {formatCurrency(item.unitPrice)} × {item.quantity}
+                                </p>
+                              )}
                             </>
                           ) : (
                             <Badge variant="destructive" className="text-xs">
@@ -421,41 +476,40 @@ export default function CreatePODialog({
             </div>
 
             {/* Totals */}
-            {items.length > 0 && (
+            {flatItems.length > 0 && (
               <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg space-y-2">
-                {currencies.map(currency => {
-                  const t = totals[currency]
-                  const total = t.subtotal + t.shipping
-                  return (
-                    <div key={currency} className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-emerald-800">
-                          {t.items} item{t.items > 1 ? 's' : ''} ({currency})
-                        </p>
-                        {t.shipping > 0 && (
-                          <p className="text-xs text-emerald-600">
-                            Includes {formatCurrency(t.shipping, currency)} shipping from quote
-                          </p>
-                        )}
-                      </div>
-                      <p className="text-xl font-bold text-emerald-900">
-                        {formatCurrency(total, currency)}
-                      </p>
-                    </div>
-                  )
-                })}
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-emerald-700">Subtotal ({flatItems.length} items)</p>
+                  <p className="font-medium text-emerald-800">
+                    {formatCurrency(totals.subtotal)}{groupCurrency === 'USD' ? ' USD' : ''}
+                  </p>
+                </div>
+                {totals.shipping > 0 && (
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-emerald-700">Shipping (from quote)</p>
+                    <p className="font-medium text-emerald-800">
+                      {formatCurrency(totals.shipping)}{groupCurrency === 'USD' ? ' USD' : ''}
+                    </p>
+                  </div>
+                )}
+                <div className="flex items-center justify-between pt-2 border-t border-emerald-200">
+                  <p className="font-semibold text-emerald-800">Total</p>
+                  <p className="text-xl font-bold text-emerald-900">
+                    {formatCurrency(totals.total)}{groupCurrency === 'USD' ? ' USD' : ''}
+                  </p>
+                </div>
               </div>
             )}
           </div>
-        </ScrollArea>
+        </div>
 
-        <DialogFooter className="border-t pt-4">
+        <DialogFooter className="flex-shrink-0 border-t pt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button
             onClick={handleCreate}
-            disabled={creating || items.length === 0}
+            disabled={creating || flatItems.length === 0}
             className="bg-blue-600 hover:bg-blue-700"
           >
             {creating ? (
