@@ -220,7 +220,13 @@ export async function PATCH(
       expectedDelivery,
       actualDelivery,
       notes,
-      internalNotes
+      internalNotes,
+      // Supplier payment fields
+      supplierPaidAt,
+      supplierPaymentMethod,
+      supplierPaymentAmount,
+      supplierPaymentRef,
+      supplierPaymentNotes
     } = body
 
     const updateData: any = {
@@ -236,6 +242,12 @@ export async function PATCH(
       ...(actualDelivery !== undefined && { actualDelivery: actualDelivery ? new Date(actualDelivery) : null }),
       ...(notes !== undefined && { notes }),
       ...(internalNotes !== undefined && { internalNotes }),
+      // Supplier payment fields
+      ...(supplierPaidAt !== undefined && { supplierPaidAt: supplierPaidAt ? new Date(supplierPaidAt) : null }),
+      ...(supplierPaymentMethod !== undefined && { supplierPaymentMethod }),
+      ...(supplierPaymentAmount !== undefined && { supplierPaymentAmount }),
+      ...(supplierPaymentRef !== undefined && { supplierPaymentRef }),
+      ...(supplierPaymentNotes !== undefined && { supplierPaymentNotes }),
       updatedById: userId
     }
 
@@ -289,6 +301,23 @@ export async function PATCH(
           type: 'TRACKING_UPDATED',
           message: `Tracking number updated: ${trackingNumber}`,
           userId
+        }
+      })
+    }
+
+    // Log payment recording
+    if (supplierPaymentAmount && supplierPaymentAmount !== Number(existing.supplierPaymentAmount)) {
+      await prisma.orderActivity.create({
+        data: {
+          orderId: id,
+          type: 'PAYMENT_RECORDED',
+          message: `Payment to supplier recorded: $${supplierPaymentAmount.toFixed(2)} via ${supplierPaymentMethod || 'unknown'}${supplierPaymentRef ? ` (Ref: ${supplierPaymentRef})` : ''}`,
+          userId,
+          metadata: {
+            amount: supplierPaymentAmount,
+            method: supplierPaymentMethod,
+            reference: supplierPaymentRef
+          }
         }
       })
     }

@@ -208,6 +208,15 @@ export default function OrderDetailSheet({
   const [testEmailAddress, setTestEmailAddress] = useState('')
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false)
+  const [recordingPayment, setRecordingPayment] = useState(false)
+  const [paymentForm, setPaymentForm] = useState({
+    amount: '',
+    method: 'CHECK',
+    reference: '',
+    notes: '',
+    paidAt: new Date().toISOString().split('T')[0]
+  })
 
   const [editForm, setEditForm] = useState({
     shippingAddress: '',
@@ -282,6 +291,52 @@ export default function OrderDetailSheet({
       toast.error('Failed to update order')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleRecordPayment = async () => {
+    if (!order) return
+
+    const amount = parseFloat(paymentForm.amount)
+    if (!amount || amount <= 0) {
+      toast.error('Please enter a valid payment amount')
+      return
+    }
+
+    setRecordingPayment(true)
+    try {
+      const res = await fetch(`/api/orders/${order.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          supplierPaidAt: paymentForm.paidAt ? new Date(paymentForm.paidAt).toISOString() : new Date().toISOString(),
+          supplierPaymentMethod: paymentForm.method,
+          supplierPaymentAmount: amount,
+          supplierPaymentRef: paymentForm.reference || null,
+          supplierPaymentNotes: paymentForm.notes || null
+        })
+      })
+
+      if (res.ok) {
+        toast.success('Payment recorded successfully')
+        setShowPaymentDialog(false)
+        setPaymentForm({
+          amount: '',
+          method: 'CHECK',
+          reference: '',
+          notes: '',
+          paidAt: new Date().toISOString().split('T')[0]
+        })
+        await fetchOrder()
+        onUpdate()
+      } else {
+        const data = await res.json()
+        toast.error(data.error || 'Failed to record payment')
+      }
+    } catch (error) {
+      toast.error('Failed to record payment')
+    } finally {
+      setRecordingPayment(false)
     }
   }
 
@@ -811,6 +866,33 @@ export default function OrderDetailSheet({
                         <span className="font-medium">{formatCurrency(supplierPaid, order.currency)}</span>
                       </div>
                     )}
+                    {order.supplierPaidAt && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        {order.supplierPaymentMethod && <span>{order.supplierPaymentMethod} • </span>}
+                        {formatDate(order.supplierPaidAt)}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Record Payment Button */}
+                {!order.supplierPaidAt && (
+                  <div className="pt-2 border-t border-emerald-200 mt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => {
+                        setPaymentForm(prev => ({
+                          ...prev,
+                          amount: totalAmount.toString()
+                        }))
+                        setShowPaymentDialog(true)
+                      }}
+                    >
+                      <CreditCard className="w-4 h-4 mr-1.5" />
+                      Record Payment to Supplier
+                    </Button>
                   </div>
                 )}
               </div>
@@ -902,6 +984,94 @@ export default function OrderDetailSheet({
                 )}
               </div>
             </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Record Payment Dialog */}
+      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Record Payment to Supplier</DialogTitle>
+            <DialogDescription>
+              Record when you've paid the supplier (check, wire, card, etc.)
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="paymentAmount">Amount Paid *</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                <Input
+                  id="paymentAmount"
+                  type="number"
+                  step="0.01"
+                  value={paymentForm.amount}
+                  onChange={(e) => setPaymentForm(prev => ({ ...prev, amount: e.target.value }))}
+                  placeholder="0.00"
+                  className="pl-7"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="paymentMethod">Payment Method</Label>
+              <Select
+                value={paymentForm.method}
+                onValueChange={(v) => setPaymentForm(prev => ({ ...prev, method: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select method" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CHECK">Check</SelectItem>
+                  <SelectItem value="WIRE">Wire Transfer</SelectItem>
+                  <SelectItem value="ACH">ACH</SelectItem>
+                  <SelectItem value="CARD">Credit/Debit Card</SelectItem>
+                  <SelectItem value="CASH">Cash</SelectItem>
+                  <SelectItem value="OTHER">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="paymentDate">Payment Date</Label>
+              <Input
+                id="paymentDate"
+                type="date"
+                value={paymentForm.paidAt}
+                onChange={(e) => setPaymentForm(prev => ({ ...prev, paidAt: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="paymentReference">Check # / Reference (optional)</Label>
+              <Input
+                id="paymentReference"
+                value={paymentForm.reference}
+                onChange={(e) => setPaymentForm(prev => ({ ...prev, reference: e.target.value }))}
+                placeholder="Check number, wire reference, etc."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="paymentNotes">Notes (optional)</Label>
+              <Textarea
+                id="paymentNotes"
+                value={paymentForm.notes}
+                onChange={(e) => setPaymentForm(prev => ({ ...prev, notes: e.target.value }))}
+                placeholder="Any additional notes..."
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleRecordPayment}
+              disabled={recordingPayment || !paymentForm.amount || parseFloat(paymentForm.amount) <= 0}
+            >
+              {recordingPayment && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Record Payment
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
