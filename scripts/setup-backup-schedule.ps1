@@ -6,7 +6,7 @@ param(
 )
 
 # Configuration
-$ProjectDir = "C:\Users\ADMIN\Desktop\residentone-workflow"
+$ProjectDir = "C:\Users\ADMIN\OneDrive\Desktop\residentone-workflow"
 $TaskName = "ResidentOne-DailyBackup"
 $TaskDescription = "Automated nightly backup for ResidentOne database"
 $ScriptPath = "$ProjectDir\scripts\daily-backup.ps1"

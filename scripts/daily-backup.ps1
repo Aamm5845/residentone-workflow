@@ -6,7 +6,7 @@ param(
 )
 
 # Configuration
-$ProjectDir = "C:\Users\ADMIN\Desktop\residentone-workflow"
+$ProjectDir = "C:\Users\ADMIN\OneDrive\Desktop\residentone-workflow"
 $BackupDir = "$ProjectDir\backups"
 $LogFile = "$BackupDir\backup-log.txt"
 

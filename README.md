@@ -60,8 +60,8 @@ All static content and demo data have been removed. Every component is now fully
 
 1. **Clone and setup**
    ```bash
-   # Note: Files are already created in C:\Users\ADMIN\Desktop\residentone-workflow
-   cd C:\Users\ADMIN\Desktop\residentone-workflow
+   # Note: Files are already created in C:\Users\ADMIN\OneDrive\Desktop\residentone-workflow
+   cd C:\Users\ADMIN\OneDrive\Desktop\residentone-workflow
    ```
 
 2. **Install dependencies**
