@@ -1046,6 +1046,7 @@ export interface PurchaseOrderEmailData {
   subtotal: number
   taxAmount?: number
   shippingCost?: number
+  extraCharges?: Array<{ label: string; amount: number }> | null
   totalAmount: number
   currency?: string
   shippingAddress?: string | null
@@ -1054,6 +1055,10 @@ export interface PurchaseOrderEmailData {
   notes?: string | null
   paymentTerms?: string
   orderDate: Date
+  // Deposit info
+  depositPercent?: number | null
+  depositRequired?: number | null
+  balanceDue?: number | null
   // Payment method info for supplier to charge
   paymentMethod?: {
     cardBrand?: string
@@ -1338,22 +1343,38 @@ export function generatePurchaseOrderEmailTemplate(data: PurchaseOrderEmailData)
                         <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Subtotal</td>
                         <td style="padding: 8px 0; text-align: right; color: #374151; font-size: 14px;">${formatCurrency(data.subtotal)}</td>
                     </tr>
-                    ${data.taxAmount ? `
-                    <tr>
-                        <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Tax</td>
-                        <td style="padding: 8px 0; text-align: right; color: #374151; font-size: 14px;">${formatCurrency(data.taxAmount)}</td>
-                    </tr>
-                    ` : ''}
                     ${data.shippingCost ? `
                     <tr>
                         <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Shipping</td>
                         <td style="padding: 8px 0; text-align: right; color: #374151; font-size: 14px;">${formatCurrency(data.shippingCost)}</td>
                     </tr>
                     ` : ''}
+                    ${data.extraCharges && data.extraCharges.length > 0 ? data.extraCharges.map(charge => `
+                    <tr>
+                        <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">${charge.label}</td>
+                        <td style="padding: 8px 0; text-align: right; color: #374151; font-size: 14px;">${formatCurrency(charge.amount)}</td>
+                    </tr>
+                    `).join('') : ''}
+                    ${data.taxAmount ? `
+                    <tr>
+                        <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Tax</td>
+                        <td style="padding: 8px 0; text-align: right; color: #374151; font-size: 14px;">${formatCurrency(data.taxAmount)}</td>
+                    </tr>
+                    ` : ''}
                     <tr style="border-top: 2px solid #e5e7eb;">
                         <td style="padding: 16px 0 8px 0; color: #111827; font-size: 18px; font-weight: 700;">Total</td>
                         <td style="padding: 16px 0 8px 0; text-align: right; color: #111827; font-size: 18px; font-weight: 700;">${formatCurrency(data.totalAmount)}</td>
                     </tr>
+                    ${data.depositRequired && data.depositRequired > 0 ? `
+                    <tr>
+                        <td style="padding: 8px 0; color: #2563eb; font-size: 14px; font-weight: 600;">Deposit Required${data.depositPercent ? ` (${data.depositPercent}%)` : ''}</td>
+                        <td style="padding: 8px 0; text-align: right; color: #2563eb; font-size: 14px; font-weight: 600;">${formatCurrency(data.depositRequired)}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Balance Due</td>
+                        <td style="padding: 8px 0; text-align: right; color: #374151; font-size: 14px;">${formatCurrency(data.balanceDue || (data.totalAmount - data.depositRequired))}</td>
+                    </tr>
+                    ` : ''}
                 </table>
             </div>
 
