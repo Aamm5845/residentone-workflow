@@ -283,16 +283,25 @@ export async function POST(
       }
     }
 
-    // Generate order numbers
+    // Generate order numbers - find the highest existing number to avoid collisions
     const year = new Date().getFullYear()
-    const existingOrders = await prisma.order.count({
+    const latestOrder = await prisma.order.findFirst({
       where: {
         orgId,
         orderNumber: { startsWith: `PO-${year}` }
-      }
+      },
+      orderBy: { orderNumber: 'desc' },
+      select: { orderNumber: true }
     })
 
-    let orderCounter = existingOrders + 1
+    let orderCounter = 1
+    if (latestOrder?.orderNumber) {
+      // Extract the number from PO-2026-0005 format
+      const match = latestOrder.orderNumber.match(/PO-\d{4}-(\d+)/)
+      if (match) {
+        orderCounter = parseInt(match[1], 10) + 1
+      }
+    }
     const createdOrders: any[] = []
 
     // Create orders for each supplier group

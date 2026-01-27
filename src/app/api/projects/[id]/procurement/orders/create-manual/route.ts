@@ -433,15 +433,26 @@ export async function POST(
       // If mixed currencies, default to CAD
     }
 
-    // Generate order number
+    // Generate order number - find the highest existing number to avoid collisions
     const year = new Date().getFullYear()
-    const existingCount = await prisma.order.count({
+    const latestOrder = await prisma.order.findFirst({
       where: {
         orgId,
         orderNumber: { startsWith: `PO-${year}` }
-      }
+      },
+      orderBy: { orderNumber: 'desc' },
+      select: { orderNumber: true }
     })
-    const orderNumber = `PO-${year}-${String(existingCount + 1).padStart(4, '0')}`
+
+    let nextNumber = 1
+    if (latestOrder?.orderNumber) {
+      // Extract the number from PO-2026-0005 format
+      const match = latestOrder.orderNumber.match(/PO-\d{4}-(\d+)/)
+      if (match) {
+        nextNumber = parseInt(match[1], 10) + 1
+      }
+    }
+    const orderNumber = `PO-${year}-${String(nextNumber).padStart(4, '0')}`
 
     // Build order items with prices (including components)
     const orderItems: any[] = []
