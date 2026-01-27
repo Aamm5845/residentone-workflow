@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email-service'
+import { decrypt } from '@/lib/encryption'
 
 export const dynamic = 'force-dynamic'
 
@@ -194,13 +195,13 @@ export async function GET(
         extraCharges: order.extraCharges as Array<{ label: string; amount: number }> | null,
         totalAmount: order.totalAmount ? parseFloat(order.totalAmount.toString()) : 0,
         currency: order.currency,
-        // Payment card info for supplier to charge
+        // Payment card info for supplier to charge (decrypt encrypted fields)
         paymentCardBrand: order.paymentCardBrand,
         paymentCardLastFour: order.paymentCardLastFour,
         paymentCardHolderName: order.paymentCardHolderName,
         paymentCardExpiry: order.paymentCardExpiry,
-        paymentCardNumber: order.paymentCardNumber,
-        paymentCardCvv: order.paymentCardCvv
+        paymentCardNumber: order.paymentCardNumber ? decrypt(order.paymentCardNumber) : null,
+        paymentCardCvv: order.paymentCardCvv ? decrypt(order.paymentCardCvv) : null
       },
       project: order.project ? {
         id: order.project.id,

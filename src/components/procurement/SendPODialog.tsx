@@ -106,6 +106,16 @@ export default function SendPODialog({
   const [previewHtml, setPreviewHtml] = useState<string | null>(null)
   const [loadingPreview, setLoadingPreview] = useState(false)
 
+  // Order items - fetched from API if not provided
+  const [orderItems, setOrderItems] = useState<OrderItem[]>(order.items || [])
+  const [loadingOrder, setLoadingOrder] = useState(false)
+  const [orderData, setOrderData] = useState<{
+    totalAmount: number
+    subtotal: number
+    shippingCost: number
+    taxAmount: number
+  } | null>(null)
+
   // Payment methods
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
   const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(false)
@@ -113,6 +123,52 @@ export default function SendPODialog({
   // Test email
   const [testEmail, setTestEmail] = useState('')
   const [showTestEmailInput, setShowTestEmailInput] = useState(false)
+
+  // Fetch full order details including items
+  const fetchOrderDetails = useCallback(async () => {
+    if (!order.id) return
+
+    setLoadingOrder(true)
+    try {
+      const res = await fetch(`/api/orders/${order.id}`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.order) {
+          // Set items from API
+          const items = (data.order.items || []).map((item: any) => ({
+            id: item.id,
+            name: item.name,
+            description: item.description || null,
+            quantity: item.quantity,
+            unitType: item.unitType || null,
+            unitPrice: parseFloat(item.unitPrice) || 0,
+            totalPrice: parseFloat(item.totalPrice) || 0
+          }))
+          setOrderItems(items)
+
+          // Set order totals
+          setOrderData({
+            totalAmount: parseFloat(data.order.totalAmount) || 0,
+            subtotal: parseFloat(data.order.subtotal) || 0,
+            shippingCost: parseFloat(data.order.shippingCost) || 0,
+            taxAmount: parseFloat(data.order.taxAmount) || 0
+          })
+
+          // Update other fields if not already set
+          if (!email && (data.order.supplier?.email || data.order.vendorEmail)) {
+            setEmail(data.order.supplier?.email || data.order.vendorEmail || '')
+          }
+          if (!shippingAddress && data.order.shippingAddress) {
+            setShippingAddress(data.order.shippingAddress)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching order details:', error)
+    } finally {
+      setLoadingOrder(false)
+    }
+  }, [order.id, email, shippingAddress])
 
   // Fetch payment methods
   const fetchPaymentMethods = useCallback(async () => {
@@ -164,10 +220,14 @@ export default function SendPODialog({
       setSelectedPaymentMethodId(order.savedPaymentMethodId || '')
       setShowTestEmailInput(false)
       setTestEmail('')
+      setOrderItems(order.items || [])
+      setOrderData(null)
       fetchPaymentMethods()
       fetchOrgBillingAddress()
+      // Always fetch full order details to get items and latest data
+      fetchOrderDetails()
     }
-  }, [open, order, fetchPaymentMethods, fetchOrgBillingAddress])
+  }, [open, order, fetchPaymentMethods, fetchOrgBillingAddress, fetchOrderDetails])
 
   // Load preview when switching to preview tab
   useEffect(() => {
@@ -519,7 +579,7 @@ export default function SendPODialog({
           </TabsContent>
 
           <TabsContent value="preview" className="flex-1 mt-4 min-h-0">
-            {loadingPreview ? (
+            {loadingOrder ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
               </div>
@@ -529,13 +589,13 @@ export default function SendPODialog({
                 <ScrollArea className="flex-1 border rounded-lg">
                   <div className="p-4 space-y-3">
                     <h4 className="font-medium text-sm text-gray-700 mb-3">Items in this PO</h4>
-                    {order.items.length === 0 ? (
+                    {orderItems.length === 0 ? (
                       <div className="text-center py-8 text-gray-500">
                         <Package className="w-8 h-8 mx-auto mb-2 text-gray-300" />
                         <p>No items found</p>
                       </div>
                     ) : (
-                      order.items.map((item) => (
+                      orderItems.map((item) => (
                         <div key={item.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                           <div className="w-10 h-10 flex-shrink-0 rounded-lg bg-blue-100 flex items-center justify-center">
                             <Package className="w-5 h-5 text-blue-600" />
@@ -566,23 +626,23 @@ export default function SendPODialog({
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-600">Subtotal</span>
-                      <span>{formatCurrency(order.subtotal || 0)}</span>
+                      <span>{formatCurrency(orderData?.subtotal ?? order.subtotal ?? 0)}</span>
                     </div>
-                    {(order.shippingCost || 0) > 0 && (
+                    {((orderData?.shippingCost ?? order.shippingCost ?? 0) > 0) && (
                       <div className="flex justify-between">
                         <span className="text-gray-600">Shipping</span>
-                        <span>{formatCurrency(order.shippingCost || 0)}</span>
+                        <span>{formatCurrency(orderData?.shippingCost ?? order.shippingCost ?? 0)}</span>
                       </div>
                     )}
-                    {(order.taxAmount || 0) > 0 && (
+                    {((orderData?.taxAmount ?? order.taxAmount ?? 0) > 0) && (
                       <div className="flex justify-between">
                         <span className="text-gray-600">Tax</span>
-                        <span>{formatCurrency(order.taxAmount || 0)}</span>
+                        <span>{formatCurrency(orderData?.taxAmount ?? order.taxAmount ?? 0)}</span>
                       </div>
                     )}
                     <div className="flex justify-between pt-2 border-t font-semibold">
                       <span>Total</span>
-                      <span className="text-lg text-blue-600">{formatCurrency(order.totalAmount)}</span>
+                      <span className="text-lg text-blue-600">{formatCurrency(orderData?.totalAmount ?? order.totalAmount)}</span>
                     </div>
                   </div>
                 </div>
