@@ -37,7 +37,10 @@ import {
   Eye,
   Paperclip,
   DollarSign,
-  Clock
+  Clock,
+  ChevronDown,
+  ChevronUp,
+  Search
 } from 'lucide-react'
 import { toast, Toaster } from 'sonner'
 
@@ -213,6 +216,24 @@ export default function SupplierOrderPortal() {
   const [submitting, setSubmitting] = useState(false)
   const [showFullCardDetails, setShowFullCardDetails] = useState(false)
 
+  // Tracking info state
+  const [trackingInfo, setTrackingInfo] = useState<{
+    success: boolean
+    status?: string
+    statusDescription?: string
+    carrierName?: string
+    estimatedDelivery?: string
+    events?: Array<{
+      date: string
+      status: string
+      location: string
+      description: string
+    }>
+    error?: string
+  } | null>(null)
+  const [fetchingTracking, setFetchingTracking] = useState(false)
+  const [showTrackingEvents, setShowTrackingEvents] = useState(false)
+
   const fetchOrder = useCallback(async () => {
     try {
       setLoading(true)
@@ -342,6 +363,50 @@ export default function SupplierOrderPortal() {
       await fetchOrder()
     } catch (err: any) {
       toast.error(err.message)
+    }
+  }
+
+  const fetchTrackingInfo = async (trackNum: string) => {
+    if (!trackNum.trim()) {
+      setTrackingInfo(null)
+      return
+    }
+
+    setFetchingTracking(true)
+    setTrackingInfo(null)
+    try {
+      const res = await fetch(`/api/supplier-order/${token}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'get_tracking', trackingNumber: trackNum })
+      })
+
+      const data = await res.json()
+      setTrackingInfo(data)
+
+      // Auto-fill expected delivery if available
+      if (data.success && data.estimatedDelivery) {
+        const date = new Date(data.estimatedDelivery)
+        setShipExpectedDelivery(date.toISOString().split('T')[0])
+      }
+
+      // Auto-set carrier if detected
+      if (data.success && data.carrierName && !carrier) {
+        // Try to match to our dropdown options
+        const carrierLower = data.carrierName.toLowerCase()
+        if (carrierLower.includes('ups')) setCarrier('UPS')
+        else if (carrierLower.includes('fedex')) setCarrier('FedEx')
+        else if (carrierLower.includes('usps')) setCarrier('USPS')
+        else if (carrierLower.includes('dhl')) setCarrier('DHL')
+        else if (carrierLower.includes('canada post')) setCarrier('Canada Post')
+        else if (carrierLower.includes('purolator')) setCarrier('Purolator')
+        else setCarrier('Other')
+      }
+    } catch (err: any) {
+      console.error('Failed to fetch tracking:', err)
+      setTrackingInfo({ success: false, error: 'Failed to fetch tracking info' })
+    } finally {
+      setFetchingTracking(false)
     }
   }
 
@@ -1156,8 +1221,15 @@ export default function SupplierOrderPortal() {
       </Dialog>
 
       {/* Ship Dialog */}
-      <Dialog open={showShipDialog} onOpenChange={setShowShipDialog}>
-        <DialogContent>
+      <Dialog open={showShipDialog} onOpenChange={(open) => {
+        setShowShipDialog(open)
+        if (!open) {
+          // Reset tracking info when dialog closes
+          setTrackingInfo(null)
+          setShowTrackingEvents(false)
+        }
+      }}>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Mark as Shipped</DialogTitle>
             <DialogDescription>
@@ -1167,24 +1239,130 @@ export default function SupplierOrderPortal() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="carrier">Carrier *</Label>
-              <Input
+              <select
                 id="carrier"
                 value={carrier}
                 onChange={(e) => setCarrier(e.target.value)}
-                placeholder="e.g., UPS, FedEx, DHL"
-              />
+                className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="">Select a carrier...</option>
+                <option value="UPS">UPS</option>
+                <option value="FedEx">FedEx</option>
+                <option value="USPS">USPS</option>
+                <option value="DHL">DHL</option>
+                <option value="Canada Post">Canada Post</option>
+                <option value="Purolator">Purolator</option>
+                <option value="Canpar">Canpar</option>
+                <option value="Loomis">Loomis Express</option>
+                <option value="Day & Ross">Day & Ross</option>
+                <option value="Freight">Freight/LTL</option>
+                <option value="Local Delivery">Local Delivery</option>
+                <option value="Other">Other</option>
+              </select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="trackingNumber">Tracking Number</Label>
-              <Input
-                id="trackingNumber"
-                value={trackingNumber}
-                onChange={(e) => setTrackingNumber(e.target.value)}
-                placeholder="Enter tracking number"
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="trackingNumber"
+                  value={trackingNumber}
+                  onChange={(e) => setTrackingNumber(e.target.value)}
+                  placeholder="Enter tracking number"
+                  className="flex-1"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && trackingNumber.trim()) {
+                      e.preventDefault()
+                      fetchTrackingInfo(trackingNumber)
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => fetchTrackingInfo(trackingNumber)}
+                  disabled={!trackingNumber.trim() || fetchingTracking}
+                  title="Look up tracking"
+                >
+                  {fetchingTracking ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Search className="w-4 h-4" />
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500">Enter tracking number and click search to auto-fill delivery info</p>
             </div>
+
+            {/* Tracking Info Display */}
+            {trackingInfo && (
+              <div className={`rounded-lg border p-3 text-sm ${
+                trackingInfo.success ? 'bg-blue-50 border-blue-200' : 'bg-yellow-50 border-yellow-200'
+              }`}>
+                {trackingInfo.success ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-blue-800">
+                        {trackingInfo.carrierName || 'Carrier detected'}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                        trackingInfo.status === 'DELIVERED' ? 'bg-green-100 text-green-800' :
+                        trackingInfo.status === 'IN_TRANSIT' || trackingInfo.status === 'OUT_FOR_DELIVERY' ? 'bg-blue-100 text-blue-800' :
+                        trackingInfo.status === 'EXCEPTION' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {trackingInfo.status?.replace(/_/g, ' ') || 'Pending'}
+                      </span>
+                    </div>
+                    {trackingInfo.statusDescription && (
+                      <p className="text-blue-700">{trackingInfo.statusDescription}</p>
+                    )}
+                    {trackingInfo.estimatedDelivery && (
+                      <p className="text-blue-600">
+                        Est. Delivery: {new Date(trackingInfo.estimatedDelivery).toLocaleDateString()}
+                      </p>
+                    )}
+
+                    {/* Tracking Events */}
+                    {trackingInfo.events && trackingInfo.events.length > 0 && (
+                      <div className="pt-2 border-t border-blue-200">
+                        <button
+                          type="button"
+                          onClick={() => setShowTrackingEvents(!showTrackingEvents)}
+                          className="flex items-center gap-1 text-blue-700 hover:text-blue-900 font-medium"
+                        >
+                          {showTrackingEvents ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                          {trackingInfo.events.length} tracking event{trackingInfo.events.length !== 1 ? 's' : ''}
+                        </button>
+                        {showTrackingEvents && (
+                          <div className="mt-2 space-y-2 max-h-48 overflow-y-auto">
+                            {trackingInfo.events.map((event, idx) => (
+                              <div key={idx} className="flex gap-2 text-xs">
+                                <div className="w-2 h-2 rounded-full bg-blue-400 mt-1.5 flex-shrink-0" />
+                                <div>
+                                  <p className="font-medium text-blue-900">{event.description}</p>
+                                  <p className="text-blue-600">
+                                    {event.location && `${event.location} • `}
+                                    {new Date(event.date).toLocaleString()}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-yellow-800">
+                    {trackingInfo.error || 'Tracking info not yet available. It may take time for carriers to update.'}
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="space-y-2">
-              <Label htmlFor="trackingUrl">Tracking URL</Label>
+              <Label htmlFor="trackingUrl">Tracking URL (optional)</Label>
               <Input
                 id="trackingUrl"
                 value={trackingUrl}
@@ -1200,6 +1378,9 @@ export default function SupplierOrderPortal() {
                 value={shipExpectedDelivery}
                 onChange={(e) => setShipExpectedDelivery(e.target.value)}
               />
+              {trackingInfo?.success && trackingInfo.estimatedDelivery && (
+                <p className="text-xs text-green-600">Auto-filled from tracking info</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="shipNotes">Notes</Label>

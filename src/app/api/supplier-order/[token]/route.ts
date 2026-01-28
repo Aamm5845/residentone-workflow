@@ -778,6 +778,26 @@ export async function POST(
         return NextResponse.json({ success: true, message: 'Payment recorded' })
       }
 
+      case 'get_tracking': {
+        const { trackingNumber: trackNum } = body
+        if (!trackNum) {
+          return NextResponse.json({ error: 'Tracking number required' }, { status: 400 })
+        }
+
+        try {
+          const { getTracking } = await import('@/lib/ship24')
+          const trackingResult = await getTracking(trackNum)
+          return NextResponse.json(trackingResult)
+        } catch (trackingError) {
+          console.error('Tracking lookup error:', trackingError)
+          return NextResponse.json({
+            success: false,
+            trackingNumber: trackNum,
+            error: 'Failed to fetch tracking info'
+          })
+        }
+      }
+
       default:
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
     }
