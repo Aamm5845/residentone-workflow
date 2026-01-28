@@ -105,6 +105,7 @@ export default function ManualQuoteUploadDialog({
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>('')
   const [uploadedFile, setUploadedFile] = useState<{ url: string; type: string; name: string } | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [projectDropboxFolder, setProjectDropboxFolder] = useState<string | null>(null)
 
   // Mode selection
   const [mode, setMode] = useState<UploadMode>('ai')
@@ -122,12 +123,27 @@ export default function ManualQuoteUploadDialog({
   const [selectedRoom, setSelectedRoom] = useState<string>('all')
   const [showAllItems, setShowAllItems] = useState(false)
 
-  // Fetch suppliers when dialog opens
+  // Fetch suppliers and project info when dialog opens
   useEffect(() => {
     if (open && suppliers.length === 0) {
       fetchSuppliers()
     }
+    if (open && !projectDropboxFolder) {
+      fetchProjectDropboxFolder()
+    }
   }, [open])
+
+  const fetchProjectDropboxFolder = async () => {
+    try {
+      const res = await fetch(`/api/projects/${projectId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setProjectDropboxFolder(data.dropboxFolder || null)
+      }
+    } catch (error) {
+      console.error('Error fetching project:', error)
+    }
+  }
 
   // Fetch spec items when manual mode is selected
   useEffect(() => {
@@ -228,6 +244,15 @@ export default function ManualQuoteUploadDialog({
       formData.append('file', file)
       formData.append('imageType', 'quote-document')
       formData.append('projectId', projectId)
+
+      // Pass dropbox folder and supplier name for Dropbox upload
+      if (projectDropboxFolder) {
+        formData.append('dropboxFolder', projectDropboxFolder)
+      }
+      const selectedSupplier = suppliers.find(s => s.id === selectedSupplierId)
+      if (selectedSupplier) {
+        formData.append('supplierName', selectedSupplier.name)
+      }
 
       const res = await fetch('/api/upload-image', {
         method: 'POST',
