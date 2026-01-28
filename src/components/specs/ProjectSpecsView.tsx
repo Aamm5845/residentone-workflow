@@ -3322,8 +3322,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         onChange={handleItemImageUpload}
       />
       
-      {/* Sticky Header - Action Bar + Tabs (top-16 = 64px for fixed navbar) */}
-      <div className="sticky top-16 z-30 bg-white shadow-sm">
+      {/* Sticky Header - Action Bar + Tabs (top-0 since main content is the scroll container) */}
+      <div className="sticky top-0 z-30 bg-white shadow-sm">
         {/* Action Bar */}
         <div className="border-b border-gray-200">
           <div className="max-w-full mx-auto px-6 py-4">

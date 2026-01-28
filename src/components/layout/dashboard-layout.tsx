@@ -180,13 +180,13 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
           />
         )}
 
-        {/* Main Layout */}
-        <div className="pt-16 flex min-h-screen">
+        {/* Main Layout - Fixed height with scrolling main content */}
+        <div className="pt-16 flex h-screen">
           {/* Sidebar - Hidden on mobile, overlay when menu open */}
           <div className={cn(
             "bg-white border-r border-gray-200 transition-all duration-200",
-            // Desktop behavior - sticky sidebar that stays visible while scrolling
-            "hidden md:block md:sticky md:top-16 md:h-[calc(100vh-4rem)] md:flex-shrink-0",
+            // Desktop behavior - fixed sidebar
+            "hidden md:block md:flex-shrink-0",
             sidebarCollapsed ? "md:w-16" : "md:w-64",
             // Mobile overlay
             mobileMenuOpen && "fixed inset-y-0 left-0 z-50 w-72 block mobile-menu-enter"
@@ -290,11 +290,9 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
             </div>
           </div>
 
-          {/* Main Content */}
-          <main className="flex-1 bg-gray-50 min-w-0">
-            <div className="max-w-full">
-              {children}
-            </div>
+          {/* Main Content - Scrollable container for sticky headers */}
+          <main className="flex-1 bg-gray-50 min-w-0 overflow-y-auto">
+            {children}
           </main>
         </div>
         
