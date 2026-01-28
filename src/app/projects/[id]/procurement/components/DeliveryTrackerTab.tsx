@@ -1,54 +1,108 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
 import {
   Truck,
   Package,
-  Factory,
+  Clock,
   CheckCircle2,
   RefreshCw,
   LayoutGrid,
   List,
   ExternalLink,
   Calendar,
-  ChevronRight
+  ChevronRight,
+  ChevronDown,
+  ChevronUp,
+  Loader2,
+  MapPin
 } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface DeliveryTrackerTabProps {
   projectId: string
   searchQuery: string
 }
 
-interface DeliveryItem {
+interface Order {
   id: string
-  supplierName: string
-  itemsCount: number
-  eta: string
+  orderNumber: string
+  status: string
+  totalAmount: number
+  expectedDelivery: string | null
+  actualDelivery: string | null
   trackingNumber: string | null
-  trackingUrl: string | null
-  status: 'ORDERED' | 'IN_PRODUCTION' | 'SHIPPED' | 'DELIVERED'
+  shippingCarrier: string | null
+  createdAt: string
+  orderedAt: string | null
+  supplier: {
+    id: string
+    name: string
+    email: string | null
+  }
+  _count: {
+    items: number
+  }
+}
+
+interface TrackingInfo {
+  success: boolean
+  status?: string
+  statusDescription?: string
+  carrierName?: string
+  estimatedDelivery?: string
+  events?: Array<{
+    date: string
+    status: string
+    location: string
+    description: string
+  }>
+  error?: string
+}
+
+// Map order statuses to delivery tracker columns
+const mapStatusToColumn = (status: string): 'ORDERED' | 'IN_TRANSIT' | 'DELIVERED' => {
+  switch (status) {
+    case 'ORDERED':
+    case 'CONFIRMED':
+    case 'PENDING_PAYMENT':
+    case 'PAYMENT_RECEIVED':
+      return 'ORDERED'
+    case 'SHIPPED':
+    case 'IN_TRANSIT':
+      return 'IN_TRANSIT'
+    case 'DELIVERED':
+    case 'COMPLETED':
+    case 'INSTALLED':
+      return 'DELIVERED'
+    default:
+      return 'ORDERED'
+  }
 }
 
 const statusConfig = {
   ORDERED: {
     label: 'Ordered',
-    color: 'text-gray-600',
-    bgLight: 'bg-gray-50',
-    bgDark: 'bg-gray-100',
-    icon: Package,
-  },
-  IN_PRODUCTION: {
-    label: 'In Production',
     color: 'text-amber-600',
     bgLight: 'bg-amber-50',
     bgDark: 'bg-amber-100',
-    icon: Factory,
+    icon: Clock,
   },
-  SHIPPED: {
-    label: 'Shipped',
+  IN_TRANSIT: {
+    label: 'In Transit',
     color: 'text-blue-600',
     bgLight: 'bg-blue-50',
     bgDark: 'bg-blue-100',
@@ -63,31 +117,196 @@ const statusConfig = {
   },
 }
 
-const statuses = ['ORDERED', 'IN_PRODUCTION', 'SHIPPED', 'DELIVERED'] as const
+const columns = ['ORDERED', 'IN_TRANSIT', 'DELIVERED'] as const
 
 export default function DeliveryTrackerTab({ projectId, searchQuery }: DeliveryTrackerTabProps) {
-  const [items, setItems] = useState<DeliveryItem[]>([])
+  const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban')
 
-  useEffect(() => {
-    // TODO: Fetch real delivery items from API
-    setLoading(false)
-    setItems([])
+  // Tracking info cache
+  const [trackingCache, setTrackingCache] = useState<Record<string, TrackingInfo>>({})
+  const [loadingTracking, setLoadingTracking] = useState<Record<string, boolean>>({})
+  const [expandedTracking, setExpandedTracking] = useState<string | null>(null)
+
+  // Tracking dialog
+  const [showTrackingDialog, setShowTrackingDialog] = useState(false)
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+  const [newTrackingNumber, setNewTrackingNumber] = useState('')
+  const [newCarrier, setNewCarrier] = useState('')
+  const [savingTracking, setSavingTracking] = useState(false)
+  const [dialogTrackingInfo, setDialogTrackingInfo] = useState<TrackingInfo | null>(null)
+  const [fetchingDialogTracking, setFetchingDialogTracking] = useState(false)
+
+  const fetchOrders = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/orders?projectId=${projectId}`)
+      if (!res.ok) throw new Error('Failed to fetch orders')
+      const data = await res.json()
+
+      // Filter to only show orders that are in shipping flow (not drafts, not cancelled)
+      const shippingOrders = data.orders.filter((order: Order) =>
+        ['ORDERED', 'CONFIRMED', 'SHIPPED', 'IN_TRANSIT', 'DELIVERED', 'PAYMENT_RECEIVED'].includes(order.status)
+      )
+
+      setOrders(shippingOrders)
+    } catch (error) {
+      console.error('Failed to fetch orders:', error)
+      toast.error('Failed to load deliveries')
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
   }, [projectId])
 
-  // Filter items based on search
-  const filteredItems = items.filter(item =>
+  useEffect(() => {
+    fetchOrders()
+  }, [fetchOrders])
+
+  // Fetch tracking info for an order
+  const fetchTrackingInfo = async (trackingNumber: string, orderId?: string) => {
+    if (!trackingNumber) return null
+
+    if (orderId) {
+      setLoadingTracking(prev => ({ ...prev, [orderId]: true }))
+    }
+
+    try {
+      const res = await fetch(`/api/tracking/${encodeURIComponent(trackingNumber)}`)
+      if (!res.ok) throw new Error('Failed to fetch tracking')
+      const data = await res.json()
+
+      if (orderId) {
+        setTrackingCache(prev => ({ ...prev, [orderId]: data }))
+      }
+
+      return data
+    } catch (error) {
+      console.error('Failed to fetch tracking:', error)
+      return { success: false, error: 'Failed to fetch tracking info' }
+    } finally {
+      if (orderId) {
+        setLoadingTracking(prev => ({ ...prev, [orderId]: false }))
+      }
+    }
+  }
+
+  // Auto-fetch tracking for orders with tracking numbers
+  useEffect(() => {
+    orders.forEach(order => {
+      if (order.trackingNumber && !trackingCache[order.id] && !loadingTracking[order.id]) {
+        fetchTrackingInfo(order.trackingNumber, order.id)
+      }
+    })
+  }, [orders])
+
+  // Debounced tracking lookup in dialog
+  useEffect(() => {
+    if (!showTrackingDialog || !newTrackingNumber.trim()) {
+      setDialogTrackingInfo(null)
+      return
+    }
+
+    if (newTrackingNumber.trim().length < 8) return
+
+    const timer = setTimeout(async () => {
+      setFetchingDialogTracking(true)
+      const info = await fetchTrackingInfo(newTrackingNumber)
+      setDialogTrackingInfo(info)
+      // Auto-set carrier if detected
+      if (info?.success && info.carrierName) {
+        setNewCarrier(info.carrierName)
+      }
+      setFetchingDialogTracking(false)
+    }, 800)
+
+    return () => clearTimeout(timer)
+  }, [newTrackingNumber, showTrackingDialog])
+
+  const handleRefresh = () => {
+    setRefreshing(true)
+    setTrackingCache({})
+    fetchOrders()
+  }
+
+  const handleUpdateTracking = async () => {
+    if (!selectedOrder) return
+
+    setSavingTracking(true)
+    try {
+      const res = await fetch(`/api/orders/${selectedOrder.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          trackingNumber: newTrackingNumber.trim() || null,
+          shippingCarrier: newCarrier.trim() || null,
+          status: newTrackingNumber.trim() ? 'SHIPPED' : selectedOrder.status
+        })
+      })
+
+      if (!res.ok) throw new Error('Failed to update tracking')
+
+      toast.success('Tracking updated')
+      setShowTrackingDialog(false)
+      fetchOrders()
+    } catch (error) {
+      toast.error('Failed to update tracking')
+    } finally {
+      setSavingTracking(false)
+    }
+  }
+
+  const handleMarkDelivered = async (order: Order) => {
+    try {
+      const res = await fetch(`/api/orders/${order.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'DELIVERED',
+          actualDelivery: new Date().toISOString()
+        })
+      })
+
+      if (!res.ok) throw new Error('Failed to update')
+
+      toast.success('Marked as delivered')
+      fetchOrders()
+    } catch (error) {
+      toast.error('Failed to update status')
+    }
+  }
+
+  const openTrackingDialog = (order: Order) => {
+    setSelectedOrder(order)
+    setNewTrackingNumber(order.trackingNumber || '')
+    setNewCarrier(order.shippingCarrier || '')
+    setDialogTrackingInfo(null)
+    setShowTrackingDialog(true)
+  }
+
+  // Filter orders based on search
+  const filteredOrders = orders.filter(order =>
     !searchQuery ||
-    item.supplierName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.trackingNumber?.toLowerCase().includes(searchQuery.toLowerCase())
+    order.supplier.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    order.trackingNumber?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  // Group items by status for kanban view
-  const groupedItems = statuses.reduce((acc, status) => {
-    acc[status] = filteredItems.filter(item => item.status === status)
+  // Group orders by column status
+  const groupedOrders = columns.reduce((acc, column) => {
+    acc[column] = filteredOrders.filter(order => mapStatusToColumn(order.status) === column)
     return acc
-  }, {} as Record<typeof statuses[number], DeliveryItem[]>)
+  }, {} as Record<typeof columns[number], Order[]>)
+
+  const formatDate = (date: string | null) => {
+    if (!date) return 'TBD'
+    return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  }
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(amount)
+  }
 
   if (loading) {
     return (
@@ -102,11 +321,17 @@ export default function DeliveryTrackerTab({ projectId, searchQuery }: DeliveryT
       {/* Header with View Toggle */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">
-          {filteredItems.length} deliver{filteredItems.length !== 1 ? 'ies' : 'y'} to track
+          {filteredOrders.length} order{filteredOrders.length !== 1 ? 's' : ''} to track
         </p>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" className="h-8 text-gray-600">
-            <RefreshCw className="w-4 h-4" />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 text-gray-600"
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
           </Button>
           <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
             <button
@@ -125,7 +350,7 @@ export default function DeliveryTrackerTab({ projectId, searchQuery }: DeliveryT
         </div>
       </div>
 
-      {filteredItems.length === 0 ? (
+      {filteredOrders.length === 0 ? (
         <Card className="border-gray-200 border-dashed">
           <CardContent className="py-20">
             <div className="text-center max-w-sm mx-auto">
@@ -143,78 +368,160 @@ export default function DeliveryTrackerTab({ projectId, searchQuery }: DeliveryT
         </Card>
       ) : viewMode === 'kanban' ? (
         /* Kanban View */
-        <div className="grid grid-cols-4 gap-4">
-          {statuses.map((status) => {
-            const config = statusConfig[status]
+        <div className="grid grid-cols-3 gap-4">
+          {columns.map((column) => {
+            const config = statusConfig[column]
             const Icon = config.icon
-            const columnItems = groupedItems[status]
+            const columnOrders = groupedOrders[column]
 
             return (
-              <div key={status} className="flex flex-col min-h-[400px]">
+              <div key={column} className="flex flex-col min-h-[400px]">
                 {/* Column Header */}
                 <div className={`flex items-center gap-2 px-3 py-2.5 rounded-t-lg border border-b-0 border-gray-200 ${config.bgLight}`}>
                   <Icon className={`w-4 h-4 ${config.color}`} />
                   <span className={`text-sm font-medium ${config.color}`}>{config.label}</span>
                   <span className="ml-auto text-xs text-gray-500 bg-white px-1.5 py-0.5 rounded">
-                    {columnItems.length}
+                    {columnOrders.length}
                   </span>
                 </div>
 
                 {/* Column Content */}
-                <div className="flex-1 p-2 border border-gray-200 rounded-b-lg bg-gray-50/50 space-y-2">
-                  {columnItems.map((item) => (
-                    <Card key={item.id} className="border-gray-200 bg-white hover:shadow-sm transition-shadow cursor-pointer">
-                      <CardContent className="p-3">
-                        <div className="flex items-start justify-between mb-2">
-                          <span className="text-sm font-medium text-gray-900">
-                            {item.supplierName}
-                          </span>
-                          <ChevronRight className="w-4 h-4 text-gray-400" />
-                        </div>
-                        <div className="text-xs text-gray-500 mb-2">
-                          {item.itemsCount} item{item.itemsCount !== 1 ? 's' : ''}
-                        </div>
-                        <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                          <Calendar className="w-3 h-3" />
-                          ETA: {item.eta}
-                        </div>
-                        {item.trackingNumber && (
-                          <div className="flex items-center gap-1.5 text-xs text-blue-600 mt-1.5">
-                            <span className="font-mono">{item.trackingNumber}</span>
-                            {item.trackingUrl && (
-                              <a href={item.trackingUrl} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>
-                                <ExternalLink className="w-3 h-3" />
-                              </a>
-                            )}
-                          </div>
-                        )}
+                <div className="flex-1 p-2 border border-gray-200 rounded-b-lg bg-gray-50/50 space-y-2 overflow-y-auto">
+                  {columnOrders.map((order) => {
+                    const tracking = trackingCache[order.id]
+                    const isLoadingTracking = loadingTracking[order.id]
+                    const isExpanded = expandedTracking === order.id
 
-                        {/* Action Buttons */}
-                        <div className="flex gap-1 mt-3 pt-2 border-t border-gray-100">
-                          {status === 'ORDERED' && (
-                            <Button variant="ghost" size="sm" className="h-7 text-xs px-2 text-gray-600">
-                              Mark In Production
-                            </Button>
+                    return (
+                      <Card key={order.id} className="border-gray-200 bg-white hover:shadow-sm transition-shadow">
+                        <CardContent className="p-3">
+                          <div className="flex items-start justify-between mb-2">
+                            <div>
+                              <span className="text-sm font-medium text-gray-900">
+                                {order.supplier.name}
+                              </span>
+                              <p className="text-xs text-gray-500 font-mono">
+                                PO-{order.orderNumber}
+                              </p>
+                            </div>
+                            <ChevronRight className="w-4 h-4 text-gray-400" />
+                          </div>
+
+                          <div className="text-xs text-gray-500 mb-2">
+                            {order._count.items} item{order._count.items !== 1 ? 's' : ''} • {formatCurrency(order.totalAmount)}
+                          </div>
+
+                          {/* Tracking Info */}
+                          {order.trackingNumber ? (
+                            <div className="bg-blue-50 rounded p-2 mb-2">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1.5">
+                                  {isLoadingTracking ? (
+                                    <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
+                                  ) : (
+                                    <Truck className="w-3 h-3 text-blue-600" />
+                                  )}
+                                  <span className="text-xs font-mono text-blue-700">
+                                    {order.trackingNumber}
+                                  </span>
+                                </div>
+                                {tracking?.success && tracking.status && (
+                                  <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                    tracking.status === 'DELIVERED' ? 'bg-green-100 text-green-700' :
+                                    tracking.status === 'IN_TRANSIT' ? 'bg-blue-100 text-blue-700' :
+                                    'bg-gray-100 text-gray-700'
+                                  }`}>
+                                    {tracking.status.replace(/_/g, ' ')}
+                                  </span>
+                                )}
+                              </div>
+                              {tracking?.success && (
+                                <>
+                                  {tracking.statusDescription && (
+                                    <p className="text-xs text-blue-600 mt-1">{tracking.statusDescription}</p>
+                                  )}
+                                  {tracking.estimatedDelivery && (
+                                    <p className="text-xs text-blue-600 mt-0.5">
+                                      ETA: {new Date(tracking.estimatedDelivery).toLocaleDateString()}
+                                    </p>
+                                  )}
+                                  {tracking.events && tracking.events.length > 0 && (
+                                    <button
+                                      onClick={() => setExpandedTracking(isExpanded ? null : order.id)}
+                                      className="flex items-center gap-1 text-xs text-blue-700 mt-1 hover:text-blue-900"
+                                    >
+                                      {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                                      {tracking.events.length} events
+                                    </button>
+                                  )}
+                                  {isExpanded && tracking.events && (
+                                    <div className="mt-2 space-y-1 max-h-32 overflow-y-auto">
+                                      {tracking.events.slice(0, 5).map((event, idx) => (
+                                        <div key={idx} className="flex gap-1.5 text-xs">
+                                          <div className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-1 flex-shrink-0" />
+                                          <div>
+                                            <p className="text-blue-900">{event.description}</p>
+                                            <p className="text-blue-500 text-[10px]">
+                                              {event.location && `${event.location} • `}
+                                              {new Date(event.date).toLocaleDateString()}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-2">
+                              <Calendar className="w-3 h-3" />
+                              ETA: {formatDate(order.expectedDelivery)}
+                            </div>
                           )}
-                          {status === 'IN_PRODUCTION' && (
-                            <Button variant="ghost" size="sm" className="h-7 text-xs px-2 text-gray-600">
-                              Mark Shipped
-                            </Button>
-                          )}
-                          {status === 'SHIPPED' && (
-                            <>
-                              <Button variant="ghost" size="sm" className="h-7 text-xs px-2 text-gray-600">
+
+                          {/* Action Buttons */}
+                          <div className="flex gap-1 pt-2 border-t border-gray-100">
+                            {column === 'ORDERED' && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs px-2 text-blue-600"
+                                onClick={() => openTrackingDialog(order)}
+                              >
                                 Add Tracking
                               </Button>
-                              <Button variant="ghost" size="sm" className="h-7 text-xs px-2 text-emerald-600">
-                                Mark Delivered
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                            )}
+                            {column === 'IN_TRANSIT' && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 text-xs px-2 text-gray-600"
+                                  onClick={() => openTrackingDialog(order)}
+                                >
+                                  Update
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 text-xs px-2 text-emerald-600"
+                                  onClick={() => handleMarkDelivered(order)}
+                                >
+                                  Mark Delivered
+                                </Button>
+                              </>
+                            )}
+                            {column === 'DELIVERED' && order.actualDelivery && (
+                              <span className="text-xs text-gray-500">
+                                Delivered {formatDate(order.actualDelivery)}
+                              </span>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
                 </div>
               </div>
             )
@@ -227,54 +534,68 @@ export default function DeliveryTrackerTab({ projectId, searchQuery }: DeliveryT
             <table className="w-full">
               <thead className="border-b border-gray-200">
                 <tr>
+                  <th className="text-left p-3 text-sm font-medium text-gray-500">Order</th>
                   <th className="text-left p-3 text-sm font-medium text-gray-500">Supplier</th>
                   <th className="text-left p-3 text-sm font-medium text-gray-500">Items</th>
                   <th className="text-left p-3 text-sm font-medium text-gray-500">Status</th>
-                  <th className="text-left p-3 text-sm font-medium text-gray-500">ETA</th>
                   <th className="text-left p-3 text-sm font-medium text-gray-500">Tracking</th>
+                  <th className="text-left p-3 text-sm font-medium text-gray-500">ETA</th>
                   <th className="text-left p-3 text-sm font-medium text-gray-500">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredItems.map((item) => {
-                  const config = statusConfig[item.status]
+                {filteredOrders.map((order) => {
+                  const column = mapStatusToColumn(order.status)
+                  const config = statusConfig[column]
+                  const tracking = trackingCache[order.id]
+
                   return (
-                    <tr key={item.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50 cursor-pointer">
-                      <td className="p-3 font-medium text-gray-900">{item.supplierName}</td>
-                      <td className="p-3 text-gray-600">{item.itemsCount}</td>
+                    <tr key={order.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                      <td className="p-3 font-mono text-sm text-gray-900">PO-{order.orderNumber}</td>
+                      <td className="p-3 font-medium text-gray-900">{order.supplier.name}</td>
+                      <td className="p-3 text-gray-600">{order._count.items}</td>
                       <td className="p-3">
                         <Badge className={`${config.bgLight} ${config.color} border-0`}>
-                          {config.label}
+                          {tracking?.status ? tracking.status.replace(/_/g, ' ') : config.label}
                         </Badge>
                       </td>
-                      <td className="p-3 text-gray-600">{item.eta}</td>
                       <td className="p-3">
-                        {item.trackingNumber ? (
+                        {order.trackingNumber ? (
                           <div className="flex items-center gap-2">
-                            <span className="font-mono text-sm text-gray-600">{item.trackingNumber}</span>
-                            {item.trackingUrl && (
-                              <a href={item.trackingUrl} target="_blank" rel="noopener noreferrer">
-                                <ExternalLink className="w-4 h-4 text-blue-600" />
-                              </a>
+                            <span className="font-mono text-sm text-gray-600">{order.trackingNumber}</span>
+                            {tracking?.success && tracking.carrierName && (
+                              <span className="text-xs text-gray-400">({tracking.carrierName})</span>
                             )}
                           </div>
                         ) : (
                           <span className="text-gray-400">-</span>
                         )}
                       </td>
+                      <td className="p-3 text-gray-600">
+                        {tracking?.estimatedDelivery
+                          ? formatDate(tracking.estimatedDelivery)
+                          : formatDate(order.expectedDelivery)
+                        }
+                      </td>
                       <td className="p-3">
                         <div className="flex items-center gap-1">
-                          {item.status === 'ORDERED' && (
-                            <Button variant="outline" size="sm" className="h-7 text-xs border-gray-300">Mark In Production</Button>
-                          )}
-                          {item.status === 'IN_PRODUCTION' && (
-                            <Button variant="outline" size="sm" className="h-7 text-xs border-gray-300">Mark Shipped</Button>
-                          )}
-                          {item.status === 'SHIPPED' && (
-                            <>
-                              <Button variant="outline" size="sm" className="h-7 text-xs border-gray-300">Add Tracking</Button>
-                              <Button variant="outline" size="sm" className="h-7 text-xs border-gray-300">Mark Delivered</Button>
-                            </>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs border-gray-300"
+                            onClick={() => openTrackingDialog(order)}
+                          >
+                            {order.trackingNumber ? 'Update' : 'Add Tracking'}
+                          </Button>
+                          {column === 'IN_TRANSIT' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-xs border-emerald-300 text-emerald-600"
+                              onClick={() => handleMarkDelivered(order)}
+                            >
+                              Delivered
+                            </Button>
                           )}
                         </div>
                       </td>
@@ -286,6 +607,103 @@ export default function DeliveryTrackerTab({ projectId, searchQuery }: DeliveryT
           </CardContent>
         </Card>
       )}
+
+      {/* Tracking Dialog */}
+      <Dialog open={showTrackingDialog} onOpenChange={setShowTrackingDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedOrder?.trackingNumber ? 'Update Tracking' : 'Add Tracking'}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedOrder && (
+                <>PO-{selectedOrder.orderNumber} • {selectedOrder.supplier.name}</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="trackingNumber">Tracking Number</Label>
+              <div className="relative">
+                <Input
+                  id="trackingNumber"
+                  value={newTrackingNumber}
+                  onChange={(e) => setNewTrackingNumber(e.target.value)}
+                  placeholder="Enter tracking number"
+                  className="pr-10"
+                />
+                {fetchingDialogTracking && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-gray-500">Tracking info loads automatically</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="carrier">Carrier</Label>
+              <Input
+                id="carrier"
+                value={newCarrier}
+                onChange={(e) => setNewCarrier(e.target.value)}
+                placeholder="e.g., UPS, FedEx, Canada Post"
+              />
+            </div>
+
+            {/* Tracking Info Display */}
+            {dialogTrackingInfo && (
+              <div className={`rounded-lg border p-3 text-sm ${
+                dialogTrackingInfo.success ? 'bg-blue-50 border-blue-200' : 'bg-yellow-50 border-yellow-200'
+              }`}>
+                {dialogTrackingInfo.success ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-blue-800">
+                        {dialogTrackingInfo.carrierName || 'Carrier detected'}
+                      </span>
+                      {dialogTrackingInfo.status && (
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                          dialogTrackingInfo.status === 'DELIVERED' ? 'bg-green-100 text-green-800' :
+                          dialogTrackingInfo.status === 'IN_TRANSIT' ? 'bg-blue-100 text-blue-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {dialogTrackingInfo.status.replace(/_/g, ' ')}
+                        </span>
+                      )}
+                    </div>
+                    {dialogTrackingInfo.statusDescription && (
+                      <p className="text-blue-700">{dialogTrackingInfo.statusDescription}</p>
+                    )}
+                    {dialogTrackingInfo.estimatedDelivery && (
+                      <p className="text-blue-600">
+                        Est. Delivery: {new Date(dialogTrackingInfo.estimatedDelivery).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-yellow-800">
+                    {dialogTrackingInfo.error || 'Tracking info not yet available'}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTrackingDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateTracking} disabled={savingTracking}>
+              {savingTracking ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4 mr-2" />
+              )}
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
