@@ -682,14 +682,18 @@ export async function POST(
         // Round amount to 2 decimal places
         const paymentAmountRounded = Math.round(amount * 100) / 100
 
-        // Update order with payment info - set to PROCESSING status
+        // Calculate new total payment (add to existing)
+        const existingPayment = order.supplierPaymentAmount ? Number(order.supplierPaymentAmount) : 0
+        const newTotalPayment = Math.round((existingPayment + paymentAmountRounded) * 100) / 100
+
+        // Update order with payment info
         const isShippedOrDelivered = order.status === 'SHIPPED' || order.status === 'DELIVERED'
 
         // Build update data
         const updateData: any = {
           supplierPaidAt: new Date(),
           supplierPaymentMethod: method || 'CARD',
-          supplierPaymentAmount: paymentAmountRounded,
+          supplierPaymentAmount: newTotalPayment, // Accumulate payments
           supplierPaymentRef: reference || null,
           notes: paymentNotes
             ? `${order.notes || ''}\n\nPayment Note (${new Date().toLocaleDateString()}): ${paymentNotes}`.trim()
@@ -731,8 +735,8 @@ export async function POST(
           data: {
             orderId: order.id,
             type: 'PAYMENT_RECORDED',
-            message: `Supplier recorded payment: $${paymentAmountRounded.toFixed(2)} via ${method || 'card'}${reference ? ` (Ref: ${reference})` : ''}`,
-            metadata: { amount: paymentAmountRounded, method, reference, chargedBy, notes: paymentNotes }
+            message: `Supplier recorded payment: $${paymentAmountRounded.toFixed(2)} via ${method || 'card'}${reference ? ` (Ref: ${reference})` : ''} (Total paid: $${newTotalPayment.toFixed(2)})`,
+            metadata: { amount: paymentAmountRounded, totalPaid: newTotalPayment, method, reference, chargedBy, notes: paymentNotes }
           }
         })
 
