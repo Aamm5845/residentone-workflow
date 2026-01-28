@@ -631,24 +631,29 @@ export async function POST(
 
         // Update order with payment info - set to PROCESSING status
         const isShippedOrDelivered = order.status === 'SHIPPED' || order.status === 'DELIVERED'
+
+        // Build update data
+        const updateData: any = {
+          supplierPaidAt: new Date(),
+          supplierPaymentMethod: method || 'CARD',
+          supplierPaymentAmount: paymentAmountRounded,
+          supplierPaymentRef: reference || null,
+          notes: paymentNotes
+            ? `${order.notes || ''}\n\nPayment Note (${new Date().toLocaleDateString()}): ${paymentNotes}`.trim()
+            : order.notes
+        }
+
+        // Set to PROCESSING when payment is recorded (unless already shipped/delivered)
+        if (!isShippedOrDelivered) {
+          updateData.status = 'PROCESSING'
+          updateData.confirmedAt = order.confirmedAt || new Date()
+          updateData.supplierConfirmedAt = order.supplierConfirmedAt || new Date()
+          updateData.supplierConfirmedBy = order.supplierConfirmedBy || chargedBy || order.supplier?.contactName || 'Supplier'
+        }
+
         await prisma.order.update({
           where: { id: order.id },
-          data: {
-            // Set to PROCESSING when payment is recorded (unless already shipped/delivered)
-            ...(!isShippedOrDelivered && {
-              status: 'PROCESSING',
-              confirmedAt: order.confirmedAt || new Date(),
-              supplierConfirmedAt: order.supplierConfirmedAt || new Date(),
-              supplierConfirmedBy: order.supplierConfirmedBy || chargedBy || order.supplier?.contactName || 'Supplier'
-            }),
-            supplierPaidAt: new Date(),
-            supplierPaymentMethod: method || 'CARD',
-            supplierPaymentAmount: paymentAmountRounded,
-            supplierPaymentRef: reference || null,
-            notes: paymentNotes
-              ? `${order.notes || ''}\n\nPayment Note (${new Date().toLocaleDateString()}): ${paymentNotes}`.trim()
-              : order.notes
-          }
+          data: updateData
         })
 
         // Update all order items to ORDERED status
@@ -710,8 +715,9 @@ export async function POST(
 
   } catch (error) {
     console.error('Error processing supplier action:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Failed to process request'
     return NextResponse.json(
-      { error: 'Failed to process request' },
+      { error: errorMessage },
       { status: 500 }
     )
   }
