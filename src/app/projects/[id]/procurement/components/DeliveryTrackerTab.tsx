@@ -33,6 +33,7 @@ import {
   Timer
 } from 'lucide-react'
 import { toast } from 'sonner'
+import OrderDetailSheet from './OrderDetailSheet'
 
 interface DeliveryTrackerTabProps {
   projectId: string
@@ -156,6 +157,9 @@ export default function DeliveryTrackerTab({ projectId, searchQuery }: DeliveryT
   const [trackingCache, setTrackingCache] = useState<Record<string, TrackingInfo>>({})
   const [loadingTracking, setLoadingTracking] = useState<Record<string, boolean>>({})
   const [expandedTracking, setExpandedTracking] = useState<string | null>(null)
+
+  // Order detail sheet
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
 
   // Tracking dialog
   const [showTrackingDialog, setShowTrackingDialog] = useState(false)
@@ -420,7 +424,11 @@ export default function DeliveryTrackerTab({ projectId, searchQuery }: DeliveryT
                     const isExpanded = expandedTracking === order.id
 
                     return (
-                      <Card key={order.id} className="border-gray-200 bg-white hover:shadow-sm transition-shadow">
+                      <Card
+                        key={order.id}
+                        className="border-gray-200 bg-white hover:shadow-sm transition-shadow cursor-pointer"
+                        onClick={() => setSelectedOrderId(order.id)}
+                      >
                         <CardContent className="p-3">
                           <div className="flex items-start justify-between mb-2">
                             <div>
@@ -456,7 +464,7 @@ export default function DeliveryTrackerTab({ projectId, searchQuery }: DeliveryT
 
                           {/* Tracking Info */}
                           {order.trackingNumber ? (
-                            <div className="bg-blue-50 rounded p-2 mb-2">
+                            <div className="bg-blue-50 rounded p-2 mb-2" onClick={(e) => e.stopPropagation()}>
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-1.5">
                                   {isLoadingTracking ? (
@@ -524,7 +532,7 @@ export default function DeliveryTrackerTab({ projectId, searchQuery }: DeliveryT
                           )}
 
                           {/* Action Buttons */}
-                          <div className="flex gap-1 pt-2 border-t border-gray-100">
+                          <div className="flex gap-1 pt-2 border-t border-gray-100" onClick={(e) => e.stopPropagation()}>
                             {column === 'ORDERED' && (
                               <span className="text-xs text-gray-400">
                                 Awaiting payment
@@ -599,7 +607,11 @@ export default function DeliveryTrackerTab({ projectId, searchQuery }: DeliveryT
                   const daysInProduction = getDaysInProduction(order)
 
                   return (
-                    <tr key={order.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                    <tr
+                      key={order.id}
+                      className="border-b border-gray-100 last:border-0 hover:bg-gray-50 cursor-pointer"
+                      onClick={() => setSelectedOrderId(order.id)}
+                    >
                       <td className="p-3 font-mono text-sm text-gray-900">PO-{order.orderNumber}</td>
                       <td className="p-3 font-medium text-gray-900">{order.supplier.name}</td>
                       <td className="p-3 text-gray-600">{order._count.items}</td>
@@ -633,7 +645,7 @@ export default function DeliveryTrackerTab({ projectId, searchQuery }: DeliveryT
                           : formatDate(order.expectedDelivery)
                         }
                       </td>
-                      <td className="p-3">
+                      <td className="p-3" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-1">
                           {(column === 'IN_PRODUCTION' || column === 'IN_TRANSIT') && (
                             <Button
@@ -762,6 +774,14 @@ export default function DeliveryTrackerTab({ projectId, searchQuery }: DeliveryT
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Order Detail Sheet */}
+      <OrderDetailSheet
+        open={!!selectedOrderId}
+        onOpenChange={(open) => !open && setSelectedOrderId(null)}
+        orderId={selectedOrderId}
+        onUpdate={fetchOrders}
+      />
     </div>
   )
 }
