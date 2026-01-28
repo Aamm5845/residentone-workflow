@@ -479,6 +479,18 @@ export async function POST(
           }
         })
 
+        // Register tracking with Ship24 for auto-updates
+        if (trackingNumber) {
+          try {
+            const { createTracker } = await import('@/lib/ship24')
+            await createTracker(trackingNumber)
+            console.log(`Registered tracking ${trackingNumber} with Ship24`)
+          } catch (trackingError) {
+            console.error('Failed to register tracking with Ship24:', trackingError)
+            // Don't fail the request if tracking registration fails
+          }
+        }
+
         // Create delivery record
         await prisma.delivery.create({
           data: {
