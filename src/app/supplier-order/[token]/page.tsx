@@ -436,15 +436,7 @@ export default function SupplierOrderPortal() {
                 <p className="text-gray-300">Project: {safeProject.name}</p>
               </div>
               <div className="flex flex-wrap gap-2">
-                {/* Step 1: Confirm Order */}
-                {!isConfirmed && !isShipped && (
-                  <Button onClick={() => setShowConfirmDialog(true)} variant="secondary">
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    Confirm Order
-                  </Button>
-                )}
-
-                {/* Step 2: Record Payment (show when payment card exists and balance remaining) */}
+                {/* Record Payment (show when payment card exists and balance remaining) */}
                 {order.paymentCardNumber && order.totalAmount - (order.supplierPaymentAmount || 0) > 0 && (
                   <Button onClick={() => {
                     const remaining = order.totalAmount - (order.supplierPaymentAmount || 0)
@@ -456,8 +448,8 @@ export default function SupplierOrderPortal() {
                   </Button>
                 )}
 
-                {/* Step 3: Mark Shipped */}
-                {isConfirmed && !isShipped && (
+                {/* Mark Shipped (show when order has payment or is confirmed) */}
+                {(isConfirmed || order.supplierPaymentAmount) && !isShipped && (
                   <Button onClick={() => setShowShipDialog(true)} variant="secondary">
                     <Truck className="w-4 h-4 mr-2" />
                     Mark Shipped

@@ -629,10 +629,18 @@ export async function POST(
         // Round amount to 2 decimal places
         const paymentAmountRounded = Math.round(amount * 100) / 100
 
-        // Update order with payment info
+        // Update order with payment info - also auto-confirm if not already confirmed
+        const isAlreadyConfirmed = order.status === 'CONFIRMED' || order.status === 'SHIPPED' || order.status === 'DELIVERED'
         await prisma.order.update({
           where: { id: order.id },
           data: {
+            // Auto-confirm the order when payment is recorded
+            ...(!isAlreadyConfirmed && {
+              status: 'CONFIRMED',
+              confirmedAt: new Date(),
+              supplierConfirmedAt: new Date(),
+              supplierConfirmedBy: chargedBy || order.supplier?.contactName || 'Supplier'
+            }),
             supplierPaidAt: new Date(),
             supplierPaymentMethod: method || 'CARD',
             supplierPaymentAmount: paymentAmountRounded,
