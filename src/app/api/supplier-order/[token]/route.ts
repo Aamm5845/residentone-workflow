@@ -629,17 +629,17 @@ export async function POST(
         // Round amount to 2 decimal places
         const paymentAmountRounded = Math.round(amount * 100) / 100
 
-        // Update order with payment info - also auto-confirm if not already confirmed
-        const isAlreadyConfirmed = order.status === 'CONFIRMED' || order.status === 'SHIPPED' || order.status === 'DELIVERED'
+        // Update order with payment info - set to PROCESSING status
+        const isShippedOrDelivered = order.status === 'SHIPPED' || order.status === 'DELIVERED'
         await prisma.order.update({
           where: { id: order.id },
           data: {
-            // Auto-confirm the order when payment is recorded
-            ...(!isAlreadyConfirmed && {
-              status: 'CONFIRMED',
-              confirmedAt: new Date(),
-              supplierConfirmedAt: new Date(),
-              supplierConfirmedBy: chargedBy || order.supplier?.contactName || 'Supplier'
+            // Set to PROCESSING when payment is recorded (unless already shipped/delivered)
+            ...(!isShippedOrDelivered && {
+              status: 'PROCESSING',
+              confirmedAt: order.confirmedAt || new Date(),
+              supplierConfirmedAt: order.supplierConfirmedAt || new Date(),
+              supplierConfirmedBy: order.supplierConfirmedBy || chargedBy || order.supplier?.contactName || 'Supplier'
             }),
             supplierPaidAt: new Date(),
             supplierPaymentMethod: method || 'CARD',
@@ -650,6 +650,24 @@ export async function POST(
               : order.notes
           }
         })
+
+        // Update all order items to ORDERED status
+        await prisma.orderItem.updateMany({
+          where: { orderId: order.id },
+          data: { status: 'ORDERED' }
+        })
+
+        // Update all linked spec items (roomFFEItem) to ORDERED status
+        const roomFFEItemIds = order.items
+          .map(item => item.roomFFEItemId)
+          .filter((id): id is string => id !== null)
+
+        if (roomFFEItemIds.length > 0) {
+          await prisma.roomFFEItem.updateMany({
+            where: { id: { in: roomFFEItemIds } },
+            data: { specStatus: 'ORDERED' }
+          })
+        }
 
         await prisma.orderActivity.create({
           data: {
