@@ -8,6 +8,7 @@ import { put } from '@vercel/blob'
 // Validation schema
 const uploadSchema = z.object({
   imageType: z.enum(['avatar', 'project-cover', 'spec-item', 'quote-document', 'general']).optional().default('general'),
+  supplierName: z.string().optional(),
 })
 
 const MAX_FILE_SIZE = 4 * 1024 * 1024 // 4MB
@@ -38,10 +39,12 @@ export async function POST(request: NextRequest) {
     const roomIdParam = formData.get('roomId') as string
     const projectId = formData.get('projectId') as string
     const projectDropboxFolder = formData.get('dropboxFolder') as string
+    const supplierNameParam = formData.get('supplierName') as string || 'General'
 
     // Validate parameters
-    const { imageType } = uploadSchema.parse({
+    const { imageType, supplierName } = uploadSchema.parse({
       imageType: imageTypeParam,
+      supplierName: supplierNameParam,
     })
     
     // Validate file
@@ -124,10 +127,38 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      // Case 2c: Quote documents (PDFs/images from suppliers) → Blob only
+      // Case 2c: Quote documents (PDFs/images from suppliers) → Blob primary + Dropbox mirror
       if (imageType === 'quote-document') {
+        // Upload to Blob first (instant display)
         const blobFileName = `quote-documents/${projectId || 'general'}/${timestamp}_${Math.random().toString(36).slice(2)}.${fileExtension}`
         const blob = await put(blobFileName, file, { access: 'public', contentType: file.type })
+
+        let dropboxPath: string | null = null
+        let dropboxUrl: string | null = null
+
+        // Mirror to Dropbox if project folder is linked
+        if (projectDropboxFolder) {
+          try {
+            // Use supplier name as category, upload to Quotes folder
+            const categoryName = supplierName || 'General'
+            console.log(`[upload-image] Uploading quote doc to Dropbox: ${projectDropboxFolder}/6- SHOPPING/${categoryName}/Quotes/`)
+
+            const result = await dropboxService.uploadShoppingFile(
+              projectDropboxFolder,
+              categoryName,
+              'Quotes',
+              file.name, // Use original filename for Dropbox
+              buffer
+            )
+
+            dropboxPath = result.path
+            dropboxUrl = result.sharedLink || null
+            console.log('[upload-image] Quote doc mirrored to Dropbox:', dropboxPath)
+          } catch (error) {
+            console.error('[upload-image] Failed to mirror quote doc to Dropbox (non-fatal):', error)
+            // Don't fail the upload - Blob is the primary storage
+          }
+        }
 
         return NextResponse.json({
           success: true,
@@ -137,7 +168,9 @@ export async function POST(request: NextRequest) {
           originalName: file.name,
           size: file.size,
           type: file.type,
-          storage: 'blob',
+          storage: dropboxPath ? 'blob+dropbox' : 'blob',
+          dropboxPath,
+          dropboxUrl,
         })
       }
 
