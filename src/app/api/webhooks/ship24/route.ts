@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { mapTrackingStatusToOrderStatus } from '@/lib/ship24'
+import crypto from 'crypto'
 
 export const dynamic = 'force-dynamic'
+
+const WEBHOOK_SECRET = process.env.SHIP24_WEBHOOK_SECRET
 
 /**
  * POST /api/webhooks/ship24
@@ -11,6 +14,22 @@ export const dynamic = 'force-dynamic'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+
+    // Verify webhook signature if secret is configured
+    if (WEBHOOK_SECRET) {
+      const signature = request.headers.get('ship24-signature') || request.headers.get('x-ship24-signature')
+      if (signature) {
+        const expectedSignature = crypto
+          .createHmac('sha256', WEBHOOK_SECRET)
+          .update(JSON.stringify(body))
+          .digest('hex')
+
+        if (signature !== expectedSignature && signature !== `sha256=${expectedSignature}`) {
+          console.error('Invalid Ship24 webhook signature')
+          return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
+        }
+      }
+    }
 
     console.log('Ship24 webhook received:', JSON.stringify(body, null, 2))
 
