@@ -439,8 +439,14 @@ export default function SupplierOrderPortal() {
                 {/* Record Payment (show when payment card exists and balance remaining) */}
                 {order.paymentCardNumber && order.totalAmount - (order.supplierPaymentAmount || 0) > 0 && (
                   <Button onClick={() => {
-                    const remaining = order.totalAmount - (order.supplierPaymentAmount || 0)
-                    setPaymentAmount(remaining.toFixed(2))
+                    // Default to deposit amount if deposit required and not fully paid
+                    const depositRequired = order.depositRequired || 0
+                    const depositPaid = order.depositPaid || 0
+                    const hasUnpaidDeposit = depositRequired > 0 && depositPaid < depositRequired
+                    const defaultAmount = hasUnpaidDeposit
+                      ? (depositRequired - depositPaid)
+                      : (order.totalAmount - (order.supplierPaymentAmount || 0))
+                    setPaymentAmount(defaultAmount.toFixed(2))
                     setShowPaymentDialog(true)
                   }} variant="secondary" className="bg-emerald-500 hover:bg-emerald-600 text-white">
                     <CreditCard className="w-4 h-4 mr-2" />
@@ -726,27 +732,6 @@ export default function SupplierOrderPortal() {
                       </div>
                     </div>
 
-                    {/* Record Payment Button - show if payment card exists and no payment recorded yet */}
-                    {order.paymentCardNumber && !order.supplierPaidAt && (
-                      <Button
-                        onClick={() => {
-                          const depositRequired = order.depositRequired || 0
-                          const depositPaid = order.depositPaid || 0
-                          const defaultAmount = depositRequired > 0 && depositPaid < depositRequired
-                            ? (depositRequired - depositPaid).toFixed(2)
-                            : order.totalAmount?.toFixed(2) || ''
-                          setPaymentAmount(defaultAmount)
-                          setShowPaymentDialog(true)
-                        }}
-                        className="w-full"
-                      >
-                        <CreditCard className="w-4 h-4 mr-2" />
-                        {order.depositRequired && (!order.depositPaid || order.depositPaid < order.depositRequired)
-                          ? 'Record Deposit Payment'
-                          : 'Record Payment'
-                        }
-                      </Button>
-                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -1305,12 +1290,7 @@ export default function SupplierOrderPortal() {
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {order.depositRequired && (!order.depositPaid || order.depositPaid < order.depositRequired)
-                ? 'Record Deposit Payment'
-                : 'Record Payment'
-              }
-            </DialogTitle>
+            <DialogTitle>Record Payment</DialogTitle>
             <DialogDescription>
               Record the payment you've charged to the customer's card.
             </DialogDescription>
