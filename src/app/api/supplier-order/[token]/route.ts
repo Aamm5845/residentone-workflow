@@ -158,6 +158,40 @@ export async function GET(
       }
     })
 
+    // If order has a saved payment method but missing card details, fetch fresh data
+    if (order.savedPaymentMethodId && (!order.paymentCardExpiry || !order.paymentCardHolderName)) {
+      const savedPaymentMethod = await prisma.savedPaymentMethod.findUnique({
+        where: { id: order.savedPaymentMethodId }
+      })
+
+      if (savedPaymentMethod) {
+        const expiry = savedPaymentMethod.expiryMonth && savedPaymentMethod.expiryYear
+          ? `${String(savedPaymentMethod.expiryMonth).padStart(2, '0')}/${String(savedPaymentMethod.expiryYear).slice(-2)}`
+          : null
+
+        // Update order with fresh payment card data
+        await prisma.order.update({
+          where: { id: order.id },
+          data: {
+            paymentCardBrand: savedPaymentMethod.cardBrand || order.paymentCardBrand,
+            paymentCardLastFour: savedPaymentMethod.lastFour || order.paymentCardLastFour,
+            paymentCardHolderName: savedPaymentMethod.holderName || order.paymentCardHolderName,
+            paymentCardExpiry: expiry || order.paymentCardExpiry,
+            paymentCardNumber: savedPaymentMethod.encryptedCardNumber || order.paymentCardNumber,
+            paymentCardCvv: savedPaymentMethod.encryptedCvv || order.paymentCardCvv
+          }
+        })
+
+        // Update local order object for this response
+        order.paymentCardBrand = savedPaymentMethod.cardBrand || order.paymentCardBrand
+        order.paymentCardLastFour = savedPaymentMethod.lastFour || order.paymentCardLastFour
+        order.paymentCardHolderName = savedPaymentMethod.holderName || order.paymentCardHolderName
+        order.paymentCardExpiry = expiry || order.paymentCardExpiry
+        order.paymentCardNumber = savedPaymentMethod.encryptedCardNumber || order.paymentCardNumber
+        order.paymentCardCvv = savedPaymentMethod.encryptedCvv || order.paymentCardCvv
+      }
+    }
+
     // Update viewed timestamp if first view
     if (!order.supplierViewedAt) {
       await prisma.order.update({
