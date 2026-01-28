@@ -113,9 +113,8 @@ export default function SendPODialog({
           })
 
           // Set email from supplier phonebook (preferred) or vendorEmail
-          // Always prefer supplier.email from the phonebook
           const supplierEmail = data.order.supplier?.email || data.order.vendorEmail || ''
-          if (supplierEmail && !emailLoaded) {
+          if (supplierEmail) {
             setEmail(supplierEmail)
             setEmailLoaded(true)
           }
@@ -126,7 +125,7 @@ export default function SendPODialog({
     } finally {
       setLoadingOrder(false)
     }
-  }, [order.id, email])
+  }, [order.id]) // Only depend on order.id to prevent infinite loop
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -139,7 +138,8 @@ export default function SendPODialog({
       // Fetch full order details (including supplier email from phonebook)
       fetchOrderDetails()
     }
-  }, [open, order, fetchOrderDetails])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, order.id]) // Only depend on open and order.id to prevent infinite loop
 
   const handleSend = async () => {
     if (!email.trim()) {
