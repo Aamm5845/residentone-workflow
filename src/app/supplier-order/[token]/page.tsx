@@ -648,94 +648,41 @@ export default function SupplierOrderPortal() {
               </Card>
             )}
 
-            {/* Payments Section - Show if deposit required or payment recorded */}
-            {(order.depositRequired || order.supplierPaidAt) && (
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <DollarSign className="w-4 h-4 text-gray-500" />
-                    <h3 className="font-semibold text-gray-900">Payments</h3>
-                  </div>
+            {/* Simple Payment Summary */}
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <DollarSign className="w-4 h-4 text-gray-500" />
+                  <h3 className="font-semibold text-gray-900">Payment Summary</h3>
+                </div>
 
-                  <div className="space-y-4">
-                    {/* Payment Summary */}
-                    <div className="bg-gray-50 rounded-lg p-4 border">
-                      <div className="space-y-3">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Order Total</span>
-                          <span className="font-medium">{formatCurrency(order.totalAmount, order.currency)}</span>
-                        </div>
-
-                        {order.depositRequired && order.depositRequired > 0 && (
-                          <>
-                            {(order.depositPaid && order.depositPaid > 0) ? (
-                              <div className="flex justify-between text-sm">
-                                <span className="text-emerald-600 flex items-center gap-1">
-                                  <CheckCircle className="w-4 h-4" />
-                                  Deposit Paid {order.depositPercent && `(${order.depositPercent}%)`}
-                                </span>
-                                <span className="font-medium text-emerald-600">
-                                  {formatCurrency(order.depositPaid, order.currency)}
-                                </span>
-                              </div>
-                            ) : (
-                              <div className="flex justify-between text-sm">
-                                <span className="text-amber-600 flex items-center gap-1">
-                                  <AlertCircle className="w-4 h-4" />
-                                  Deposit Due {order.depositPercent && `(${order.depositPercent}%)`}
-                                </span>
-                                <span className="font-medium text-amber-600">
-                                  {formatCurrency(order.depositRequired, order.currency)}
-                                </span>
-                              </div>
-                            )}
-
-                            <div className="border-t pt-3 mt-3">
-                              <div className="flex justify-between text-sm font-semibold">
-                                <span>Remaining Balance</span>
-                                <span>
-                                  {formatCurrency(
-                                    order.totalAmount - (order.depositPaid || 0),
-                                    order.currency
-                                  )}
-                                </span>
-                              </div>
-                            </div>
-                          </>
-                        )}
-
-                        {/* Payment recorded by supplier */}
-                        {order.supplierPaidAt && (
-                          <div className="border-t pt-3 mt-3">
-                            <div className="flex items-center gap-2 text-emerald-600 mb-2">
-                              <CheckCircle className="w-4 h-4" />
-                              <span className="font-medium text-sm">Payment Recorded</span>
-                            </div>
-                            <div className="text-sm text-gray-600 space-y-1">
-                              <div className="flex justify-between">
-                                <span>Amount Charged</span>
-                                <span className="font-medium">
-                                  {formatCurrency(order.supplierPaymentAmount || 0, order.currency)}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span>Method</span>
-                                <span>{order.supplierPaymentMethod || 'Card'}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span>Date</span>
-                                <span>{formatDate(order.supplierPaidAt)}</span>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                <div className="bg-gray-50 rounded-lg p-4 border">
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div>
+                      <p className="text-sm text-gray-500 mb-1">Order Total</p>
+                      <p className="text-lg font-semibold text-gray-900">
+                        {formatCurrency(order.totalAmount, order.currency)}
+                      </p>
                     </div>
-
+                    <div>
+                      <p className="text-sm text-gray-500 mb-1">Paid</p>
+                      <p className="text-lg font-semibold text-emerald-600">
+                        {formatCurrency(order.supplierPaymentAmount || 0, order.currency)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 mb-1">Owed</p>
+                      <p className="text-lg font-semibold text-amber-600">
+                        {formatCurrency(
+                          Math.max(0, order.totalAmount - (order.supplierPaymentAmount || 0)),
+                          order.currency
+                        )}
+                      </p>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Order Items */}
             <Card>
