@@ -174,7 +174,37 @@ export async function GET(
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     }
 
-    return NextResponse.json({ order })
+    // If order has no linked supplier but has vendorName, try to find matching supplier in phonebook
+    let supplierFromPhonebook = order.supplier
+    if (!order.supplier && order.vendorName) {
+      const matchingSupplier = await prisma.supplier.findFirst({
+        where: {
+          orgId,
+          name: {
+            equals: order.vendorName,
+            mode: 'insensitive'
+          }
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          contactName: true,
+          address: true
+        }
+      })
+      if (matchingSupplier) {
+        supplierFromPhonebook = matchingSupplier
+      }
+    }
+
+    return NextResponse.json({
+      order: {
+        ...order,
+        supplier: supplierFromPhonebook
+      }
+    })
   } catch (error) {
     console.error('Error fetching order:', error)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
