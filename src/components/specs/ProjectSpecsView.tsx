@@ -4596,8 +4596,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             </button>
                           </div>
                           
-                          {/* Main Item Row - Using flex with responsive widths, horizontal scroll on small screens */}
-                          <div className="flex items-start w-full px-2 lg:px-4 py-2 pl-10 lg:pl-14 gap-1.5 lg:gap-2 overflow-x-auto">
+                          {/* Main Item Row - Using flex with responsive widths that shrink to fit */}
+                          <div className="flex items-start w-full px-2 lg:px-4 py-2 pl-10 lg:pl-14 gap-1 lg:gap-2">
                             {/* Image - Responsive width, clickable to open editor or upload */}
                             <div className="flex-shrink-0 w-12 lg:w-16">
                               <HoverCard openDelay={300} closeDelay={100}>
@@ -5180,8 +5180,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               )}
                             </div>
                             
-                            {/* Doc Code - Fixed width, prefix-aware editing */}
-                            <div className="flex-shrink-0 w-20 h-9">
+                            {/* Doc Code - Shrinkable width, prefix-aware editing */}
+                            <div className="w-14 lg:w-20 h-9 flex-shrink">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Doc Code</p>
                               {editingField?.itemId === item.id && editingField?.field === 'docCode' ? (
                                 (() => {
@@ -5255,8 +5255,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               )}
                             </div>
 
-                            {/* Model - Fixed width for longer model numbers */}
-                            <div className="flex-shrink-0 w-20 h-9">
+                            {/* Model - Shrinkable width for longer model numbers */}
+                            <div className="w-14 lg:w-20 h-9 flex-shrink">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Model</p>
                               {editingField?.itemId === item.id && editingField?.field === 'modelNumber' ? (
                                 <Input
@@ -5279,8 +5279,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               )}
                             </div>
                             
-                            {/* Brand - Fixed width */}
-                            <div className="flex-shrink-0 w-28 h-9">
+                            {/* Brand - Shrinkable width */}
+                            <div className="w-16 lg:w-28 h-9 flex-shrink">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Brand</p>
                               {editingField?.itemId === item.id && editingField?.field === 'brand' ? (
                                 <Input
@@ -5303,7 +5303,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             </div>
 
                             {/* Width (IN) */}
-                            <div className="flex-shrink-0 w-12 h-9 text-center">
+                            <div className="w-10 lg:w-12 h-9 text-center flex-shrink">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Width</p>
                               {editingField?.itemId === item.id && editingField?.field === 'width' ? (
                                 <Input
@@ -5349,7 +5349,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             </div>
 
                             {/* Height (IN) */}
-                            <div className="flex-shrink-0 w-12 h-9 text-center">
+                            <div className="w-10 lg:w-12 h-9 text-center flex-shrink">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Height</p>
                               {editingField?.itemId === item.id && editingField?.field === 'height' ? (
                                 <Input
@@ -5372,7 +5372,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             </div>
 
                             {/* Depth (IN) */}
-                            <div className="flex-shrink-0 w-12 h-9 text-center">
+                            <div className="w-10 lg:w-12 h-9 text-center flex-shrink">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Depth</p>
                               {editingField?.itemId === item.id && editingField?.field === 'depth' ? (
                                 <Input
@@ -5395,7 +5395,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             </div>
 
                             {/* Colour */}
-                            <div className="flex-shrink-0 w-20 h-9">
+                            <div className="w-12 lg:w-20 h-9 flex-shrink">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Colour</p>
                               {editingField?.itemId === item.id && editingField?.field === 'color' ? (
                                 <Input
@@ -5418,7 +5418,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             </div>
 
                             {/* Finish */}
-                            <div className="flex-shrink-0 w-20 h-9">
+                            <div className="w-12 lg:w-20 h-9 flex-shrink">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Finish</p>
                               {editingField?.itemId === item.id && editingField?.field === 'finish' ? (
                                 <Input
@@ -5440,8 +5440,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               )}
                             </div>
 
-                            {/* Material - Fixed width */}
-                            <div className="flex-shrink-0 w-20 h-9">
+                            {/* Material - Shrinkable width */}
+                            <div className="w-12 lg:w-20 h-9 flex-shrink">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Material</p>
                               {editingField?.itemId === item.id && editingField?.field === 'material' ? (
                                 <Input
@@ -5463,8 +5463,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               )}
                             </div>
 
-                            {/* QTY - Fixed width */}
-                            <div className="flex-shrink-0 w-14 h-9 text-center">
+                            {/* QTY - Shrinkable width */}
+                            <div className="w-10 lg:w-14 h-9 text-center flex-shrink">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Qty</p>
                               {editingField?.itemId === item.id && editingField?.field === 'quantity' ? (
                                 <Input
@@ -5487,8 +5487,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               )}
                             </div>
                             
-                            {/* Unit Type - Fixed width with dropdown picker (like Supplier) */}
-                            <div className="flex-shrink-0 w-14 h-9" onClick={(e) => e.stopPropagation()}>
+                            {/* Unit Type - Shrinkable width with dropdown picker (like Supplier) */}
+                            <div className="w-10 lg:w-14 h-9 flex-shrink" onClick={(e) => e.stopPropagation()}>
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Unit</p>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -5526,8 +5526,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               </DropdownMenu>
                             </div>
                             
-                            {/* Lead Time - Fixed width with dropdown picker (like Supplier) */}
-                            <div className="flex-shrink-0 w-24 h-9 mr-3" onClick={(e) => e.stopPropagation()}>
+                            {/* Lead Time - Shrinkable width with dropdown picker (like Supplier) */}
+                            <div className="w-16 lg:w-24 h-9 mr-1 lg:mr-3 flex-shrink" onClick={(e) => e.stopPropagation()}>
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Lead Time</p>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -5698,7 +5698,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             )}
                             
                             {/* Supplier - Flexible to fill space with minimum width, allows 2 lines */}
-                            <div className="flex-1 min-w-[120px] h-9 relative" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex-1 min-w-[80px] lg:min-w-[120px] h-9 relative" onClick={(e) => e.stopPropagation()}>
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Supplier</p>
                               <DropdownMenu open={supplierPickerItem === item.id} onOpenChange={(open) => setSupplierPickerItem(open ? item.id : null)}>
                                 <DropdownMenuTrigger asChild>
