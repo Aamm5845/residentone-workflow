@@ -158,38 +158,57 @@ export async function GET(
       }
     })
 
-    // If order has a saved payment method but missing card details, fetch fresh data
-    if (order.savedPaymentMethodId && (!order.paymentCardExpiry || !order.paymentCardHolderName)) {
+    // Payment card data - start with order values, then override with fresh data from saved payment method
+    let paymentCardBrand = order.paymentCardBrand
+    let paymentCardLastFour = order.paymentCardLastFour
+    let paymentCardHolderName = order.paymentCardHolderName
+    let paymentCardExpiry = order.paymentCardExpiry
+    let paymentCardNumber = order.paymentCardNumber
+    let paymentCardCvv = order.paymentCardCvv
+
+    // If order has a saved payment method, always fetch fresh data from it
+    if (order.savedPaymentMethodId) {
       const savedPaymentMethod = await prisma.savedPaymentMethod.findUnique({
         where: { id: order.savedPaymentMethodId }
       })
+
+      console.log('Saved payment method found:', savedPaymentMethod ? {
+        id: savedPaymentMethod.id,
+        holderName: savedPaymentMethod.holderName,
+        expiryMonth: savedPaymentMethod.expiryMonth,
+        expiryYear: savedPaymentMethod.expiryYear
+      } : 'null')
 
       if (savedPaymentMethod) {
         const expiry = savedPaymentMethod.expiryMonth && savedPaymentMethod.expiryYear
           ? `${String(savedPaymentMethod.expiryMonth).padStart(2, '0')}/${String(savedPaymentMethod.expiryYear).slice(-2)}`
           : null
 
-        // Update order with fresh payment card data
-        await prisma.order.update({
-          where: { id: order.id },
-          data: {
-            paymentCardBrand: savedPaymentMethod.cardBrand || order.paymentCardBrand,
-            paymentCardLastFour: savedPaymentMethod.lastFour || order.paymentCardLastFour,
-            paymentCardHolderName: savedPaymentMethod.holderName || order.paymentCardHolderName,
-            paymentCardExpiry: expiry || order.paymentCardExpiry,
-            paymentCardNumber: savedPaymentMethod.encryptedCardNumber || order.paymentCardNumber,
-            paymentCardCvv: savedPaymentMethod.encryptedCvv || order.paymentCardCvv
-          }
-        })
+        // Use fresh data from saved payment method
+        paymentCardBrand = savedPaymentMethod.cardBrand || paymentCardBrand
+        paymentCardLastFour = savedPaymentMethod.lastFour || paymentCardLastFour
+        paymentCardHolderName = savedPaymentMethod.holderName || paymentCardHolderName
+        paymentCardExpiry = expiry || paymentCardExpiry
+        paymentCardNumber = savedPaymentMethod.encryptedCardNumber || paymentCardNumber
+        paymentCardCvv = savedPaymentMethod.encryptedCvv || paymentCardCvv
 
-        // Update local order object for this response
-        order.paymentCardBrand = savedPaymentMethod.cardBrand || order.paymentCardBrand
-        order.paymentCardLastFour = savedPaymentMethod.lastFour || order.paymentCardLastFour
-        order.paymentCardHolderName = savedPaymentMethod.holderName || order.paymentCardHolderName
-        order.paymentCardExpiry = expiry || order.paymentCardExpiry
-        order.paymentCardNumber = savedPaymentMethod.encryptedCardNumber || order.paymentCardNumber
-        order.paymentCardCvv = savedPaymentMethod.encryptedCvv || order.paymentCardCvv
+        // Update order in database if data changed
+        if (paymentCardHolderName !== order.paymentCardHolderName || paymentCardExpiry !== order.paymentCardExpiry) {
+          await prisma.order.update({
+            where: { id: order.id },
+            data: {
+              paymentCardBrand,
+              paymentCardLastFour,
+              paymentCardHolderName,
+              paymentCardExpiry,
+              paymentCardNumber,
+              paymentCardCvv
+            }
+          })
+        }
       }
+    } else {
+      console.log('No savedPaymentMethodId on order:', order.id)
     }
 
     // Update viewed timestamp if first view
@@ -245,13 +264,13 @@ export async function GET(
         extraCharges: order.extraCharges as Array<{ label: string; amount: number }> | null,
         totalAmount: order.totalAmount ? parseFloat(order.totalAmount.toString()) : 0,
         currency: order.currency,
-        // Payment card info for supplier to charge (decrypt encrypted fields)
-        paymentCardBrand: order.paymentCardBrand,
-        paymentCardLastFour: order.paymentCardLastFour,
-        paymentCardHolderName: order.paymentCardHolderName,
-        paymentCardExpiry: order.paymentCardExpiry,
-        paymentCardNumber: order.paymentCardNumber ? decrypt(order.paymentCardNumber) : null,
-        paymentCardCvv: order.paymentCardCvv ? decrypt(order.paymentCardCvv) : null,
+        // Payment card info for supplier to charge (use fresh data from saved payment method)
+        paymentCardBrand,
+        paymentCardLastFour,
+        paymentCardHolderName,
+        paymentCardExpiry,
+        paymentCardNumber: paymentCardNumber ? decrypt(paymentCardNumber) : null,
+        paymentCardCvv: paymentCardCvv ? decrypt(paymentCardCvv) : null,
         // Payment status
         supplierPaidAt: order.supplierPaidAt?.toISOString() || null,
         supplierPaymentAmount: order.supplierPaymentAmount ? Number(order.supplierPaymentAmount) : null,
