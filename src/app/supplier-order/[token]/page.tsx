@@ -234,6 +234,9 @@ export default function SupplierOrderPortal() {
   } | null>(null)
   const [fetchingTracking, setFetchingTracking] = useState(false)
   const [showTrackingEvents, setShowTrackingEvents] = useState(false)
+  const [showPortalTrackingEvents, setShowPortalTrackingEvents] = useState(false)
+  const [portalTrackingInfo, setPortalTrackingInfo] = useState<typeof trackingInfo>(null)
+  const [fetchingPortalTracking, setFetchingPortalTracking] = useState(false)
 
   const fetchOrder = useCallback(async () => {
     try {
@@ -367,14 +370,23 @@ export default function SupplierOrderPortal() {
     }
   }
 
-  const fetchTrackingInfo = async (trackNum: string) => {
+  const fetchTrackingInfo = async (trackNum: string, forPortal = false) => {
     if (!trackNum.trim()) {
-      setTrackingInfo(null)
+      if (forPortal) {
+        setPortalTrackingInfo(null)
+      } else {
+        setTrackingInfo(null)
+      }
       return
     }
 
-    setFetchingTracking(true)
-    setTrackingInfo(null)
+    if (forPortal) {
+      setFetchingPortalTracking(true)
+    } else {
+      setFetchingTracking(true)
+      setTrackingInfo(null)
+    }
+
     try {
       const res = await fetch(`/api/supplier-order/${token}`, {
         method: 'POST',
@@ -383,33 +395,50 @@ export default function SupplierOrderPortal() {
       })
 
       const data = await res.json()
-      setTrackingInfo(data)
 
-      // Auto-fill expected delivery if available
-      if (data.success && data.estimatedDelivery) {
-        const date = new Date(data.estimatedDelivery)
-        setShipExpectedDelivery(date.toISOString().split('T')[0])
-      }
-
-      // Auto-set carrier if detected
-      if (data.success && data.carrierName && !carrier) {
-        // Try to match to our dropdown options
-        const carrierLower = data.carrierName.toLowerCase()
-        if (carrierLower.includes('ups')) setCarrier('UPS')
-        else if (carrierLower.includes('fedex')) setCarrier('FedEx')
-        else if (carrierLower.includes('usps')) setCarrier('USPS')
-        else if (carrierLower.includes('dhl')) setCarrier('DHL')
-        else if (carrierLower.includes('canada post')) setCarrier('Canada Post')
-        else if (carrierLower.includes('purolator')) setCarrier('Purolator')
-        else setCarrier('Other')
+      if (forPortal) {
+        setPortalTrackingInfo(data)
+      } else {
+        setTrackingInfo(data)
       }
     } catch (err: any) {
       console.error('Failed to fetch tracking:', err)
-      setTrackingInfo({ success: false, error: 'Failed to fetch tracking info' })
+      const errorData = { success: false, error: 'Failed to fetch tracking info' }
+      if (forPortal) {
+        setPortalTrackingInfo(errorData)
+      } else {
+        setTrackingInfo(errorData)
+      }
     } finally {
-      setFetchingTracking(false)
+      if (forPortal) {
+        setFetchingPortalTracking(false)
+      } else {
+        setFetchingTracking(false)
+      }
     }
   }
+
+  // Auto-fetch tracking for portal when order has tracking number
+  useEffect(() => {
+    if (data?.order?.trackingNumber && !portalTrackingInfo) {
+      fetchTrackingInfo(data.order.trackingNumber, true)
+    }
+  }, [data?.order?.trackingNumber])
+
+  // Debounced auto-fetch for tracking dialog
+  useEffect(() => {
+    if (!showTrackingDialog || !trackingNumber.trim()) {
+      return
+    }
+
+    const timer = setTimeout(() => {
+      if (trackingNumber.trim().length >= 8) {
+        fetchTrackingInfo(trackingNumber)
+      }
+    }, 800)
+
+    return () => clearTimeout(timer)
+  }, [trackingNumber, showTrackingDialog])
 
   const formatCurrency = (amount: number, currency: string = 'CAD') => {
     return new Intl.NumberFormat('en-CA', {
@@ -535,44 +564,101 @@ export default function SupplierOrderPortal() {
 
         {/* Tracking Banner - show when shipped */}
         {isShipped && (
-          <div className={`rounded-lg p-4 mb-6 flex items-center justify-between ${
+          <div className={`rounded-lg p-4 mb-6 ${
             order.trackingNumber ? 'bg-blue-50 border border-blue-200' : 'bg-amber-50 border border-amber-200'
           }`}>
-            <div className="flex items-center gap-3">
-              <Truck className={`w-5 h-5 ${order.trackingNumber ? 'text-blue-600' : 'text-amber-600'}`} />
-              <div>
-                {order.trackingNumber ? (
-                  <>
-                    <p className="font-medium text-blue-800">Shipment Tracking</p>
-                    <p className="text-sm text-blue-600">
-                      {order.shippingCarrier}: <span className="font-mono">{order.trackingNumber}</span>
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <p className="font-medium text-amber-800">No Tracking Added</p>
-                    <p className="text-sm text-amber-600">
-                      {order.shippingCarrier} • Add tracking when available
-                    </p>
-                  </>
-                )}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Truck className={`w-5 h-5 ${order.trackingNumber ? 'text-blue-600' : 'text-amber-600'}`} />
+                <div>
+                  {order.trackingNumber ? (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-blue-800">
+                          {portalTrackingInfo?.carrierName || order.shippingCarrier}
+                        </p>
+                        {fetchingPortalTracking && (
+                          <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                        )}
+                        {portalTrackingInfo?.success && portalTrackingInfo.status && (
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                            portalTrackingInfo.status === 'DELIVERED' ? 'bg-green-100 text-green-800' :
+                            portalTrackingInfo.status === 'IN_TRANSIT' || portalTrackingInfo.status === 'OUT_FOR_DELIVERY' ? 'bg-blue-100 text-blue-800' :
+                            portalTrackingInfo.status === 'EXCEPTION' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {portalTrackingInfo.status?.replace(/_/g, ' ')}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-blue-600">
+                        <span className="font-mono">{order.trackingNumber}</span>
+                        {portalTrackingInfo?.success && portalTrackingInfo.statusDescription && (
+                          <span className="ml-2">• {portalTrackingInfo.statusDescription}</span>
+                        )}
+                      </p>
+                      {portalTrackingInfo?.success && portalTrackingInfo.estimatedDelivery && (
+                        <p className="text-sm text-blue-600">
+                          Est. Delivery: {new Date(portalTrackingInfo.estimatedDelivery).toLocaleDateString()}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-medium text-amber-800">No Tracking Added</p>
+                      <p className="text-sm text-amber-600">
+                        {order.shippingCarrier} • Add tracking when available
+                      </p>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setTrackingNumber(order.trackingNumber || '')
+                    setTrackingInfo(null)
+                    setShowTrackingEvents(false)
+                    setShowTrackingDialog(true)
+                  }}
+                  className={order.trackingNumber ? '' : 'bg-amber-100 border-amber-300 text-amber-800 hover:bg-amber-200'}
+                >
+                  {order.trackingNumber ? 'Update' : 'Add Tracking'}
+                </Button>
               </div>
             </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setTrackingNumber(order.trackingNumber || '')
-                  setTrackingInfo(null)
-                  setShowTrackingEvents(false)
-                  setShowTrackingDialog(true)
-                }}
-                className={order.trackingNumber ? '' : 'bg-amber-100 border-amber-300 text-amber-800 hover:bg-amber-200'}
-              >
-                {order.trackingNumber ? 'Update Tracking' : 'Add Tracking'}
-              </Button>
-            </div>
+
+            {/* Expandable Tracking Events in Portal */}
+            {order.trackingNumber && portalTrackingInfo?.success && portalTrackingInfo.events && portalTrackingInfo.events.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-blue-200">
+                <button
+                  type="button"
+                  onClick={() => setShowPortalTrackingEvents(!showPortalTrackingEvents)}
+                  className="flex items-center gap-1 text-blue-700 hover:text-blue-900 font-medium text-sm"
+                >
+                  {showPortalTrackingEvents ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  {portalTrackingInfo.events.length} tracking event{portalTrackingInfo.events.length !== 1 ? 's' : ''}
+                </button>
+                {showPortalTrackingEvents && (
+                  <div className="mt-2 space-y-2 max-h-64 overflow-y-auto">
+                    {portalTrackingInfo.events.map((event, idx) => (
+                      <div key={idx} className="flex gap-2 text-sm">
+                        <div className="w-2 h-2 rounded-full bg-blue-400 mt-1.5 flex-shrink-0" />
+                        <div>
+                          <p className="font-medium text-blue-900">{event.description}</p>
+                          <p className="text-blue-600 text-xs">
+                            {event.location && `${event.location} • `}
+                            {new Date(event.date).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -1328,35 +1414,21 @@ export default function SupplierOrderPortal() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="dialogTrackingNumber">Tracking Number</Label>
-              <div className="flex gap-2">
+              <div className="relative">
                 <Input
                   id="dialogTrackingNumber"
                   value={trackingNumber}
                   onChange={(e) => setTrackingNumber(e.target.value)}
                   placeholder="Enter tracking number"
-                  className="flex-1"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && trackingNumber.trim()) {
-                      e.preventDefault()
-                      fetchTrackingInfo(trackingNumber)
-                    }
-                  }}
+                  className="pr-10"
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={() => fetchTrackingInfo(trackingNumber)}
-                  disabled={!trackingNumber.trim() || fetchingTracking}
-                  title="Look up tracking"
-                >
-                  {fetchingTracking ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Search className="w-4 h-4" />
-                  )}
-                </Button>
+                {fetchingTracking && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                  </div>
+                )}
               </div>
+              <p className="text-xs text-gray-500">Tracking info will load automatically</p>
             </div>
 
             {/* Tracking Info Display */}
@@ -1446,8 +1518,19 @@ export default function SupplierOrderPortal() {
             </Button>
             <Button
               onClick={() => {
-                handleAction('update_tracking', { trackingNumber: trackingNumber.trim() || null })
+                handleAction('update_tracking', {
+                  trackingNumber: trackingNumber.trim() || null,
+                  carrierName: trackingInfo?.carrierName || null
+                })
                 setShowTrackingDialog(false)
+                // Refresh portal tracking after save
+                setTimeout(() => {
+                  if (trackingNumber.trim()) {
+                    fetchTrackingInfo(trackingNumber.trim(), true)
+                  } else {
+                    setPortalTrackingInfo(null)
+                  }
+                }, 500)
               }}
               disabled={!trackingNumber.trim() || submitting}
             >

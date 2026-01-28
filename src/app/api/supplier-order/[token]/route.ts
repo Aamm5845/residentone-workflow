@@ -779,13 +779,15 @@ export async function POST(
       }
 
       case 'update_tracking': {
-        const { trackingNumber: newTrackingNumber } = body
+        const { trackingNumber: newTrackingNumber, carrierName } = body
 
-        // Update the order with new tracking number (or remove it if null)
+        // Update the order with new tracking number and carrier (or remove if null)
         await prisma.order.update({
           where: { id: order.id },
           data: {
-            trackingNumber: newTrackingNumber || null
+            trackingNumber: newTrackingNumber || null,
+            // Update carrier if we got it from tracking lookup
+            ...(carrierName && { shippingCarrier: carrierName })
           }
         })
 
