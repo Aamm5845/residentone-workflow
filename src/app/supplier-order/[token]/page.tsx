@@ -436,8 +436,8 @@ export default function SupplierOrderPortal() {
                 <p className="text-gray-300">Project: {safeProject.name}</p>
               </div>
               <div className="flex flex-wrap gap-2">
-                {/* Record Payment (show when payment card exists and balance remaining) */}
-                {order.paymentCardNumber && order.totalAmount - (order.supplierPaymentAmount || 0) > 0 && (
+                {/* Record Payment (show when balance remaining) */}
+                {order.totalAmount - (order.supplierPaymentAmount || 0) > 0 && (
                   <Button onClick={() => {
                     // Default to deposit amount if deposit required and not fully paid
                     const depositRequired = order.depositRequired || 0

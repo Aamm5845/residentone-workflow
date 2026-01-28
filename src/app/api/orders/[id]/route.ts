@@ -605,11 +605,24 @@ export async function DELETE(
         where: { id }
       })
 
-      // Reset the RoomFFEItems specStatus back to CLIENT_PAID so they appear in Ready to Order
+      // Reset the RoomFFEItems specStatus based on their payment status
       if (roomFFEItemIds.length > 0) {
+        // Set to CLIENT_PAID if client has paid (deposit or full)
         await tx.roomFFEItem.updateMany({
-          where: { id: { in: roomFFEItemIds } },
+          where: {
+            id: { in: roomFFEItemIds },
+            paymentStatus: { in: ['DEPOSIT_PAID', 'FULLY_PAID'] }
+          },
           data: { specStatus: 'CLIENT_PAID' }
+        })
+
+        // Set to QUOTE_APPROVED if client hasn't paid yet
+        await tx.roomFFEItem.updateMany({
+          where: {
+            id: { in: roomFFEItemIds },
+            paymentStatus: { in: ['NOT_INVOICED', 'INVOICED'] }
+          },
+          data: { specStatus: 'QUOTE_APPROVED' }
         })
       }
     })
