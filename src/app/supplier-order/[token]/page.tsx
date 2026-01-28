@@ -444,23 +444,8 @@ export default function SupplierOrderPortal() {
                   </Button>
                 )}
 
-                {/* Step 2: Record Deposit (if deposit required and not fully paid) */}
-                {order.depositRequired && order.depositRequired > 0 && (!order.depositPaid || order.depositPaid < order.depositRequired) && (
-                  <Button onClick={() => {
-                    const remaining = (order.depositRequired || 0) - (order.depositPaid || 0)
-                    setPaymentAmount(remaining.toFixed(2))
-                    setShowPaymentDialog(true)
-                  }} variant="secondary" className="bg-amber-500 hover:bg-amber-600 text-white">
-                    <DollarSign className="w-4 h-4 mr-2" />
-                    Record Deposit
-                  </Button>
-                )}
-
-                {/* Step 3: Record Full Payment (if no deposit or deposit paid) */}
-                {order.paymentCardNumber && (
-                  (!order.depositRequired || (order.depositPaid && order.depositPaid >= (order.depositRequired || 0))) &&
-                  order.totalAmount - (order.supplierPaymentAmount || 0) > 0
-                ) && (
+                {/* Step 2: Record Payment (show when payment card exists and balance remaining) */}
+                {order.paymentCardNumber && order.totalAmount - (order.supplierPaymentAmount || 0) > 0 && (
                   <Button onClick={() => {
                     const remaining = order.totalAmount - (order.supplierPaymentAmount || 0)
                     setPaymentAmount(remaining.toFixed(2))
@@ -471,7 +456,7 @@ export default function SupplierOrderPortal() {
                   </Button>
                 )}
 
-                {/* Step 4: Mark Shipped */}
+                {/* Step 3: Mark Shipped */}
                 {isConfirmed && !isShipped && (
                   <Button onClick={() => setShowShipDialog(true)} variant="secondary">
                     <Truck className="w-4 h-4 mr-2" />
