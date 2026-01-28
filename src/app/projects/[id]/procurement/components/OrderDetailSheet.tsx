@@ -501,9 +501,22 @@ export default function OrderDetailSheet({
             <DialogDescription className="sr-only">
               Order details for {order.orderNumber}
             </DialogDescription>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Badge className={status.color}>{status.label}</Badge>
-              <span>Created {formatDate(order.createdAt)}</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Badge className={status.color}>{status.label}</Badge>
+                <span>Created {formatDate(order.createdAt)}</span>
+              </div>
+              {order.supplierAccessToken && (
+                <a
+                  href={`/supplier-order/${order.supplierAccessToken}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  View Portal
+                </a>
+              )}
             </div>
           </DialogHeader>
 
