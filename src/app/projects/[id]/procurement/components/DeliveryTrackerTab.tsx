@@ -28,7 +28,9 @@ import {
   ChevronDown,
   ChevronUp,
   Loader2,
-  MapPin
+  MapPin,
+  Factory,
+  Timer
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -48,6 +50,8 @@ interface Order {
   shippingCarrier: string | null
   createdAt: string
   orderedAt: string | null
+  supplierPaidAt: string | null
+  supplierPaymentAmount: number | null
   supplier: {
     id: string
     name: string
@@ -74,13 +78,12 @@ interface TrackingInfo {
 }
 
 // Map order statuses to delivery tracker columns
-const mapStatusToColumn = (status: string): 'ORDERED' | 'IN_TRANSIT' | 'DELIVERED' => {
+// Orders with payment but not shipped go to IN_PRODUCTION
+const mapStatusToColumn = (order: Order): 'ORDERED' | 'IN_PRODUCTION' | 'IN_TRANSIT' | 'DELIVERED' => {
+  const status = order.status
+  const hasPayment = order.supplierPaymentAmount && order.supplierPaymentAmount > 0
+
   switch (status) {
-    case 'ORDERED':
-    case 'CONFIRMED':
-    case 'PENDING_PAYMENT':
-    case 'PAYMENT_RECEIVED':
-      return 'ORDERED'
     case 'SHIPPED':
     case 'IN_TRANSIT':
       return 'IN_TRANSIT'
@@ -88,18 +91,42 @@ const mapStatusToColumn = (status: string): 'ORDERED' | 'IN_TRANSIT' | 'DELIVERE
     case 'COMPLETED':
     case 'INSTALLED':
       return 'DELIVERED'
-    default:
+    case 'ORDERED':
+    case 'CONFIRMED':
+    case 'PAYMENT_RECEIVED':
+      // If payment was made, it's in production
+      return hasPayment ? 'IN_PRODUCTION' : 'ORDERED'
+    case 'PENDING_PAYMENT':
       return 'ORDERED'
+    default:
+      return hasPayment ? 'IN_PRODUCTION' : 'ORDERED'
   }
+}
+
+// Calculate days since first payment
+const getDaysInProduction = (order: Order): number | null => {
+  if (!order.supplierPaidAt) return null
+  const paymentDate = new Date(order.supplierPaidAt)
+  const now = new Date()
+  const diffTime = now.getTime() - paymentDate.getTime()
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+  return diffDays
 }
 
 const statusConfig = {
   ORDERED: {
     label: 'Ordered',
+    color: 'text-gray-600',
+    bgLight: 'bg-gray-50',
+    bgDark: 'bg-gray-100',
+    icon: Clock,
+  },
+  IN_PRODUCTION: {
+    label: 'In Production',
     color: 'text-amber-600',
     bgLight: 'bg-amber-50',
     bgDark: 'bg-amber-100',
-    icon: Clock,
+    icon: Factory,
   },
   IN_TRANSIT: {
     label: 'In Transit',
@@ -117,7 +144,7 @@ const statusConfig = {
   },
 }
 
-const columns = ['ORDERED', 'IN_TRANSIT', 'DELIVERED'] as const
+const columns = ['ORDERED', 'IN_PRODUCTION', 'IN_TRANSIT', 'DELIVERED'] as const
 
 export default function DeliveryTrackerTab({ projectId, searchQuery }: DeliveryTrackerTabProps) {
   const [orders, setOrders] = useState<Order[]>([])
@@ -295,7 +322,7 @@ export default function DeliveryTrackerTab({ projectId, searchQuery }: DeliveryT
 
   // Group orders by column status
   const groupedOrders = columns.reduce((acc, column) => {
-    acc[column] = filteredOrders.filter(order => mapStatusToColumn(order.status) === column)
+    acc[column] = filteredOrders.filter(order => mapStatusToColumn(order) === column)
     return acc
   }, {} as Record<typeof columns[number], Order[]>)
 
@@ -368,7 +395,7 @@ export default function DeliveryTrackerTab({ projectId, searchQuery }: DeliveryT
         </Card>
       ) : viewMode === 'kanban' ? (
         /* Kanban View */
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-4 gap-4">
           {columns.map((column) => {
             const config = statusConfig[column]
             const Icon = config.icon
@@ -410,6 +437,22 @@ export default function DeliveryTrackerTab({ projectId, searchQuery }: DeliveryT
                           <div className="text-xs text-gray-500 mb-2">
                             {order._count.items} item{order._count.items !== 1 ? 's' : ''} • {formatCurrency(order.totalAmount)}
                           </div>
+
+                          {/* Days in Production */}
+                          {column === 'IN_PRODUCTION' && (
+                            <div className="flex items-center gap-1.5 bg-amber-50 rounded px-2 py-1 mb-2">
+                              <Timer className="w-3 h-3 text-amber-600" />
+                              <span className="text-xs font-medium text-amber-700">
+                                {(() => {
+                                  const days = getDaysInProduction(order)
+                                  if (days === null) return 'Just started'
+                                  if (days === 0) return 'Started today'
+                                  if (days === 1) return '1 day in production'
+                                  return `${days} days in production`
+                                })()}
+                              </span>
+                            </div>
+                          )}
 
                           {/* Tracking Info */}
                           {order.trackingNumber ? (
@@ -483,6 +526,11 @@ export default function DeliveryTrackerTab({ projectId, searchQuery }: DeliveryT
                           {/* Action Buttons */}
                           <div className="flex gap-1 pt-2 border-t border-gray-100">
                             {column === 'ORDERED' && (
+                              <span className="text-xs text-gray-400">
+                                Awaiting payment
+                              </span>
+                            )}
+                            {column === 'IN_PRODUCTION' && (
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -545,9 +593,10 @@ export default function DeliveryTrackerTab({ projectId, searchQuery }: DeliveryT
               </thead>
               <tbody>
                 {filteredOrders.map((order) => {
-                  const column = mapStatusToColumn(order.status)
+                  const column = mapStatusToColumn(order)
                   const config = statusConfig[column]
                   const tracking = trackingCache[order.id]
+                  const daysInProduction = getDaysInProduction(order)
 
                   return (
                     <tr key={order.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
@@ -555,9 +604,16 @@ export default function DeliveryTrackerTab({ projectId, searchQuery }: DeliveryT
                       <td className="p-3 font-medium text-gray-900">{order.supplier.name}</td>
                       <td className="p-3 text-gray-600">{order._count.items}</td>
                       <td className="p-3">
-                        <Badge className={`${config.bgLight} ${config.color} border-0`}>
-                          {tracking?.status ? tracking.status.replace(/_/g, ' ') : config.label}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge className={`${config.bgLight} ${config.color} border-0`}>
+                            {tracking?.status ? tracking.status.replace(/_/g, ' ') : config.label}
+                          </Badge>
+                          {column === 'IN_PRODUCTION' && daysInProduction !== null && (
+                            <span className="text-xs text-amber-600">
+                              {daysInProduction}d
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="p-3">
                         {order.trackingNumber ? (
@@ -579,14 +635,16 @@ export default function DeliveryTrackerTab({ projectId, searchQuery }: DeliveryT
                       </td>
                       <td className="p-3">
                         <div className="flex items-center gap-1">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 text-xs border-gray-300"
-                            onClick={() => openTrackingDialog(order)}
-                          >
-                            {order.trackingNumber ? 'Update' : 'Add Tracking'}
-                          </Button>
+                          {(column === 'IN_PRODUCTION' || column === 'IN_TRANSIT') && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-xs border-gray-300"
+                              onClick={() => openTrackingDialog(order)}
+                            >
+                              {order.trackingNumber ? 'Update' : 'Add Tracking'}
+                            </Button>
+                          )}
                           {column === 'IN_TRANSIT' && (
                             <Button
                               variant="outline"
