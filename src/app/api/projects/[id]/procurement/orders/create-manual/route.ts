@@ -615,7 +615,7 @@ export async function POST(
           activities: {
             create: {
               type: 'CREATED',
-              message: `Manual order created for ${body.vendorName} (${orderItems.length} items)`,
+              message: `Order created for ${body.vendorName} (${orderItems.length} items)`,
               userId,
               metadata: {
                 vendorName: body.vendorName,
@@ -671,7 +671,7 @@ export async function POST(
           itemId: itemId,
           type: 'ADDED_TO_ORDER',
           title: `Order Created - ${body.vendorName}`,
-          description: `Manual order ${orderNumber} created for ${body.vendorName}`,
+          description: `Order ${orderNumber} created for ${body.vendorName}`,
           actorId: userId,
           actorType: 'user',
           metadata: {
