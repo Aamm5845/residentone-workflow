@@ -60,8 +60,9 @@ export default function SendPODialog({
   order,
   onSuccess
 }: SendPODialogProps) {
-  const [email, setEmail] = useState(order.vendorEmail || '')
+  const [email, setEmail] = useState('')
   const [sending, setSending] = useState(false)
+  const [emailLoaded, setEmailLoaded] = useState(false)
 
   // Order items - fetched from API
   const [orderItems, setOrderItems] = useState<OrderItem[]>(order.items || [])
@@ -111,9 +112,12 @@ export default function SendPODialog({
             savedPaymentMethodId: data.order.savedPaymentMethodId || null
           })
 
-          // Update email if not already set
-          if (!email && (data.order.supplier?.email || data.order.vendorEmail)) {
-            setEmail(data.order.supplier?.email || data.order.vendorEmail || '')
+          // Set email from supplier phonebook (preferred) or vendorEmail
+          // Always prefer supplier.email from the phonebook
+          const supplierEmail = data.order.supplier?.email || data.order.vendorEmail || ''
+          if (supplierEmail && !emailLoaded) {
+            setEmail(supplierEmail)
+            setEmailLoaded(true)
           }
         }
       }
@@ -127,10 +131,12 @@ export default function SendPODialog({
   // Reset form when dialog opens
   useEffect(() => {
     if (open) {
-      setEmail(order.vendorEmail || '')
+      // Reset email state - will be populated from API
+      setEmail('')
+      setEmailLoaded(false)
       setOrderItems(order.items || [])
       setOrderData(null)
-      // Fetch full order details
+      // Fetch full order details (including supplier email from phonebook)
       fetchOrderDetails()
     }
   }, [open, order, fetchOrderDetails])
