@@ -778,6 +778,42 @@ export async function POST(
         return NextResponse.json({ success: true, message: 'Payment recorded' })
       }
 
+      case 'update_tracking': {
+        const { trackingNumber: newTrackingNumber } = body
+
+        // Update the order with new tracking number (or remove it if null)
+        await prisma.order.update({
+          where: { id: order.id },
+          data: {
+            trackingNumber: newTrackingNumber || null
+          }
+        })
+
+        // Log activity
+        await prisma.orderActivity.create({
+          data: {
+            orderId: order.id,
+            type: newTrackingNumber ? 'TRACKING_ADDED' : 'TRACKING_REMOVED',
+            message: newTrackingNumber
+              ? `Tracking number added: ${newTrackingNumber}`
+              : 'Tracking number removed',
+            metadata: { trackingNumber: newTrackingNumber, updatedBy: 'Supplier' }
+          }
+        })
+
+        // If adding tracking, register with Ship24
+        if (newTrackingNumber) {
+          try {
+            const { createTracker } = await import('@/lib/ship24')
+            await createTracker(newTrackingNumber)
+          } catch (trackErr) {
+            console.error('Failed to register tracking with Ship24:', trackErr)
+          }
+        }
+
+        return NextResponse.json({ success: true, message: newTrackingNumber ? 'Tracking added' : 'Tracking removed' })
+      }
+
       case 'get_tracking': {
         const { trackingNumber: trackNum } = body
         if (!trackNum) {

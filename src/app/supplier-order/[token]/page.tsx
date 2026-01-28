@@ -189,6 +189,7 @@ export default function SupplierOrderPortal() {
   const [showPaymentDialog, setShowPaymentDialog] = useState(false)
   const [showMessageDialog, setShowMessageDialog] = useState(false)
   const [showUploadDialog, setShowUploadDialog] = useState(false)
+  const [showTrackingDialog, setShowTrackingDialog] = useState(false)
   const [viewingDocument, setViewingDocument] = useState<Document | null>(null)
   const [activeTab, setActiveTab] = useState<'messages' | 'documents' | 'activity'>('messages')
 
@@ -532,25 +533,46 @@ export default function SupplierOrderPortal() {
         </Card>
 
 
-        {order.trackingNumber && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex items-center justify-between">
+        {/* Tracking Banner - show when shipped */}
+        {isShipped && (
+          <div className={`rounded-lg p-4 mb-6 flex items-center justify-between ${
+            order.trackingNumber ? 'bg-blue-50 border border-blue-200' : 'bg-amber-50 border border-amber-200'
+          }`}>
             <div className="flex items-center gap-3">
-              <Truck className="w-5 h-5 text-blue-600" />
+              <Truck className={`w-5 h-5 ${order.trackingNumber ? 'text-blue-600' : 'text-amber-600'}`} />
               <div>
-                <p className="font-medium text-blue-800">Shipment Tracking</p>
-                <p className="text-sm text-blue-600">
-                  {order.shippingCarrier}: <span className="font-mono">{order.trackingNumber}</span>
-                </p>
+                {order.trackingNumber ? (
+                  <>
+                    <p className="font-medium text-blue-800">Shipment Tracking</p>
+                    <p className="text-sm text-blue-600">
+                      {order.shippingCarrier}: <span className="font-mono">{order.trackingNumber}</span>
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-medium text-amber-800">No Tracking Added</p>
+                    <p className="text-sm text-amber-600">
+                      {order.shippingCarrier} • Add tracking when available
+                    </p>
+                  </>
+                )}
               </div>
             </div>
-            {order.trackingUrl && (
-              <Button variant="outline" size="sm" asChild>
-                <a href={order.trackingUrl} target="_blank" rel="noopener noreferrer">
-                  Track Package
-                  <ExternalLink className="w-4 h-4 ml-2" />
-                </a>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setTrackingNumber(order.trackingNumber || '')
+                  setTrackingInfo(null)
+                  setShowTrackingEvents(false)
+                  setShowTrackingDialog(true)
+                }}
+                className={order.trackingNumber ? '' : 'bg-amber-100 border-amber-300 text-amber-800 hover:bg-amber-200'}
+              >
+                {order.trackingNumber ? 'Update Tracking' : 'Add Tracking'}
               </Button>
-            )}
+            </div>
           </div>
         )}
 
@@ -1224,16 +1246,15 @@ export default function SupplierOrderPortal() {
       <Dialog open={showShipDialog} onOpenChange={(open) => {
         setShowShipDialog(open)
         if (!open) {
-          // Reset tracking info when dialog closes
           setTrackingInfo(null)
           setShowTrackingEvents(false)
         }
       }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Mark as Shipped</DialogTitle>
             <DialogDescription>
-              Add shipping and tracking information.
+              Select the carrier. You can add tracking later.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -1261,10 +1282,55 @@ export default function SupplierOrderPortal() {
               </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="trackingNumber">Tracking Number</Label>
+              <Label htmlFor="shipNotes">Notes (optional)</Label>
+              <Textarea
+                id="shipNotes"
+                value={shipNotes}
+                onChange={(e) => setShipNotes(e.target.value)}
+                placeholder="Shipping notes..."
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowShipDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => handleAction('ship', {
+                carrier,
+                notes: shipNotes
+              })}
+              disabled={!carrier.trim() || submitting}
+            >
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Truck className="w-4 h-4 mr-2" />}
+              Mark Shipped
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Tracking Dialog */}
+      <Dialog open={showTrackingDialog} onOpenChange={(open) => {
+        setShowTrackingDialog(open)
+        if (!open) {
+          setTrackingInfo(null)
+          setShowTrackingEvents(false)
+        }
+      }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{order.trackingNumber ? 'Update Tracking' : 'Add Tracking'}</DialogTitle>
+            <DialogDescription>
+              Enter the tracking number to look up shipment status.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="dialogTrackingNumber">Tracking Number</Label>
               <div className="flex gap-2">
                 <Input
-                  id="trackingNumber"
+                  id="dialogTrackingNumber"
                   value={trackingNumber}
                   onChange={(e) => setTrackingNumber(e.target.value)}
                   placeholder="Enter tracking number"
@@ -1291,7 +1357,6 @@ export default function SupplierOrderPortal() {
                   )}
                 </Button>
               </div>
-              <p className="text-xs text-gray-500">Enter tracking number and click search to auto-fill delivery info</p>
             </div>
 
             {/* Tracking Info Display */}
@@ -1360,55 +1425,34 @@ export default function SupplierOrderPortal() {
                 )}
               </div>
             )}
-
-            <div className="space-y-2">
-              <Label htmlFor="trackingUrl">Tracking URL (optional)</Label>
-              <Input
-                id="trackingUrl"
-                value={trackingUrl}
-                onChange={(e) => setTrackingUrl(e.target.value)}
-                placeholder="https://..."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="shipExpectedDelivery">Expected Delivery</Label>
-              <Input
-                id="shipExpectedDelivery"
-                type="date"
-                value={shipExpectedDelivery}
-                onChange={(e) => setShipExpectedDelivery(e.target.value)}
-              />
-              {trackingInfo?.success && trackingInfo.estimatedDelivery && (
-                <p className="text-xs text-green-600">Auto-filled from tracking info</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="shipNotes">Notes</Label>
-              <Textarea
-                id="shipNotes"
-                value={shipNotes}
-                onChange={(e) => setShipNotes(e.target.value)}
-                placeholder="Shipping notes..."
-                rows={2}
-              />
-            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowShipDialog(false)}>
+            {order.trackingNumber && (
+              <Button
+                variant="outline"
+                className="mr-auto text-red-600 hover:text-red-700 hover:bg-red-50"
+                onClick={() => {
+                  handleAction('update_tracking', { trackingNumber: null })
+                  setShowTrackingDialog(false)
+                }}
+                disabled={submitting}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Remove Tracking
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => setShowTrackingDialog(false)}>
               Cancel
             </Button>
             <Button
-              onClick={() => handleAction('ship', {
-                trackingNumber,
-                trackingUrl,
-                carrier,
-                expectedDelivery: shipExpectedDelivery || undefined,
-                notes: shipNotes
-              })}
-              disabled={!carrier.trim() || submitting}
+              onClick={() => {
+                handleAction('update_tracking', { trackingNumber: trackingNumber.trim() || null })
+                setShowTrackingDialog(false)
+              }}
+              disabled={!trackingNumber.trim() || submitting}
             >
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Truck className="w-4 h-4 mr-2" />}
-              Mark Shipped
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
+              Save Tracking
             </Button>
           </DialogFooter>
         </DialogContent>

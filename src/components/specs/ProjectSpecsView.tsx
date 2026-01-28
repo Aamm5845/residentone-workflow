@@ -2211,22 +2211,57 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     
     try {
       const updateData: Record<string, any> = {}
-      updateData[editingField.field] = editValue
+
+      // Round numeric price fields to 2 decimal places
+      let processedValue = editValue
+      if ((editingField.field === 'tradePrice' || editingField.field === 'rrp' || editingField.field === 'unitCost') && editValue) {
+        const numVal = parseFloat(editValue)
+        if (!isNaN(numVal)) {
+          processedValue = numVal.toFixed(2)
+        }
+      }
+      // Round markup/discount to whole numbers
+      if ((editingField.field === 'markupPercent' || editingField.field === 'tradeDiscount') && editValue) {
+        const numVal = parseFloat(editValue)
+        if (!isNaN(numVal)) {
+          processedValue = Math.round(numVal).toString()
+        }
+      }
+
+      updateData[editingField.field] = processedValue
 
       // If markup is being changed and item has a trade price, calculate RRP
       let calculatedRrp: number | null = null
-      if (editingField.field === 'markupPercent' && editValue) {
-        const markup = parseFloat(editValue)
+      let calculatedMarkup: number | null = null
+      if (editingField.field === 'markupPercent' && processedValue) {
+        const markup = parseFloat(processedValue)
         if (!isNaN(markup) && item.tradePrice) {
           calculatedRrp = item.tradePrice * (1 + markup / 100)
           updateData.rrp = calculatedRrp.toFixed(2)
         }
       }
 
+      // If trade price is being changed, auto-calculate based on existing values
+      if (editingField.field === 'tradePrice' && processedValue) {
+        const newTradePrice = parseFloat(processedValue)
+        if (!isNaN(newTradePrice) && newTradePrice > 0) {
+          // If markup exists, calculate RRP from trade + markup
+          if (item.markupPercent) {
+            calculatedRrp = newTradePrice * (1 + item.markupPercent / 100)
+            updateData.rrp = calculatedRrp.toFixed(2)
+          }
+          // If RRP exists but no markup, calculate markup from trade and RRP
+          else if (item.rrp && item.rrp > 0) {
+            calculatedMarkup = ((item.rrp - newTradePrice) / newTradePrice) * 100
+            updateData.markupPercent = Math.round(calculatedMarkup).toString()
+          }
+        }
+      }
+
       // If trade discount is being changed and item has RRP, calculate trade price
       let calculatedTradePrice: number | null = null
-      if (editingField.field === 'tradeDiscount' && editValue) {
-        const discount = parseFloat(editValue)
+      if (editingField.field === 'tradeDiscount' && processedValue) {
+        const discount = parseFloat(processedValue)
         if (!isNaN(discount) && item.rrp) {
           calculatedTradePrice = item.rrp * (1 - discount / 100)
           updateData.tradePrice = calculatedTradePrice.toFixed(2)
@@ -2241,19 +2276,23 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
       if (res.ok) {
         // Update local state - handle numeric fields properly
-        let parsedValue: any = editValue
+        let parsedValue: any = processedValue
         if (editingField.field === 'quantity') {
-          parsedValue = parseInt(editValue) || 1
+          parsedValue = parseInt(processedValue) || 1
         } else if (editingField.field === 'tradePrice' || editingField.field === 'rrp' || editingField.field === 'unitCost' || editingField.field === 'tradeDiscount' || editingField.field === 'markupPercent') {
-          parsedValue = editValue ? parseFloat(editValue) : null
+          parsedValue = processedValue ? parseFloat(processedValue) : null
         }
 
         setSpecs(prev => prev.map(s => {
           if (s.id === editingField.itemId) {
             const updated = { ...s, [editingField.field]: parsedValue }
-            // Also update RRP if markup was changed
+            // Also update RRP if markup was changed or calculated from trade price
             if (calculatedRrp !== null) {
               updated.rrp = calculatedRrp
+            }
+            // Also update markup if calculated from trade price and RRP
+            if (calculatedMarkup !== null) {
+              updated.markupPercent = Math.round(calculatedMarkup)
             }
             // Also update trade price if trade discount was changed
             if (calculatedTradePrice !== null) {

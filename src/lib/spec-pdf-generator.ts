@@ -1,5 +1,3 @@
-'use server'
-
 import { PDFDocument, rgb, StandardFonts, PDFPage, PDFFont, PDFName, PDFArray, PDFString, PDFNumber } from 'pdf-lib'
 
 // 24" x 36" landscape at 72 DPI
