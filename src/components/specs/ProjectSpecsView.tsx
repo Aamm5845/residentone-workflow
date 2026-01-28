@@ -4596,8 +4596,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             </button>
                           </div>
                           
-                          {/* Main Item Row - Using flex with responsive widths */}
-                          <div className="flex items-start w-full px-2 lg:px-4 py-2 pl-10 lg:pl-14 gap-1.5 lg:gap-2">
+                          {/* Main Item Row - Using flex with responsive widths, horizontal scroll on small screens */}
+                          <div className="flex items-start w-full px-2 lg:px-4 py-2 pl-10 lg:pl-14 gap-1.5 lg:gap-2 overflow-x-auto">
                             {/* Image - Responsive width, clickable to open editor or upload */}
                             <div className="flex-shrink-0 w-12 lg:w-16">
                               <HoverCard openDelay={300} closeDelay={100}>
@@ -5697,8 +5697,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               </>
                             )}
                             
-                            {/* Supplier - Flexible to fill space, allows 2 lines */}
-                            <div className="flex-1 min-w-0 h-9 relative" onClick={(e) => e.stopPropagation()}>
+                            {/* Supplier - Flexible to fill space with minimum width, allows 2 lines */}
+                            <div className="flex-1 min-w-[120px] h-9 relative" onClick={(e) => e.stopPropagation()}>
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Supplier</p>
                               <DropdownMenu open={supplierPickerItem === item.id} onOpenChange={(open) => setSupplierPickerItem(open ? item.id : null)}>
                                 <DropdownMenuTrigger asChild>
