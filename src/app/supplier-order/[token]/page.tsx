@@ -587,19 +587,19 @@ export default function SupplierOrderPortal() {
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                           <div>
                             <p className="text-gray-500 mb-1">Card Number</p>
-                            <p className="font-mono font-medium">{order.paymentCardNumber}</p>
+                            <p className="font-medium text-gray-900">{order.paymentCardNumber}</p>
                           </div>
                           <div>
                             <p className="text-gray-500 mb-1">Expiry</p>
-                            <p className="font-medium">{order.paymentCardExpiry || 'N/A'}</p>
+                            <p className="font-medium text-gray-900">{order.paymentCardExpiry || 'N/A'}</p>
                           </div>
                           <div>
                             <p className="text-gray-500 mb-1">CVV</p>
-                            <p className="font-mono font-medium">{order.paymentCardCvv || 'N/A'}</p>
+                            <p className="font-medium text-gray-900">{order.paymentCardCvv || 'N/A'}</p>
                           </div>
                           <div>
                             <p className="text-gray-500 mb-1">Cardholder</p>
-                            <p className="font-medium">{order.paymentCardHolderName || 'N/A'}</p>
+                            <p className="font-medium text-gray-900">{order.paymentCardHolderName || 'N/A'}</p>
                           </div>
                         </div>
                         <div className="mt-3 pt-3 border-t">
@@ -1324,7 +1324,16 @@ export default function SupplierOrderPortal() {
                   type="number"
                   step="0.01"
                   value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  onChange={(e) => {
+                    // Limit to 2 decimal places
+                    const value = e.target.value
+                    const parts = value.split('.')
+                    if (parts[1] && parts[1].length > 2) {
+                      setPaymentAmount(parseFloat(value).toFixed(2))
+                    } else {
+                      setPaymentAmount(value)
+                    }
+                  }}
                   placeholder="0.00"
                   className="pl-7"
                 />

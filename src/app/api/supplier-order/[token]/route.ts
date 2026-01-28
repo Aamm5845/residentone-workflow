@@ -696,9 +696,9 @@ export async function POST(
             : order.notes
         }
 
-        // Set to PROCESSING when payment is recorded (unless already shipped/delivered)
+        // Set to CONFIRMED when payment is recorded (unless already shipped/delivered)
         if (!isShippedOrDelivered) {
-          updateData.status = 'PROCESSING'
+          updateData.status = 'CONFIRMED'
           updateData.confirmedAt = order.confirmedAt || new Date()
           updateData.supplierConfirmedAt = order.supplierConfirmedAt || new Date()
           updateData.supplierConfirmedBy = order.supplierConfirmedBy || chargedBy || order.supplier?.contactName || 'Supplier'
