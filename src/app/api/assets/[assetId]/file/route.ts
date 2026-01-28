@@ -19,6 +19,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ assetId
         id: true,
         orgId: true,
         projectId: true,
+        url: true,
         mimeType: true,
         metadata: true,
       }
@@ -42,15 +43,31 @@ export async function GET(_req: Request, { params }: { params: Promise<{ assetId
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Parse dropboxPath from metadata
+    // Parse metadata
     let dropboxPath: string | null = null
     try {
       const meta = typeof asset.metadata === 'string' ? JSON.parse(asset.metadata) : asset.metadata
       dropboxPath = meta?.dropboxPath || null
     } catch {}
 
+    // Check if asset has a direct URL (Vercel Blob or other CDN)
+    // Vercel Blob URLs start with https://*.public.blob.vercel-storage.com
+    if (asset.url && (
+      asset.url.includes('blob.vercel-storage.com') ||
+      asset.url.includes('vercel-storage.com') ||
+      asset.url.startsWith('https://') && !dropboxPath
+    )) {
+      // Redirect directly to the blob URL
+      return NextResponse.redirect(asset.url, { status: 302 })
+    }
+
+    // Fall back to Dropbox if we have a dropboxPath
     if (!dropboxPath) {
-      return NextResponse.json({ error: 'Missing Dropbox path in asset metadata' }, { status: 400 })
+      // If no dropboxPath and no valid direct URL, try the stored URL anyway
+      if (asset.url) {
+        return NextResponse.redirect(asset.url, { status: 302 })
+      }
+      return NextResponse.json({ error: 'No valid file URL found' }, { status: 400 })
     }
 
     // Get a temporary direct link from Dropbox
