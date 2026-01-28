@@ -1431,14 +1431,15 @@ export default function PhotoGallery({
                     />
                   </div>
                 ) : (
-                  <div 
-                    className="w-full h-full flex items-center justify-center"
-                    style={{ transform: `scale(${zoom / 100}) rotate(${rotation}deg)` }}
-                  >
+                  <div className="w-full h-full flex items-center justify-center overflow-auto">
                     <img
                       src={selectedPhoto.asset.url}
                       alt={selectedPhoto.asset.title}
                       className="max-w-full max-h-full object-contain"
+                      style={{
+                        transform: `scale(${zoom / 100}) rotate(${rotation}deg)`,
+                        transformOrigin: 'center center'
+                      }}
                     />
                   </div>
                 )}
