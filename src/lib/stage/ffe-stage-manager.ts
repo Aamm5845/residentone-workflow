@@ -1,7 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { getRoomFFEConfig } from '@/lib/constants/room-ffe-config'
-import { validateFFECompletion, canForceComplete } from '@/lib/ffe/completion-validator'
-import type { FFEItemStatusSummary } from '@/lib/ffe/completion-validator'
+import { validateFFECompletion } from '@/lib/ffe/completion-validator'
 
 export interface FFEStageStatus {
   stageId: string
@@ -71,8 +70,8 @@ export async function getFFEStageStatus(stageId: string): Promise<FFEStageStatus
       }
     })
 
-    // Validate completion
-    const validation = validateFFECompletion(stage.room.type, itemStatusMap)
+    // Validate completion - pass roomId, not room.type
+    const validation = await validateFFECompletion(stage.roomId)
     
     // Get room configuration for additional info
     const roomConfig = getRoomFFEConfig(stage.room.type)
@@ -86,15 +85,15 @@ export async function getFFEStageStatus(stageId: string): Promise<FFEStageStatus
       roomId: stage.roomId,
       roomType: stage.room.type,
       isComplete: validation.isComplete,
-      isReadyForCompletion: validation.isReadyForCompletion,
+      isReadyForCompletion: validation.isComplete,
       completionPercentage: validation.completionPercentage,
-      itemsTotal: roomConfig?.items.length || 0,
-      itemsCompleted: validation.requiredItems.completed + validation.optionalItems.completed,
-      requiredItemsTotal: validation.requiredItems.total,
-      requiredItemsCompleted: validation.requiredItems.completed,
-      estimatedBudget: validation.estimatedBudget.total,
-      committedBudget: validation.estimatedBudget.committed,
-      longestLeadTime: validation.timeline.longestLeadTime,
+      itemsTotal: validation.totalItems,
+      itemsCompleted: validation.confirmedItems + validation.notNeededItems,
+      requiredItemsTotal: validation.totalItems - validation.notNeededItems,
+      requiredItemsCompleted: validation.confirmedItems,
+      estimatedBudget: 0,
+      committedBudget: 0,
+      longestLeadTime: 0,
       lastUpdated
     }
 
@@ -175,17 +174,41 @@ export async function completeFFEStage(
       }
     })
 
-    const validation = validateFFECompletion(stage.room.type, itemStatusMap)
+    const validation = await validateFFECompletion(stage.roomId)
 
     // Check if completion is allowed
-    if (!forceComplete && !validation.isReadyForCompletion) {
-      const forceCompletionCheck = canForceComplete(validation)
-      
+    if (!forceComplete && !validation.isComplete) {
+      // If force complete is allowed, return warnings. Otherwise return as errors.
+      if (validation.canForceComplete) {
+        return {
+          success: false,
+          validation: {
+            isComplete: validation.isComplete,
+            isReadyForCompletion: validation.isComplete,
+            completionPercentage: validation.completionPercentage,
+            requiredItems: { total: validation.totalItems, completed: validation.confirmedItems },
+            optionalItems: { total: 0, completed: 0 },
+            estimatedBudget: { total: 0, committed: 0 },
+            timeline: { longestLeadTime: 0 }
+          },
+          errors: [],
+          warnings: validation.issues
+        }
+      }
+
       return {
         success: false,
-        validation,
-        errors: forceCompletionCheck.blockers,
-        warnings: forceCompletionCheck.warnings
+        validation: {
+          isComplete: validation.isComplete,
+          isReadyForCompletion: validation.isComplete,
+          completionPercentage: validation.completionPercentage,
+          requiredItems: { total: validation.totalItems, completed: validation.confirmedItems },
+          optionalItems: { total: 0, completed: 0 },
+          estimatedBudget: { total: 0, committed: 0 },
+          timeline: { longestLeadTime: 0 }
+        },
+        errors: validation.issues,
+        warnings: []
       }
     }
 
