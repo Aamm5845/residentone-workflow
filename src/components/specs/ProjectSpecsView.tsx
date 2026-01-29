@@ -1697,8 +1697,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       
       const payload = {
         name: urlGenerateData.productName || 'Product from URL',
-        // Use extracted description, fallback to FFE item name
-        description: urlGenerateData.productDescription || ffeItem.name || '',
+        description: '', // Don't auto-generate descriptions
         brand: urlGenerateData.brand || '',
         sku: urlGenerateData.sku || '',
         // supplierLink = product URL (where we scraped from) - NOT the supplier's website
@@ -1817,8 +1816,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         body: JSON.stringify({
           sectionId,
           name: itemData.name || itemData.productName,
-          // Default description to FFE item name if linked, otherwise use provided description
-          description: selectedFfeItem?.itemName || itemData.description || itemData.productDescription || '',
+          // Don't auto-populate description from AI
+          description: itemData.description || '',
           // Product field (maps to modelNumber) - fill with product name from URL
           productName: itemData.productName || itemData.name || '',
           brand: itemData.brand,
@@ -2733,7 +2732,6 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             body: JSON.stringify({
               productName: result.data.productName,
               brand: result.data.brand,
-              description: result.data.productDescription,
               sku: result.data.sku,
               rrp: result.data.rrp ? parseFloat(result.data.rrp.replace(/[^0-9.]/g, '')) : undefined,
               tradePrice: result.data.tradePrice ? parseFloat(result.data.tradePrice.replace(/[^0-9.]/g, '')) : undefined,
@@ -6440,23 +6438,12 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                         className="h-8 text-sm"
                       />
                     </div>
-                    <div className="col-span-2">
-                      <Label className="text-xs text-gray-500">Description</Label>
-                      <Input
-                        value={urlGenerateData.productDescription || ''}
-                        onChange={(e) => setUrlGenerateData((prev: any) => ({ ...prev, productDescription: e.target.value }))}
-                        className="h-8 text-sm"
-                      />
-                    </div>
                   </div>
                 ) : (
                   <div className="space-y-2">
                     <p className="font-medium text-gray-900">{urlGenerateData.productName || 'Untitled Product'}</p>
                     {urlGenerateData.brand && (
                       <p className="text-sm text-gray-600">Brand: {urlGenerateData.brand}</p>
-                    )}
-                    {urlGenerateData.productDescription && (
-                      <p className="text-sm text-gray-500 line-clamp-2">{urlGenerateData.productDescription}</p>
                     )}
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
                       {urlGenerateData.sku && <span>SKU: {urlGenerateData.sku}</span>}
@@ -6938,14 +6925,6 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                         className="h-8 text-sm"
                       />
                     </div>
-                    <div className="col-span-2">
-                      <Label className="text-xs text-gray-500">Description</Label>
-                      <Input
-                        value={extractedData.productDescription || ''}
-                        onChange={(e) => setExtractedData({ ...extractedData, productDescription: e.target.value })}
-                        className="h-8 text-sm"
-                      />
-                    </div>
                     </div>
                   </div>
                 ) : (
@@ -6953,9 +6932,6 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     <p className="font-medium text-gray-900">{extractedData.productName || 'Untitled Product'}</p>
                     {extractedData.brand && (
                       <p className="text-sm text-gray-600">Brand: {extractedData.brand}</p>
-                    )}
-                    {extractedData.productDescription && (
-                      <p className="text-sm text-gray-500 line-clamp-2">{extractedData.productDescription}</p>
                     )}
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
                       {extractedData.sku && <span>SKU: {extractedData.sku}</span>}
