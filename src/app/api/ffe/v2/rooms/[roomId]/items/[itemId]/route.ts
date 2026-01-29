@@ -269,6 +269,48 @@ export async function DELETE(
       data: { ffeRequirementId: null }
     })
 
+    // If this item is a grouped child, update the parent's customFields
+    const itemCustomFields = (existingItem.customFields as any) || {}
+    if (itemCustomFields.parentId || itemCustomFields.isGroupedItem || itemCustomFields.isLinkedItem) {
+      const parentId = itemCustomFields.parentId
+      if (parentId) {
+        // Find the parent item
+        const parentItem = await prisma.roomFFEItem.findUnique({
+          where: { id: parentId }
+        })
+
+        if (parentItem) {
+          const parentCustomFields = (parentItem.customFields as any) || {}
+          const linkedItems = Array.isArray(parentCustomFields.linkedItems)
+            ? parentCustomFields.linkedItems.filter((name: string) => name !== existingItem.name)
+            : []
+
+          // Check if there are any other children
+          const remainingChildren = await prisma.roomFFEItem.count({
+            where: {
+              id: { not: itemId },
+              OR: [
+                { customFields: { path: ['parentId'], equals: parentId } },
+                { customFields: { path: ['parentName'], equals: parentItem.name } }
+              ]
+            }
+          })
+
+          // Update parent's customFields
+          await prisma.roomFFEItem.update({
+            where: { id: parentId },
+            data: {
+              customFields: {
+                ...parentCustomFields,
+                hasChildren: remainingChildren > 0,
+                linkedItems: linkedItems
+              }
+            }
+          })
+        }
+      }
+    }
+
     // Delete the item (cascades will handle ItemActivity, ItemQuoteRequest, FFESpecLink)
     await prisma.roomFFEItem.delete({
       where: { id: itemId }
