@@ -502,8 +502,12 @@ function drawLineItemsTable(
   })
   xPos += colWidths.qty
 
-  page.drawText('Unit Price', {
-    x: xPos,
+  // Center the Unit Price header in its column
+  const unitPriceHeaderText = 'Unit Price'
+  const unitPriceHeaderWidth = boldFont.widthOfTextAtSize(unitPriceHeaderText, 10)
+  const unitPriceHeaderCenterX = xPos + (colWidths.unit - unitPriceHeaderWidth) / 2
+  page.drawText(unitPriceHeaderText, {
+    x: unitPriceHeaderCenterX,
     y: headerTextY,
     size: 10,
     font: boldFont,
@@ -554,8 +558,8 @@ function drawLineItemsTable(
     })
     xPos += colWidths.item
 
-    // Quantity with unit type
-    const qtyText = item.unitType ? `${item.quantity} ${item.unitType}` : `${item.quantity}`
+    // Quantity (just the number)
+    const qtyText = `${item.quantity}`
     page.drawText(qtyText, {
       x: xPos,
       y: textY,
@@ -565,9 +569,12 @@ function drawLineItemsTable(
     })
     xPos += colWidths.qty
 
-    // Unit price
-    page.drawText(formatCurrency(item.unitPrice, currency), {
-      x: xPos,
+    // Unit price (centered in its column)
+    const unitPriceText = formatCurrency(item.unitPrice, currency)
+    const unitPriceWidth = font.widthOfTextAtSize(unitPriceText, 9)
+    const unitPriceCenterX = xPos + (colWidths.unit - unitPriceWidth) / 2
+    page.drawText(unitPriceText, {
+      x: unitPriceCenterX,
       y: textY,
       size: 9,
       font: font,
