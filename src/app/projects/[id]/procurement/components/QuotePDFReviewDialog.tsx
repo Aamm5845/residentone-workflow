@@ -547,13 +547,14 @@ export default function QuotePDFReviewDialog({
   const selectedRoom = rooms.find(r => r.id === selectedRoomId)
   const sections = selectedRoom?.sections || []
 
-  // Initialize selected matches, approved status, editable values, and resolved extra items from current matchResults
+  // Initialize selected matches, approved status, editable values, resolved extra items, and quantity choices from current matchResults
   useEffect(() => {
     if (aiExtractedData?.matchResults) {
       const initialMatches: Record<number, string> = {}
       const initialApproved = new Set<number>()
       const initialEdited: Record<number, { unitPrice?: number; quantity?: number }> = {}
       const initialResolved: Record<number, { type: 'component' | 'specs', parentItemName?: string }> = {}
+      const initialQtyChoices: Record<number, 'accepted' | 'kept'> = {}
 
       // Track extra item local index
       let extraItemLocalIdx = 0
@@ -573,6 +574,11 @@ export default function QuotePDFReviewDialog({
             quantity: match.extractedItem.quantity
           }
         }
+        // Restore quantity choice from saved metadata
+        const qtyChoice = (match as any).quantityChoice
+        if (qtyChoice) {
+          initialQtyChoices[idx] = qtyChoice.choice === 'accept' ? 'accepted' : 'kept'
+        }
         // Restore resolved status for extra items
         if (match.status === 'extra') {
           const resolved = (match as any).resolved
@@ -590,6 +596,7 @@ export default function QuotePDFReviewDialog({
       setApprovedMatches(initialApproved)
       setEditedValues(initialEdited)
       setResolvedExtraItems(initialResolved)
+      setQuantityChoices(initialQtyChoices)
     }
   }, [aiExtractedData])
 
@@ -1083,25 +1090,25 @@ export default function QuotePDFReviewDialog({
                             </div>
                           )}
 
-                          {/* Change Match / Approve Controls */}
-                          <div className="mt-3 pt-3 border-t flex items-center gap-3">
-                            <Select
-                              value={selectedRfqId || ''}
-                              onValueChange={(value) => handleChangeMatch(globalIdx, value)}
-                            >
-                              <SelectTrigger className="flex-1 h-8 text-sm">
-                                <SelectValue placeholder="Change match..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {rfqLineItems.map(item => (
-                                  <SelectItem key={item.id} value={item.id}>
-                                    {item.itemName}
-                                    {item.sku && ` (${item.sku})`}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            {!isApproved && (
+                          {/* Change Match / Approve Controls - Only show if not approved */}
+                          {!isApproved && (
+                            <div className="mt-3 pt-3 border-t flex items-center gap-3">
+                              <Select
+                                value={selectedRfqId || ''}
+                                onValueChange={(value) => handleChangeMatch(globalIdx, value)}
+                              >
+                                <SelectTrigger className="flex-1 h-8 text-sm">
+                                  <SelectValue placeholder="Change match..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {rfqLineItems.map(item => (
+                                    <SelectItem key={item.id} value={item.id}>
+                                      {item.itemName}
+                                      {item.sku && ` (${item.sku})`}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                               <Button
                                 size="sm"
                                 className="bg-blue-600 hover:bg-blue-700"
@@ -1117,8 +1124,8 @@ export default function QuotePDFReviewDialog({
                                   </>
                                 )}
                               </Button>
-                            )}
-                          </div>
+                            </div>
+                          )}
                         </div>
                       )
                     })}
@@ -1374,9 +1381,10 @@ export default function QuotePDFReviewDialog({
       </DialogContent>
 
       {/* Add to All Specs Dialog */}
-      <Dialog open={showAddItemDialog} onOpenChange={setShowAddItemDialog} modal={false}>
+      <Dialog open={showAddItemDialog} onOpenChange={setShowAddItemDialog}>
         <DialogContent
-          className="max-w-lg z-[60]"
+          className="max-w-lg"
+          style={{ zIndex: 100 }}
           onInteractOutside={(e) => e.preventDefault()}
           onPointerDownOutside={(e) => e.preventDefault()}
         >
@@ -1396,7 +1404,7 @@ export default function QuotePDFReviewDialog({
                   <SelectTrigger>
                     <SelectValue placeholder={loadingRooms ? "Loading..." : "Select room"} />
                   </SelectTrigger>
-                  <SelectContent position="popper" className="z-[100]">
+                  <SelectContent style={{ zIndex: 200 }}>
                     {rooms.map(room => (
                       <SelectItem key={room.id} value={room.id}>{room.name}</SelectItem>
                     ))}
@@ -1409,7 +1417,7 @@ export default function QuotePDFReviewDialog({
                   <SelectTrigger>
                     <SelectValue placeholder="Select section" />
                   </SelectTrigger>
-                  <SelectContent position="popper" className="z-[100]">
+                  <SelectContent style={{ zIndex: 200 }}>
                     {sections.map(section => (
                       <SelectItem key={section.id} value={section.id}>{section.name}</SelectItem>
                     ))}
@@ -1565,9 +1573,10 @@ export default function QuotePDFReviewDialog({
       </Dialog>
 
       {/* Add as Component Dialog */}
-      <Dialog open={showAddComponentDialog} onOpenChange={setShowAddComponentDialog} modal={false}>
+      <Dialog open={showAddComponentDialog} onOpenChange={setShowAddComponentDialog}>
         <DialogContent
-          className="max-w-lg z-[60]"
+          className="max-w-lg"
+          style={{ zIndex: 100 }}
           onInteractOutside={(e) => e.preventDefault()}
           onPointerDownOutside={(e) => e.preventDefault()}
         >
@@ -1591,7 +1600,7 @@ export default function QuotePDFReviewDialog({
                 <SelectTrigger>
                   <SelectValue placeholder="Select parent item..." />
                 </SelectTrigger>
-                <SelectContent position="popper" className="z-[100]">
+                <SelectContent style={{ zIndex: 200 }}>
                   {rfqLineItems.map(item => (
                     <SelectItem key={item.id} value={item.id}>
                       <div className="flex items-center gap-2">
