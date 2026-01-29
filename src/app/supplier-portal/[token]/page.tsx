@@ -1086,8 +1086,7 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                             )}
                           </div>
                           <div className="text-right flex-shrink-0">
-                            <p className="text-2xl font-bold text-emerald-600">{item.quantity}</p>
-                            <p className="text-xs text-gray-400">{item.unitType || 'units'}</p>
+                            <p className="text-sm font-medium text-gray-700">Qty: {item.quantity}</p>
                           </div>
                         </div>
 
@@ -1135,45 +1134,25 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
 
                         {/* Upload mode: show matched price and inputs */}
                         {quoteMode === 'upload' && aiMatchResult && (
-                          <div className="mt-3 flex flex-wrap items-end gap-3 pt-3 border-t border-gray-100">
+                          <div className="mt-3 flex flex-wrap items-center gap-4 pt-3 border-t border-gray-100">
                             {/* Price from AI */}
-                            <div className="min-w-[120px]">
-                              <Label className="text-xs text-gray-500">Unit Price</Label>
-                              <div className="mt-1 h-9 px-3 flex items-center bg-emerald-50 border border-emerald-200 rounded-md">
-                                {matchedPrice ? (
-                                  <span className="font-semibold text-emerald-700">{formatCurrency(matchedPrice)}</span>
-                                ) : (
-                                  <span className="text-amber-600 text-sm">Not found</span>
-                                )}
-                              </div>
-                            </div>
-                            {/* Quantity - Editable */}
-                            <div className="min-w-[90px]">
-                              <Label className="text-xs text-gray-500">
-                                Qty {lineItem?.quantity !== lineItem?.originalQuantity && (
-                                  <span className="text-amber-600">(was {lineItem?.originalQuantity})</span>
-                                )}
-                              </Label>
-                              <Input
-                                type="number"
-                                min="1"
-                                value={lineItem?.quantity || item.quantity}
-                                onChange={(e) => updateLineItem(index, 'quantity', parseInt(e.target.value) || 1)}
-                                className={cn(
-                                  "mt-1 h-9 text-center",
-                                  lineItem?.quantity !== lineItem?.originalQuantity && "border-amber-400 bg-amber-50"
-                                )}
-                              />
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500">Price:</span>
+                              {matchedPrice ? (
+                                <span className="font-medium text-gray-900">{formatCurrency(matchedPrice)}</span>
+                              ) : (
+                                <span className="text-gray-400 text-sm">Not found</span>
+                              )}
                             </div>
                             {/* Lead Time */}
-                            <div className="min-w-[140px]">
-                              <Label className="text-xs text-gray-500">Lead Time</Label>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500">Lead:</span>
                               <select
                                 value={lineItem?.leadTime || ''}
                                 onChange={(e) => updateLineItem(index, 'leadTime', e.target.value)}
                                 className={cn(
-                                  "mt-1 w-full h-9 rounded-md border px-3 text-sm bg-white",
-                                  showValidationErrors && !lineItem?.leadTime ? "border-red-500" : "border-gray-200"
+                                  "h-8 rounded border px-2 text-sm bg-white",
+                                  showValidationErrors && !lineItem?.leadTime ? "border-red-400" : "border-gray-200"
                                 )}
                               >
                                 <option value="">Select...</option>
@@ -1184,36 +1163,12 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                                 <option value="6-8 weeks">6-8 Weeks</option>
                                 <option value="8-12 weeks">8-12 Weeks</option>
                                 <option value="12+ weeks">12+ Weeks</option>
-                                <option value="See notes">See notes</option>
                               </select>
                             </div>
-                            {/* Notes - Collapsed by default */}
-                            {expandedNotes.has(item.id) ? (
-                              <div className="flex-1 min-w-[150px]">
-                                <Label className="text-xs text-gray-500">Notes</Label>
-                                <Input
-                                  value={lineItem?.notes || ''}
-                                  onChange={(e) => updateLineItem(index, 'notes', e.target.value)}
-                                  placeholder="Add any notes for this item..."
-                                  className="mt-1 h-9"
-                                  autoFocus
-                                />
-                              </div>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => toggleNoteExpanded(item.id)}
-                                className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
-                              >
-                                <Plus className="w-3 h-3" />
-                                Add note
-                              </button>
-                            )}
                             {/* Line Total */}
                             {matchedPrice && (
-                              <div className="text-right min-w-[100px]">
-                                <p className="text-xs text-gray-500">Total</p>
-                                <p className="font-bold text-emerald-600">{formatCurrency(matchedPrice * (lineItem?.quantity || item.quantity))}</p>
+                              <div className="ml-auto text-right">
+                                <span className="font-medium text-gray-900">{formatCurrency(matchedPrice * (lineItem?.quantity || item.quantity))}</span>
                               </div>
                             )}
                           </div>
@@ -1221,11 +1176,12 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
 
                         {/* Manual mode: show input fields */}
                         {quoteMode === 'manual' && (
-                          <div className="mt-3 flex flex-wrap items-end gap-3 pt-3 border-t border-gray-100">
-                            <div className="min-w-[120px]">
-                              <Label className="text-xs text-gray-500">Unit Price</Label>
-                              <div className="relative mt-1">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
+                          <div className="mt-3 flex flex-wrap items-center gap-4 pt-3 border-t border-gray-100">
+                            {/* Unit Price */}
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500">Price:</span>
+                              <div className="relative">
+                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
                                 <Input
                                   type="number"
                                   step="0.01"
@@ -1234,38 +1190,21 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                                   onChange={(e) => updateLineItem(index, 'unitPrice', e.target.value)}
                                   placeholder="0.00"
                                   className={cn(
-                                    "pl-7 h-9",
-                                    showValidationErrors && !lineItem?.unitPrice && "border-red-500"
+                                    "pl-6 h-8 w-24",
+                                    showValidationErrors && !lineItem?.unitPrice && "border-red-400"
                                   )}
                                 />
                               </div>
                             </div>
-                            {/* Quantity - Editable */}
-                            <div className="min-w-[90px]">
-                              <Label className="text-xs text-gray-500">
-                                Qty {lineItem?.quantity !== lineItem?.originalQuantity && (
-                                  <span className="text-amber-600">(was {lineItem?.originalQuantity})</span>
-                                )}
-                              </Label>
-                              <Input
-                                type="number"
-                                min="1"
-                                value={lineItem?.quantity || item.quantity}
-                                onChange={(e) => updateLineItem(index, 'quantity', parseInt(e.target.value) || 1)}
-                                className={cn(
-                                  "mt-1 h-9 text-center",
-                                  lineItem?.quantity !== lineItem?.originalQuantity && "border-amber-400 bg-amber-50"
-                                )}
-                              />
-                            </div>
-                            <div className="min-w-[140px]">
-                              <Label className="text-xs text-gray-500">Lead Time</Label>
+                            {/* Lead Time */}
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500">Lead:</span>
                               <select
                                 value={lineItem?.leadTime || ''}
                                 onChange={(e) => updateLineItem(index, 'leadTime', e.target.value)}
                                 className={cn(
-                                  "mt-1 w-full h-9 rounded-md border px-3 text-sm bg-white",
-                                  showValidationErrors && !lineItem?.leadTime ? "border-red-500" : "border-gray-200"
+                                  "h-8 rounded border px-2 text-sm bg-white",
+                                  showValidationErrors && !lineItem?.leadTime ? "border-red-400" : "border-gray-200"
                                 )}
                               >
                                 <option value="">Select...</option>
@@ -1276,35 +1215,12 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                                 <option value="6-8 weeks">6-8 Weeks</option>
                                 <option value="8-12 weeks">8-12 Weeks</option>
                                 <option value="12+ weeks">12+ Weeks</option>
-                                <option value="See notes">See notes</option>
                               </select>
                             </div>
-                            {/* Notes - Collapsed by default */}
-                            {expandedNotes.has(item.id) ? (
-                              <div className="flex-1 min-w-[150px]">
-                                <Label className="text-xs text-gray-500">Notes</Label>
-                                <Input
-                                  value={lineItem?.notes || ''}
-                                  onChange={(e) => updateLineItem(index, 'notes', e.target.value)}
-                                  placeholder="Add any notes for this item..."
-                                  className="mt-1 h-9"
-                                  autoFocus
-                                />
-                              </div>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => toggleNoteExpanded(item.id)}
-                                className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
-                              >
-                                <Plus className="w-3 h-3" />
-                                Add note
-                              </button>
-                            )}
+                            {/* Line Total */}
                             {manualPrice && manualPrice > 0 && (
-                              <div className="text-right min-w-[100px]">
-                                <p className="text-xs text-gray-500">Total</p>
-                                <p className="font-bold text-emerald-600">{formatCurrency(manualPrice * (lineItem?.quantity || item.quantity))}</p>
+                              <div className="ml-auto text-right">
+                                <span className="font-medium text-gray-900">{formatCurrency(manualPrice * (lineItem?.quantity || item.quantity))}</span>
                               </div>
                             )}
                           </div>
