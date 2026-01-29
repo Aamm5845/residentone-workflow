@@ -211,16 +211,12 @@ export async function GET(
       console.log('No savedPaymentMethodId on order:', order.id)
     }
 
-    // Update viewed timestamp and status if first view
+    // Update viewed timestamp if first view
     if (!order.supplierViewedAt) {
-      // Update status to VIEWED if currently ORDERED (sent but not yet viewed)
-      const newStatus = order.status === 'ORDERED' ? 'VIEWED' : order.status
-
       await prisma.order.update({
         where: { id: order.id },
         data: {
-          supplierViewedAt: new Date(),
-          status: newStatus
+          supplierViewedAt: new Date()
         }
       })
 
