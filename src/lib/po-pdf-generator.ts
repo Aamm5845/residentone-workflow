@@ -741,10 +741,7 @@ function drawTotals(
 
     // Deposit Required (if applicable)
     if (po.depositRequired && po.depositRequired > 0) {
-      const depositLabel = po.depositPercent
-        ? `Deposit Required (${po.depositPercent}%):`
-        : 'Deposit Required:'
-      page.drawText(depositLabel, {
+      page.drawText('Deposit Required:', {
         x: rightX,
         y: yPos,
         size: 10,
