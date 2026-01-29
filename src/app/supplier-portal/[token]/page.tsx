@@ -976,36 +976,6 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
               Items Requested
               <Badge variant="secondary" className="ml-2">{data.rfq.lineItems.length}</Badge>
             </CardTitle>
-            {/* Global Lead Time - Apply to all items (only show if more than 1 item) */}
-            {(quoteMode === 'upload' || quoteMode === 'manual') && data.rfq.lineItems.length > 1 && (
-              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm font-medium text-blue-900">Set lead time for all items:</span>
-                  </div>
-                  <select
-                    value={globalLeadTime}
-                    onChange={(e) => applyGlobalLeadTime(e.target.value)}
-                    className="flex-1 sm:max-w-[200px] h-9 rounded-md border border-blue-300 px-3 text-sm bg-white focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select to apply to all...</option>
-                    <option value="In Stock">In Stock</option>
-                    <option value="1-2 weeks">1-2 Weeks</option>
-                    <option value="2-4 weeks">2-4 Weeks</option>
-                    <option value="4-6 weeks">4-6 Weeks</option>
-                    <option value="6-8 weeks">6-8 Weeks</option>
-                    <option value="8-12 weeks">8-12 Weeks</option>
-                    <option value="12+ weeks">12+ Weeks</option>
-                  </select>
-                  {globalLeadTime && (
-                    <span className="text-xs text-blue-600">
-                      ✓ Applied to all {data.rfq.lineItems.length} items
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
           </CardHeader>
           <CardContent className="pt-0">
             <div className="divide-y">
@@ -1132,7 +1102,7 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                           </div>
                         )}
 
-                        {/* Upload mode: show matched price and inputs */}
+                        {/* Upload mode: show matched price only (lead times are in dedicated section below) */}
                         {quoteMode === 'upload' && aiMatchResult && (
                           <div className="mt-3 flex flex-wrap items-center gap-4 pt-3 border-t border-gray-100">
                             {/* Price from AI */}
@@ -1143,27 +1113,6 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                               ) : (
                                 <span className="text-gray-400 text-sm">Not found</span>
                               )}
-                            </div>
-                            {/* Lead Time */}
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-gray-500">Lead:</span>
-                              <select
-                                value={lineItem?.leadTime || ''}
-                                onChange={(e) => updateLineItem(index, 'leadTime', e.target.value)}
-                                className={cn(
-                                  "h-8 rounded border px-2 text-sm bg-white",
-                                  showValidationErrors && !lineItem?.leadTime ? "border-red-400" : "border-gray-200"
-                                )}
-                              >
-                                <option value="">Select...</option>
-                                <option value="In Stock">In Stock</option>
-                                <option value="1-2 weeks">1-2 Weeks</option>
-                                <option value="2-4 weeks">2-4 Weeks</option>
-                                <option value="4-6 weeks">4-6 Weeks</option>
-                                <option value="6-8 weeks">6-8 Weeks</option>
-                                <option value="8-12 weeks">8-12 Weeks</option>
-                                <option value="12+ weeks">12+ Weeks</option>
-                              </select>
                             </div>
                             {/* Line Total */}
                             {matchedPrice && (
@@ -1372,6 +1321,85 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
                     </div>
                   </div>
                 )}
+
+                {/* Lead Times Section - Shows after AI match */}
+                <Card className="shadow-sm">
+                  <CardContent className="pt-5 pb-5">
+                    {/* Apply to All - Header Row */}
+                    <div className="flex items-center justify-between mb-4 pb-3 border-b">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-5 h-5 text-emerald-600" />
+                        <span className="font-medium text-gray-900">Lead Times</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500">Apply to all:</span>
+                        <select
+                          value={globalLeadTime}
+                          onChange={(e) => applyGlobalLeadTime(e.target.value)}
+                          className="h-8 rounded-md border border-gray-200 px-2 text-sm bg-white"
+                        >
+                          <option value="">Select...</option>
+                          <option value="In Stock">In Stock</option>
+                          <option value="1-2 weeks">1-2 Weeks</option>
+                          <option value="2-4 weeks">2-4 Weeks</option>
+                          <option value="4-6 weeks">4-6 Weeks</option>
+                          <option value="6-8 weeks">6-8 Weeks</option>
+                          <option value="8-12 weeks">8-12 Weeks</option>
+                          <option value="12+ weeks">12+ Weeks</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Individual Lead Times */}
+                    <div className="space-y-2">
+                      {data.rfq.lineItems.map((item, index) => {
+                        const lineItem = lineItems[index]
+                        const matchedItem = aiMatchResult.matchResults.find(
+                          (r: AIMatchResult) => r.rfqItem?.id === item.id && (r.status === 'matched' || r.status === 'partial')
+                        )
+                        const matchedPrice = matchedItem?.extractedItem?.unitPrice
+                        const extractedQty = matchedItem?.extractedItem?.quantity
+                        const hasQtyMismatch = extractedQty && extractedQty !== item.quantity
+
+                        return (
+                          <div key={item.id} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <span className="text-sm text-gray-400 w-6">{index + 1}.</span>
+                              <span className="text-sm text-gray-900 truncate">{item.itemName}</span>
+                              {matchedPrice ? (
+                                <span className="text-sm font-medium text-gray-700 flex-shrink-0">{formatCurrency(matchedPrice)}</span>
+                              ) : (
+                                <span className="text-xs text-gray-400 flex-shrink-0">Not found</span>
+                              )}
+                              {hasQtyMismatch && (
+                                <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded flex-shrink-0">
+                                  We requested {item.quantity}, we'll review
+                                </span>
+                              )}
+                            </div>
+                            <select
+                              value={lineItem?.leadTime || ''}
+                              onChange={(e) => updateLineItem(index, 'leadTime', e.target.value)}
+                              className={cn(
+                                "h-8 rounded border px-2 text-sm bg-white ml-3 flex-shrink-0",
+                                showValidationErrors && !lineItem?.leadTime ? "border-red-400" : "border-gray-200"
+                              )}
+                            >
+                              <option value="">Select lead time...</option>
+                              <option value="In Stock">In Stock</option>
+                              <option value="1-2 weeks">1-2 Weeks</option>
+                              <option value="2-4 weeks">2-4 Weeks</option>
+                              <option value="4-6 weeks">4-6 Weeks</option>
+                              <option value="6-8 weeks">6-8 Weeks</option>
+                              <option value="8-12 weeks">8-12 Weeks</option>
+                              <option value="12+ weeks">12+ Weeks</option>
+                            </select>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
 
                 {/* Unmatched/Extra Items from their quote */}
                 {aiMatchResult.matchResults.filter((r: AIMatchResult) => r.status === 'extra').length > 0 && (
@@ -1750,20 +1778,12 @@ export default function SupplierPortalPage({ params }: SupplierPortalPageProps) 
             </Card>
 
             {/* Actions */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-8">
-              <Button
-                variant="outline"
-                onClick={handleSendByEmail}
-                className="w-full sm:w-auto order-2 sm:order-1"
-              >
-                <Mail className="w-4 h-4 mr-2" />
-                Send Quote by Email
-              </Button>
+            <div className="flex justify-end pb-8">
               <Button
                 onClick={handleSubmit}
                 disabled={submitting || aiMatching || (quoteMode === 'upload' && !aiMatchResult)}
                 size="lg"
-                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 order-1 sm:order-2"
+                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700"
               >
                 {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 <Send className="w-4 h-4 mr-2" />
