@@ -36,6 +36,14 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Switch } from '@/components/ui/switch'
 import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -5698,8 +5706,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             {/* Supplier - Flexible to fill space with minimum width, allows 2 lines */}
                             <div className="flex-1 min-w-[80px] lg:min-w-[120px] h-9 relative" onClick={(e) => e.stopPropagation()}>
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Supplier</p>
-                              <DropdownMenu open={supplierPickerItem === item.id} onOpenChange={(open) => setSupplierPickerItem(open ? item.id : null)}>
-                                <DropdownMenuTrigger asChild>
+                              <Popover open={supplierPickerItem === item.id} onOpenChange={(open) => setSupplierPickerItem(open ? item.id : null)}>
+                                <PopoverTrigger asChild>
                                   <button
                                     className="w-full text-left cursor-pointer hover:bg-gray-100 rounded px-1 -mx-1 py-0.5"
                                     onClick={(e) => e.stopPropagation()}
@@ -5739,60 +5747,65 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                       <span className="text-xs text-gray-400">Select Supplier</span>
                                     )}
                                   </button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="start" className="w-64">
-                                  {suppliers.length > 0 && (
-                                    <>
-                                      <div className="px-2 py-1.5 text-xs font-medium text-gray-500">Supplier Phonebook</div>
-                                      {suppliers.map((supplier) => (
-                                        <DropdownMenuItem 
-                                          key={supplier.id}
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            handleSelectSupplier(item.id, supplier)
+                                </PopoverTrigger>
+                                <PopoverContent className="w-64 p-0" align="start" onClick={(e) => e.stopPropagation()}>
+                                  <Command>
+                                    <CommandInput placeholder="Search suppliers..." className="h-9" />
+                                    <CommandList>
+                                      <CommandEmpty>No supplier found.</CommandEmpty>
+                                      {suppliers.length > 0 && (
+                                        <CommandGroup heading="Supplier Phonebook">
+                                          {suppliers.map((supplier) => (
+                                            <CommandItem
+                                              key={supplier.id}
+                                              value={`${supplier.name} ${supplier.contactName || ''}`}
+                                              onSelect={() => {
+                                                handleSelectSupplier(item.id, supplier)
+                                                setSupplierPickerItem(null)
+                                              }}
+                                              className="text-xs cursor-pointer"
+                                            >
+                                              <div className="flex items-center gap-2 w-full">
+                                                <div className="w-7 h-7 rounded bg-emerald-100 flex items-center justify-center text-emerald-700 font-medium text-xs flex-shrink-0">
+                                                  {supplier.name.charAt(0).toUpperCase()}
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                  <p className="font-medium truncate">{supplier.name}</p>
+                                                  {supplier.contactName && (
+                                                    <p className="text-gray-500 text-[10px] truncate">{supplier.contactName}</p>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            </CommandItem>
+                                          ))}
+                                        </CommandGroup>
+                                      )}
+                                      <CommandGroup>
+                                        <CommandItem
+                                          onSelect={() => {
+                                            setSupplierPickerItem(null)
+                                            setAddSupplierModal({ open: true, forItemId: item.id })
                                           }}
-                                          className="text-xs"
+                                          className="text-xs text-blue-600 cursor-pointer"
                                         >
-                                          <div className="flex items-center gap-2 w-full">
-                                            <div className="w-7 h-7 rounded bg-emerald-100 flex items-center justify-center text-emerald-700 font-medium text-xs flex-shrink-0">
-                                              {supplier.name.charAt(0).toUpperCase()}
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                              <p className="font-medium truncate">{supplier.name}</p>
-                                              {supplier.contactName && (
-                                                <p className="text-gray-500 text-[10px] truncate">{supplier.contactName}</p>
-                                              )}
-                                            </div>
-                                          </div>
-                                        </DropdownMenuItem>
-                                      ))}
-                                      <div className="border-t border-gray-100 my-1" />
-                                    </>
-                                  )}
-                                  <DropdownMenuItem 
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      setSupplierPickerItem(null)
-                                      setAddSupplierModal({ open: true, forItemId: item.id })
-                                    }}
-                                    className="text-xs text-blue-600"
-                                  >
-                                    <Plus className="w-3.5 h-3.5 mr-2" />
-                                    Add New Supplier
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem 
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      setSupplierPickerItem(null)
-                                      startEditing(item.id, 'supplierName', item.supplierName || '')
-                                    }}
-                                    className="text-xs text-gray-500"
-                                  >
-                                    <span className="w-3.5 h-3.5 mr-2" />
-                                    Enter Manually
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                                          <Plus className="w-3.5 h-3.5 mr-2" />
+                                          Add New Supplier
+                                        </CommandItem>
+                                        <CommandItem
+                                          onSelect={() => {
+                                            setSupplierPickerItem(null)
+                                            startEditing(item.id, 'supplierName', item.supplierName || '')
+                                          }}
+                                          className="text-xs text-gray-500 cursor-pointer"
+                                        >
+                                          <span className="w-3.5 h-3.5 mr-2" />
+                                          Enter Manually
+                                        </CommandItem>
+                                      </CommandGroup>
+                                    </CommandList>
+                                  </Command>
+                                </PopoverContent>
+                              </Popover>
                               {editingField?.itemId === item.id && editingField?.field === 'supplierName' && (
                                 <Input
                                   value={editValue}
