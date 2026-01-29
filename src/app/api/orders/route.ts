@@ -72,9 +72,12 @@ export async function GET(request: NextRequest) {
       prisma.order.count({ where })
     ])
 
-    // Add payment summary to each order
+    // Add payment summary to each order and convert Decimal fields to numbers
     const ordersWithPayment = orders.map(order => {
       const totalAmount = Number(order.totalAmount) || 0
+      const subtotal = Number(order.subtotal) || 0
+      const taxAmount = Number(order.taxAmount) || 0
+      const shippingCost = Number(order.shippingCost) || 0
       const depositRequired = Number(order.depositRequired) || 0
       const depositPaid = Number(order.depositPaid) || 0
       const supplierPaymentAmount = Number(order.supplierPaymentAmount) || 0
@@ -88,6 +91,12 @@ export async function GET(request: NextRequest) {
 
       return {
         ...order,
+        // Explicitly convert Decimal fields to numbers for JSON serialization
+        totalAmount,
+        subtotal,
+        taxAmount,
+        shippingCost,
+        supplierPaymentAmount,
         paymentSummary: {
           totalAmount,
           depositRequired,
