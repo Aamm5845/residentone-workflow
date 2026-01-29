@@ -219,7 +219,7 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
               {/* Navigation Menu */}
               <div onClick={handleNavClick}>
                 <Suspense fallback={<div className="space-y-1 px-2 py-2"><div className="h-8 bg-gray-100 rounded animate-pulse"></div></div>}>
-                  <NavigationMenu sidebarCollapsed={sidebarCollapsed} />
+                  <NavigationMenu sidebarCollapsed={sidebarCollapsed} userRole={session?.user?.role} />
                 </Suspense>
               </div>
 

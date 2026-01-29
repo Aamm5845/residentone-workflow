@@ -17,18 +17,20 @@ import {
   Sparkles,
   CalendarDays,
   Package,
-  FileText
+  FileText,
+  Building2
 } from 'lucide-react'
 import { changelog, countUnseenUpdates } from '@/data/changelog'
 
 interface NavigationMenuProps {
   sidebarCollapsed: boolean
+  userRole?: string
 }
 
 const fetcher = (url: string) => fetch(url).then(res => res.ok ? res.json() : { unreadCount: 0 })
 const SEEN_UPDATES_KEY = 'studioflow-seen-updates'
 
-export function NavigationMenu({ sidebarCollapsed }: NavigationMenuProps) {
+export function NavigationMenu({ sidebarCollapsed, userRole }: NavigationMenuProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const { getNotificationsByType } = useNotifications({ limit: 50 })
@@ -98,6 +100,8 @@ export function NavigationMenu({ sidebarCollapsed }: NavigationMenuProps) {
     { name: 'Timeline', href: '/timeline', icon: Clock, color: 'text-cyan-600' },
     { name: 'Team', href: '/team', icon: Users, color: 'text-green-600' },
     { name: 'Reports', href: '/reports', icon: BarChart3, color: 'text-purple-600' },
+    // Financials - OWNER only
+    ...(userRole === 'OWNER' ? [{ name: 'Financials', href: '/financials', icon: Building2, color: 'text-green-600' }] : []),
   ]
 
   const updatesNavigation = [

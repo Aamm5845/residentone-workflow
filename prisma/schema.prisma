@@ -93,6 +93,7 @@ model Organization {
   savedAddresses SavedAddress[]
   programaItems  ProgramaItem[] @relation("OrgProgramaItems")
   budgetQuotes   BudgetQuote[]  @relation("BudgetQuoteOrg")
+  plaidItems     PlaidItem[]    @relation("OrgPlaidItems")
 }
 
 // Shipping address phonebook - saved addresses for quick selection
@@ -4198,4 +4199,95 @@ model ProgramaItem {
   @@index([category])
   @@index([linkedRoomFFEItemId])
   @@index([importBatchId])
+}
+
+// ========================================
+// PLAID BANK INTEGRATION MODELS
+// ========================================
+
+model PlaidItem {
+  id              String   @id @default(cuid())
+  orgId           String
+  itemId          String   @unique // Plaid's item_id
+  accessToken     String // Encrypted Plaid access token
+  institutionId   String?
+  institutionName String?
+  status          PlaidItemStatus @default(ACTIVE)
+  consentExpiresAt DateTime?
+  lastSyncedAt    DateTime?
+  error           String? // Last error message if any
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization    Organization  @relation("OrgPlaidItems", fields: [orgId], references: [id], onDelete: Cascade)
+  bankAccounts    BankAccount[]
+
+  @@index([orgId])
+  @@index([itemId])
+}
+
+enum PlaidItemStatus {
+  ACTIVE
+  NEEDS_REAUTH
+  DISCONNECTED
+  ERROR
+}
+
+model BankAccount {
+  id              String   @id @default(cuid())
+  plaidItemId     String
+  accountId       String   @unique // Plaid's account_id
+  name            String
+  officialName    String?
+  type            String // checking, savings, credit, etc.
+  subtype         String?
+  mask            String? // Last 4 digits
+  currentBalance  Decimal? @db.Decimal(12, 2)
+  availableBalance Decimal? @db.Decimal(12, 2)
+  isoCurrencyCode String?  @default("CAD")
+  isActive        Boolean  @default(true)
+  lastBalanceUpdate DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  plaidItem       PlaidItem     @relation(fields: [plaidItemId], references: [id], onDelete: Cascade)
+  transactions    BankTransaction[]
+
+  @@index([plaidItemId])
+  @@index([accountId])
+}
+
+model BankTransaction {
+  id              String   @id @default(cuid())
+  bankAccountId   String
+  transactionId   String   @unique // Plaid's transaction_id
+  amount          Decimal  @db.Decimal(12, 2)
+  date            DateTime
+  name            String
+  merchantName    String?
+  category        String[] // Plaid categories
+  pending         Boolean  @default(false)
+  paymentChannel  String? // online, in store, etc.
+
+  // AI Categorization
+  aiCategory      String?  // AI-assigned category (Groceries, Dining, etc.)
+  aiSubCategory   String?  // More specific sub-category
+  aiCategorizedAt DateTime?
+  isBusinessExpense Boolean @default(false) // For tax purposes
+
+  // Payment matching fields
+  matchedInvoiceId String?
+  matchedAt       DateTime?
+  matchConfidence Float? // 0-1 confidence score
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  bankAccount     BankAccount @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+
+  @@index([bankAccountId])
+  @@index([transactionId])
+  @@index([date])
+  @@index([matchedInvoiceId])
+  @@index([aiCategory])
 }
