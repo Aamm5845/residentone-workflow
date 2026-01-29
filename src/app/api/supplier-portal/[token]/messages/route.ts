@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { sendEmail } from '@/lib/email-service'
 
 export const dynamic = 'force-dynamic'
+
+// Notification email recipient
+const NOTIFICATION_EMAIL = 'shaya@meisnerinteriors.com'
 
 /**
  * GET /api/supplier-portal/[token]/messages
@@ -138,7 +142,38 @@ export async function POST(
       }
     })
 
-    // TODO: Send notification to team members
+    // Send notification email
+    const supplierName = supplierRFQ.supplier?.name || supplierRFQ.vendorName || 'Supplier'
+    const projectName = supplierRFQ.rfq.project.name
+    const rfqNumber = supplierRFQ.rfq.rfqNumber
+
+    try {
+      await sendEmail({
+        to: NOTIFICATION_EMAIL,
+        subject: `New Message from ${supplierName} - RFQ ${rfqNumber}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #1f2937;">New Supplier Message</h2>
+            <p><strong>Project:</strong> ${projectName}</p>
+            <p><strong>RFQ:</strong> ${rfqNumber}</p>
+            <p><strong>Supplier:</strong> ${supplierName}</p>
+            <p><strong>Message:</strong></p>
+            <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin: 16px 0;">
+              <p style="white-space: pre-line; margin: 0;">${content}</p>
+            </div>
+            <p style="margin-top: 24px;">
+              <a href="${process.env.NEXT_PUBLIC_BASE_URL}/projects/${projectId}/procurement?tab=rfqs"
+                 style="background: #7c3aed; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
+                View in Procurement
+              </a>
+            </p>
+          </div>
+        `
+      })
+    } catch (emailErr) {
+      console.error('Failed to send notification email:', emailErr)
+      // Don't fail the request if email fails
+    }
 
     return NextResponse.json({
       success: true,
