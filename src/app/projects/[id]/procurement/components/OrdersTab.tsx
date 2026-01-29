@@ -214,6 +214,7 @@ const orderStatusConfig: Record<string, { label: string; color: string }> = {
   PENDING_PAYMENT: { label: 'Pending Payment', color: 'bg-gray-100 text-gray-600' },
   PAYMENT_RECEIVED: { label: 'Ready to Send', color: 'bg-blue-50 text-blue-700' },
   ORDERED: { label: 'Sent', color: 'bg-purple-50 text-purple-700' },
+  VIEWED: { label: 'Viewed', color: 'bg-violet-50 text-violet-700' },
   CONFIRMED: { label: 'Confirmed', color: 'bg-indigo-50 text-indigo-700' },
   IN_PRODUCTION: { label: 'In Production', color: 'bg-amber-50 text-amber-700' },
   SHIPPED: { label: 'Shipped', color: 'bg-cyan-50 text-cyan-700' },

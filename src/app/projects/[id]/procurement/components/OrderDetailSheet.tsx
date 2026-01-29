@@ -181,6 +181,7 @@ const statusConfig: Record<string, { label: string; color: string }> = {
   DEPOSIT_PAID: { label: 'Deposit Paid', color: 'bg-indigo-50 text-indigo-700' },
   PAID_TO_SUPPLIER: { label: 'Paid to Supplier', color: 'bg-purple-50 text-purple-700' },
   ORDERED: { label: 'Sent', color: 'bg-purple-50 text-purple-700' },
+  VIEWED: { label: 'Viewed', color: 'bg-violet-50 text-violet-700' },
   CONFIRMED: { label: 'Confirmed', color: 'bg-indigo-50 text-indigo-700' },
   IN_PRODUCTION: { label: 'In Production', color: 'bg-amber-50 text-amber-700' },
   SHIPPED: { label: 'Shipped', color: 'bg-cyan-50 text-cyan-700' },
