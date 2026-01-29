@@ -8331,6 +8331,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           thumbnailUrl: item.thumbnailUrl
         }))}
         onLinkCreated={loadShareLinks}
+        preSelectedItemIds={Array.from(selectedItems)}
         editingLink={editingShareLink}
       />
       

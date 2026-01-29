@@ -42,6 +42,8 @@ interface CreateSpecShareLinkDialogProps {
   projectId: string
   items: SpecItem[]
   onLinkCreated: () => void
+  // Pre-selected items from parent (e.g., when user has items selected in the main view)
+  preSelectedItemIds?: string[]
   // For editing existing link
   editingLink?: {
     id: string
@@ -64,6 +66,7 @@ export default function CreateSpecShareLinkDialog({
   projectId,
   items,
   onLinkCreated,
+  preSelectedItemIds,
   editingLink
 }: CreateSpecShareLinkDialogProps) {
   const [saving, setSaving] = useState(false)
@@ -102,8 +105,14 @@ export default function CreateSpecShareLinkDialog({
         setExpiresAt(editingLink.expiresAt ? editingLink.expiresAt.split('T')[0] : '')
       } else {
         setName('')
-        setShareAllSpecs(false)
-        setSelectedItemIds(new Set())
+        // If pre-selected items are provided, use them (don't enable Share All)
+        if (preSelectedItemIds && preSelectedItemIds.length > 0) {
+          setShareAllSpecs(false)
+          setSelectedItemIds(new Set(preSelectedItemIds))
+        } else {
+          setShareAllSpecs(false)
+          setSelectedItemIds(new Set())
+        }
         setShowSupplier(false)
         setShowBrand(true)
         setShowPricing(false)
@@ -121,7 +130,7 @@ export default function CreateSpecShareLinkDialog({
       }, {} as Record<string, boolean>))
       setExpandedCategories(new Set(categories))
     }
-  }, [open, editingLink, items])
+  }, [open, editingLink, items, preSelectedItemIds])
 
   // Group items by category
   const groupedItems = items.reduce((acc, item) => {
@@ -524,7 +533,13 @@ export default function CreateSpecShareLinkDialog({
                   <p className="text-xs text-slate-500">Client can approve items directly from the shared link</p>
                 </div>
               </div>
-              <Switch checked={allowApproval} onCheckedChange={setAllowApproval} />
+              <Switch checked={allowApproval} onCheckedChange={(checked) => {
+                setAllowApproval(checked)
+                // Auto-enable pricing when approval is enabled (client needs to see prices to approve)
+                if (checked) {
+                  setShowPricing(true)
+                }
+              }} />
             </label>
           </div>
 
