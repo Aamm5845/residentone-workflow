@@ -201,12 +201,12 @@ export async function completeFFEStage(
           roomId: stage.roomId,
           roomType: stage.room.type,
           forceComplete,
-          completionPercentage: ffeStatus.completionPercentage,
-          itemsCompleted: ffeStatus.itemsCompleted,
-          requiredItemsCompleted: ffeStatus.requiredItemsCompleted,
+          completionPercentage: validation.completionPercentage,
+          itemsCompleted: validation.confirmedItems + validation.notNeededItems,
+          requiredItemsCompleted: validation.confirmedItems,
           issues: validation.issues.length,
-          estimatedBudget: ffeStatus.estimatedBudget,
-          committedBudget: ffeStatus.committedBudget
+          estimatedBudget: 0,
+          committedBudget: 0
         },
         userId,
         projectId: stage.room.projectId
@@ -227,7 +227,7 @@ export async function completeFFEStage(
     console.error('Error completing FFE stage:', error)
     return {
       success: false,
-      errors: ['Internal error completing FFE stage']
+      errors: [error instanceof Error ? error.message : 'Internal error completing FFE stage']
     }
   }
 }
