@@ -723,62 +723,30 @@ export default function QuotePDFReviewDialog({
         </DialogHeader>
 
         <div className="flex h-[calc(95vh-80px)]">
-          {/* PDF Viewer - 50% width with zoom controls */}
+          {/* PDF Viewer - 50% width */}
           <div className={`${showAnalysisPanel ? 'w-1/2' : 'w-full'} border-r flex flex-col bg-gray-100 transition-all duration-300`}>
-            {/* Zoom Controls */}
-            <div className="flex items-center justify-between p-2 bg-white border-b">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setPdfScale(Math.max(50, pdfScale - 10))}
-                >
-                  <ZoomOut className="w-4 h-4" />
-                </Button>
-                <span className="text-sm text-gray-600 min-w-[60px] text-center">{pdfScale}%</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setPdfScale(Math.min(200, pdfScale + 10))}
-                >
-                  <ZoomIn className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setPdfScale(100)}
-                >
-                  <RotateCw className="w-4 h-4" />
-                </Button>
-              </div>
-              <span className="text-xs text-gray-500">Quote Document</span>
+            {/* Simple Header */}
+            <div className="flex items-center justify-between px-3 py-2 bg-white border-b">
+              <span className="text-sm font-medium text-gray-700">Quote Document</span>
+              <span className="text-xs text-gray-400">Use PDF controls to zoom</span>
             </div>
 
-            {/* PDF/Image Display */}
-            <div className="flex-1 overflow-auto p-4">
+            {/* PDF/Image Display - Full size without thumbnails */}
+            <div className="flex-1 overflow-auto">
               {quoteDocumentUrl ? (
                 // Check if URL contains .pdf (handle query params) or is explicitly a PDF content type
                 quoteDocumentUrl.toLowerCase().includes('.pdf') || quoteDocumentUrl.includes('application/pdf') ? (
-                  <div
-                    className="bg-white rounded-lg shadow-sm w-full h-full min-h-[600px]"
-                  >
-                    <iframe
-                      src={`${quoteDocumentUrl}#toolbar=0&view=FitH`}
-                      className="w-full h-full border-0 min-h-[600px]"
-                      style={{
-                        transform: `scale(${pdfScale / 100})`,
-                        transformOrigin: 'top left',
-                        width: `${10000 / pdfScale}%`,
-                        height: `${10000 / pdfScale}%`
-                      }}
-                      title="Quote PDF"
-                    />
-                  </div>
+                  <iframe
+                    src={`${quoteDocumentUrl}#navpanes=0&scrollbar=1&view=FitH,top`}
+                    className="w-full h-full border-0"
+                    style={{ minHeight: 'calc(95vh - 160px)' }}
+                    title="Quote PDF"
+                  />
                 ) : (
                   <img
                     src={quoteDocumentUrl}
                     alt="Quote document"
-                    className="rounded-lg shadow-sm"
+                    className="rounded-lg shadow-sm mx-auto"
                     style={{ width: `${pdfScale}%`, maxWidth: 'none' }}
                     onError={(e) => {
                       // If image fails, it might be a PDF - try showing in iframe
@@ -786,13 +754,12 @@ export default function QuotePDFReviewDialog({
                       const parent = target.parentElement
                       if (parent) {
                         parent.innerHTML = `
-                          <div class="bg-white rounded-lg shadow-sm w-full h-full min-h-[600px]">
-                            <iframe
-                              src="${quoteDocumentUrl}#toolbar=0&view=FitH"
-                              class="w-full h-full border-0 min-h-[600px]"
-                              title="Quote PDF"
-                            ></iframe>
-                          </div>
+                          <iframe
+                            src="${quoteDocumentUrl}#navpanes=0&scrollbar=1&view=FitH,top"
+                            class="w-full h-full border-0"
+                            style="min-height: calc(95vh - 160px)"
+                            title="Quote PDF"
+                          ></iframe>
                         `
                       }
                     }}
