@@ -950,7 +950,7 @@ export default function RFQDetailView({ rfqId, user, orgId }: RFQDetailViewProps
 
       {/* Send Dialog */}
       <Dialog open={showSendDialog} onOpenChange={setShowSendDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Send RFQ to Suppliers</DialogTitle>
           </DialogHeader>

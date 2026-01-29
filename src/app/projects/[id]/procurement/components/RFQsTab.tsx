@@ -1455,7 +1455,7 @@ export default function RFQsTab({ projectId, searchQuery, refreshKey, onViewQuot
           setSelectedSuppliers([])
         }
       }}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Send RFQ to Suppliers</DialogTitle>
             {sendPreviewRFQ && (
