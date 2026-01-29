@@ -42,35 +42,15 @@ export async function getFFEStageStatus(stageId: string): Promise<FFEStageStatus
       return null
     }
 
-    // Get FFE item statuses for this room
+    // Get FFE item statuses for this room (only need updatedAt for lastUpdated calculation)
     const ffeItemStatuses = await prisma.fFEItemStatus.findMany({
       where: { roomId: stage.roomId },
       select: {
-        itemId: true,
-        status: true,
-        notes: true,
-        supplierLink: true,
-        actualPrice: true,
-        subItemsCompleted: true,
         updatedAt: true
       }
     })
 
-    // Convert to validation format
-    const itemStatusMap: Record<string, FFEItemStatusSummary> = {}
-    ffeItemStatuses.forEach(status => {
-      itemStatusMap[status.itemId] = {
-        itemId: status.itemId,
-        status: status.status as any,
-        hasNotes: !!status.notes,
-        hasSupplierLink: !!status.supplierLink,
-        hasPrice: !!status.actualPrice,
-        actualPrice: status.actualPrice || undefined,
-        subItemsCompleted: status.subItemsCompleted || []
-      }
-    })
-
-    // Validate completion - pass roomId, not room.type
+    // Validate completion
     const validation = await validateFFECompletion(stage.roomId)
     
     // Get room configuration for additional info
@@ -147,33 +127,7 @@ export async function completeFFEStage(
       }
     }
 
-    // Get current FFE status
-    const ffeStatus = await getFFEStageStatus(stageId)
-    if (!ffeStatus) {
-      return {
-        success: false,
-        errors: ['Unable to determine FFE completion status']
-      }
-    }
-
-    // Get detailed validation
-    const ffeItemStatuses = await prisma.fFEItemStatus.findMany({
-      where: { roomId: stage.roomId }
-    })
-
-    const itemStatusMap: Record<string, FFEItemStatusSummary> = {}
-    ffeItemStatuses.forEach(status => {
-      itemStatusMap[status.itemId] = {
-        itemId: status.itemId,
-        status: status.status as any,
-        hasNotes: !!status.notes,
-        hasSupplierLink: !!status.supplierLink,
-        hasPrice: !!status.actualPrice,
-        actualPrice: status.actualPrice || undefined,
-        subItemsCompleted: status.subItemsCompleted || []
-      }
-    })
-
+    // Validate FFE completion
     const validation = await validateFFECompletion(stage.roomId)
 
     // Check if completion is allowed
