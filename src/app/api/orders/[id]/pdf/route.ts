@@ -140,7 +140,7 @@ export async function GET(
 
       // Notes
       notes: order.notes,
-      paymentTerms: 'Net 30'
+      paymentTerms: null
     }
 
     const organizationData = {
