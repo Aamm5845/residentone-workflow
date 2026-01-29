@@ -757,19 +757,20 @@ export default function QuotePDFReviewDialog({
             {/* PDF/Image Display */}
             <div className="flex-1 overflow-auto p-4">
               {quoteDocumentUrl ? (
-                quoteDocumentUrl.endsWith('.pdf') || quoteDocumentUrl.includes('application/pdf') ? (
+                // Check if URL contains .pdf (handle query params) or is explicitly a PDF content type
+                quoteDocumentUrl.toLowerCase().includes('.pdf') || quoteDocumentUrl.includes('application/pdf') ? (
                   <div
-                    className="bg-white rounded-lg shadow-sm"
-                    style={{
-                      width: `${pdfScale}%`,
-                      height: `${pdfScale}%`,
-                      minWidth: '100%',
-                      minHeight: '100%'
-                    }}
+                    className="bg-white rounded-lg shadow-sm w-full h-full min-h-[600px]"
                   >
                     <iframe
                       src={`${quoteDocumentUrl}#toolbar=0&view=FitH`}
-                      className="w-full h-full border-0"
+                      className="w-full h-full border-0 min-h-[600px]"
+                      style={{
+                        transform: `scale(${pdfScale / 100})`,
+                        transformOrigin: 'top left',
+                        width: `${10000 / pdfScale}%`,
+                        height: `${10000 / pdfScale}%`
+                      }}
                       title="Quote PDF"
                     />
                   </div>
@@ -779,6 +780,22 @@ export default function QuotePDFReviewDialog({
                     alt="Quote document"
                     className="rounded-lg shadow-sm"
                     style={{ width: `${pdfScale}%`, maxWidth: 'none' }}
+                    onError={(e) => {
+                      // If image fails, it might be a PDF - try showing in iframe
+                      const target = e.target as HTMLImageElement
+                      const parent = target.parentElement
+                      if (parent) {
+                        parent.innerHTML = `
+                          <div class="bg-white rounded-lg shadow-sm w-full h-full min-h-[600px]">
+                            <iframe
+                              src="${quoteDocumentUrl}#toolbar=0&view=FitH"
+                              class="w-full h-full border-0 min-h-[600px]"
+                              title="Quote PDF"
+                            ></iframe>
+                          </div>
+                        `
+                      }
+                    }}
                   />
                 )
               ) : (
