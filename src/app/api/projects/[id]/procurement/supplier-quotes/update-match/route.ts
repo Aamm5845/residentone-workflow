@@ -164,6 +164,58 @@ export async function POST(
         resolvedAt: new Date().toISOString(),
         resolvedBy: (session.user as any).id
       }
+    } else if (action === 'update_quantity') {
+      // Update quantity choice without full approval
+      const { choice } = body // 'accept' or 'keep'
+      const targetRfqItemId = rfqItemId || matchResults[matchIndex].rfqItem?.id
+
+      // Store the quantity choice
+      matchResults[matchIndex].quantityChoice = {
+        choice,
+        chosenQuantity: quantity,
+        chosenAt: new Date().toISOString(),
+        chosenBy: (session.user as any).id
+      }
+
+      // Update the extractedItem quantity to match the choice
+      if (matchResults[matchIndex].extractedItem) {
+        matchResults[matchIndex].extractedItem.quantity = quantity
+        matchResults[matchIndex].extractedItem.totalPrice =
+          (matchResults[matchIndex].extractedItem.unitPrice || 0) * quantity
+      }
+
+      // Update the spec item and RFQ line item quantity in the database
+      if (targetRfqItemId) {
+        try {
+          // Get the RFQ line item to find the linked spec item
+          const rfqLineItem = await prisma.rFQLineItem.findUnique({
+            where: { id: targetRfqItemId },
+            select: { roomFFEItemId: true, quantity: true }
+          })
+
+          if (rfqLineItem?.roomFFEItemId) {
+            // Update the spec item (RoomFFEItem) quantity
+            await prisma.roomFFEItem.update({
+              where: { id: rfqLineItem.roomFFEItemId },
+              data: { quantity }
+            })
+
+            // Also update the RFQ line item quantity to keep them in sync
+            await prisma.rFQLineItem.update({
+              where: { id: targetRfqItemId },
+              data: { quantity }
+            })
+
+            console.log(`[UpdateMatch] Quantity ${choice}: Updated spec item to qty ${quantity} for RFQ line item ${targetRfqItemId}`)
+          }
+        } catch (updateErr) {
+          console.error('[UpdateMatch] Error updating spec item quantity:', updateErr)
+          return NextResponse.json(
+            { error: 'Failed to update quantity in All Specs' },
+            { status: 500 }
+          )
+        }
+      }
     }
 
     // Update the access log with new match results

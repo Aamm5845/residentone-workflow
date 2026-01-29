@@ -210,6 +210,59 @@ export default function QuotePDFReviewDialog({
   // Track resolved extra items for Add to All Specs
   const [currentAddToSpecsIdx, setCurrentAddToSpecsIdx] = useState<number | null>(null)
 
+  // Track quantity choices for items with qty discrepancy: 'accepted' = use supplier qty, 'kept' = keep our qty
+  const [quantityChoices, setQuantityChoices] = useState<Record<number, 'accepted' | 'kept'>>({})
+  const [updatingQuantity, setUpdatingQuantity] = useState<number | null>(null)
+
+  // Handle quantity choice - accept supplier qty or keep original
+  const handleQuantityChoice = async (matchIndex: number, choice: 'accept' | 'keep', supplierQty: number, originalQty: number, rfqItemId: string) => {
+    setUpdatingQuantity(matchIndex)
+    try {
+      const newQty = choice === 'accept' ? supplierQty : originalQty
+
+      // Update the edited values
+      setEditedValues(prev => ({
+        ...prev,
+        [matchIndex]: {
+          ...prev[matchIndex],
+          quantity: newQty
+        }
+      }))
+
+      // Update All Specs via API
+      const res = await fetch(`/api/projects/${projectId}/procurement/supplier-quotes/update-match`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          quoteId,
+          matchIndex,
+          rfqItemId,
+          action: 'update_quantity',
+          quantity: newQty,
+          choice: choice
+        })
+      })
+
+      if (res.ok) {
+        setQuantityChoices(prev => ({
+          ...prev,
+          [matchIndex]: choice === 'accept' ? 'accepted' : 'kept'
+        }))
+        toast.success(choice === 'accept'
+          ? `Quantity updated to ${supplierQty} in All Specs`
+          : `Keeping original quantity of ${originalQty}`)
+        onMatchUpdated?.()
+      } else {
+        toast.error('Failed to update quantity')
+      }
+    } catch (error) {
+      console.error('Error updating quantity:', error)
+      toast.error('Failed to update quantity')
+    } finally {
+      setUpdatingQuantity(null)
+    }
+  }
+
   // Fetch rooms and sections for the project
   const fetchRooms = useCallback(async () => {
     if (rooms.length > 0) return // Already loaded
@@ -676,7 +729,12 @@ export default function QuotePDFReviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] w-[1400px] max-h-[95vh] p-0">
+      <DialogContent
+        className="max-w-[95vw] w-[1400px] max-h-[95vh] p-0"
+        onInteractOutside={(e) => e.preventDefault()}
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <DialogHeader className="px-6 py-4 border-b">
           <div className="flex items-center justify-between">
             <div>
@@ -959,10 +1017,67 @@ export default function QuotePDFReviewDialog({
                             </div>
                           </div>
 
-                          {/* Discrepancies - simplified */}
-                          {match.discrepancies && match.discrepancies.length > 0 && (
-                            <div className="mt-3 p-2 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800">
-                              {match.discrepancies.map((d, i) => (
+                          {/* Quantity Discrepancy - with action buttons */}
+                          {match.extractedItem?.quantity && match.rfqItem?.quantity &&
+                           match.extractedItem.quantity !== match.rfqItem.quantity && (
+                            <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                              <p className="text-sm text-amber-800 mb-2">
+                                • Quantity: requested {match.rfqItem.quantity}, quoted {match.extractedItem.quantity}
+                              </p>
+                              {quantityChoices[globalIdx] ? (
+                                <div className="flex items-center gap-2 text-sm">
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                  <span className="text-emerald-700">
+                                    {quantityChoices[globalIdx] === 'accepted'
+                                      ? `Updated to qty ${match.extractedItem.quantity}`
+                                      : `Keeping qty ${match.rfqItem.quantity}`}
+                                  </span>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                                    onClick={() => handleQuantityChoice(
+                                      globalIdx,
+                                      'accept',
+                                      match.extractedItem!.quantity!,
+                                      match.rfqItem!.quantity,
+                                      match.rfqItem!.id
+                                    )}
+                                    disabled={updatingQuantity === globalIdx}
+                                  >
+                                    {updatingQuantity === globalIdx ? (
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                    ) : (
+                                      <>Accept qty {match.extractedItem.quantity}</>
+                                    )}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs border-gray-300 text-gray-700 hover:bg-gray-50"
+                                    onClick={() => handleQuantityChoice(
+                                      globalIdx,
+                                      'keep',
+                                      match.extractedItem!.quantity!,
+                                      match.rfqItem!.quantity,
+                                      match.rfqItem!.id
+                                    )}
+                                    disabled={updatingQuantity === globalIdx}
+                                  >
+                                    Keep qty {match.rfqItem.quantity}
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Other Discrepancies (non-quantity) */}
+                          {match.discrepancies && match.discrepancies.filter(d => !d.toLowerCase().includes('quantity')).length > 0 && (
+                            <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800">
+                              {match.discrepancies.filter(d => !d.toLowerCase().includes('quantity')).map((d, i) => (
                                 <p key={i}>• {d}</p>
                               ))}
                             </div>
