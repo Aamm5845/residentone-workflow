@@ -77,6 +77,7 @@ export async function POST(
       matchResults[matchIndex].approvedBy = (session.user as any).id
 
       // If rfqItemId provided, update the match
+      const targetRfqItemId = rfqItemId || matchResults[matchIndex].rfqItem?.id
       if (rfqItemId) {
         matchResults[matchIndex].rfqItem = {
           ...matchResults[matchIndex].rfqItem,
@@ -93,6 +94,36 @@ export async function POST(
           // Recalculate total
           totalPrice: (unitPrice ?? matchResults[matchIndex].extractedItem?.unitPrice ?? 0) *
                       (quantity ?? matchResults[matchIndex].extractedItem?.quantity ?? 1)
+        }
+
+        // If quantity changed and we have a linked RFQ line item, update the spec item quantity
+        if (quantity !== undefined && targetRfqItemId) {
+          try {
+            // Get the RFQ line item to find the linked spec item
+            const rfqLineItem = await prisma.rFQLineItem.findUnique({
+              where: { id: targetRfqItemId },
+              select: { roomFFEItemId: true, quantity: true }
+            })
+
+            if (rfqLineItem?.roomFFEItemId && rfqLineItem.quantity !== quantity) {
+              // Update the spec item (RoomFFEItem) quantity
+              await prisma.roomFFEItem.update({
+                where: { id: rfqLineItem.roomFFEItemId },
+                data: { quantity }
+              })
+
+              // Also update the RFQ line item quantity to keep them in sync
+              await prisma.rFQLineItem.update({
+                where: { id: targetRfqItemId },
+                data: { quantity }
+              })
+
+              console.log(`[UpdateMatch] Updated spec item quantity to ${quantity} for RFQ line item ${targetRfqItemId}`)
+            }
+          } catch (updateErr) {
+            console.error('[UpdateMatch] Error updating spec item quantity:', updateErr)
+            // Don't fail the whole request if quantity update fails
+          }
         }
       }
     } else if (action === 'change' && rfqItemId) {

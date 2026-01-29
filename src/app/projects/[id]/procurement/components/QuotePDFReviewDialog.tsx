@@ -758,18 +758,27 @@ export default function QuotePDFReviewDialog({
             <div className="flex-1 overflow-auto p-4">
               {quoteDocumentUrl ? (
                 quoteDocumentUrl.endsWith('.pdf') || quoteDocumentUrl.includes('application/pdf') ? (
-                  <iframe
-                    src={`${quoteDocumentUrl}#toolbar=0&view=FitH`}
-                    className="w-full h-full bg-white rounded-lg shadow-sm"
-                    style={{ transform: `scale(${pdfScale / 100})`, transformOrigin: 'top left' }}
-                    title="Quote PDF"
-                  />
+                  <div
+                    className="bg-white rounded-lg shadow-sm"
+                    style={{
+                      width: `${pdfScale}%`,
+                      height: `${pdfScale}%`,
+                      minWidth: '100%',
+                      minHeight: '100%'
+                    }}
+                  >
+                    <iframe
+                      src={`${quoteDocumentUrl}#toolbar=0&view=FitH`}
+                      className="w-full h-full border-0"
+                      title="Quote PDF"
+                    />
+                  </div>
                 ) : (
                   <img
                     src={quoteDocumentUrl}
                     alt="Quote document"
-                    className="max-w-full rounded-lg shadow-sm"
-                    style={{ transform: `scale(${pdfScale / 100})`, transformOrigin: 'top left' }}
+                    className="rounded-lg shadow-sm"
+                    style={{ width: `${pdfScale}%`, maxWidth: 'none' }}
                   />
                 )
               ) : (
@@ -1266,7 +1275,7 @@ export default function QuotePDFReviewDialog({
       </DialogContent>
 
       {/* Add to All Specs Dialog */}
-      <Dialog open={showAddItemDialog} onOpenChange={setShowAddItemDialog}>
+      <Dialog open={showAddItemDialog} onOpenChange={setShowAddItemDialog} modal={false}>
         <DialogContent
           className="max-w-lg z-[60]"
           onInteractOutside={(e) => e.preventDefault()}
@@ -1288,7 +1297,7 @@ export default function QuotePDFReviewDialog({
                   <SelectTrigger>
                     <SelectValue placeholder={loadingRooms ? "Loading..." : "Select room"} />
                   </SelectTrigger>
-                  <SelectContent position="popper" className="z-[70]">
+                  <SelectContent position="popper" className="z-[100]">
                     {rooms.map(room => (
                       <SelectItem key={room.id} value={room.id}>{room.name}</SelectItem>
                     ))}
@@ -1301,7 +1310,7 @@ export default function QuotePDFReviewDialog({
                   <SelectTrigger>
                     <SelectValue placeholder="Select section" />
                   </SelectTrigger>
-                  <SelectContent position="popper" className="z-[70]">
+                  <SelectContent position="popper" className="z-[100]">
                     {sections.map(section => (
                       <SelectItem key={section.id} value={section.id}>{section.name}</SelectItem>
                     ))}
@@ -1457,7 +1466,7 @@ export default function QuotePDFReviewDialog({
       </Dialog>
 
       {/* Add as Component Dialog */}
-      <Dialog open={showAddComponentDialog} onOpenChange={setShowAddComponentDialog}>
+      <Dialog open={showAddComponentDialog} onOpenChange={setShowAddComponentDialog} modal={false}>
         <DialogContent
           className="max-w-lg z-[60]"
           onInteractOutside={(e) => e.preventDefault()}
@@ -1483,7 +1492,7 @@ export default function QuotePDFReviewDialog({
                 <SelectTrigger>
                   <SelectValue placeholder="Select parent item..." />
                 </SelectTrigger>
-                <SelectContent position="popper" className="z-[70]">
+                <SelectContent position="popper" className="z-[100]">
                   {rfqLineItems.map(item => (
                     <SelectItem key={item.id} value={item.id}>
                       <div className="flex items-center gap-2">

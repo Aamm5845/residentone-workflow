@@ -1706,7 +1706,17 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
             brand: li.brand,
             imageUrl: li.imageUrl || undefined
           }))}
-          onMatchUpdated={fetchQuotes}
+          onMatchUpdated={async () => {
+            await fetchQuotes()
+            // Re-find the quote in the updated list to refresh dialog data
+            const updatedQuotes = await fetch(`/api/projects/${projectId}/procurement/supplier-quotes${filterStatus ? `?status=${filterStatus}` : ''}`)
+              .then(res => res.json())
+              .then(data => data.quotes || [])
+            const updatedQuote = updatedQuotes.find((q: SupplierQuote) => q.id === pdfReviewQuote?.id)
+            if (updatedQuote) {
+              setPdfReviewQuote(updatedQuote)
+            }
+          }}
         />
       )}
 
