@@ -95,7 +95,7 @@ const COMMON_PHASES = [
   { title: 'Construction Administration', description: 'Site visits and oversight during construction to ensure the design is being implemented correctly.' },
 ]
 
-type Step = 'describe' | 'phases' | 'payment' | 'review'
+type Step = 'describe' | 'features' | 'exclusions' | 'phases' | 'payment' | 'review'
 
 export default function ProposalForm({
   projectId,
@@ -116,8 +116,10 @@ export default function ProposalForm({
   // Step state
   const [currentStep, setCurrentStep] = useState<Step>(isEditing ? 'review' : 'describe')
 
-  // AI Description state (Step 1)
+  // AI Description state (Steps 1-3)
   const [designDescription, setDesignDescription] = useState('')
+  const [whatToInclude, setWhatToInclude] = useState('')
+  const [whatNotToInclude, setWhatNotToInclude] = useState('')
   const [generating, setGenerating] = useState(false)
   const [aiGenerated, setAiGenerated] = useState(false)
 
@@ -276,7 +278,11 @@ export default function ProposalForm({
           projectType,
           clientName: client.name,
           designDescription,
+          whatToInclude,
+          whatNotToInclude,
           billingType,
+          suggestedBudget: totalBudget > 0 ? totalBudget : undefined,
+          hourlyRate: billingType !== 'FIXED' ? hourlyRate : undefined,
         }),
       })
 
@@ -540,19 +546,182 @@ export default function ProposalForm({
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
           <Button
+            onClick={() => setCurrentStep('features')}
+            disabled={!designDescription.trim()}
+            className="bg-purple-600 hover:bg-purple-700"
+          >
+            Next: What's Included
+            <ArrowRight className="w-4 h-4 ml-2" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+
+  // Step 2: What features are included?
+  const renderFeaturesStep = () => (
+    <div className="max-w-2xl mx-auto">
+      <div className="bg-white rounded-2xl border p-8">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+            <CheckCircle className="w-6 h-6 text-blue-600" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">What's included in this project?</h2>
+            <p className="text-gray-500">Tell us about special features or services</p>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          {/* Quick Add Chips */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Quick add common features:
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {[
+                'Working with architect',
+                'Contractor coordination',
+                '3D renderings',
+                'Site visits',
+                'Furniture procurement',
+                'Custom millwork design',
+                'Lighting design',
+                'Material selections',
+                'Project management',
+              ].map((feature) => (
+                <button
+                  key={feature}
+                  type="button"
+                  onClick={() => {
+                    const current = whatToInclude.trim()
+                    if (!current.toLowerCase().includes(feature.toLowerCase())) {
+                      setWhatToInclude(current ? `${current}\n• ${feature}` : `• ${feature}`)
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-full text-sm bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors"
+                >
+                  + {feature}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Features Description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Features & services included
+            </label>
+            <textarea
+              value={whatToInclude}
+              onChange={(e) => setWhatToInclude(e.target.value)}
+              placeholder="• Working with the architect on design coordination&#10;• Multiple design presentations&#10;• Unlimited revisions during design phase&#10;• Site visits during construction"
+              className="w-full h-40 px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center justify-between mt-8 pt-6 border-t">
+          <Button variant="outline" onClick={() => setCurrentStep('describe')}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
+          </Button>
+          <Button
+            onClick={() => setCurrentStep('exclusions')}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            Next: What's NOT Included
+            <ArrowRight className="w-4 h-4 ml-2" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+
+  // Step 3: What's NOT included?
+  const renderExclusionsStep = () => (
+    <div className="max-w-2xl mx-auto">
+      <div className="bg-white rounded-2xl border p-8">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center">
+            <Trash2 className="w-6 h-6 text-amber-600" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">What's NOT included?</h2>
+            <p className="text-gray-500">Be clear about exclusions to avoid misunderstandings</p>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          {/* Quick Add Chips */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Common exclusions:
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {[
+                'Construction work',
+                'Permit applications',
+                'Structural engineering',
+                'MEP engineering',
+                'Product purchasing',
+                'Installation',
+                'Moving services',
+                'Storage',
+                'Window treatments installation',
+              ].map((exclusion) => (
+                <button
+                  key={exclusion}
+                  type="button"
+                  onClick={() => {
+                    const current = whatNotToInclude.trim()
+                    if (!current.toLowerCase().includes(exclusion.toLowerCase())) {
+                      setWhatNotToInclude(current ? `${current}\n• ${exclusion}` : `• ${exclusion}`)
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-full text-sm bg-amber-50 hover:bg-amber-100 text-amber-700 transition-colors"
+                >
+                  + {exclusion}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Exclusions Description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              What's excluded from this proposal
+            </label>
+            <textarea
+              value={whatNotToInclude}
+              onChange={(e) => setWhatNotToInclude(e.target.value)}
+              placeholder="• Construction and renovation work&#10;• Permit applications and approvals&#10;• Product purchasing and delivery&#10;• Installation services"
+              className="w-full h-40 px-4 py-3 border rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+            />
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center justify-between mt-8 pt-6 border-t">
+          <Button variant="outline" onClick={() => setCurrentStep('features')}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
+          </Button>
+          <Button
             onClick={handleGenerateWithAI}
-            disabled={generating || !designDescription.trim()}
+            disabled={generating}
             className="bg-purple-600 hover:bg-purple-700"
           >
             {generating ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Generating...
+                Generating Proposal...
               </>
             ) : (
               <>
                 <Sparkles className="w-4 h-4 mr-2" />
-                Generate with AI
+                Generate Proposal with AI
               </>
             )}
           </Button>
@@ -655,7 +824,7 @@ export default function ProposalForm({
 
         {/* Actions */}
         <div className="flex items-center justify-between mt-8 pt-6 border-t">
-          <Button variant="outline" onClick={() => setCurrentStep('describe')}>
+          <Button variant="outline" onClick={() => setCurrentStep('exclusions')}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
           </Button>
@@ -672,7 +841,7 @@ export default function ProposalForm({
     </div>
   )
 
-  // Step 3: Payment Schedule
+  // Step 4: Payment Schedule
   const renderPaymentStep = () => (
     <div className="max-w-3xl mx-auto">
       <div className="bg-white rounded-2xl border p-8">
@@ -1096,7 +1265,9 @@ export default function ProposalForm({
 
   const steps = [
     { key: 'describe', label: 'Describe', color: 'purple' },
-    { key: 'phases', label: 'Phases', color: 'blue' },
+    { key: 'features', label: 'Included', color: 'blue' },
+    { key: 'exclusions', label: 'Excluded', color: 'amber' },
+    { key: 'phases', label: 'Phases', color: 'sky' },
     { key: 'payment', label: 'Payment', color: 'green' },
     { key: 'review', label: 'Review', color: 'emerald' },
   ]
@@ -1165,6 +1336,8 @@ export default function ProposalForm({
       {/* Content */}
       <div className="max-w-6xl mx-auto px-6 py-8">
         {currentStep === 'describe' && renderDescribeStep()}
+        {currentStep === 'features' && renderFeaturesStep()}
+        {currentStep === 'exclusions' && renderExclusionsStep()}
         {currentStep === 'phases' && renderPhasesStep()}
         {currentStep === 'payment' && renderPaymentStep()}
         {currentStep === 'review' && renderReviewStep()}
