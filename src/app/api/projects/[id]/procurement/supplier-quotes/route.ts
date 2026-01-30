@@ -263,9 +263,8 @@ export async function GET(
           leadTimeDisplay = `${maxLeadTimeWeeks} week${maxLeadTimeWeeks > 1 ? 's' : ''}`
         }
 
-        // Get AI match data from access logs
-        const aiMatchLog = sRFQ.accessLogs?.[0]
-        const aiMatchData = aiMatchLog?.metadata as {
+        // Get AI match data from access logs (reuse aiMatchLog from earlier in loop)
+        const aiMatchData = aiMatchMetadata as {
           matched?: number
           partial?: number
           missing?: number
