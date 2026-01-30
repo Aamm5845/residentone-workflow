@@ -121,6 +121,7 @@ export default function ProposalForm({
   const [whatToInclude, setWhatToInclude] = useState('')
   const [whatNotToInclude, setWhatNotToInclude] = useState('')
   const [generating, setGenerating] = useState(false)
+  const [generatingPhases, setGeneratingPhases] = useState(false)
   const [aiGenerated, setAiGenerated] = useState(false)
 
   // Form state
@@ -214,6 +215,46 @@ export default function ProposalForm({
 
   const removeScopeItem = (index: number) => {
     setScopeItems(scopeItems.filter((_, i) => i !== index))
+  }
+
+  // AI Suggest Phases based on project description
+  const suggestPhasesWithAI = async () => {
+    if (!designDescription.trim()) {
+      alert('Please describe your project first (Step 1)')
+      return
+    }
+
+    setGeneratingPhases(true)
+    try {
+      const response = await fetch('/api/billing/proposals/suggest-phases', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectDescription: designDescription,
+          whatToInclude,
+          whatNotToInclude,
+          projectType,
+        }),
+      })
+
+      if (!response.ok) throw new Error('Failed to suggest phases')
+
+      const data = await response.json()
+
+      // Add suggested phases (just titles, user can fill in descriptions)
+      if (data.suggestedPhases && data.suggestedPhases.length > 0) {
+        const newPhases = data.suggestedPhases.map((title: string) => ({
+          title,
+          description: '', // Empty for user to fill in
+        }))
+        setScopeItems([...scopeItems, ...newPhases])
+      }
+    } catch (error) {
+      console.error('Error suggesting phases:', error)
+      alert('Failed to suggest phases. Please try again.')
+    } finally {
+      setGeneratingPhases(false)
+    }
   }
 
   // Payment schedule management
@@ -661,6 +702,9 @@ export default function ProposalForm({
             </label>
             <div className="flex flex-wrap gap-2">
               {[
+                'Project management',
+                'Site visits',
+                'FFE procurement',
                 'Construction work',
                 'Permit applications',
                 'Structural engineering',
@@ -669,7 +713,6 @@ export default function ProposalForm({
                 'Installation',
                 'Moving services',
                 'Storage',
-                'Window treatments installation',
               ].map((exclusion) => (
                 <button
                   key={exclusion}
@@ -742,9 +785,33 @@ export default function ProposalForm({
           </div>
         )}
 
+        {/* AI Suggest Phases */}
+        <div className="mb-6">
+          <Button
+            onClick={suggestPhasesWithAI}
+            disabled={generatingPhases || !designDescription.trim()}
+            className="bg-purple-600 hover:bg-purple-700 mb-4"
+          >
+            {generatingPhases ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Suggesting phases...
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4 mr-2" />
+                AI Suggest Phases
+              </>
+            )}
+          </Button>
+          {!designDescription.trim() && (
+            <p className="text-xs text-gray-500">Go back to Step 1 to describe your project first</p>
+          )}
+        </div>
+
         {/* Quick Add Common Phases */}
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-3">Quick add common phases:</label>
+          <label className="block text-sm font-medium text-gray-700 mb-3">Or quick add common phases:</label>
           <div className="flex flex-wrap gap-2">
             {COMMON_PHASES.map((phase) => (
               <button
