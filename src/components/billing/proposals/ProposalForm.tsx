@@ -89,11 +89,8 @@ Thank you again for choosing Meisner Interiors. We look forward to partnering wi
 const COMMON_PHASES = [
   { title: 'Floor Plans & Furniture Layout', description: 'Development of detailed floor plans showing furniture placement, traffic flow, and spatial planning. This phase establishes the functional layout of each space.' },
   { title: '3D Renderings', description: 'Creation of photorealistic 3D visualizations to communicate the design intent. Multiple views and angles will be provided for key spaces to help visualize the final result.' },
-  { title: 'Elevations', description: 'Detailed elevation drawings showing wall treatments, cabinetry, built-ins, and vertical design elements for each space.' },
-  { title: 'Electrical Plans', description: 'Electrical layout plans showing lighting placement, switches, outlets, and fixture locations coordinated with the design.' },
-  { title: 'Plumbing Plans', description: 'Plumbing layout drawings for kitchens, bathrooms, and wet areas showing fixture locations and rough-in requirements.' },
-  { title: 'Millwork Drawings', description: 'Detailed millwork and cabinetry drawings with dimensions, materials, and specifications for custom built-ins and woodwork.' },
-  { title: 'FFE Specifications', description: 'Furniture, Fixtures & Equipment selection and specification including product sourcing, pricing, and procurement coordination.' },
+  { title: 'Drawings', description: 'Complete construction drawing package including elevations, electrical plans, plumbing plans, and millwork details. All technical drawings needed for contractor bidding and construction.' },
+  { title: 'FFE', description: 'Furniture, Fixtures & Equipment selection and specification including product sourcing, pricing, and procurement coordination.' },
   { title: 'Construction Administration', description: 'Site visits and oversight during construction to ensure the design is being implemented correctly and answer contractor questions.' },
 ]
 
