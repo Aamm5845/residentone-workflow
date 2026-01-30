@@ -97,20 +97,24 @@ const printStyles = `
     }
     .proposal-page {
       page-break-after: always;
-      page-break-inside: avoid;
       box-shadow: none !important;
       border: none !important;
       margin: 0 !important;
-      height: 10in;
-      overflow: hidden;
+      min-height: auto;
+      overflow: visible;
+    }
+    .proposal-page.scope-page,
+    .proposal-page.terms-page {
+      page-break-inside: auto;
+      height: auto;
     }
     .proposal-page:last-child {
       page-break-after: avoid;
     }
-    .scope-content {
-      page-break-inside: auto;
-    }
     .scope-item {
+      page-break-inside: avoid;
+    }
+    .signature-section {
       page-break-inside: avoid;
     }
     @page {
@@ -121,13 +125,12 @@ const printStyles = `
 
   /* Screen styles for consistent page appearance */
   .proposal-page {
-    min-height: 1000px;
-    max-height: 1000px;
-    overflow: hidden;
+    min-height: 900px;
+    overflow-y: auto;
   }
-  .proposal-page.scope-page {
-    max-height: none;
-    min-height: 1000px;
+  .proposal-page.scope-page,
+  .proposal-page.terms-page {
+    min-height: auto;
   }
 `
 
@@ -522,8 +525,8 @@ export default function ClientProposalPage() {
           </div>
 
           {/* Scope of Work Page */}
-          <div className={`proposal-page bg-white rounded-2xl shadow-lg overflow-hidden mb-6 ${currentPage !== 2 ? 'hidden print:block' : ''}`}>
-            <div className="p-8 sm:p-12 min-h-[800px]">
+          <div className={`proposal-page scope-page bg-white rounded-2xl shadow-lg mb-6 ${currentPage !== 2 ? 'hidden print:block' : ''}`}>
+            <div className="p-8 sm:p-12">
               <PageHeader />
 
               <h2 className="text-lg font-bold text-gray-900 mb-4">Project Overview</h2>
@@ -598,8 +601,8 @@ export default function ClientProposalPage() {
           </div>
 
           {/* Terms Page */}
-          <div className={`proposal-page bg-white rounded-2xl shadow-lg overflow-hidden mb-6 ${currentPage !== 3 ? 'hidden print:block' : ''}`}>
-            <div className="p-8 sm:p-12 min-h-[800px]">
+          <div className={`proposal-page terms-page bg-white rounded-2xl shadow-lg mb-6 ${currentPage !== 3 ? 'hidden print:block' : ''}`}>
+            <div className="p-8 sm:p-12">
               <PageHeader />
 
               <h2 className="text-lg font-bold text-gray-900 mb-4 italic">Additional Services:</h2>
