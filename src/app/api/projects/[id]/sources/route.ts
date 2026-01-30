@@ -7,15 +7,7 @@ import { logActivity, ActivityActions, EntityTypes, getIPAddress, getUserAgent, 
 // Configure route to handle larger file uploads
 export const runtime = 'nodejs'
 export const maxDuration = 60 // seconds
-
-// Configure body parser for larger files (50MB)
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '50mb',
-    },
-  },
-}
+// Note: Body size limit is configured in next.config.ts serverActions.bodySizeLimit
 
 // Source category configurations
 const SOURCE_CATEGORIES = {

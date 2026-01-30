@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { MoreVertical, Edit, UserMinus, RefreshCw, User, Upload, Camera, Key, Shield, Settings } from 'lucide-react'
+import { MoreVertical, Edit, UserMinus, RefreshCw, User, Upload, Camera, Key, Shield, Settings, DollarSign } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import Image from 'next/image'
@@ -27,7 +27,8 @@ function EditMemberDialog({ member, isOpen, onClose, onSave, currentUserRole }: 
     role: member.role || 'DESIGNER',
     image: member.image || null,
     phoneNumber: member.phoneNumber || '',
-    smsNotificationsEnabled: member.smsNotificationsEnabled || false
+    smsNotificationsEnabled: member.smsNotificationsEnabled || false,
+    canSeeBilling: member.canSeeBilling || false
   })
   const [isLoading, setIsLoading] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
@@ -244,6 +245,23 @@ function EditMemberDialog({ member, isOpen, onClose, onSave, currentUserRole }: 
               />
               <label htmlFor="smsEnabled" className="text-sm font-medium text-gray-700">
                 📲 Enable SMS notifications for chat mentions
+              </label>
+            </div>
+          )}
+
+          {/* Billing Permission Toggle - Only visible to OWNER */}
+          {currentUserRole === 'OWNER' && (
+            <div className="flex items-center space-x-2 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+              <input
+                type="checkbox"
+                id="canSeeBilling"
+                checked={formData.canSeeBilling}
+                onChange={(e) => setFormData(prev => ({ ...prev, canSeeBilling: e.target.checked }))}
+                className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded"
+              />
+              <label htmlFor="canSeeBilling" className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-emerald-600" />
+                Can view Billing (Proposals & Invoices)
               </label>
             </div>
           )}

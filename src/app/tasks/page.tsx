@@ -87,7 +87,7 @@ export default async function Tasks({ searchParams }: { searchParams: { status?:
               }
             }
           },
-          sentByUser: {
+          sentBy: {
             select: {
               id: true,
               name: true,
@@ -122,7 +122,7 @@ export default async function Tasks({ searchParams }: { searchParams: { status?:
         clientName: approval.stage.room.project.client.name,
         dueDate: approval.sentToClientAt,
         status: 'PENDING_CLIENT_RESPONSE',
-        assignedUser: approval.sentByUser,
+        assignedUser: approval.sentBy,
         roomId: approval.stage.room.id,
         projectId: approval.stage.room.project.id,
         stageId: approval.stage.id,

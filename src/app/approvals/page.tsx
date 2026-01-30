@@ -61,7 +61,7 @@ export default async function Approvals({ searchParams }: { searchParams: { stat
         assets: {
           orderBy: { createdAt: 'desc' }
         },
-        sentByUser: {
+        sentBy: {
           select: {
             id: true,
             name: true,
@@ -230,7 +230,7 @@ export default async function Approvals({ searchParams }: { searchParams: { stat
                           <div className="flex items-center space-x-4">
                             <div className="flex items-center space-x-1">
                               <Send className="w-4 h-4" />
-                              <span>Sent by {approval.sentByUser?.name}</span>
+                              <span>Sent by {approval.sentBy?.name}</span>
                             </div>
                             <span>•</span>
                             <span>Version {approval.version}</span>

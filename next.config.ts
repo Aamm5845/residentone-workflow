@@ -29,9 +29,7 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  // Note: eslint config moved to eslint.config.mjs in Next.js 16
   // Set build-time environment variables
   env: {
     BUILD_TIME: BUILD_TIME,

@@ -14,6 +14,7 @@ const updateUserSchema = z.object({
   image: z.string().min(1).optional().nullable(), // Accept relative URLs from local storage
   phoneNumber: z.string().optional().nullable(),
   smsNotificationsEnabled: z.boolean().optional(),
+  canSeeBilling: z.boolean().optional(),
 })
 
 interface AuthSession extends Session {
@@ -194,6 +195,13 @@ export async function PUT(
       }
     }
 
+    // Check billing permission change - only OWNER can modify
+    if (validatedData.canSeeBilling !== undefined && session.user.role !== 'OWNER') {
+      return NextResponse.json({
+        error: 'Only owners can modify billing permissions.'
+      }, { status: 403 })
+    }
+
     // Update user
     const updatedUser = await prisma.user.update({
       where: { id: params.userId },
@@ -204,6 +212,7 @@ export async function PUT(
         ...(validatedData.image !== undefined && { image: validatedData.image }),
         ...(validatedData.phoneNumber !== undefined && { phoneNumber: validatedData.phoneNumber ? validatedData.phoneNumber.replace(/\D/g, '') : null }),
         ...(validatedData.smsNotificationsEnabled !== undefined && { smsNotificationsEnabled: validatedData.smsNotificationsEnabled }),
+        ...(validatedData.canSeeBilling !== undefined && session.user.role === 'OWNER' && { canSeeBilling: validatedData.canSeeBilling }),
         updatedAt: new Date(),
       },
       select: {
@@ -214,6 +223,7 @@ export async function PUT(
         image: true,
         phoneNumber: true,
         smsNotificationsEnabled: true,
+        canSeeBilling: true,
         createdAt: true,
         updatedAt: true,
         _count: {

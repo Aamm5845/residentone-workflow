@@ -2,7 +2,7 @@ import { getSession } from '@/auth'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import DashboardLayout from '@/components/layout/dashboard-layout'
-import { ArrowLeft, Plus, Settings, MoreVertical, Users, Calendar, MapPin, Sofa, Bed, UtensilsCrossed, Bath, Briefcase, Gamepad2, DoorOpen, Home, Navigation, FileText, BookOpen, ClipboardList, ShoppingCart, FolderOpen } from 'lucide-react'
+import { ArrowLeft, Plus, Settings, MoreVertical, Users, Calendar, MapPin, Sofa, Bed, UtensilsCrossed, Bath, Briefcase, Gamepad2, DoorOpen, Home, Navigation, FileText, BookOpen, ClipboardList, ShoppingCart, FolderOpen, DollarSign } from 'lucide-react'
 import { getStageIcon } from '@/constants/workflow'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
@@ -23,6 +23,13 @@ export default async function ProjectDetail({ params }: Props) {
 
   // Await params in Next.js 15
   const { id } = await params
+
+  // Check if user can see billing
+  const currentUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { role: true, canSeeBilling: true },
+  })
+  const canSeeBilling = currentUser?.role === 'OWNER' || currentUser?.canSeeBilling === true
 
   // Fetch project with rooms and stages
   let project: any = null
@@ -535,6 +542,32 @@ export default async function ProjectDetail({ params }: Props) {
                               </h3>
                               <p className="text-xs text-purple-600 mt-1">
                                 Manage onsite visits and revisions
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  )}
+
+                  {/* Billing Card - Only visible to users with billing permission */}
+                  {canSeeBilling && (
+                    <Link
+                      href={`/projects/${project.id}/billing`}
+                      className="group block"
+                    >
+                      <div className="bg-gradient-to-br from-emerald-50 to-teal-100 border border-emerald-200 hover:border-emerald-300 rounded-xl p-6 hover:shadow-lg transition-all duration-200 group-hover:scale-[1.02]">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-12 h-12 bg-emerald-500 rounded-lg flex items-center justify-center shadow-sm">
+                              <DollarSign className="w-6 h-6 text-white" />
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-emerald-800 group-hover:text-emerald-900 transition-colors">
+                                Billing
+                              </h3>
+                              <p className="text-xs text-emerald-600 mt-1">
+                                Proposals & Invoices
                               </p>
                             </div>
                           </div>

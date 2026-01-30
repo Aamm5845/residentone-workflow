@@ -16,15 +16,7 @@ import { addWatermark, isWatermarkableImage } from '@/lib/watermark'
 // Configure route to handle larger file uploads
 export const runtime = 'nodejs'
 export const maxDuration = 60 // seconds
-
-// Configure body parser for larger files (10MB)
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb',
-    },
-  },
-}
+// Note: Body size limit is configured in next.config.ts serverActions.bodySizeLimit
 
 // POST /api/renderings/[versionId]/upload - Upload files to a rendering version
 export async function POST(
