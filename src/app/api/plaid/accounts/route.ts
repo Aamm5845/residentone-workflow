@@ -51,6 +51,7 @@ export async function GET() {
         availableBalance: acc.availableBalance,
         currency: acc.isoCurrencyCode,
         lastUpdated: acc.lastBalanceUpdate,
+        isBusiness: acc.isBusiness,
       })),
     }))
 

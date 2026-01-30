@@ -4246,6 +4246,7 @@ model BankAccount {
   availableBalance Decimal? @db.Decimal(12, 2)
   isoCurrencyCode String?  @default("CAD")
   isActive        Boolean  @default(true)
+  isBusiness      Boolean  @default(false) // Mark as business account
   lastBalanceUpdate DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

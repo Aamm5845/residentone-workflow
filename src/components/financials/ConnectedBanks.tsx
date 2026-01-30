@@ -11,7 +11,10 @@ import {
   ChevronDown,
   ChevronRight,
   ArrowDownLeft,
-  ArrowUpRight
+  ArrowUpRight,
+  Briefcase,
+  PiggyBank,
+  TrendingDown
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -39,6 +42,7 @@ interface BankAccount {
   currency: string
   lastUpdated: string | null
   accountId: string
+  isBusiness?: boolean
 }
 
 interface ConnectedBank {
@@ -52,26 +56,45 @@ interface ConnectedBank {
 
 // Bank logo mappings for common Canadian banks
 const BANK_LOGOS: Record<string, string> = {
+  // TD Bank
   'td': 'https://logo.clearbit.com/td.com',
   'td bank': 'https://logo.clearbit.com/td.com',
+  'td canada': 'https://logo.clearbit.com/td.com',
   'td canada trust': 'https://logo.clearbit.com/td.com',
+  // RBC
   'rbc': 'https://logo.clearbit.com/rbc.com',
   'royal bank': 'https://logo.clearbit.com/rbc.com',
   'royal bank of canada': 'https://logo.clearbit.com/rbc.com',
+  // BMO
   'bmo': 'https://logo.clearbit.com/bmo.com',
   'bank of montreal': 'https://logo.clearbit.com/bmo.com',
+  // Scotiabank
   'scotiabank': 'https://logo.clearbit.com/scotiabank.com',
+  'scotia': 'https://logo.clearbit.com/scotiabank.com',
   'bank of nova scotia': 'https://logo.clearbit.com/scotiabank.com',
+  // CIBC
   'cibc': 'https://logo.clearbit.com/cibc.com',
+  // National Bank of Canada (NBC)
+  'nbc': 'https://logo.clearbit.com/nbc.ca',
   'national bank': 'https://logo.clearbit.com/nbc.ca',
+  'national bank of canada': 'https://logo.clearbit.com/nbc.ca',
+  'banque nationale': 'https://logo.clearbit.com/nbc.ca',
+  // Desjardins
   'desjardins': 'https://logo.clearbit.com/desjardins.com',
+  // Online banks
   'tangerine': 'https://logo.clearbit.com/tangerine.ca',
   'simplii': 'https://logo.clearbit.com/simplii.com',
   'eq bank': 'https://logo.clearbit.com/eqbank.ca',
+  // US banks
   'chase': 'https://logo.clearbit.com/chase.com',
   'bank of america': 'https://logo.clearbit.com/bankofamerica.com',
   'wells fargo': 'https://logo.clearbit.com/wellsfargo.com',
   'capital one': 'https://logo.clearbit.com/capitalone.com',
+  // Credit cards
+  'american express': 'https://logo.clearbit.com/americanexpress.com',
+  'amex': 'https://logo.clearbit.com/americanexpress.com',
+  'mastercard': 'https://logo.clearbit.com/mastercard.com',
+  'visa': 'https://logo.clearbit.com/visa.com',
 }
 
 function getBankLogo(institutionName: string | null): string | null {
@@ -268,8 +291,70 @@ export function ConnectedBanks() {
     )
   }
 
+  // Calculate totals
+  const allAccounts = banks.flatMap(b => b.accounts)
+
+  // Total money = all depository accounts (checking, savings)
+  const totalMoney = allAccounts
+    .filter(a => a.type.toLowerCase() === 'depository')
+    .reduce((sum, a) => sum + (a.currentBalance || 0), 0)
+
+  // Total debt = credit cards + loans, BUT exclude line of credit over 100k (mortgages)
+  const totalDebt = allAccounts
+    .filter(a => {
+      const type = a.type.toLowerCase()
+      const subtype = (a.subtype || '').toLowerCase()
+      const balance = Math.abs(a.currentBalance || 0)
+
+      // Exclude line of credit over 100k (likely mortgage)
+      if (subtype.includes('line of credit') && balance > 100000) {
+        return false
+      }
+
+      // Include credit cards and loans
+      return type === 'credit' || type === 'loan'
+    })
+    .reduce((sum, a) => sum + Math.abs(a.currentBalance || 0), 0)
+
+  // Separate business and personal accounts
+  const businessAccounts = allAccounts.filter(a => a.isBusiness)
+  const personalAccounts = allAccounts.filter(a => !a.isBusiness)
+
   return (
     <div>
+      {/* Summary Cards at Top */}
+      <div className="p-4 bg-gradient-to-r from-blue-50 to-green-50 border-b border-gray-200">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <PiggyBank className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Total Money</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {formatCurrency(totalMoney)}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-red-100 rounded-lg">
+                <TrendingDown className="h-5 w-5 text-red-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Total Debt</p>
+                <p className="text-2xl font-bold text-red-600">
+                  {formatCurrency(totalDebt)}
+                </p>
+                <p className="text-xs text-gray-400">Excludes mortgage</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Refresh button */}
       <div className="p-4 border-b border-gray-100 flex justify-end">
         <Button

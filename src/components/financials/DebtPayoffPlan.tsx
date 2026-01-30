@@ -14,7 +14,41 @@ import {
   CreditCard,
   ArrowRight,
   Sparkles,
+  ExternalLink,
 } from 'lucide-react'
+
+// Payment portal links for Canadian banks
+const BANK_PAYMENT_LINKS: Record<string, string> = {
+  'td': 'https://easyweb.td.com',
+  'td bank': 'https://easyweb.td.com',
+  'td canada': 'https://easyweb.td.com',
+  'bmo': 'https://www.bmo.com/onlinebanking',
+  'bank of montreal': 'https://www.bmo.com/onlinebanking',
+  'rbc': 'https://www.rbcroyalbank.com/ways-to-bank/online-banking/',
+  'royal bank': 'https://www.rbcroyalbank.com/ways-to-bank/online-banking/',
+  'scotiabank': 'https://www.scotiabank.com/ca/en/personal/scotia-online.html',
+  'scotia': 'https://www.scotiabank.com/ca/en/personal/scotia-online.html',
+  'cibc': 'https://www.cibc.com/en/personal-banking/ways-to-bank/online-banking.html',
+  'national bank': 'https://www.nbc.ca/personal/accounts/online-banking.html',
+  'nbc': 'https://www.nbc.ca/personal/accounts/online-banking.html',
+  'banque nationale': 'https://www.nbc.ca/personal/accounts/online-banking.html',
+  'desjardins': 'https://www.desjardins.com/ca/personal/accounts-services/ways-to-bank/online-banking/',
+  'tangerine': 'https://www.tangerine.ca/en/ways-to-bank/online-banking',
+  'simplii': 'https://www.simplii.com/en/ways-to-bank/online-banking.html',
+  'amex': 'https://www.americanexpress.com/en-ca/account/login',
+  'american express': 'https://www.americanexpress.com/en-ca/account/login',
+  'capital one': 'https://www.capitalone.ca/sign-in/',
+}
+
+function getPaymentLink(accountName: string): string | null {
+  const normalized = accountName.toLowerCase()
+  for (const [key, url] of Object.entries(BANK_PAYMENT_LINKS)) {
+    if (normalized.includes(key)) {
+      return url
+    }
+  }
+  return null
+}
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -256,39 +290,55 @@ export function DebtPayoffPlan() {
               </p>
             </div>
             <div className="divide-y divide-gray-100">
-              {plan.accounts.map((account, i) => (
-                <div
-                  key={i}
-                  className="p-4 flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-4">
-                    <div
-                      className={cn(
-                        'w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg',
-                        i === 0
-                          ? 'bg-amber-500 text-white'
-                          : 'bg-gray-100 text-gray-500'
+              {plan.accounts.map((account, i) => {
+                const paymentLink = getPaymentLink(account.name)
+                return (
+                  <div
+                    key={i}
+                    className="p-4 flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div
+                        className={cn(
+                          'w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg',
+                          i === 0
+                            ? 'bg-amber-500 text-white'
+                            : 'bg-gray-100 text-gray-500'
+                        )}
+                      >
+                        {account.order}
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{account.name}</p>
+                        <p className="text-sm text-gray-500">
+                          {i === 0 ? 'Pay this one first!' : `After #${i}`}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <p className="font-semibold text-gray-900">
+                          {formatCurrency(account.balance)}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          ~{account.payoffMonth} months
+                        </p>
+                      </div>
+                      {paymentLink && (
+                        <a
+                          href={paymentLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition-colors"
+                        >
+                          Pay Now
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
                       )}
-                    >
-                      {account.order}
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{account.name}</p>
-                      <p className="text-sm text-gray-500">
-                        {i === 0 ? 'Pay this one first!' : `After #${i}`}
-                      </p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-gray-900">
-                      {formatCurrency(account.balance)}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      ~{account.payoffMonth} months
-                    </p>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
 
