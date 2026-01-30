@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { headers } from 'next/headers'
+import { sendProposalSignedNotification } from '@/lib/email'
 
 // Schema for signing the proposal
 const signProposalSchema = z.object({
@@ -322,6 +323,50 @@ export async function POST(
         },
       },
     })
+
+    // Send email notifications to organization owners
+    try {
+      // Get organization owners to notify
+      const orgOwners = await prisma.user.findMany({
+        where: {
+          orgId: proposal.orgId,
+          role: 'OWNER',
+        },
+        select: {
+          email: true,
+          name: true,
+        },
+      })
+
+      // Get project name for the notification
+      const project = await prisma.project.findUnique({
+        where: { id: proposal.projectId },
+        select: { name: true },
+      })
+
+      // Send notification to each owner
+      for (const owner of orgOwners) {
+        if (owner.email) {
+          await sendProposalSignedNotification(
+            owner.email,
+            owner.name || 'Team',
+            {
+              proposalNumber: proposal.proposalNumber,
+              title: proposal.title,
+              clientName: proposal.clientName,
+              clientEmail: proposal.clientEmail || '',
+              totalAmount: Number(proposal.totalAmount),
+              projectName: project?.name,
+              signedByName: validatedData.signedByName,
+              signedAt: updatedProposal.signedAt!,
+            }
+          )
+        }
+      }
+    } catch (emailError) {
+      console.error('Error sending proposal signed notifications:', emailError)
+      // Don't fail the signing if email notifications fail
+    }
 
     // Auto-create deposit invoice if not already created
     if (!proposal.depositInvoiceCreated) {

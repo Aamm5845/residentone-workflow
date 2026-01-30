@@ -852,6 +852,217 @@ export const sendAutoFixNotificationEmail = async (
   })
 }
 
+export const sendProposalSignedNotification = async (
+  recipientEmail: string,
+  recipientName: string,
+  proposal: {
+    proposalNumber: string
+    title: string
+    clientName: string
+    clientEmail: string
+    totalAmount: number
+    projectName?: string
+    signedByName: string
+    signedAt: Date
+  }
+): Promise<boolean> => {
+  const companyName = process.env.COMPANY_NAME || 'StudioFlow'
+  const appUrl = getBaseUrl()
+
+  const formattedAmount = proposal.totalAmount.toLocaleString('en-CA', {
+    style: 'currency',
+    currency: 'CAD'
+  })
+
+  const signedDate = new Date(proposal.signedAt).toLocaleString('en-CA', {
+    dateStyle: 'long',
+    timeStyle: 'short'
+  })
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Proposal Signed - ${companyName}</title>
+        <style>
+          .container { max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif; }
+          .header { background-color: #22c55e; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+          .header h1 { color: white; margin: 0; font-size: 24px; }
+          .content { padding: 30px; background-color: #f8fafc; }
+          .success-icon {
+            width: 60px;
+            height: 60px;
+            background-color: #22c55e;
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .success-icon::after {
+            content: "✓";
+            color: white;
+            font-size: 30px;
+            font-weight: bold;
+          }
+          .message-box {
+            background-color: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+          }
+          .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e2e8f0;
+          }
+          .detail-row:last-child {
+            border-bottom: none;
+          }
+          .detail-label {
+            color: #64748b;
+            font-size: 14px;
+          }
+          .detail-value {
+            color: #1e293b;
+            font-weight: 500;
+          }
+          .amount-highlight {
+            background-color: #dcfce7;
+            border: 1px solid #22c55e;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            margin: 20px 0;
+          }
+          .amount-highlight .label {
+            color: #166534;
+            font-size: 14px;
+            margin-bottom: 5px;
+          }
+          .amount-highlight .value {
+            color: #166534;
+            font-size: 28px;
+            font-weight: bold;
+          }
+          .button {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #1e293b;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            margin: 20px 0;
+            font-weight: 500;
+          }
+          .footer {
+            background-color: #1e293b;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #94a3b8;
+            border-radius: 0 0 8px 8px;
+          }
+        </style>
+      </head>
+      <body style="background-color: #f1f5f9; padding: 20px;">
+        <div class="container">
+          <div class="header">
+            <h1>Proposal Signed!</h1>
+          </div>
+          <div class="content">
+            <div class="success-icon"></div>
+            <h2 style="text-align: center; color: #1e293b; margin-bottom: 10px;">Great News!</h2>
+
+            <div class="message-box">
+              <p style="color: #475569; line-height: 1.6; margin: 0;">
+                Hi ${recipientName},
+              </p>
+              <p style="color: #475569; line-height: 1.6; margin-top: 15px;">
+                A proposal has just been signed by the client!
+              </p>
+
+              <div style="margin-top: 20px;">
+                <div class="detail-row">
+                  <span class="detail-label">Proposal</span>
+                  <span class="detail-value">${proposal.proposalNumber}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Title</span>
+                  <span class="detail-value">${proposal.title}</span>
+                </div>
+                ${proposal.projectName ? `
+                <div class="detail-row">
+                  <span class="detail-label">Project</span>
+                  <span class="detail-value">${proposal.projectName}</span>
+                </div>
+                ` : ''}
+                <div class="detail-row">
+                  <span class="detail-label">Client</span>
+                  <span class="detail-value">${proposal.clientName}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Client Email</span>
+                  <span class="detail-value">${proposal.clientEmail}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Signed By</span>
+                  <span class="detail-value">${proposal.signedByName}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Signed At</span>
+                  <span class="detail-value">${signedDate}</span>
+                </div>
+              </div>
+
+              <div class="amount-highlight">
+                <div class="label">Contract Value</div>
+                <div class="value">${formattedAmount}</div>
+              </div>
+            </div>
+
+            <div style="text-align: center;">
+              <a href="${appUrl}/dashboard" class="button">View Dashboard</a>
+            </div>
+          </div>
+          <div class="footer">
+            <p>This is an automated notification from ${companyName}</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `
+
+  const text = `
+    Proposal Signed! - ${companyName}
+
+    Hi ${recipientName},
+
+    Great news! A proposal has just been signed by the client.
+
+    Proposal: ${proposal.proposalNumber}
+    Title: ${proposal.title}
+    ${proposal.projectName ? `Project: ${proposal.projectName}` : ''}
+    Client: ${proposal.clientName} (${proposal.clientEmail})
+    Signed By: ${proposal.signedByName}
+    Signed At: ${signedDate}
+
+    Contract Value: ${formattedAmount}
+
+    View your dashboard at: ${appUrl}/dashboard
+  `
+
+  return sendEmail({
+    to: recipientEmail,
+    subject: `Proposal Signed: ${proposal.proposalNumber} - ${proposal.clientName} (${formattedAmount})`,
+    html,
+    text
+  })
+}
+
 export const sendWelcomeEmail = async (email: string, name: string): Promise<boolean> => {
   const companyName = process.env.COMPANY_NAME || 'StudioFlow'
   const appUrl = getBaseUrl()
