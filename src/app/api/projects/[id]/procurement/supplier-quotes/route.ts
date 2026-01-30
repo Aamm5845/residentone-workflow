@@ -1029,14 +1029,6 @@ export async function DELETE(
       return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
     }
 
-    // Only allow deleting REJECTED quotes
-    if (quote.status !== 'REJECTED') {
-      return NextResponse.json(
-        { error: 'Only declined quotes can be deleted' },
-        { status: 400 }
-      )
-    }
-
     // Delete associated line items first
     await prisma.supplierQuoteLineItem.deleteMany({
       where: { supplierQuoteId: quoteId }
