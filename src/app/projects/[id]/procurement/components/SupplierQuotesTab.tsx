@@ -865,18 +865,17 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                           </Button>
                         </>
                       )}
-                      {/* Delete button for rejected quotes */}
-                      {quote.status === 'REJECTED' && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => handleDeleteQuote(quote.id)}
-                          disabled={deletingQuoteId === quote.id}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      )}
+                      {/* Delete button */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                        onClick={() => handleDeleteQuote(quote.id)}
+                        disabled={deletingQuoteId === quote.id}
+                        title="Delete quote"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
