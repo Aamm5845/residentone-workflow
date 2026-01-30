@@ -870,6 +870,35 @@ export default function ProposalForm({
                 Hours will be tracked and billed separately. Client will receive invoices for actual hours worked.
               </p>
             </div>
+
+            {/* Retainer for Hourly */}
+            <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
+              <label className="block text-sm font-medium text-blue-800 mb-3">Retainer (Optional)</label>
+              <div className="flex items-center gap-3">
+                <span className="text-2xl text-blue-600">$</span>
+                <Input
+                  type="number"
+                  value={depositAmount || ''}
+                  onChange={(e) => {
+                    const amount = parseFloat(e.target.value) || 0
+                    if (paymentSchedule.length === 0) {
+                      setPaymentSchedule([{ title: 'Retainer to begin', amount, percent: null, dueOn: 'signing' }])
+                    } else {
+                      const newSchedule = [...paymentSchedule]
+                      newSchedule[0] = { ...newSchedule[0], amount, title: newSchedule[0].title || 'Retainer to begin' }
+                      setPaymentSchedule(newSchedule)
+                    }
+                  }}
+                  placeholder="0"
+                  className="w-40 text-2xl font-bold border-blue-300"
+                  min="0"
+                  step="100"
+                />
+              </div>
+              <p className="text-sm text-blue-600 mt-3">
+                A retainer is collected upfront before work begins. This is applied against future invoices.
+              </p>
+            </div>
           </div>
         ) : (
           /* Fixed / Hybrid */
@@ -1113,34 +1142,54 @@ export default function ProposalForm({
         </div>
 
         {/* Payment Summary */}
-        {billingType !== 'HOURLY' && (
-          <div className="bg-white rounded-xl border p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Payment Schedule</h2>
-              <Button variant="outline" size="sm" onClick={() => setCurrentStep('payment')}>
-                Edit Payments
-              </Button>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between font-medium pb-2 border-b">
-                <span>Total Budget Fee</span>
-                <span>{formatCurrency(totalBudget)}</span>
-              </div>
-              {paymentSchedule.map((item, index) => (
-                <div key={index} className="flex justify-between text-sm py-1">
-                  <span className="text-gray-600">{item.title}</span>
-                  <span>{formatCurrency(item.amount)}</span>
-                </div>
-              ))}
-              {billingType === 'HYBRID' && (
-                <div className="flex justify-between text-sm py-1 text-amber-700 border-t mt-2 pt-2">
-                  <span>Additional work rate</span>
-                  <span>{formatCurrency(hourlyRate)}/hour</span>
-                </div>
-              )}
-            </div>
+        <div className="bg-white rounded-xl border p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">
+              {billingType === 'HOURLY' ? 'Billing Details' : 'Payment Schedule'}
+            </h2>
+            <Button variant="outline" size="sm" onClick={() => setCurrentStep('payment')}>
+              Edit
+            </Button>
           </div>
-        )}
+          <div className="space-y-2">
+            {billingType === 'HOURLY' ? (
+              <>
+                <div className="flex justify-between font-medium pb-2 border-b">
+                  <span>Hourly Rate</span>
+                  <span>{formatCurrency(hourlyRate)}/hr</span>
+                </div>
+                {depositAmount > 0 && (
+                  <div className="flex justify-between text-sm py-1 text-blue-600">
+                    <span>Retainer (on signing)</span>
+                    <span>{formatCurrency(depositAmount)}</span>
+                  </div>
+                )}
+                <p className="text-xs text-gray-500 pt-2">
+                  Work will be billed based on actual hours. Retainer applied to future invoices.
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="flex justify-between font-medium pb-2 border-b">
+                  <span>Total Project Fee</span>
+                  <span>{formatCurrency(totalBudget)}</span>
+                </div>
+                {paymentSchedule.map((item, index) => (
+                  <div key={index} className="flex justify-between text-sm py-1">
+                    <span className="text-gray-600">{item.title}</span>
+                    <span>{formatCurrency(item.amount)}</span>
+                  </div>
+                ))}
+                {billingType === 'HYBRID' && (
+                  <div className="flex justify-between text-sm py-1 text-amber-700 border-t mt-2 pt-2">
+                    <span>Additional work rate</span>
+                    <span>{formatCurrency(hourlyRate)}/hour</span>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
 
         {/* Terms */}
         <div className="bg-white rounded-xl border p-6">
@@ -1168,8 +1217,17 @@ export default function ProposalForm({
                 <p className="text-sm text-gray-500">Hourly Rate</p>
                 <p className="text-3xl font-bold text-emerald-600">{formatCurrency(hourlyRate)}/hr</p>
               </div>
+              {depositAmount > 0 && (
+                <div className="pt-3 border-t">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Retainer</span>
+                    <span className="font-medium text-blue-600">{formatCurrency(depositAmount)}</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Due on signing, applied to invoices</p>
+                </div>
+              )}
               <p className="text-xs text-gray-500 text-center">
-                Billed based on actual hours worked
+                Work billed based on actual hours
               </p>
             </div>
           ) : (

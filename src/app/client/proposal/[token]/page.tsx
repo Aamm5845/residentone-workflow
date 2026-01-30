@@ -97,17 +97,37 @@ const printStyles = `
     }
     .proposal-page {
       page-break-after: always;
+      page-break-inside: avoid;
       box-shadow: none !important;
       border: none !important;
       margin: 0 !important;
+      height: 10in;
+      overflow: hidden;
     }
     .proposal-page:last-child {
       page-break-after: avoid;
+    }
+    .scope-content {
+      page-break-inside: auto;
+    }
+    .scope-item {
+      page-break-inside: avoid;
     }
     @page {
       size: letter;
       margin: 0.5in;
     }
+  }
+
+  /* Screen styles for consistent page appearance */
+  .proposal-page {
+    min-height: 1000px;
+    max-height: 1000px;
+    overflow: hidden;
+  }
+  .proposal-page.scope-page {
+    max-height: none;
+    min-height: 1000px;
   }
 `
 
@@ -519,25 +539,49 @@ export default function ClientProposalPage() {
                 ))}
               </div>
 
-              <h2 className="text-lg font-bold text-gray-900 mb-4 italic">Payment Schedule:</h2>
+              <h2 className="text-lg font-bold text-gray-900 mb-4 italic">
+                {proposal.billingType === 'HOURLY' ? 'Billing Details:' : 'Payment Schedule:'}
+              </h2>
               <div className="space-y-2 mb-4">
-                <div className="flex justify-between items-center border-b pb-2">
-                  <span className="text-gray-700">Total Budget Fee</span>
-                  <span className="font-bold text-gray-900 border-b-2 border-dotted border-gray-300 flex-1 mx-4"></span>
-                  <span className="font-bold text-gray-900">{formatCurrency(proposal.subtotal)}</span>
-                </div>
-                {paymentSchedule.map((item, index) => (
-                  <div key={index} className="flex justify-between items-center">
-                    <span className="text-gray-700">{item.title}</span>
-                    <span className="border-b-2 border-dotted border-gray-300 flex-1 mx-4"></span>
-                    <span className="text-gray-900">{formatCurrency(item.amount)}</span>
-                  </div>
-                ))}
+                {proposal.billingType === 'HOURLY' ? (
+                  <>
+                    <div className="flex justify-between items-center border-b pb-2">
+                      <span className="text-gray-700">Hourly Rate</span>
+                      <span className="font-bold text-gray-900 border-b-2 border-dotted border-gray-300 flex-1 mx-4"></span>
+                      <span className="font-bold text-gray-900">{formatCurrency(proposal.hourlyRate || 0)}/hour</span>
+                    </div>
+                    {proposal.depositAmount && proposal.depositAmount > 0 && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-700">Retainer (on signing)</span>
+                        <span className="border-b-2 border-dotted border-gray-300 flex-1 mx-4"></span>
+                        <span className="text-gray-900">{formatCurrency(proposal.depositAmount)}</span>
+                      </div>
+                    )}
+                    <p className="text-sm text-gray-600 mt-2 italic">
+                      Work will be billed based on actual hours worked. Retainer will be applied to future invoices.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-between items-center border-b pb-2">
+                      <span className="text-gray-700">Total Project Fee</span>
+                      <span className="font-bold text-gray-900 border-b-2 border-dotted border-gray-300 flex-1 mx-4"></span>
+                      <span className="font-bold text-gray-900">{formatCurrency(proposal.subtotal)}</span>
+                    </div>
+                    {paymentSchedule.map((item, index) => (
+                      <div key={index} className="flex justify-between items-center">
+                        <span className="text-gray-700">{item.title}</span>
+                        <span className="border-b-2 border-dotted border-gray-300 flex-1 mx-4"></span>
+                        <span className="text-gray-900">{formatCurrency(item.amount)}</span>
+                      </div>
+                    ))}
+                  </>
+                )}
               </div>
 
-              {proposal.hourlyRate && proposal.hourlyRate > 0 && (
+              {proposal.billingType === 'HYBRID' && proposal.hourlyRate && proposal.hourlyRate > 0 && (
                 <div className="flex justify-between items-center pt-4 border-t">
-                  <span className="text-gray-700">Additional work will be billed separately</span>
+                  <span className="text-gray-700">Additional work beyond scope</span>
                   <span className="border-b-2 border-dotted border-gray-300 flex-1 mx-4"></span>
                   <span className="text-gray-900">{formatCurrency(proposal.hourlyRate)}/hour</span>
                 </div>
