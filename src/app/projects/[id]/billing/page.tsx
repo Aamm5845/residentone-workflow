@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { notFound, redirect } from 'next/navigation'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import DashboardLayout from '@/components/layout/dashboard-layout'
 import BillingPageClient from './BillingPageClient'
 
 interface PageProps {
@@ -58,26 +59,28 @@ export default async function ProjectBillingPage({ params }: PageProps) {
   }) : null
 
   return (
-    <Suspense fallback={<div className="p-8 text-center">Loading billing...</div>}>
-      <BillingPageClient
-        projectId={project.id}
-        projectName={project.name}
-        projectType={project.type || 'Interior Design'}
-        projectAddress={project.address || undefined}
-        client={project.client ? {
-          id: project.client.id,
-          name: project.client.name,
-          email: project.client.email || '',
-          phone: project.client.phone,
-        } : {
-          id: '',
-          name: 'No Client',
-          email: '',
-          phone: null,
-        }}
-        defaultGstRate={org?.defaultGstRate ? Number(org.defaultGstRate) : 5}
-        defaultQstRate={org?.defaultQstRate ? Number(org.defaultQstRate) : 9.975}
-      />
-    </Suspense>
+    <DashboardLayout session={session as any}>
+      <Suspense fallback={<div className="p-8 text-center">Loading billing...</div>}>
+        <BillingPageClient
+          projectId={project.id}
+          projectName={project.name}
+          projectType={project.type || 'Interior Design'}
+          projectAddress={project.address || undefined}
+          client={project.client ? {
+            id: project.client.id,
+            name: project.client.name,
+            email: project.client.email || '',
+            phone: project.client.phone,
+          } : {
+            id: '',
+            name: 'No Client',
+            email: '',
+            phone: null,
+          }}
+          defaultGstRate={org?.defaultGstRate ? Number(org.defaultGstRate) : 5}
+          defaultQstRate={org?.defaultQstRate ? Number(org.defaultQstRate) : 9.975}
+        />
+      </Suspense>
+    </DashboardLayout>
   )
 }

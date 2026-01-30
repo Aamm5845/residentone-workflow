@@ -1275,9 +1275,9 @@ export default function ProposalForm({
   const currentStepIndex = steps.findIndex(s => s.key === currentStep)
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-[calc(100vh-4rem)]">
       {/* Header */}
-      <div className="bg-white shadow-sm sticky top-0 z-10">
+      <div className="bg-white shadow-sm sticky top-16 z-10 -mx-6 -mt-6 px-6">
         <div className="max-w-6xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
