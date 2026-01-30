@@ -755,10 +755,10 @@ export async function PATCH(
     if (action === 'approve') {
       const supplierName = quote.supplierRFQ.supplier?.name || quote.supplierRFQ.vendorName || 'Supplier'
 
-      // Get supplier's markup percentage (default to 25% if not set)
+      // Get supplier's markup percentage (no markup if not set)
       const supplierMarkup = quote.supplierRFQ.supplier?.markupPercent
         ? Number(quote.supplierRFQ.supplier.markupPercent)
-        : 25  // Default 25% markup if not configured
+        : 0  // No markup if not configured
 
       console.log(`[Approve Quote] Processing quote ${quote.id}`)
 
