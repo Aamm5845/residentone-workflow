@@ -1503,6 +1503,7 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
           supplierName={pdfReviewQuote.supplier.name}
           quoteId={pdfReviewQuote.id}
           projectId={projectId}
+          quoteStatus={pdfReviewQuote.status}
           rfqLineItems={pdfReviewQuote.lineItems.map(li => ({
             id: li.rfqLineItemId || li.id,
             itemName: li.itemName,

@@ -133,6 +133,7 @@ interface QuotePDFReviewDialogProps {
   supplierName: string
   quoteId: string
   projectId: string
+  quoteStatus?: 'PENDING' | 'SUBMITTED' | 'ACCEPTED' | 'REJECTED' | 'REVISION_REQUESTED' | 'REVISED' | 'EXPIRED'
   rfqLineItems: Array<{
     id: string
     itemName: string
@@ -152,6 +153,7 @@ export default function QuotePDFReviewDialog({
   supplierName,
   quoteId,
   projectId,
+  quoteStatus,
   rfqLineItems,
   onMatchUpdated
 }: QuotePDFReviewDialogProps) {
@@ -1297,87 +1299,97 @@ export default function QuotePDFReviewDialog({
 
             {/* Footer Actions */}
             <div className="p-4 border-t bg-gray-50 flex items-center justify-between">
-              <div className="text-sm text-gray-500">
-                {approvedMatches.size} of {matchedItems.length} matches confirmed
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-gray-500">
+                  {approvedMatches.size} of {matchedItems.length} matches confirmed
+                </span>
+                {quoteStatus === 'ACCEPTED' && (
+                  <Badge className="bg-emerald-100 text-emerald-700">Approved</Badge>
+                )}
+                {quoteStatus === 'REJECTED' && (
+                  <Badge className="bg-red-100 text-red-700">Declined</Badge>
+                )}
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => onOpenChange(false)}>
                   Close
                 </Button>
-                <Button
-                  variant="outline"
-                  className="border-red-500 text-red-600 hover:bg-red-50"
-                  onClick={async () => {
-                    try {
-                      // Use the main PATCH endpoint for full business logic (decline status + item updates)
-                      const res = await fetch(`/api/projects/${projectId}/procurement/supplier-quotes`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ quoteId, action: 'decline' })
-                      })
-                      if (!res.ok) {
-                        const error = await res.json().catch(() => ({ error: 'Unknown error' }))
-                        throw new Error(error.error || 'Failed to decline quote')
-                      }
-                      onMatchUpdated?.()
-                      toast.success('Quote declined')
-                      onOpenChange(false)
-                    } catch (err: any) {
-                      toast.error(err.message || 'Failed to update status')
-                    }
-                  }}
-                >
-                  Decline
-                </Button>
-                <Button
-                  variant="outline"
-                  className="border-amber-500 text-amber-600 hover:bg-amber-50"
-                  onClick={async () => {
-                    try {
-                      // Use the main PATCH endpoint for full business logic
-                      const res = await fetch(`/api/projects/${projectId}/procurement/supplier-quotes`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ quoteId, action: 'request_revision' })
-                      })
-                      if (!res.ok) {
-                        const error = await res.json().catch(() => ({ error: 'Unknown error' }))
-                        throw new Error(error.error || 'Failed to request revision')
-                      }
-                      onMatchUpdated?.()
-                      toast.success('Quote marked as needs revision')
-                      onOpenChange(false)
-                    } catch (err: any) {
-                      toast.error(err.message || 'Failed to update status')
-                    }
-                  }}
-                >
-                  Request Revision
-                </Button>
-                <Button
-                  className="bg-emerald-600 hover:bg-emerald-700"
-                  onClick={async () => {
-                    try {
-                      // Use the main PATCH endpoint for full business logic (approval + price updates)
-                      const res = await fetch(`/api/projects/${projectId}/procurement/supplier-quotes`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ quoteId, action: 'approve' })
-                      })
-                      if (!res.ok) {
-                        const error = await res.json().catch(() => ({ error: 'Unknown error' }))
-                        throw new Error(error.error || 'Failed to approve quote')
-                      }
-                      onMatchUpdated?.()
-                      toast.success('Quote approved')
-                      onOpenChange(false)
-                    } catch (err: any) {
-                      toast.error(err.message || 'Failed to update status')
-                    }
-                  }}
-                >
-                  Approve Quote
-                </Button>
+                {/* Only show action buttons if quote is not already approved or declined */}
+                {quoteStatus !== 'ACCEPTED' && quoteStatus !== 'REJECTED' && (
+                  <>
+                    <Button
+                      variant="outline"
+                      className="border-red-500 text-red-600 hover:bg-red-50"
+                      onClick={async () => {
+                        try {
+                          const res = await fetch(`/api/projects/${projectId}/procurement/supplier-quotes`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ quoteId, action: 'decline' })
+                          })
+                          if (!res.ok) {
+                            const error = await res.json().catch(() => ({ error: 'Unknown error' }))
+                            throw new Error(error.error || 'Failed to decline quote')
+                          }
+                          onMatchUpdated?.()
+                          toast.success('Quote declined')
+                          onOpenChange(false)
+                        } catch (err: any) {
+                          toast.error(err.message || 'Failed to update status')
+                        }
+                      }}
+                    >
+                      Decline
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="border-amber-500 text-amber-600 hover:bg-amber-50"
+                      onClick={async () => {
+                        try {
+                          const res = await fetch(`/api/projects/${projectId}/procurement/supplier-quotes`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ quoteId, action: 'request_revision' })
+                          })
+                          if (!res.ok) {
+                            const error = await res.json().catch(() => ({ error: 'Unknown error' }))
+                            throw new Error(error.error || 'Failed to request revision')
+                          }
+                          onMatchUpdated?.()
+                          toast.success('Quote marked as needs revision')
+                          onOpenChange(false)
+                        } catch (err: any) {
+                          toast.error(err.message || 'Failed to update status')
+                        }
+                      }}
+                    >
+                      Request Revision
+                    </Button>
+                    <Button
+                      className="bg-emerald-600 hover:bg-emerald-700"
+                      onClick={async () => {
+                        try {
+                          const res = await fetch(`/api/projects/${projectId}/procurement/supplier-quotes`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ quoteId, action: 'approve' })
+                          })
+                          if (!res.ok) {
+                            const error = await res.json().catch(() => ({ error: 'Unknown error' }))
+                            throw new Error(error.error || 'Failed to approve quote')
+                          }
+                          onMatchUpdated?.()
+                          toast.success('Quote approved')
+                          onOpenChange(false)
+                        } catch (err: any) {
+                          toast.error(err.message || 'Failed to update status')
+                        }
+                      }}
+                    >
+                      Approve Quote
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </div>
