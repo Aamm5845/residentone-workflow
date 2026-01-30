@@ -44,10 +44,8 @@ import {
   Trash2,
   ArrowUpDown,
   Receipt,
-  Link2,
   CheckCircle2,
-  HelpCircle,
-  XCircle
+  HelpCircle
 } from 'lucide-react'
 import CreateClientQuoteDialog from '@/components/procurement/create-client-quote-dialog'
 import CreateBudgetQuoteDialog from './CreateBudgetQuoteDialog'
@@ -938,110 +936,38 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                             </div>
                           )}
 
-                          {/* Discrepancy Details */}
+                          {/* Discrepancy Details - Simplified */}
                           {quote.hasMismatches && quote.mismatches.length > 0 && (
-                            <div className="bg-amber-50 border-2 border-amber-300 rounded-lg p-3">
-                              <div className="flex items-start gap-2">
-                                <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
-                                <div className="flex-1">
-                                  <p className="text-sm font-bold text-amber-900">
-                                    {quote.mismatches.length} Discrepanc{quote.mismatches.length === 1 ? 'y' : 'ies'} Detected - Review Required
-                                  </p>
-                                  <div className="mt-3 space-y-3">
-                                    {quote.mismatches.map((mismatch, idx) => (
-                                      <div key={idx} className={`p-3 rounded-lg ${
-                                        mismatch.type === 'missing'
-                                          ? 'bg-red-100 border-l-4 border-red-500'
-                                          : mismatch.type === 'extra'
-                                          ? 'bg-blue-100 border-l-4 border-blue-500'
-                                          : 'bg-amber-100 border-l-4 border-amber-500'
-                                      }`}>
-                                        <div className="flex items-start gap-3">
-                                          {/* Item image if available */}
-                                          {mismatch.imageUrl && (
-                                            <div className="w-12 h-12 rounded-md overflow-hidden border border-gray-200 bg-white flex-shrink-0">
-                                              <img src={mismatch.imageUrl} alt={mismatch.itemName} className="w-full h-full object-cover" />
-                                            </div>
-                                          )}
-                                          <div className="flex-1">
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                              {mismatch.type === 'missing' && (
-                                                <span className="text-red-800 text-xs font-bold px-2 py-1 bg-red-200 rounded uppercase">
-                                                  Missing from Quote
-                                                </span>
-                                              )}
-                                              {mismatch.type === 'extra' && (
-                                                <span className="text-blue-800 text-xs font-bold px-2 py-1 bg-blue-200 rounded uppercase">
-                                                  Extra Item Added
-                                                </span>
-                                              )}
-                                              {mismatch.type === 'quantity' && (
-                                                <span className="text-amber-800 text-xs font-bold px-2 py-1 bg-amber-200 rounded uppercase">
-                                                  Quantity Mismatch
-                                                </span>
-                                              )}
-                                              {mismatch.type === 'total' && (
-                                                <span className="text-red-800 text-xs font-bold px-2 py-1 bg-red-200 rounded uppercase">
-                                                  Total Mismatch
-                                                </span>
-                                              )}
-                                              {mismatch.type === 'price' && (
-                                                <span className="text-orange-800 text-xs font-bold px-2 py-1 bg-orange-200 rounded uppercase">
-                                                  Price Issue
-                                                </span>
-                                              )}
-                                            </div>
-                                            <p className="font-semibold text-gray-900 mt-1.5 text-sm">{mismatch.itemName}</p>
-
-                                            {/* Show full item details for missing/extra items */}
-                                            {(mismatch.type === 'missing' || mismatch.type === 'extra') && (
-                                              <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                                                {mismatch.brand && (
-                                                  <div><span className="text-gray-500">Brand:</span> <span className="font-medium text-gray-800">{mismatch.brand}</span></div>
-                                                )}
-                                                {mismatch.sku && (
-                                                  <div><span className="text-gray-500">SKU:</span> <span className="font-medium text-gray-800">{mismatch.sku}</span></div>
-                                                )}
-                                                {mismatch.quantity && (
-                                                  <div><span className="text-gray-500">Quantity:</span> <span className="font-bold text-gray-900">{mismatch.quantity}</span></div>
-                                                )}
-                                                {mismatch.unitPrice && (
-                                                  <div><span className="text-gray-500">Unit Price:</span> <span className="font-bold text-gray-900">{formatCurrency(mismatch.unitPrice)}</span></div>
-                                                )}
-                                                {mismatch.totalPrice && (
-                                                  <div><span className="text-gray-500">Total:</span> <span className="font-bold text-gray-900">{formatCurrency(mismatch.totalPrice)}</span></div>
-                                                )}
-                                                {mismatch.description && (
-                                                  <div className="col-span-2"><span className="text-gray-500">Description:</span> <span className="text-gray-700">{mismatch.description}</span></div>
-                                                )}
-                                              </div>
-                                            )}
-
-                                            {/* Show reasons for all types */}
-                                            {mismatch.reasons && mismatch.reasons.length > 0 && (
-                                              <div className="mt-2 space-y-1">
-                                                {mismatch.reasons.map((reason, rIdx) => (
-                                                  <div key={rIdx} className="text-sm text-gray-700 flex items-start gap-2">
-                                                    <span className={`inline-block w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${
-                                                      mismatch.type === 'missing' ? 'bg-red-500'
-                                                      : mismatch.type === 'extra' ? 'bg-blue-500'
-                                                      : 'bg-amber-500'
-                                                    }`} />
-                                                    <span>{reason}</span>
-                                                  </div>
-                                                ))}
-                                              </div>
-                                            )}
-                                          </div>
-                                        </div>
-                                      </div>
-                                    ))}
+                            <div className="bg-amber-50 border border-amber-300 rounded-lg p-3">
+                              <div className="flex items-center gap-2 mb-2">
+                                <AlertTriangle className="w-4 h-4 text-amber-600" />
+                                <span className="text-sm font-semibold text-amber-900">
+                                  {quote.mismatches.length} Issue{quote.mismatches.length > 1 ? 's' : ''} to Review
+                                </span>
+                              </div>
+                              <div className="space-y-1.5">
+                                {quote.mismatches.map((mismatch, idx) => (
+                                  <div key={idx} className="flex items-center gap-2 text-sm">
+                                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                                      mismatch.type === 'missing' ? 'bg-red-500'
+                                      : mismatch.type === 'extra' ? 'bg-blue-500'
+                                      : 'bg-amber-500'
+                                    }`} />
+                                    <span className="font-medium text-gray-900">{mismatch.itemName}</span>
+                                    <span className="text-gray-500">—</span>
+                                    <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                      mismatch.type === 'missing' ? 'bg-red-100 text-red-700'
+                                      : mismatch.type === 'extra' ? 'bg-blue-100 text-blue-700'
+                                      : mismatch.type === 'quantity' ? 'bg-amber-100 text-amber-700'
+                                      : 'bg-gray-100 text-gray-700'
+                                    }`}>
+                                      {mismatch.type === 'missing' ? 'Missing'
+                                        : mismatch.type === 'extra' ? 'Extra'
+                                        : mismatch.type === 'quantity' ? `Qty: ${mismatch.reasons?.[0]?.match(/\d+/g)?.join(' → ') || 'mismatch'}`
+                                        : mismatch.type || 'Issue'}
+                                    </span>
                                   </div>
-                                  <p className="text-xs text-amber-800 mt-3 p-2 bg-amber-200/50 rounded flex items-center gap-1.5">
-                                    <AlertTriangle className="w-3.5 h-3.5" />
-                                    <strong>Action Required:</strong> Edit prices/quantities or request revision from supplier before approving.
-                                  </p>
-                                </div>
+                                ))}
                               </div>
                             </div>
                           )}
@@ -1142,79 +1068,28 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                                             {item.notes && <span>{item.notes}</span>}
                                           </p>
                                         )}
-                                        {/* Show inline mismatch details */}
-                                        {item.hasMismatch && item.mismatchReasons && item.mismatchReasons.length > 0 && (
-                                          <div className="mt-1.5 p-1.5 bg-amber-200/50 rounded text-xs">
-                                            <div className="font-semibold text-amber-800 mb-0.5">Discrepancy:</div>
+                                        {/* Show inline mismatch details - only if not matched/approved */}
+                                        {item.hasMismatch && !item.matchApproved && item.mismatchReasons && item.mismatchReasons.length > 0 && (
+                                          <div className="mt-1.5 text-xs text-amber-700">
                                             {item.mismatchReasons.map((reason, idx) => (
-                                              <div key={idx} className="text-amber-900 flex items-center gap-1">
-                                                <span className="w-1 h-1 bg-amber-600 rounded-full" />
-                                                {reason}
-                                              </div>
+                                              <span key={idx}>{reason}{idx < item.mismatchReasons.length - 1 ? ' • ' : ''}</span>
                                             ))}
                                           </div>
                                         )}
 
-                                        {/* Matched RFQ Item Display - Only for PDF quotes with AI matching */}
-                                        {quote.quoteDocumentUrl && item.rfqLineItemId && (
-                                          <div className={`mt-2 p-2 rounded-md border text-xs ${
-                                            item.matchApproved
-                                              ? 'bg-emerald-50 border-emerald-200'
-                                              : item.matchConfidence === 'high'
-                                              ? 'bg-blue-50 border-blue-200'
-                                              : item.matchConfidence === 'medium'
-                                              ? 'bg-amber-50 border-amber-200'
-                                              : 'bg-gray-50 border-gray-200'
-                                          }`}>
-                                            <div className="flex items-center gap-2">
-                                              <Link2 className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                                              <span className="text-gray-500">Matched to:</span>
-                                              {/* Show matched RFQ item image if available */}
-                                              {item.matchedRfqItemImage && (
-                                                <div className="w-6 h-6 rounded overflow-hidden border border-gray-200 flex-shrink-0">
-                                                  <img src={item.matchedRfqItemImage} alt="" className="w-full h-full object-cover" />
-                                                </div>
-                                              )}
-                                              <div className="flex-1 min-w-0">
-                                                <span className="font-medium text-gray-900 truncate block">
-                                                  {item.matchedRfqItemName || item.itemName}
-                                                </span>
-                                                {(item.matchedRfqItemBrand || item.matchedRfqItemSku) && (
-                                                  <span className="text-gray-500 truncate block">
-                                                    {item.matchedRfqItemBrand}{item.matchedRfqItemBrand && item.matchedRfqItemSku ? ' • ' : ''}{item.matchedRfqItemSku}
-                                                  </span>
-                                                )}
-                                              </div>
-                                              {/* Status indicator */}
-                                              <div className="flex items-center gap-1.5 flex-shrink-0">
-                                                {item.matchApproved ? (
-                                                  <span className="flex items-center gap-1 text-emerald-600">
-                                                    <CheckCircle2 className="w-3.5 h-3.5" />
-                                                    <span className="font-medium">Verified</span>
-                                                  </span>
-                                                ) : item.matchConfidence && (
-                                                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                                                    item.matchConfidence === 'high'
-                                                      ? 'bg-blue-100 text-blue-700'
-                                                      : item.matchConfidence === 'medium'
-                                                      ? 'bg-amber-100 text-amber-700'
-                                                      : 'bg-gray-100 text-gray-600'
-                                                  }`}>
-                                                    {item.matchConfidence === 'high' ? 'AI Match' : item.matchConfidence === 'medium' ? 'Needs Review' : 'Low Confidence'}
-                                                  </span>
-                                                )}
-                                              </div>
-                                            </div>
+                                        {/* Matched indicator - simplified */}
+                                        {quote.quoteDocumentUrl && item.rfqLineItemId && item.matchApproved && (
+                                          <div className="mt-1.5 flex items-center gap-1.5 text-xs text-emerald-600">
+                                            <CheckCircle2 className="w-3.5 h-3.5" />
+                                            <span className="font-medium">Matched</span>
                                           </div>
                                         )}
 
                                         {/* No match indicator - Only for PDF quotes without RFQ reference */}
                                         {quote.quoteDocumentUrl && !item.rfqLineItemId && (
-                                          <div className="mt-2 p-2 rounded-md border border-orange-200 bg-orange-50 text-xs">
-                                            <div className="flex items-center gap-2 text-orange-700">
-                                              <HelpCircle className="w-3 h-3 flex-shrink-0" />
-                                              <span>Not matched to any requested item</span>
-                                            </div>
+                                          <div className="mt-1.5 flex items-center gap-1.5 text-xs text-orange-600">
+                                            <HelpCircle className="w-3 h-3" />
+                                            <span>Not matched</span>
                                           </div>
                                         )}
                                       </div>
@@ -1481,109 +1356,39 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                     </div>
                   )}
 
-                  {/* Discrepancy Details */}
+                  {/* Discrepancy Details - Simplified */}
                   {selectedQuote.hasMismatches && selectedQuote.mismatches.length > 0 && (
-                    <div className="p-4 bg-amber-50 border-2 border-amber-300 rounded-lg">
-                      <div className="flex items-center gap-2 mb-3">
-                        <AlertTriangle className="w-5 h-5 text-amber-600" />
-                        <p className="text-sm font-bold text-amber-900">
-                          {selectedQuote.mismatches.length} Discrepanc{selectedQuote.mismatches.length === 1 ? 'y' : 'ies'} Detected - Must Resolve Before Approval
-                        </p>
+                    <div className="p-3 bg-amber-50 border border-amber-300 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <AlertTriangle className="w-4 h-4 text-amber-600" />
+                        <span className="text-sm font-semibold text-amber-900">
+                          {selectedQuote.mismatches.length} Issue{selectedQuote.mismatches.length > 1 ? 's' : ''} to Review
+                        </span>
                       </div>
-                      <div className="space-y-3">
+                      <div className="space-y-1.5">
                         {selectedQuote.mismatches.map((mismatch, idx) => (
-                          <div key={idx} className={`bg-white p-4 rounded-lg ${
-                            mismatch.type === 'missing'
-                              ? 'border-l-4 border-red-500 border border-red-200'
-                              : mismatch.type === 'extra'
-                              ? 'border-l-4 border-blue-500 border border-blue-200'
-                              : 'border-l-4 border-amber-500 border border-amber-200'
-                          }`}>
-                            <div className="flex items-start gap-3">
-                              {/* Item image if available */}
-                              {mismatch.imageUrl && (
-                                <div className="w-14 h-14 rounded-md overflow-hidden border border-gray-200 bg-gray-50 flex-shrink-0">
-                                  <img src={mismatch.imageUrl} alt={mismatch.itemName} className="w-full h-full object-cover" />
-                                </div>
-                              )}
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                  {mismatch.type === 'missing' && (
-                                    <span className="text-red-800 text-xs font-bold px-2 py-1 bg-red-100 rounded uppercase">
-                                      Missing from Quote
-                                    </span>
-                                  )}
-                                  {mismatch.type === 'extra' && (
-                                    <span className="text-blue-800 text-xs font-bold px-2 py-1 bg-blue-100 rounded uppercase">
-                                      Extra Item Added
-                                    </span>
-                                  )}
-                                  {mismatch.type === 'quantity' && (
-                                    <span className="text-amber-800 text-xs font-bold px-2 py-1 bg-amber-100 rounded uppercase">
-                                      Quantity Mismatch
-                                    </span>
-                                  )}
-                                  {mismatch.type === 'total' && (
-                                    <span className="text-red-800 text-xs font-bold px-2 py-1 bg-red-100 rounded uppercase">
-                                      Total Mismatch
-                                    </span>
-                                  )}
-                                  {mismatch.type === 'price' && (
-                                    <span className="text-orange-800 text-xs font-bold px-2 py-1 bg-orange-100 rounded uppercase">
-                                      Price Issue
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="font-semibold text-gray-900">{mismatch.itemName}</p>
-
-                                {/* Show full item details for missing/extra items */}
-                                {(mismatch.type === 'missing' || mismatch.type === 'extra') && (
-                                  <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-sm bg-gray-50 p-2 rounded">
-                                    {mismatch.brand && (
-                                      <div><span className="text-gray-500">Brand:</span> <span className="font-medium text-gray-800">{mismatch.brand}</span></div>
-                                    )}
-                                    {mismatch.sku && (
-                                      <div><span className="text-gray-500">SKU:</span> <span className="font-medium text-gray-800">{mismatch.sku}</span></div>
-                                    )}
-                                    {mismatch.quantity !== undefined && (
-                                      <div><span className="text-gray-500">Quantity:</span> <span className="font-bold text-gray-900">{mismatch.quantity}</span></div>
-                                    )}
-                                    {mismatch.unitPrice !== undefined && (
-                                      <div><span className="text-gray-500">Unit Price:</span> <span className="font-bold text-gray-900">{formatCurrency(mismatch.unitPrice)}</span></div>
-                                    )}
-                                    {mismatch.totalPrice !== undefined && (
-                                      <div><span className="text-gray-500">Total:</span> <span className="font-bold text-emerald-700">{formatCurrency(mismatch.totalPrice)}</span></div>
-                                    )}
-                                    {mismatch.description && (
-                                      <div className="col-span-2 mt-1"><span className="text-gray-500">Description:</span> <span className="text-gray-700">{mismatch.description}</span></div>
-                                    )}
-                                  </div>
-                                )}
-
-                                {/* Show reasons */}
-                                {mismatch.reasons && mismatch.reasons.length > 0 && (
-                                  <div className="mt-2 space-y-1.5">
-                                    {mismatch.reasons.map((reason, rIdx) => (
-                                      <div key={rIdx} className="text-sm text-gray-700 flex items-start gap-2">
-                                        <span className={`inline-block w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${
-                                          mismatch.type === 'missing' ? 'bg-red-500'
-                                          : mismatch.type === 'extra' ? 'bg-blue-500'
-                                          : 'bg-amber-500'
-                                        }`} />
-                                        <span>{reason}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
+                          <div key={idx} className="flex items-center gap-2 text-sm">
+                            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                              mismatch.type === 'missing' ? 'bg-red-500'
+                              : mismatch.type === 'extra' ? 'bg-blue-500'
+                              : 'bg-amber-500'
+                            }`} />
+                            <span className="font-medium text-gray-900">{mismatch.itemName}</span>
+                            <span className="text-gray-500">—</span>
+                            <span className={`text-xs px-1.5 py-0.5 rounded ${
+                              mismatch.type === 'missing' ? 'bg-red-100 text-red-700'
+                              : mismatch.type === 'extra' ? 'bg-blue-100 text-blue-700'
+                              : mismatch.type === 'quantity' ? 'bg-amber-100 text-amber-700'
+                              : 'bg-gray-100 text-gray-700'
+                            }`}>
+                              {mismatch.type === 'missing' ? 'Missing'
+                                : mismatch.type === 'extra' ? 'Extra'
+                                : mismatch.type === 'quantity' ? `Qty: ${mismatch.reasons?.[0]?.match(/\d+/g)?.join(' → ') || 'mismatch'}`
+                                : mismatch.type || 'Issue'}
+                            </span>
                           </div>
                         ))}
                       </div>
-                      <p className="text-xs text-amber-800 mt-3 p-2 bg-amber-200/50 rounded flex items-center gap-1.5">
-                        <AlertTriangle className="w-3.5 h-3.5" />
-                        <strong>Action Required:</strong> Edit the quote to resolve discrepancies, or request a revision from the supplier.
-                      </p>
                     </div>
                   )}
                 </div>
