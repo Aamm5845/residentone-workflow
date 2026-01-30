@@ -69,8 +69,8 @@ export async function GET(request: Request) {
       where.amount = { gt: 0 } // Positive = money out
     }
 
-    // Get transactions
-    const [transactions, total] = await Promise.all([
+    // Get transactions and totals
+    const [transactions, total, totalsResult] = await Promise.all([
       prisma.bankTransaction.findMany({
         where,
         include: {
@@ -92,7 +92,26 @@ export async function GET(request: Request) {
         skip: offset,
       }),
       prisma.bankTransaction.count({ where }),
+      prisma.bankTransaction.aggregate({
+        where,
+        _sum: { amount: true },
+      }),
     ])
+
+    // Calculate income and expenses separately
+    const [incomeResult, expenseResult] = await Promise.all([
+      prisma.bankTransaction.aggregate({
+        where: { ...where, amount: { lt: 0 } },
+        _sum: { amount: true },
+      }),
+      prisma.bankTransaction.aggregate({
+        where: { ...where, amount: { gt: 0 } },
+        _sum: { amount: true },
+      }),
+    ])
+
+    const totalIncome = Math.abs(Number(incomeResult._sum.amount || 0))
+    const totalExpenses = Number(expenseResult._sum.amount || 0)
 
     // Format response
     const formattedTransactions = transactions.map((t) => ({
@@ -120,6 +139,11 @@ export async function GET(request: Request) {
       limit,
       offset,
       hasMore: offset + limit < total,
+      totals: {
+        income: totalIncome,
+        expenses: totalExpenses,
+        net: totalIncome - totalExpenses,
+      },
     })
   } catch (error: any) {
     console.error('Get all transactions error:', error)

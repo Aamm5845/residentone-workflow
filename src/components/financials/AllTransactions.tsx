@@ -17,7 +17,10 @@ import {
   Sparkles,
   BarChart3,
   Check,
-  ArrowLeft
+  ArrowLeft,
+  TrendingUp,
+  TrendingDown,
+  DollarSign
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -88,10 +91,15 @@ export function AllTransactions() {
   // Pagination
   const [total, setTotal] = useState(0)
   const [offset, setOffset] = useState(0)
-  const limit = 50
+  const limit = 100
 
-  // Stats
+  // Stats & Totals
   const [uncategorizedCount, setUncategorizedCount] = useState(0)
+  const [totals, setTotals] = useState<{
+    income: number
+    expenses: number
+    net: number
+  } | null>(null)
 
   // Fetch transactions
   const fetchTransactions = useCallback(async () => {
@@ -117,6 +125,7 @@ export function AllTransactions() {
 
       setTransactions(data.transactions || [])
       setTotal(data.total || 0)
+      setTotals(data.totals || null)
 
       // Count uncategorized
       const uncatCount = (data.transactions || []).filter(
@@ -296,6 +305,62 @@ export function AllTransactions() {
           </div>
         </div>
       </div>
+
+      {/* Totals Summary */}
+      {totals && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <TrendingDown className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Total Income</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {formatCurrency(totals.income)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-red-100 rounded-lg">
+                <TrendingUp className="h-5 w-5 text-red-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Total Expenses</p>
+                <p className="text-2xl font-bold text-red-600">
+                  {formatCurrency(totals.expenses)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center gap-3">
+              <div className={cn(
+                "p-2 rounded-lg",
+                totals.net >= 0 ? "bg-green-100" : "bg-red-100"
+              )}>
+                <DollarSign className={cn(
+                  "h-5 w-5",
+                  totals.net >= 0 ? "text-green-600" : "text-red-600"
+                )} />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Net Total</p>
+                <p className={cn(
+                  "text-2xl font-bold",
+                  totals.net >= 0 ? "text-green-600" : "text-red-600"
+                )}>
+                  {totals.net >= 0 ? '+' : ''}{formatCurrency(totals.net)}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* AI Categorize Banner (if uncategorized exist) */}
       {uncategorizedCount > 0 && (
