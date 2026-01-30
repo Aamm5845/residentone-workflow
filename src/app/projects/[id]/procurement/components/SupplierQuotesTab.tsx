@@ -88,6 +88,12 @@ interface LineItemDetail {
   notes?: string
   hasMismatch: boolean
   mismatchReasons: string[]
+  // Quantity choice info
+  quantityAccepted?: boolean
+  quantityChoice?: {
+    choice: 'accept' | 'keep'
+    chosenQuantity: number
+  } | null
   // Match verification fields
   matchedRfqItemName?: string
   matchedRfqItemImage?: string | null
@@ -1033,8 +1039,11 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                               const currentPrice = isEditing ? (editedItem?.unitPrice ?? item.unitPrice) : item.unitPrice
                               const currentLeadTime = isEditing ? (editedItem?.leadTime ?? item.leadTime) : item.leadTime
 
+                              // Don't show mismatch styling if quantity was the only issue and it's been accepted
+                              const showMismatchStyle = item.hasMismatch && !item.quantityAccepted
+
                               return (
-                                <TableRow key={item.id} className={item.hasMismatch ? 'bg-amber-100 border-l-4 border-l-amber-500' : ''}>
+                                <TableRow key={item.id} className={showMismatchStyle ? 'bg-amber-100 border-l-4 border-l-amber-500' : ''}>
                                   {/* Image */}
                                   <TableCell className="p-2">
                                     {item.imageUrl ? (
@@ -1074,8 +1083,14 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                                             {item.notes && <span>{item.notes}</span>}
                                           </p>
                                         )}
-                                        {/* Show inline mismatch details - only if not matched/approved */}
-                                        {item.hasMismatch && !item.matchApproved && item.mismatchReasons && item.mismatchReasons.length > 0 && (
+                                        {/* Show accepted quantity info */}
+                                        {item.quantityAccepted && item.quotedQuantity !== item.requestedQuantity && (
+                                          <div className="mt-1.5 text-xs text-emerald-600">
+                                            Qty: requested {item.requestedQuantity}, accepted {item.quotedQuantity}
+                                          </div>
+                                        )}
+                                        {/* Show inline mismatch details - only if not matched/approved and not quantity accepted */}
+                                        {item.hasMismatch && !item.matchApproved && !item.quantityAccepted && item.mismatchReasons && item.mismatchReasons.length > 0 && (
                                           <div className="mt-1.5 text-xs text-amber-700">
                                             {item.mismatchReasons.map((reason, idx) => (
                                               <span key={idx}>{reason}{idx < item.mismatchReasons.length - 1 ? ' • ' : ''}</span>
@@ -1104,12 +1119,20 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                                   {/* Quantity */}
                                   <TableCell className="text-center">
                                     <div>
-                                      <span className={`font-medium ${item.quotedQuantity !== item.requestedQuantity ? 'text-amber-700' : ''}`}>
+                                      <span className={`font-medium ${
+                                        item.quotedQuantity !== item.requestedQuantity
+                                          ? item.quantityAccepted ? 'text-emerald-700' : 'text-amber-700'
+                                          : ''
+                                      }`}>
                                         {item.quotedQuantity}
                                       </span>
                                       {item.quotedQuantity !== item.requestedQuantity && (
-                                        <div className="mt-0.5 text-xs bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded font-medium" title="Supplier changed quantity from requested amount">
-                                          was {item.requestedQuantity}
+                                        <div className={`mt-0.5 text-xs px-1.5 py-0.5 rounded font-medium ${
+                                          item.quantityAccepted
+                                            ? 'bg-emerald-100 text-emerald-700'
+                                            : 'bg-amber-200 text-amber-800'
+                                        }`} title={item.quantityAccepted ? 'Quantity accepted' : 'Supplier changed quantity from requested amount'}>
+                                          {item.quantityAccepted ? 'accepted' : 'was'} {item.requestedQuantity}
                                         </div>
                                       )}
                                     </div>

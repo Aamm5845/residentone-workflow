@@ -145,6 +145,11 @@ export async function GET(
 
     for (const sRFQ of supplierRFQs) {
       for (const quote of sRFQ.quotes) {
+        // Get AI match data early to check for quantity choices
+        const aiMatchLog = sRFQ.accessLogs?.[0]
+        const aiMatchMetadata = aiMatchLog?.metadata as any
+        const matchResultsForChoice = aiMatchMetadata?.matchResults || []
+
         // Analyze mismatches between requested and quoted
         const mismatches: any[] = []
         const lineItemDetails: any[] = []
@@ -153,8 +158,12 @@ export async function GET(
           const rfqItem = li.rfqLineItem
           const mismatchReasons: string[] = []
 
-          // Check quantity mismatch
-          if (rfqItem && li.quantity !== rfqItem.quantity) {
+          // Check if user has already made a quantity choice for this item
+          const itemMatchResult = matchResultsForChoice.find((m: any) => m.rfqItem?.id === rfqItem?.id)
+          const hasQuantityChoice = !!itemMatchResult?.quantityChoice
+
+          // Check quantity mismatch - but not if user already accepted/kept the quantity
+          if (rfqItem && li.quantity !== rfqItem.quantity && !hasQuantityChoice) {
             mismatchReasons.push(`Quantity: requested ${rfqItem.quantity}, quoted ${li.quantity}`)
           }
 
@@ -229,6 +238,9 @@ export async function GET(
             notes: li.notes,
             hasMismatch: mismatchReasons.length > 0,
             mismatchReasons,
+            // Quantity choice info
+            quantityAccepted: hasQuantityChoice,
+            quantityChoice: itemMatchResult?.quantityChoice || null,
             // Match verification fields
             matchedRfqItemName: rfqItem?.itemName,
             matchedRfqItemImage: roomFFEItem?.images?.[0] || null,
