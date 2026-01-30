@@ -340,10 +340,10 @@ export default function InvoiceForm({
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] -mt-6">
+    <div className="min-h-[calc(100vh-4rem)]">
       {/* Header */}
       <div className="bg-white shadow-sm">
-        <div className="max-w-5xl mx-auto px-6 py-4">
+        <div className="max-w-5xl mx-auto px-6 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link href={`/projects/${projectId}/billing`}>
