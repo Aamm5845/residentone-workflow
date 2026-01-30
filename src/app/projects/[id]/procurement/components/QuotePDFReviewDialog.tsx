@@ -360,7 +360,8 @@ export default function QuotePDFReviewDialog({
           supplierName: addItemForm.supplierName,
           images: addItemForm.imageUrl ? [addItemForm.imageUrl] : [],
           isSpecItem: true,
-          specStatus: 'DRAFT'
+          isSpec: true,
+          specStatus: 'SELECTED'
         })
       })
 
