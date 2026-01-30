@@ -869,12 +869,19 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 w-7 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
-                        onClick={() => handleDeleteQuote(quote.id)}
+                        className="h-7 w-7 p-0 text-red-400 hover:text-red-600 hover:bg-red-50 flex-shrink-0"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDeleteQuote(quote.id)
+                        }}
                         disabled={deletingQuoteId === quote.id}
                         title="Delete quote"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        {deletingQuoteId === quote.id ? (
+                          <div className="w-3.5 h-3.5 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Trash2 className="w-3.5 h-3.5" />
+                        )}
                       </Button>
                     </div>
                   </TableCell>
