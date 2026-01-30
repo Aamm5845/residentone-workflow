@@ -1502,8 +1502,8 @@ export default function QuotePDFReviewDialog({
               <Label className="mb-2 block">Supplier</Label>
               <Input
                 value={addItemForm.supplierName}
-                onChange={(e) => setAddItemForm(prev => ({ ...prev, supplierName: e.target.value }))}
-                placeholder="Supplier name"
+                disabled
+                className="bg-gray-100 text-gray-600"
               />
             </div>
 
