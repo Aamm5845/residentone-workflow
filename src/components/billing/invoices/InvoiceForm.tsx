@@ -309,6 +309,10 @@ export default function InvoiceForm({
 
         if (!response.ok) {
           const error = await response.json()
+          if (error.details) {
+            const details = error.details.map((d: any) => `${d.path.join('.')}: ${d.message}`).join('\n')
+            throw new Error(`Validation failed:\n${details}`)
+          }
           throw new Error(error.error || 'Failed to create invoice')
         }
 
@@ -316,16 +320,11 @@ export default function InvoiceForm({
         invoiceId = newInvoice.id
       }
 
-      // Send if requested
+      // If sending, show preview first (save as draft, then redirect to preview)
       if (andSend && invoiceId) {
-        const sendResponse = await fetch(`/api/billing/invoices/${invoiceId}/send`, {
-          method: 'POST',
-        })
-
-        if (!sendResponse.ok) {
-          const error = await sendResponse.json()
-          throw new Error(error.error || 'Failed to send invoice')
-        }
+        // Redirect to preview page instead of directly sending
+        router.push(`/projects/${projectId}/billing/invoices/${invoiceId}/preview`)
+        return
       }
 
       router.push(`/projects/${projectId}/billing`)
