@@ -238,9 +238,9 @@ export default function BillingPageClient({
   const totalOutstanding = invoices.filter(i => i.status !== 'PAID' && i.status !== 'CANCELLED').reduce((sum, i) => sum + i.balanceDue, 0)
 
   return (
-    <div className="min-h-[calc(100vh-4rem)]">
+    <div className="min-h-[calc(100vh-4rem)] -mt-6">
       {/* Header */}
-      <div className="bg-white shadow-sm -mx-6 -mt-6 px-6">
+      <div className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-6">
           <div className="flex items-start justify-between">
             <div>

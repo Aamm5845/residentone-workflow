@@ -340,9 +340,9 @@ export default function InvoiceForm({
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)]">
+    <div className="min-h-[calc(100vh-4rem)] -mt-6">
       {/* Header */}
-      <div className="bg-white shadow-sm -mx-6 -mt-6 px-6">
+      <div className="bg-white shadow-sm">
         <div className="max-w-5xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">

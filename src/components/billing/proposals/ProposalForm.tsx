@@ -302,7 +302,7 @@ export default function ProposalForm({
         if (data.hourlyRate) setHourlyRate(data.hourlyRate)
 
         setAiGenerated(true)
-        setCurrentStep('phases')
+        // Stay on current step - user reviews the AI-generated content
       } else {
         const error = await response.json()
         alert(error.error || 'Failed to generate content')
@@ -709,21 +709,11 @@ export default function ProposalForm({
             Back
           </Button>
           <Button
-            onClick={handleGenerateWithAI}
-            disabled={generating}
-            className="bg-purple-600 hover:bg-purple-700"
+            onClick={() => setCurrentStep('phases')}
+            className="bg-amber-600 hover:bg-amber-700"
           >
-            {generating ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Generating Proposal...
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-4 h-4 mr-2" />
-                Generate Proposal with AI
-              </>
-            )}
+            Next: Add Phases
+            <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
         </div>
       </div>
@@ -1230,8 +1220,41 @@ export default function ProposalForm({
             </div>
           </div>
 
+          {/* AI Generate Button */}
+          {!aiGenerated && (
+            <div className="mb-4 p-4 bg-purple-50 rounded-xl border border-purple-200">
+              <p className="text-sm text-purple-700 mb-3">
+                Let AI enhance your proposal with professional descriptions
+              </p>
+              <Button
+                className="w-full bg-purple-600 hover:bg-purple-700"
+                onClick={handleGenerateWithAI}
+                disabled={generating}
+              >
+                {generating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Generate with AI
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+
+          {aiGenerated && (
+            <div className="mb-4 p-3 bg-green-50 rounded-xl border border-green-200 flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-green-600" />
+              <span className="text-sm text-green-700">AI enhanced</span>
+            </div>
+          )}
+
           {/* Actions */}
-          <div className="mt-6 space-y-2">
+          <div className="space-y-2">
             <Button
               className="w-full bg-emerald-600 hover:bg-emerald-700"
               onClick={() => handleSave(true)}
@@ -1275,9 +1298,9 @@ export default function ProposalForm({
   const currentStepIndex = steps.findIndex(s => s.key === currentStep)
 
   return (
-    <div className="min-h-[calc(100vh-4rem)]">
+    <div className="min-h-[calc(100vh-4rem)] -mt-6">
       {/* Header */}
-      <div className="bg-white shadow-sm sticky top-16 z-10 -mx-6 -mt-6 px-6">
+      <div className="bg-white shadow-sm sticky top-16 z-10">
         <div className="max-w-6xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
