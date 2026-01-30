@@ -95,14 +95,17 @@ export function SpendingReport() {
     fetchReport()
   }, [period])
 
-  // Format currency
-  const formatCurrency = (amount: number) => {
+  // Format currency - handle null, undefined, and NaN
+  const formatCurrency = (amount: number | null | undefined) => {
+    if (amount === null || amount === undefined) return '$0'
+    const num = Number(amount)
+    if (isNaN(num)) return '$0'
     return new Intl.NumberFormat('en-CA', {
       style: 'currency',
       currency: 'CAD',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
-    }).format(amount)
+    }).format(num)
   }
 
   // Format date range

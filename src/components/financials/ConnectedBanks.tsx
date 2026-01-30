@@ -231,13 +231,15 @@ export function ConnectedBanks() {
     }
   }
 
-  // Format currency
-  const formatCurrency = (amount: number | null, currency: string = 'CAD') => {
-    if (amount === null) return '--'
+  // Format currency - handle null, undefined, and NaN
+  const formatCurrency = (amount: number | null | undefined, currency: string = 'CAD') => {
+    if (amount === null || amount === undefined) return '--'
+    const num = Number(amount)
+    if (isNaN(num)) return '--'
     return new Intl.NumberFormat('en-CA', {
       style: 'currency',
       currency,
-    }).format(amount)
+    }).format(num)
   }
 
   // Format date
@@ -291,20 +293,27 @@ export function ConnectedBanks() {
     )
   }
 
-  // Calculate totals
+  // Calculate totals - safely handle null/undefined/NaN values
   const allAccounts = banks.flatMap(b => b.accounts)
+
+  // Helper to safely get a numeric balance
+  const safeBalance = (balance: number | null | undefined): number => {
+    if (balance === null || balance === undefined) return 0
+    const num = Number(balance)
+    return isNaN(num) ? 0 : num
+  }
 
   // Total money = all depository accounts (checking, savings)
   const totalMoney = allAccounts
-    .filter(a => a.type.toLowerCase() === 'depository')
-    .reduce((sum, a) => sum + (a.currentBalance || 0), 0)
+    .filter(a => a.type?.toLowerCase() === 'depository')
+    .reduce((sum, a) => sum + safeBalance(a.currentBalance), 0)
 
   // Total debt = credit cards + loans, BUT exclude line of credit over 100k (mortgages)
   const totalDebt = allAccounts
     .filter(a => {
-      const type = a.type.toLowerCase()
+      const type = (a.type || '').toLowerCase()
       const subtype = (a.subtype || '').toLowerCase()
-      const balance = Math.abs(a.currentBalance || 0)
+      const balance = Math.abs(safeBalance(a.currentBalance))
 
       // Exclude line of credit over 100k (likely mortgage)
       if (subtype.includes('line of credit') && balance > 100000) {
@@ -314,7 +323,7 @@ export function ConnectedBanks() {
       // Include credit cards and loans
       return type === 'credit' || type === 'loan'
     })
-    .reduce((sum, a) => sum + Math.abs(a.currentBalance || 0), 0)
+    .reduce((sum, a) => sum + Math.abs(safeBalance(a.currentBalance)), 0)
 
   // Separate business and personal accounts
   const businessAccounts = allAccounts.filter(a => a.isBusiness)

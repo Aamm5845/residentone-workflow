@@ -15,7 +15,73 @@ import {
   AlertTriangle,
   TrendingUp,
   Bell,
+  Flame,
+  ExternalLink,
+  Sparkles,
+  Target,
+  CreditCard,
+  Landmark,
+  Receipt,
 } from 'lucide-react'
+
+// Payment portal links for Canadian banks and services
+const BANK_PAYMENT_LINKS: Record<string, string> = {
+  // Banks - Credit Cards & LOC payments
+  'td': 'https://easyweb.td.com',
+  'td bank': 'https://easyweb.td.com',
+  'td canada': 'https://easyweb.td.com',
+  'bmo': 'https://www.bmo.com/onlinebanking',
+  'bank of montreal': 'https://www.bmo.com/onlinebanking',
+  'rbc': 'https://www.rbcroyalbank.com/ways-to-bank/online-banking/',
+  'royal bank': 'https://www.rbcroyalbank.com/ways-to-bank/online-banking/',
+  'scotiabank': 'https://www.scotiabank.com/ca/en/personal/scotia-online.html',
+  'scotia': 'https://www.scotiabank.com/ca/en/personal/scotia-online.html',
+  'cibc': 'https://www.cibc.com/en/personal-banking/ways-to-bank/online-banking.html',
+  'national bank': 'https://www.nbc.ca/personal/accounts/online-banking.html',
+  'nbc': 'https://www.nbc.ca/personal/accounts/online-banking.html',
+  'desjardins': 'https://www.desjardins.com/ca/personal/accounts-services/ways-to-bank/online-banking/',
+  'tangerine': 'https://www.tangerine.ca/en/ways-to-bank/online-banking',
+  'simplii': 'https://www.simplii.com/en/ways-to-bank/online-banking.html',
+  'amex': 'https://www.americanexpress.com/en-ca/account/login',
+  'american express': 'https://www.americanexpress.com/en-ca/account/login',
+  'capital one': 'https://www.capitalone.ca/sign-in/',
+  'mbna': 'https://www.mbna.ca/en/sign-in/',
+  'pc financial': 'https://www.pcfinancial.ca/en/',
+  'canadian tire': 'https://www.myctfs.com/',
+  // Utilities
+  'hydro': 'https://www.hydroone.com/myaccount',
+  'enbridge': 'https://www.enbridgegas.com/my-account',
+  'toronto hydro': 'https://www.torontohydro.com/myaccount',
+  // Telecom
+  'rogers': 'https://www.rogers.com/consumer/myrogers',
+  'bell': 'https://www.bell.ca/Mybell',
+  'telus': 'https://www.telus.com/my-telus',
+  'fido': 'https://www.fido.ca/myaccount',
+  'virgin': 'https://www.virginplus.ca/en/myaccount/',
+  'koodo': 'https://www.koodomobile.com/my-account',
+  'freedom': 'https://www.freedommobile.ca/my-account',
+  'shaw': 'https://my.shaw.ca/',
+  // Streaming & Subscriptions
+  'netflix': 'https://www.netflix.com/account',
+  'spotify': 'https://www.spotify.com/account/',
+  'amazon': 'https://www.amazon.ca/gp/css/homepage.html',
+  'disney': 'https://www.disneyplus.com/account',
+  'apple': 'https://appleid.apple.com/',
+  'google': 'https://myaccount.google.com/',
+  'microsoft': 'https://account.microsoft.com/',
+  'crave': 'https://www.crave.ca/account',
+  'youtube': 'https://www.youtube.com/paid_memberships',
+}
+
+function getPaymentLink(billName: string): string | null {
+  const normalized = billName.toLowerCase()
+  for (const [key, url] of Object.entries(BANK_PAYMENT_LINKS)) {
+    if (normalized.includes(key)) {
+      return url
+    }
+  }
+  return null
+}
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -28,6 +94,7 @@ interface Bill {
   category: string
   frequency: string
   confidence: string
+  accountType?: 'credit_card' | 'loan' | 'line_of_credit' | 'bill'
 }
 
 interface BillsSummary {
@@ -76,13 +143,16 @@ export function BillsCalendar() {
     fetchBills()
   }, [])
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number | null | undefined) => {
+    if (amount === null || amount === undefined) return '$0'
+    const num = Number(amount)
+    if (isNaN(num)) return '$0'
     return new Intl.NumberFormat('en-CA', {
       style: 'currency',
       currency: 'CAD',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
-    }).format(amount)
+    }).format(num)
   }
 
   // Generate calendar days for current month view
@@ -222,38 +292,108 @@ export function BillsCalendar() {
         </div>
       </div>
 
-      {/* Urgent Alerts */}
+      {/* ADHD-Friendly: Today's Action Card */}
+      {bills.length > 0 && (
+        <div className="mb-6 bg-gradient-to-r from-blue-500 via-blue-600 to-indigo-600 rounded-2xl p-6 text-white shadow-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-blue-100 text-sm font-medium uppercase tracking-wide flex items-center gap-2">
+                <Target className="h-4 w-4" />
+                Your Bill Focus
+              </p>
+              {bills.filter(b => b.isOverdue).length > 0 ? (
+                <>
+                  <p className="text-3xl font-bold mt-2">
+                    Pay {bills.filter(b => b.isOverdue)[0].name}
+                  </p>
+                  <p className="text-red-200 mt-1">
+                    {Math.abs(bills.filter(b => b.isOverdue)[0].daysUntilDue)} days overdue - {formatCurrency(bills.filter(b => b.isOverdue)[0].amount)}
+                  </p>
+                </>
+              ) : bills.filter(b => b.daysUntilDue <= 3).length > 0 ? (
+                <>
+                  <p className="text-3xl font-bold mt-2">
+                    {bills.filter(b => b.daysUntilDue <= 3)[0].name} due soon
+                  </p>
+                  <p className="text-blue-200 mt-1">
+                    {bills.filter(b => b.daysUntilDue <= 3)[0].daysUntilDue === 0 ? 'Due TODAY!' :
+                     bills.filter(b => b.daysUntilDue <= 3)[0].daysUntilDue === 1 ? 'Due tomorrow' :
+                     `Due in ${bills.filter(b => b.daysUntilDue <= 3)[0].daysUntilDue} days`} - {formatCurrency(bills.filter(b => b.daysUntilDue <= 3)[0].amount)}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-3xl font-bold mt-2 flex items-center gap-2">
+                    <Sparkles className="h-8 w-8" />
+                    All bills on track!
+                  </p>
+                  <p className="text-blue-200 mt-1">Nothing urgent right now</p>
+                </>
+              )}
+            </div>
+            {(bills.filter(b => b.isOverdue).length > 0 || bills.filter(b => b.daysUntilDue <= 3).length > 0) && (
+              <div className="text-right">
+                {(() => {
+                  const urgentBill = bills.filter(b => b.isOverdue)[0] || bills.filter(b => b.daysUntilDue <= 3)[0]
+                  const payLink = urgentBill ? getPaymentLink(urgentBill.name) : null
+                  return payLink ? (
+                    <a
+                      href={payLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-white text-blue-600 rounded-xl font-bold hover:bg-blue-50 transition-colors shadow-md"
+                    >
+                      Pay Now
+                      <ExternalLink className="h-5 w-5" />
+                    </a>
+                  ) : null
+                })()}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Urgent Alerts - Enhanced */}
       {summary && (summary.overdueCount > 0 || summary.dueSoonCount > 0) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           {summary.overdueCount > 0 && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="h-6 w-6 text-red-500 flex-shrink-0" />
-                <div>
-                  <h3 className="font-semibold text-red-800">
-                    {summary.overdueCount} Overdue Bill{summary.overdueCount > 1 ? 's' : ''}
+            <div className="p-5 bg-gradient-to-r from-red-50 to-red-100 border-2 border-red-300 rounded-xl">
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-red-500 rounded-xl">
+                  <Flame className="h-6 w-6 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-red-800 text-lg">
+                    {summary.overdueCount} OVERDUE
                   </h3>
-                  <p className="text-red-700 text-2xl font-bold mt-1">
+                  <p className="text-red-700 text-3xl font-bold mt-1">
                     {formatCurrency(summary.overdueAmount)}
                   </p>
-                  <p className="text-red-600 text-sm mt-1">Pay these immediately!</p>
+                  <p className="text-red-600 text-sm mt-2 font-medium">
+                    Pay these right now to avoid late fees!
+                  </p>
                 </div>
               </div>
             </div>
           )}
 
           {summary.dueSoonCount > 0 && (
-            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-              <div className="flex items-start gap-3">
-                <Bell className="h-6 w-6 text-amber-500 flex-shrink-0" />
-                <div>
-                  <h3 className="font-semibold text-amber-800">
-                    {summary.dueSoonCount} Bill{summary.dueSoonCount > 1 ? 's' : ''} Due This Week
+            <div className="p-5 bg-gradient-to-r from-amber-50 to-yellow-100 border-2 border-amber-300 rounded-xl">
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-amber-500 rounded-xl">
+                  <Bell className="h-6 w-6 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-amber-800 text-lg">
+                    {summary.dueSoonCount} Due This Week
                   </h3>
-                  <p className="text-amber-700 text-2xl font-bold mt-1">
+                  <p className="text-amber-700 text-3xl font-bold mt-1">
                     {formatCurrency(summary.dueSoonAmount)}
                   </p>
-                  <p className="text-amber-600 text-sm mt-1">Don&apos;t forget to pay!</p>
+                  <p className="text-amber-600 text-sm mt-2 font-medium">
+                    Set a reminder or pay now while you remember!
+                  </p>
                 </div>
               </div>
             </div>
@@ -436,65 +576,108 @@ export function BillsCalendar() {
                 </p>
               </div>
             ) : (
-              (selectedDate ? selectedDateBills : bills).map((bill, i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    'p-4',
-                    bill.isOverdue && 'bg-red-50'
-                  )}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3">
-                      <div
-                        className={cn(
-                          'p-2 rounded-lg',
-                          bill.isOverdue
-                            ? 'bg-red-100'
-                            : bill.daysUntilDue <= 3
-                              ? 'bg-amber-100'
-                              : 'bg-gray-100'
-                        )}
-                      >
-                        {bill.isOverdue ? (
-                          <AlertCircle className="h-4 w-4 text-red-600" />
-                        ) : bill.daysUntilDue <= 3 ? (
-                          <AlertTriangle className="h-4 w-4 text-amber-600" />
-                        ) : (
-                          <Clock className="h-4 w-4 text-gray-600" />
-                        )}
+              (selectedDate ? selectedDateBills : bills).map((bill, i) => {
+                // Get icon based on account type
+                const getBillIcon = () => {
+                  if (bill.accountType === 'credit_card') return <CreditCard className="h-4 w-4" />
+                  if (bill.accountType === 'line_of_credit') return <Landmark className="h-4 w-4" />
+                  if (bill.accountType === 'loan') return <DollarSign className="h-4 w-4" />
+                  return <Receipt className="h-4 w-4" />
+                }
+
+                // Get background color based on account type
+                const getTypeBg = () => {
+                  if (bill.isOverdue) return 'bg-red-100'
+                  if (bill.daysUntilDue <= 3) return 'bg-amber-100'
+                  if (bill.accountType === 'credit_card') return 'bg-purple-100'
+                  if (bill.accountType === 'line_of_credit') return 'bg-blue-100'
+                  if (bill.accountType === 'loan') return 'bg-indigo-100'
+                  return 'bg-gray-100'
+                }
+
+                const getTypeColor = () => {
+                  if (bill.isOverdue) return 'text-red-600'
+                  if (bill.daysUntilDue <= 3) return 'text-amber-600'
+                  if (bill.accountType === 'credit_card') return 'text-purple-600'
+                  if (bill.accountType === 'line_of_credit') return 'text-blue-600'
+                  if (bill.accountType === 'loan') return 'text-indigo-600'
+                  return 'text-gray-600'
+                }
+
+                const paymentLink = getPaymentLink(bill.name)
+
+                return (
+                  <div
+                    key={i}
+                    className={cn(
+                      'p-4',
+                      bill.isOverdue && 'bg-red-50'
+                    )}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3">
+                        <div className={cn('p-2 rounded-lg', getTypeBg())}>
+                          <span className={getTypeColor()}>
+                            {getBillIcon()}
+                          </span>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-gray-900">{bill.name}</p>
+                            {bill.accountType && bill.accountType !== 'bill' && (
+                              <span className={cn(
+                                'text-xs px-1.5 py-0.5 rounded',
+                                bill.accountType === 'credit_card' && 'bg-purple-100 text-purple-700',
+                                bill.accountType === 'line_of_credit' && 'bg-blue-100 text-blue-700',
+                                bill.accountType === 'loan' && 'bg-indigo-100 text-indigo-700'
+                              )}>
+                                {bill.accountType === 'credit_card' ? 'Credit Card' :
+                                 bill.accountType === 'line_of_credit' ? 'LOC' : 'Loan'}
+                              </span>
+                            )}
+                          </div>
+                          <p
+                            className={cn(
+                              'text-sm',
+                              bill.isOverdue
+                                ? 'text-red-600 font-medium'
+                                : bill.daysUntilDue <= 3
+                                  ? 'text-amber-600'
+                                  : 'text-gray-500'
+                            )}
+                          >
+                            {bill.isOverdue
+                              ? `${Math.abs(bill.daysUntilDue)} days overdue!`
+                              : bill.daysUntilDue === 0
+                                ? 'Due today!'
+                                : bill.daysUntilDue === 1
+                                  ? 'Due tomorrow'
+                                  : `Due in ${bill.daysUntilDue} days`}
+                          </p>
+                          <p className="text-xs text-gray-400 capitalize">
+                            {bill.frequency} • Min payment
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{bill.name}</p>
-                        <p
-                          className={cn(
-                            'text-sm',
-                            bill.isOverdue
-                              ? 'text-red-600 font-medium'
-                              : bill.daysUntilDue <= 3
-                                ? 'text-amber-600'
-                                : 'text-gray-500'
-                          )}
-                        >
-                          {bill.isOverdue
-                            ? `${Math.abs(bill.daysUntilDue)} days overdue!`
-                            : bill.daysUntilDue === 0
-                              ? 'Due today!'
-                              : bill.daysUntilDue === 1
-                                ? 'Due tomorrow'
-                                : `Due in ${bill.daysUntilDue} days`}
+                      <div className="text-right">
+                        <p className="font-semibold text-gray-900">
+                          {formatCurrency(bill.amount)}
                         </p>
-                        <p className="text-xs text-gray-400 capitalize">
-                          {bill.frequency}
-                        </p>
+                        {paymentLink && (
+                          <a
+                            href={paymentLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-green-600 hover:underline flex items-center justify-end gap-1 mt-1"
+                          >
+                            Pay <ExternalLink className="h-3 w-3" />
+                          </a>
+                        )}
                       </div>
                     </div>
-                    <p className="font-semibold text-gray-900">
-                      {formatCurrency(bill.amount)}
-                    </p>
                   </div>
-                </div>
-              ))
+                )
+              })
             )}
           </div>
         </div>

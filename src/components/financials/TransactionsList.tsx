@@ -88,10 +88,13 @@ export function TransactionsList() {
     setFilteredTransactions(filtered)
   }, [transactions, filterType, searchQuery])
 
-  // Format currency
-  const formatCurrency = (amount: number, currency: string = 'CAD') => {
+  // Format currency - handle null, undefined, and NaN
+  const formatCurrency = (amount: number | null | undefined, currency: string = 'CAD') => {
+    if (amount === null || amount === undefined) return '$0.00'
+    const num = Number(amount)
+    if (isNaN(num)) return '$0.00'
     // Plaid uses positive for debits (money out) and negative for credits (money in)
-    const displayAmount = Math.abs(amount)
+    const displayAmount = Math.abs(num)
     return new Intl.NumberFormat('en-CA', {
       style: 'currency',
       currency,

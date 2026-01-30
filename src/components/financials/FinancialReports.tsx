@@ -122,13 +122,16 @@ export function FinancialReports() {
     fetchReport()
   }, [months])
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number | null | undefined) => {
+    if (amount === null || amount === undefined) return '$0'
+    const num = Number(amount)
+    if (isNaN(num)) return '$0'
     return new Intl.NumberFormat('en-CA', {
       style: 'currency',
       currency: 'CAD',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
-    }).format(amount)
+    }).format(num)
   }
 
   const formatMonth = (monthStr: string) => {

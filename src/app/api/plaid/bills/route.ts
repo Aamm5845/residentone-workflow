@@ -12,9 +12,10 @@ interface BillPrediction {
   lastPaid: Date | null
   frequency: 'weekly' | 'monthly' | 'yearly'
   confidence: 'high' | 'medium' | 'low'
+  accountType?: 'credit_card' | 'loan' | 'line_of_credit' | 'bill'
 }
 
-// GET - Predict upcoming bills based on transaction history
+// GET - Predict upcoming bills based on transaction history AND credit accounts
 export async function GET() {
   try {
     const session = await getSession()
@@ -27,7 +28,81 @@ export async function GET() {
       return NextResponse.json({ error: 'Forbidden - Owner access required' }, { status: 403 })
     }
 
-    // Get transactions from the last 6 months
+    const now = new Date()
+    const predictions: BillPrediction[] = []
+
+    // =====================================================
+    // PART 1: Get Credit Cards and Lines of Credit directly
+    // These are monthly bills by nature!
+    // =====================================================
+    const creditAccounts = await prisma.bankAccount.findMany({
+      where: {
+        plaidItem: {
+          orgId: session.user.orgId,
+        },
+        type: {
+          in: ['credit', 'loan'],
+        },
+      },
+      include: {
+        plaidItem: true,
+      },
+    })
+
+    for (const account of creditAccounts) {
+      const balance = Number(account.currentBalance) || 0
+
+      // Skip accounts with no balance (nothing owed)
+      if (balance <= 0) continue
+
+      // Determine account type
+      const subtype = (account.subtype || '').toLowerCase()
+      let accountType: 'credit_card' | 'loan' | 'line_of_credit' = 'credit_card'
+      if (subtype.includes('line of credit') || subtype.includes('loc')) {
+        accountType = 'line_of_credit'
+      } else if (subtype.includes('loan') || subtype.includes('mortgage')) {
+        accountType = 'loan'
+      }
+
+      // Skip large lines of credit (likely mortgages)
+      if (accountType === 'line_of_credit' && balance > 100000) continue
+
+      // Calculate minimum payment (roughly 2-3% of balance, min $10)
+      const minPayment = Math.max(10, balance * 0.025)
+
+      // Credit card bills are typically due around the same day each month
+      // We'll estimate the 15th of next month if we don't have exact data
+      const dueDate = new Date(now)
+      if (now.getDate() > 20) {
+        // If we're past the 20th, due date is next month
+        dueDate.setMonth(dueDate.getMonth() + 1)
+      }
+      dueDate.setDate(15) // Common due date
+
+      const daysUntilDue = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+
+      // Build display name
+      const institutionName = account.plaidItem?.institutionName || ''
+      const displayName = account.name || account.officialName ||
+        `${institutionName} ${accountType === 'credit_card' ? 'Credit Card' : accountType === 'line_of_credit' ? 'Line of Credit' : 'Loan'}`
+
+      predictions.push({
+        name: displayName,
+        amount: minPayment,
+        dueDate,
+        category: accountType === 'credit_card' ? 'Credit Card' : accountType === 'line_of_credit' ? 'Line of Credit' : 'Loan',
+        isOverdue: daysUntilDue < 0,
+        daysUntilDue,
+        lastPaid: null,
+        frequency: 'monthly',
+        confidence: 'high',
+        accountType,
+      })
+    }
+
+    // =====================================================
+    // PART 2: Detect recurring bills from transaction history
+    // =====================================================
     const sixMonthsAgo = new Date()
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
 
@@ -73,9 +148,6 @@ export async function GET() {
       merchantData[key].dates.push(txn.date)
     }
 
-    const now = new Date()
-    const predictions: BillPrediction[] = []
-
     // Analyze each merchant for recurring patterns
     for (const [, data] of Object.entries(merchantData)) {
       if (data.dates.length < 2) continue
@@ -98,7 +170,8 @@ export async function GET() {
       if (avgGap < 10) {
         frequency = 'weekly'
         confidence = avgGap > 5 && avgGap < 9 ? 'high' : 'medium'
-      } else if (avgGap > 25 && avgGap < 35) {
+      } else if (avgGap > 20 && avgGap < 40) {
+        // Widened range for monthly detection (was 25-35, now 20-40)
         frequency = 'monthly'
         confidence = avgGap > 27 && avgGap < 32 ? 'high' : 'medium'
       } else if (avgGap > 350 && avgGap < 380) {
@@ -109,9 +182,21 @@ export async function GET() {
         continue
       }
 
-      // Filter for bill-like categories
-      const billCategories = ['Utilities', 'Insurance', 'Subscriptions', 'Professional Services', 'Healthcare']
-      if (!billCategories.includes(data.category) && confidence !== 'high') {
+      // Expanded bill-like categories - include more types
+      const billCategories = [
+        'Utilities', 'Insurance', 'Subscriptions', 'Professional Services',
+        'Healthcare', 'Bank Fees', 'Transfer', 'Payment', 'Loan',
+        'Telecommunications', 'Internet', 'Phone', 'Cable', 'Streaming',
+        'Gym', 'Fitness', 'Rent', 'Mortgage'
+      ]
+
+      // Check if category matches OR if it's a high confidence recurring payment
+      const isBillCategory = billCategories.some(cat =>
+        data.category.toLowerCase().includes(cat.toLowerCase())
+      )
+
+      // Accept if it's a bill category, or if it's high confidence with 3+ occurrences
+      if (!isBillCategory && !(confidence === 'high' && data.dates.length >= 3)) {
         continue
       }
 
@@ -128,8 +213,8 @@ export async function GET() {
       // Calculate average amount
       const avgAmount = data.amounts.reduce((a, b) => a + b, 0) / data.amounts.length
 
-      // Only include bills that are due within the next 30 days or are overdue
-      if (daysUntilDue <= 30) {
+      // Include bills due within 45 days or overdue (was 30)
+      if (daysUntilDue <= 45) {
         predictions.push({
           name: data.name,
           amount: avgAmount,
@@ -140,6 +225,7 @@ export async function GET() {
           lastPaid,
           frequency,
           confidence,
+          accountType: 'bill',
         })
       }
     }

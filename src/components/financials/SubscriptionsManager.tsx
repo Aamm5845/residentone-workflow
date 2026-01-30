@@ -81,13 +81,16 @@ export function SubscriptionsManager() {
     fetchSubscriptions()
   }, [])
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number | null | undefined) => {
+    if (amount === null || amount === undefined) return '$0.00'
+    const num = Number(amount)
+    if (isNaN(num)) return '$0.00'
     return new Intl.NumberFormat('en-CA', {
       style: 'currency',
       currency: 'CAD',
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    }).format(amount)
+    }).format(num)
   }
 
   const formatDate = (dateStr: string) => {

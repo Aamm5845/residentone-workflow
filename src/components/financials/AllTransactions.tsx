@@ -236,12 +236,15 @@ export function AllTransactions() {
     }
   }
 
-  // Format currency
-  const formatCurrency = (amount: number) => {
+  // Format currency - handle null, undefined, and NaN
+  const formatCurrency = (amount: number | null | undefined) => {
+    if (amount === null || amount === undefined) return '$0.00'
+    const num = Number(amount)
+    if (isNaN(num)) return '$0.00'
     return new Intl.NumberFormat('en-CA', {
       style: 'currency',
       currency: 'CAD',
-    }).format(Math.abs(amount))
+    }).format(Math.abs(num))
   }
 
   // Format date
