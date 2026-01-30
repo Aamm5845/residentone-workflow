@@ -85,14 +85,16 @@ Once the agreement is approved, our team is ready to begin. I will reach out in 
 
 Thank you again for choosing Meisner Interiors. We look forward to partnering with you and bringing your vision to life with care and attention to detail.`
 
-// Common scope phases for interior design
+// Common scope phases for interior design - in typical project order
 const COMMON_PHASES = [
-  { title: 'Design Development', description: 'Development of the complete interior design including establishing the overall design concept, materials, finishes, and detailing. High-quality 3D renderings will be created to clearly communicate the final design intent. Design revisions are included as needed to finalize the approved direction.' },
-  { title: '3D Renderings', description: 'Creation of photorealistic 3D visualizations to help communicate the design intent. Multiple views and angles will be provided for key spaces.' },
-  { title: 'Engineering & Consultant Coordination', description: 'Coordination with mechanical, plumbing, and other required engineers to ensure all systems integrate seamlessly with the design. This phase includes collaboration, reviews, and design adjustments as necessary to align with technical and functional requirements.' },
-  { title: 'Product & Material Selection', description: 'Selection and specification of all fixtures, finishes, and materials required for the project. This includes product recommendations, sourcing guidance, and ensuring all selections align with the approved design and overall budget.' },
-  { title: 'Construction Documents', description: 'Preparation of detailed construction drawings and specifications for contractor bidding and construction.' },
-  { title: 'Construction Administration', description: 'Site visits and oversight during construction to ensure the design is being implemented correctly.' },
+  { title: 'Floor Plans & Furniture Layout', description: 'Development of detailed floor plans showing furniture placement, traffic flow, and spatial planning. This phase establishes the functional layout of each space.' },
+  { title: '3D Renderings', description: 'Creation of photorealistic 3D visualizations to communicate the design intent. Multiple views and angles will be provided for key spaces to help visualize the final result.' },
+  { title: 'Elevations', description: 'Detailed elevation drawings showing wall treatments, cabinetry, built-ins, and vertical design elements for each space.' },
+  { title: 'Electrical Plans', description: 'Electrical layout plans showing lighting placement, switches, outlets, and fixture locations coordinated with the design.' },
+  { title: 'Plumbing Plans', description: 'Plumbing layout drawings for kitchens, bathrooms, and wet areas showing fixture locations and rough-in requirements.' },
+  { title: 'Millwork Drawings', description: 'Detailed millwork and cabinetry drawings with dimensions, materials, and specifications for custom built-ins and woodwork.' },
+  { title: 'FFE Specifications', description: 'Furniture, Fixtures & Equipment selection and specification including product sourcing, pricing, and procurement coordination.' },
+  { title: 'Construction Administration', description: 'Site visits and oversight during construction to ensure the design is being implemented correctly and answer contractor questions.' },
 ]
 
 type Step = 'describe' | 'features' | 'exclusions' | 'phases' | 'payment' | 'review'
