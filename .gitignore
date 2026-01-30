@@ -170,3 +170,4 @@ fix-result.json
 
 # Sentry Config File
 .env.sentry-build-plugin
+public/*.pdf
