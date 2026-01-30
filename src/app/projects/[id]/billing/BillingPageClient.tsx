@@ -418,7 +418,7 @@ export default function BillingPageClient({
                           >
                             <Download className="w-4 h-4" />
                           </Button>
-                          <Link href={`/client/proposal/${proposal.id}`} target="_blank">
+                          <Link href={`/client/proposal/${proposal.accessToken || proposal.id}`} target="_blank">
                             <Button variant="ghost" size="sm" title="Preview">
                               <ExternalLink className="w-4 h-4" />
                             </Button>

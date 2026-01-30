@@ -2,9 +2,25 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import React from 'react'
-import { Document, Page, Text, View, StyleSheet, renderToBuffer, Image } from '@react-pdf/renderer'
+import { Document, Page, Text, View, StyleSheet, renderToBuffer, Image, Font } from '@react-pdf/renderer'
 import * as path from 'path'
 import * as fs from 'fs'
+
+// Register a cursive/script font for signatures
+Font.register({
+  family: 'GreatVibes',
+  src: 'https://fonts.gstatic.com/s/greatvibes/v18/RWmMoKWR9v4ksMfaWd_JN-XC.ttf',
+})
+
+// Register fonts with fallbacks
+Font.register({
+  family: 'Helvetica',
+  fonts: [
+    { src: 'Helvetica' },
+    { src: 'Helvetica-Bold', fontWeight: 'bold' },
+    { src: 'Helvetica-Oblique', fontStyle: 'italic' },
+  ],
+})
 
 // Get logo as base64 data URI for embedding in PDF
 function getLogoDataUri(): string | null {
@@ -185,9 +201,9 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   signatureText: {
-    fontSize: 18,
-    fontStyle: 'italic',
-    color: colors.textMuted,
+    fontSize: 24,
+    fontFamily: 'GreatVibes',
+    color: colors.text,
     marginTop: 10,
   },
 
@@ -399,10 +415,10 @@ function LetterPage({ proposal, org, logoDataUri }: { proposal: any; org: any; l
       ...paragraphs.map((p: string, i: number) =>
         React.createElement(Text, { key: i, style: styles.paragraph }, p)
       ),
-      React.createElement(View, { style: styles.signatureSection },
+      React.createElement(View, { style: styles.signatureSection, wrap: false },
+        React.createElement(Text, { style: styles.signatureText }, proposal.companySignedByName || 'Aaron Meisner'),
         React.createElement(Text, { style: styles.ceoName }, proposal.companySignedByName || 'Aaron Meisner'),
-        React.createElement(Text, { style: styles.ceoTitle }, `CEO ${org?.businessName || org?.name || 'Meisner Interiors'}`),
-        React.createElement(Text, { style: styles.signatureText }, proposal.companySignedByName || 'Aaron Meisner')
+        React.createElement(Text, { style: styles.ceoTitle }, `CEO ${org?.businessName || org?.name || 'Meisner Interiors'}`)
       )
     )
   )
@@ -497,15 +513,13 @@ function TermsPage({ proposal, org, logoDataUri }: { proposal: any; org: any; lo
       React.createElement(Text, { style: styles.ceoName }, proposal.companySignedByName || 'Aaron Meisner'),
       React.createElement(Text, { style: styles.ceoTitle }, `CEO ${org?.businessName || org?.name || 'Meisner Interiors'}`),
 
-      // Signature boxes
-      React.createElement(View, { style: styles.signatureBoxContainer },
+      // Signature boxes - wrap={false} keeps them on the same page
+      React.createElement(View, { style: styles.signatureBoxContainer, wrap: false },
         // CEO signature
         React.createElement(View, { style: styles.signatureBox },
           React.createElement(View, { style: styles.signatureLine },
             React.createElement(Text, { style: styles.signaturePrefix }, 'X:'),
-            proposal.companySignature ?
-              React.createElement(Text, { style: { fontSize: 14, fontStyle: 'italic', marginTop: 5 } }, proposal.companySignedByName || 'Aaron Meisner') :
-              React.createElement(Text, { style: { fontSize: 14, fontStyle: 'italic', marginTop: 5 } }, proposal.companySignedByName || 'Aaron Meisner')
+            React.createElement(Text, { style: { fontSize: 20, fontFamily: 'GreatVibes', marginTop: 5 } }, proposal.companySignedByName || 'Aaron Meisner')
           ),
           React.createElement(Text, { style: styles.signatureBoxLabel }, proposal.companySignedByName || 'Aaron Meisner')
         ),
@@ -514,17 +528,17 @@ function TermsPage({ proposal, org, logoDataUri }: { proposal: any; org: any; lo
           React.createElement(View, { style: styles.signatureLine },
             React.createElement(Text, { style: styles.signaturePrefix }, 'X:'),
             proposal.signedAt ?
-              React.createElement(Text, { style: { fontSize: 10, marginTop: 5 } }, new Date(proposal.signedAt).toLocaleDateString('en-CA')) :
+              React.createElement(Text, { style: { fontSize: 10, marginTop: 5 } }, new Date(proposal.signedAt).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' })) :
               null
           ),
-          React.createElement(Text, { style: styles.signatureBoxLabel }, 'Date:')
+          React.createElement(Text, { style: styles.signatureBoxLabel }, 'Date Signed')
         ),
         // Client signature
         React.createElement(View, { style: styles.signatureBox },
           React.createElement(View, { style: styles.signatureLine },
             React.createElement(Text, { style: styles.signaturePrefix }, 'X:'),
             proposal.signedByName ?
-              React.createElement(Text, { style: { fontSize: 14, fontStyle: 'italic', marginTop: 5 } }, proposal.signedByName) :
+              React.createElement(Text, { style: { fontSize: 20, fontFamily: 'GreatVibes', marginTop: 5 } }, proposal.signedByName) :
               null
           ),
           React.createElement(Text, { style: styles.signatureBoxLabel }, `Mr. ${proposal.clientName}`)
