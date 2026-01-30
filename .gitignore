@@ -167,3 +167,6 @@ nul
 # Auto-fix temporary files
 fix-issue.mjs
 fix-result.json
+
+# Sentry Config File
+.env.sentry-build-plugin

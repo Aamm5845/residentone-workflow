@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next'
+import { withSentryConfig } from '@sentry/nextjs'
 
 // Generate a unique build ID for each deployment
 // This is used by the UpdateChecker to detect new versions
@@ -38,4 +39,28 @@ const nextConfig: NextConfig = {
   },
 }
 
-export default nextConfig
+export default withSentryConfig(nextConfig, {
+  // Sentry organization and project
+  org: "meisner-interiors",
+  project: "javascript-nextjs",
+
+  // Only print logs for uploading source maps in CI
+  silent: !process.env.CI,
+
+  // Upload a larger set of source maps for prettier stack traces
+  widenClientFileUpload: true,
+
+  // Route browser requests to Sentry through Next.js to avoid ad-blockers
+  tunnelRoute: "/monitoring",
+
+  // Webpack-specific options
+  webpack: {
+    // Automatic instrumentation of Vercel Cron Monitors
+    automaticVercelMonitors: true,
+
+    // Tree-shaking to reduce bundle size
+    treeshake: {
+      removeDebugLogging: true,
+    },
+  },
+})
