@@ -30,34 +30,33 @@ export async function GET(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
-    // Get all rooms with their FFE sections
+    // Get all rooms with their FFE instance and sections
     const rooms = await prisma.room.findMany({
       where: { projectId },
       include: {
-        sectionInstances: {
+        ffeInstance: {
           include: {
-            section: {
+            sections: {
+              orderBy: { order: 'asc' },
               select: {
                 id: true,
                 name: true
               }
             }
-          },
-          orderBy: { section: { name: 'asc' } }
+          }
         }
       },
-      orderBy: { name: 'asc' }
+      orderBy: [{ order: 'asc' }, { name: 'asc' }]
     })
 
     // Transform to simpler format
-    const transformedRooms = rooms.map(room => ({
-      id: room.id,
-      name: room.name,
-      sections: room.sectionInstances.map(si => ({
-        id: si.id, // Use sectionInstance id for creating items
-        name: si.section.name
+    const transformedRooms = rooms
+      .filter(room => room.ffeInstance) // Only rooms with FFE instance
+      .map(room => ({
+        id: room.id,
+        name: room.name || room.type,
+        sections: room.ffeInstance?.sections || []
       }))
-    }))
 
     return NextResponse.json({ rooms: transformedRooms })
 

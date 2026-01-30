@@ -6,6 +6,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -748,6 +749,9 @@ export default function QuotePDFReviewDialog({
               <DialogTitle className="text-lg">
                 Review Quote from {supplierName}
               </DialogTitle>
+              <DialogDescription className="sr-only">
+                Review and match items from supplier quote with your request
+              </DialogDescription>
               {supplierInfo?.quoteNumber && (
                 <p className="text-sm text-gray-500 mt-1">
                   Quote #{supplierInfo.quoteNumber}
@@ -1390,6 +1394,9 @@ export default function QuotePDFReviewDialog({
         >
           <DialogHeader>
             <DialogTitle>Add Item to All Specs</DialogTitle>
+            <DialogDescription className="sr-only">
+              Add a new item from the supplier quote to your project specifications
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
@@ -1585,6 +1592,9 @@ export default function QuotePDFReviewDialog({
               <Layers className="w-5 h-5 text-purple-600" />
               Add as Component
             </DialogTitle>
+            <DialogDescription className="sr-only">
+              Add this item as a component of an existing spec item
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
