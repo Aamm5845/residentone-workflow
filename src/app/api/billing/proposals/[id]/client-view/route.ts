@@ -324,13 +324,13 @@ export async function POST(
       },
     })
 
-    // Send email notifications to organization owners
+    // Send email notifications to organization owners and admins
     try {
-      // Get organization owners to notify
-      const orgOwners = await prisma.user.findMany({
+      // Get organization owners and admins to notify
+      const notifyUsers = await prisma.user.findMany({
         where: {
           orgId: proposal.orgId,
-          role: 'OWNER',
+          role: { in: ['OWNER', 'ADMIN'] },
         },
         select: {
           email: true,
@@ -344,12 +344,12 @@ export async function POST(
         select: { name: true },
       })
 
-      // Send notification to each owner
-      for (const owner of orgOwners) {
-        if (owner.email) {
+      // Send notification to each owner/admin
+      for (const user of notifyUsers) {
+        if (user.email) {
           await sendProposalSignedNotification(
-            owner.email,
-            owner.name || 'Team',
+            user.email,
+            user.name || 'Team',
             {
               proposalNumber: proposal.proposalNumber,
               title: proposal.title,
