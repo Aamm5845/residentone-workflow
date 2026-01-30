@@ -381,10 +381,19 @@ export async function GET(
         }
 
         // Add quantity mismatches for items that exist in both - skip for manual quotes
+        // Also skip if user has already made a quantity choice (accepted or kept)
+        const matchResults = aiMatchData?.matchResults || []
         for (const li of quote.lineItems) {
           if (isManualQuote) break // Skip mismatch detection for manual quotes
           const rfqItem = li.rfqLineItem
           if (rfqItem && li.quantity !== rfqItem.quantity) {
+            // Check if user has already resolved this quantity discrepancy
+            const matchResult = matchResults.find((m: any) => m.rfqItem?.id === rfqItem.id)
+            if (matchResult?.quantityChoice) {
+              // User has already accepted/kept - skip this mismatch
+              continue
+            }
+
             const roomFFEItem = rfqItem.roomFFEItem
             enhancedMismatches.push({
               itemName: rfqItem.itemName,
