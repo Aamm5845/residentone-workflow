@@ -3,6 +3,7 @@
  * This is used for generating links in emails, redirects, etc.
  *
  * @updated 2025-12-27 - Always use production URL for email links
+ * @updated 2026-01-30 - Add separate function for client links (local vs production)
  *
  * IMPORTANT: For email links, we ALWAYS want to use app.meisnerinteriors.com
  * regardless of whether this is a preview deployment or production.
@@ -33,6 +34,36 @@ export function getBaseUrl(): string {
   }
 
   // Development fallback
+  return 'http://localhost:3000'
+}
+
+/**
+ * Get the base URL for client-facing links (proposals, invoices, etc.)
+ * In local development, returns localhost URL so you can test locally.
+ * In production (Vercel), returns the production domain.
+ */
+export function getClientBaseUrl(): string {
+  // In production (Vercel), use the production domain
+  if (process.env.VERCEL) {
+    return 'https://app.meisnerinteriors.com'
+  }
+
+  // In local development, use localhost with the correct port
+  // Check common environment variables for the port
+  if (process.env.PORT) {
+    return `http://localhost:${process.env.PORT}`
+  }
+
+  // Check for explicitly set environment variables
+  if (process.env.NEXT_PUBLIC_BASE_URL && process.env.NEXT_PUBLIC_BASE_URL !== '') {
+    return process.env.NEXT_PUBLIC_BASE_URL.replace(/\/$/, '')
+  }
+
+  if (process.env.NEXTAUTH_URL && process.env.NEXTAUTH_URL !== '') {
+    return process.env.NEXTAUTH_URL.replace(/\/$/, '')
+  }
+
+  // Default local development fallback
   return 'http://localhost:3000'
 }
 

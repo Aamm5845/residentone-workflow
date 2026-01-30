@@ -129,6 +129,7 @@ model User {
   emailNotificationsEnabled   Boolean                     @default(true)
   smsNotificationsEnabled     Boolean                     @default(false)
   mustChangePassword          Boolean                     @default(false)
+  canSeeBilling               Boolean                     @default(false)
   approvalStatus              UserApprovalStatus          @default(PENDING)
   approvedAt                  DateTime?
   approvedBy                  String?
@@ -240,6 +241,10 @@ model User {
   programaItemsLinked         ProgramaItem[]              @relation("ProgramaLinkedBy")
   // Budget quotes
   budgetQuotesCreated         BudgetQuote[]               @relation("BudgetQuoteCreatedBy")
+  // Billing system
+  proposalsCreated            Proposal[]                  @relation("ProposalCreatedBy")
+  billingInvoicesCreated      BillingInvoice[]            @relation("BillingInvoiceCreatedBy")
+  billingPaymentsConfirmed    BillingPayment[]            @relation("BillingPaymentConfirmedBy")
 }
 
 model Client {
@@ -351,6 +356,9 @@ model Project {
   specShareLinks            SpecShareLink[]            @relation("ProjectSpecShareLinks")
   // Budget quotes
   budgetQuotes              BudgetQuote[]              @relation("BudgetQuoteProject")
+  // Billing system
+  proposals                 Proposal[]                 @relation("ProjectProposals")
+  billingInvoices           BillingInvoice[]           @relation("ProjectBillingInvoices")
 }
 
 // Client Sources - files received from clients (measurements, architect plans, etc.)
@@ -4291,4 +4299,326 @@ model BankTransaction {
   @@index([date])
   @@index([matchedInvoiceId])
   @@index([aiCategory])
+}
+
+// ========================================
+// BILLING SYSTEM - PROPOSALS & INVOICES
+// ========================================
+
+enum ProposalStatus {
+  DRAFT
+  SENT
+  VIEWED
+  SIGNED
+  EXPIRED
+  DECLINED
+}
+
+enum ProposalBillingType {
+  FIXED
+  HOURLY
+  HYBRID  // Fixed price with hourly for additional work
+}
+
+model Proposal {
+  id              String              @id @default(cuid())
+  orgId           String
+  projectId       String
+  proposalNumber  String              // e.g., "P-2026-001"
+  title           String
+  status          ProposalStatus      @default(DRAFT)
+
+  // Billing type
+  billingType     ProposalBillingType @default(HYBRID)
+
+  // Content stored as JSON
+  content         Json?               // { scope, deliverables, timeline, pricing, terms }
+
+  // Cover letter (personalized letter to client)
+  coverLetter     String?             @db.Text
+
+  // Payment schedule as JSON array
+  // [{ title: "Deposit to begin", amount: 8000, percent: null, dueOn: "signing" },
+  //  { title: "Completion of Design", amount: 7000, percent: null, dueOn: "milestone" }]
+  paymentSchedule Json?
+
+  // Client info
+  clientName      String
+  clientEmail     String
+  clientPhone     String?
+  clientAddress   String?
+  projectAddress  String?             // Project site address (may differ from client)
+
+  // Financial
+  subtotal        Decimal             @db.Decimal(12, 2)
+  discountPercent Decimal?            @db.Decimal(5, 2)
+  discountAmount  Decimal?            @db.Decimal(12, 2)
+  gstRate         Decimal?            @db.Decimal(5, 3)
+  gstAmount       Decimal?            @db.Decimal(12, 2)
+  qstRate         Decimal?            @db.Decimal(5, 3)
+  qstAmount       Decimal?            @db.Decimal(12, 2)
+  totalAmount     Decimal             @db.Decimal(12, 2)
+
+  // Deposit (first payment due on signing)
+  depositAmount   Decimal?            @db.Decimal(12, 2)
+  depositPercent  Decimal?            @db.Decimal(5, 2)
+
+  // Hourly rate for additional work
+  hourlyRate      Decimal?            @db.Decimal(10, 2)
+
+  // Credit card fee
+  ccFeePercent    Decimal?            @db.Decimal(5, 2) @default(3.5)
+
+  // Validity
+  validUntil      DateTime?
+  validDays       Int?                @default(30)
+
+  // E-signature fields
+  signatureData   String?             @db.Text // Base64 encoded signature image
+  signedAt        DateTime?
+  signedByName    String?
+  signedByEmail   String?
+  signedByIp      String?
+  signatureType   String?             // "drawn" | "typed"
+
+  // Company signature (pre-filled)
+  companySignature     String?        @db.Text // Base64 encoded signature
+  companySignedByName  String?
+  companySignedAt      DateTime?
+
+  // Access & tracking
+  accessToken     String              @unique @default(cuid())
+  sentAt          DateTime?
+  viewedAt        DateTime?
+
+  // Deposit invoice auto-created on signing
+  depositInvoiceCreated Boolean       @default(false)
+
+  // Metadata
+  notes           String?             @db.Text
+  createdById     String
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  // Relations
+  project         Project             @relation("ProjectProposals", fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy       User                @relation("ProposalCreatedBy", fields: [createdById], references: [id])
+  activities      ProposalActivity[]
+  invoices        BillingInvoice[]    @relation("InvoiceFromProposal")
+
+  @@unique([orgId, proposalNumber])
+  @@index([orgId])
+  @@index([projectId])
+  @@index([status])
+  @@index([accessToken])
+  @@index([createdAt])
+}
+
+model ProposalActivity {
+  id          String   @id @default(cuid())
+  proposalId  String
+  type        String   // CREATED, SENT, VIEWED, SIGNED, EXPIRED, etc.
+  message     String
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  proposal    Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  @@index([proposalId])
+  @@index([createdAt])
+}
+
+enum BillingInvoiceStatus {
+  DRAFT
+  SENT
+  VIEWED
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  CANCELLED
+  VOID
+}
+
+enum BillingInvoiceType {
+  STANDARD
+  DEPOSIT
+  MILESTONE
+  HOURLY
+  FINAL
+}
+
+model BillingInvoice {
+  id              String               @id @default(cuid())
+  orgId           String
+  projectId       String
+  proposalId      String?              // Optional link to proposal
+  invoiceNumber   String               // e.g., "INV-2026-001"
+
+  title           String
+  description     String?              @db.Text
+  type            BillingInvoiceType   @default(STANDARD)
+  status          BillingInvoiceStatus @default(DRAFT)
+
+  // Client info
+  clientName      String
+  clientEmail     String
+  clientPhone     String?
+  clientAddress   String?              @db.Text
+
+  // Pricing
+  subtotal        Decimal              @db.Decimal(12, 2)
+  discountPercent Decimal?             @db.Decimal(5, 2)
+  discountAmount  Decimal?             @db.Decimal(12, 2)
+  gstRate         Decimal?             @db.Decimal(5, 3)
+  gstAmount       Decimal?             @db.Decimal(12, 2)
+  qstRate         Decimal?             @db.Decimal(5, 3)
+  qstAmount       Decimal?             @db.Decimal(12, 2)
+  totalAmount     Decimal              @db.Decimal(12, 2)
+
+  // Payment tracking
+  depositPercent  Decimal?             @db.Decimal(5, 2)
+  depositAmount   Decimal?             @db.Decimal(12, 2)
+  amountPaid      Decimal              @db.Decimal(12, 2) @default(0)
+  balanceDue      Decimal              @db.Decimal(12, 2)
+
+  // Dates
+  issueDate       DateTime             @default(now())
+  dueDate         DateTime?
+  paidInFullAt    DateTime?
+
+  // Access
+  accessToken     String               @unique @default(cuid())
+  sentAt          DateTime?
+  viewedAt        DateTime?
+
+  // Payment options
+  allowCreditCard Boolean              @default(true)
+  ccFeePercent    Decimal?             @db.Decimal(5, 2) @default(2.9)
+
+  // Metadata
+  notes           String?              @db.Text
+  termsAndConditions String?           @db.Text
+  createdById     String
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  // Relations
+  project         Project              @relation("ProjectBillingInvoices", fields: [projectId], references: [id], onDelete: Cascade)
+  proposal        Proposal?            @relation("InvoiceFromProposal", fields: [proposalId], references: [id])
+  createdBy       User                 @relation("BillingInvoiceCreatedBy", fields: [createdById], references: [id])
+  lineItems       BillingInvoiceLineItem[]
+  payments        BillingPayment[]
+  activities      BillingInvoiceActivity[]
+
+  @@unique([orgId, invoiceNumber])
+  @@index([orgId])
+  @@index([projectId])
+  @@index([proposalId])
+  @@index([status])
+  @@index([accessToken])
+  @@index([dueDate])
+  @@index([createdAt])
+}
+
+enum BillingLineItemType {
+  FIXED
+  HOURLY
+  MILESTONE
+  DEPOSIT
+  ADJUSTMENT
+}
+
+model BillingInvoiceLineItem {
+  id                String              @id @default(cuid())
+  billingInvoiceId  String
+  type              BillingLineItemType @default(FIXED)
+
+  description       String
+  quantity          Decimal             @db.Decimal(10, 2) @default(1)
+  unitPrice         Decimal             @db.Decimal(12, 2)
+
+  // For hourly billing
+  hours             Decimal?            @db.Decimal(10, 2)
+  hourlyRate        Decimal?            @db.Decimal(12, 2)
+  timeEntryIds      String[]            // Links to TimeEntry records
+
+  // For milestone billing
+  milestoneTitle    String?
+  milestonePercent  Decimal?            @db.Decimal(5, 2)
+
+  // Computed
+  amount            Decimal             @db.Decimal(12, 2)
+  order             Int                 @default(0)
+
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  billingInvoice    BillingInvoice      @relation(fields: [billingInvoiceId], references: [id], onDelete: Cascade)
+
+  @@index([billingInvoiceId])
+  @@index([order])
+}
+
+enum BillingPaymentStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+  REFUNDED
+}
+
+enum BillingPaymentMethod {
+  CREDIT_CARD
+  WIRE_TRANSFER
+  CHECK
+  E_TRANSFER
+  CASH
+  OTHER
+}
+
+model BillingPayment {
+  id                String               @id @default(cuid())
+  billingInvoiceId  String
+
+  amount            Decimal              @db.Decimal(12, 2)
+  method            BillingPaymentMethod
+  status            BillingPaymentStatus @default(PENDING)
+
+  // Payment details
+  stripePaymentId   String?
+  checkNumber       String?
+  wireReference     String?
+  eTransferRef      String?
+
+  // Timestamps
+  paidAt            DateTime?
+  confirmedAt       DateTime?
+  confirmedById     String?
+
+  // Documentation
+  proofDocumentUrl  String?
+  notes             String?              @db.Text
+
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  billingInvoice    BillingInvoice       @relation(fields: [billingInvoiceId], references: [id], onDelete: Cascade)
+  confirmedBy       User?                @relation("BillingPaymentConfirmedBy", fields: [confirmedById], references: [id])
+
+  @@index([billingInvoiceId])
+  @@index([status])
+  @@index([paidAt])
+}
+
+model BillingInvoiceActivity {
+  id                String         @id @default(cuid())
+  billingInvoiceId  String
+  type              String         // CREATED, SENT, VIEWED, PAYMENT_RECEIVED, OVERDUE, etc.
+  message           String
+  metadata          Json?
+  createdAt         DateTime       @default(now())
+
+  billingInvoice    BillingInvoice @relation(fields: [billingInvoiceId], references: [id], onDelete: Cascade)
+
+  @@index([billingInvoiceId])
+  @@index([createdAt])
 }
