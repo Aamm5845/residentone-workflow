@@ -52,39 +52,8 @@ const VARIABLE_CATEGORY_CONFIG: Record<string, { icon: any; color: string; bg: s
 }
 
 // Bill structure - what should appear in the dashboard
-// LOC = fixed payment amount (user enters once)
-// Credit Cards = variable (pulled from Plaid balance)
-const PERSONAL_STRUCTURE = [
-  {
-    group: 'Lines of Credit',
-    icon: Landmark,
-    color: 'text-blue-600',
-    bg: 'bg-blue-100',
-    category: 'LINE_OF_CREDIT',
-    description: 'Fixed monthly payment',
-    items: [
-      { key: 'loc1', name: 'Line of Credit #1', subCategory: 'LOC 1' },
-      { key: 'loc2', name: 'Line of Credit #2', subCategory: 'LOC 2' },
-      { key: 'loc3', name: 'Line of Credit #3', subCategory: 'LOC 3' },
-    ],
-  },
-  {
-    group: 'Credit Cards',
-    icon: CreditCard,
-    color: 'text-purple-600',
-    bg: 'bg-purple-100',
-    category: 'CREDIT_CARD',
-    description: 'Balance changes monthly',
-    linkedToPlaid: true, // These pull from Plaid
-    items: [
-      { key: 'cc1', name: 'Credit Card #1', subCategory: 'Card 1' },
-      { key: 'cc2', name: 'Credit Card #2', subCategory: 'Card 2' },
-      { key: 'cc3', name: 'Credit Card #3', subCategory: 'Card 3' },
-      { key: 'cc4', name: 'Credit Card #4', subCategory: 'Card 4' },
-      { key: 'cc5', name: 'Credit Card #5', subCategory: 'Card 5' },
-      { key: 'cc6', name: 'Credit Card #6', subCategory: 'Card 6' },
-    ],
-  },
+// LOC and Credit Cards are now dynamically loaded from Plaid
+const PERSONAL_STRUCTURE_STATIC = [
   {
     group: 'Tuition',
     icon: GraduationCap,
@@ -533,6 +502,47 @@ export function MonthlyPayments() {
   const personalTotal = personalBills.reduce((sum, b) => sum + (b.monthlyAmount || b.amount), 0)
   const businessTotal = businessBills.reduce((sum, b) => sum + (b.monthlyAmount || b.amount), 0)
 
+  // Build dynamic structure with actual Plaid accounts
+  const PERSONAL_STRUCTURE = [
+    // Lines of Credit - from Plaid
+    ...(creditAccounts.linesOfCredit.length > 0 ? [{
+      group: 'Lines of Credit',
+      icon: Landmark,
+      color: 'text-blue-600',
+      bg: 'bg-blue-100',
+      category: 'LINE_OF_CREDIT',
+      description: 'Fixed monthly payment',
+      fromPlaid: true,
+      items: creditAccounts.linesOfCredit.map((acc, idx) => ({
+        key: `loc-${acc.id}`,
+        name: `${acc.institutionName} ****${acc.mask}`,
+        subCategory: acc.id,
+        plaidAccount: acc,
+        balance: acc.currentBalance,
+      })),
+    }] : []),
+    // Credit Cards - from Plaid
+    ...(creditAccounts.creditCards.length > 0 ? [{
+      group: 'Credit Cards',
+      icon: CreditCard,
+      color: 'text-purple-600',
+      bg: 'bg-purple-100',
+      category: 'CREDIT_CARD',
+      description: 'Current balance from bank',
+      fromPlaid: true,
+      linkedToPlaid: true,
+      items: creditAccounts.creditCards.map((acc, idx) => ({
+        key: `cc-${acc.id}`,
+        name: `${acc.institutionName} ****${acc.mask}`,
+        subCategory: acc.id,
+        plaidAccount: acc,
+        balance: acc.currentBalance,
+      })),
+    }] : []),
+    // Rest of static structure
+    ...PERSONAL_STRUCTURE_STATIC,
+  ]
+
   const structure = activeTab === 'PERSONAL' ? PERSONAL_STRUCTURE : BUSINESS_STRUCTURE
 
   if (isLoading) {
@@ -728,8 +738,12 @@ export function MonthlyPayments() {
           const Icon = section.icon
           const isExpanded = expandedGroups.has(section.group)
 
-          // Calculate section total
+          // Calculate section total - use Plaid balance for linked accounts
           const sectionTotal = section.items.reduce((sum, item) => {
+            // If item has a Plaid balance, use that
+            if ((item as any).balance !== undefined) {
+              return sum + (item as any).balance
+            }
             const cat = (item as any).category || section.category
             const bill = findBill(item.key, cat, item.subCategory)
             return sum + (bill?.monthlyAmount || bill?.amount || 0)
@@ -756,9 +770,12 @@ export function MonthlyPayments() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
+                  {(section as any).fromPlaid && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">Live</span>
+                  )}
                   <p className="font-bold text-gray-900">
                     {sectionTotal > 0 ? formatCurrency(sectionTotal) : '—'}
-                    {sectionTotal > 0 && <span className="text-gray-400 font-normal text-sm">/mo</span>}
+                    {sectionTotal > 0 && <span className="text-gray-400 font-normal text-sm">{section.category === 'CREDIT_CARD' ? ' owed' : '/mo'}</span>}
                   </p>
                   {isExpanded ? <ChevronDown className="h-5 w-5 text-gray-400" /> : <ChevronRight className="h-5 w-5 text-gray-400" />}
                 </div>
@@ -899,8 +916,11 @@ export function MonthlyPayments() {
                           </div>
                         ) : (
                           <div
-                            onClick={() => handleEditClick(item.key, itemCategory, item.subCategory, item.name, (item as any).frequency)}
-                            className="flex items-center justify-between cursor-pointer"
+                            onClick={() => !(item as any).plaidAccount && handleEditClick(item.key, itemCategory, item.subCategory, item.name, (item as any).frequency)}
+                            className={cn(
+                              "flex items-center justify-between",
+                              !(item as any).plaidAccount && "cursor-pointer"
+                            )}
                           >
                             <div className="flex items-center gap-3">
                               {bill?.dueDay && (
@@ -914,7 +934,14 @@ export function MonthlyPayments() {
                                   {(item as any).note && <span className="text-gray-400 text-sm ml-1">{(item as any).note}</span>}
                                 </p>
                                 <div className="flex items-center gap-2">
-                                  {bill?.payeeName && (
+                                  {/* Show "Synced from bank" for Plaid items */}
+                                  {(item as any).plaidAccount && (
+                                    <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 flex items-center gap-1">
+                                      <Check className="h-3 w-3" />
+                                      Synced from bank
+                                    </span>
+                                  )}
+                                  {bill?.payeeName && !(item as any).plaidAccount && (
                                     <span className="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 flex items-center gap-1">
                                       <Sparkles className="h-3 w-3" />
                                       {bill.payeeName}
@@ -929,24 +956,28 @@ export function MonthlyPayments() {
                                   {(item as any).frequency === 'YEARLY' && (
                                     <span className="text-xs text-gray-500">Yearly</span>
                                   )}
-                                  {section.category === 'LINE_OF_CREDIT' && (
+                                  {section.category === 'LINE_OF_CREDIT' && !(item as any).plaidAccount && (
                                     <span className="text-xs text-blue-500">Fixed payment</span>
                                   )}
-                                  {(section as any).linkedToPlaid && bill?.isVariable && (
-                                    <span className="text-xs text-purple-500">Balance varies</span>
+                                  {section.category === 'LINE_OF_CREDIT' && (item as any).plaidAccount && (
+                                    <span className="text-xs text-blue-500">Balance owed</span>
+                                  )}
+                                  {section.category === 'CREDIT_CARD' && (item as any).plaidAccount && (
+                                    <span className="text-xs text-purple-500">Current balance</span>
                                   )}
                                 </div>
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
-                              {bill ? (
+                              {/* Show Plaid balance for linked items */}
+                              {(item as any).plaidAccount ? (
+                                <p className="font-bold text-gray-900">{formatCurrency((item as any).balance)}</p>
+                              ) : bill ? (
                                 <p className="font-bold text-gray-900">{formatCurrency(bill.amount)}</p>
                               ) : (
-                                <p className="text-gray-400 italic">
-                                  {(section as any).linkedToPlaid ? 'Click to link account' : 'Click to set amount'}
-                                </p>
+                                <p className="text-gray-400 italic">Click to set amount</p>
                               )}
-                              <Edit2 className="h-4 w-4 text-gray-300" />
+                              {!(item as any).plaidAccount && <Edit2 className="h-4 w-4 text-gray-300" />}
                             </div>
                           </div>
                         )}
