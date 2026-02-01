@@ -85,8 +85,10 @@ export async function GET() {
         accountType = 'loan'
       }
 
-      // Skip large lines of credit (likely mortgages)
-      if (accountType === 'line_of_credit' && balance > 100000) continue
+      // For large LOCs (HELOCs/mortgages), we show the monthly payment, not the balance
+      // Only skip if there's no minimum payment set (we need payment info to show them)
+      const isLargeLOC = (accountType === 'line_of_credit' || accountType === 'loan') && balance > 100000
+      if (isLargeLOC && !account.minimumPayment) continue
 
       // Use actual dueDay from account if available, otherwise estimate
       const dueDay = account.dueDay || 15
@@ -123,8 +125,9 @@ export async function GET() {
         frequency: 'monthly',
         confidence: 'high',
         accountType,
-        // Include extra data for the calendar
-        currentBalance: balance,
+        // For large LOCs (HELOCs), don't show balance - just show the monthly payment
+        // This prevents showing $400K+ as "owed" when it's really a mortgage-like payment
+        currentBalance: isLargeLOC ? undefined : balance,
         creditLimit: account.creditLimit ? Number(account.creditLimit) : null,
         rewardsProgram: account.rewardsProgram,
       })
