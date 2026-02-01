@@ -57,18 +57,32 @@ export async function GET() {
 
     const allAccounts = [...accounts, ...loanAccounts]
 
-    // Format response
+    // Format response with all credit card details
     const creditAccounts = allAccounts.map((acc) => ({
       id: acc.id,
       accountId: acc.accountId,
       name: acc.name,
       officialName: acc.officialName,
+      nickname: acc.nickname,
       type: acc.type,
       subtype: acc.subtype, // 'credit card', 'line of credit', etc.
       mask: acc.mask,
       currentBalance: Number(acc.currentBalance || 0),
+      availableBalance: Number(acc.availableBalance || 0),
       institutionName: acc.plaidItem.institutionName,
       lastUpdated: acc.lastBalanceUpdate,
+      // Credit card specific fields
+      creditLimit: acc.creditLimit ? Number(acc.creditLimit) : null,
+      interestRate: acc.interestRate ? Number(acc.interestRate) : null,
+      dueDay: acc.dueDay,
+      minimumPayment: acc.minimumPayment ? Number(acc.minimumPayment) : null,
+      lastStatementBalance: acc.lastStatementBalance ? Number(acc.lastStatementBalance) : null,
+      statementStartDay: acc.statementStartDay,
+      statementEndDay: acc.statementEndDay,
+      promoRate: acc.promoRate ? Number(acc.promoRate) : null,
+      promoRateExpiry: acc.promoRateExpiry,
+      rewardsProgram: acc.rewardsProgram,
+      rewardsBalance: acc.rewardsBalance ? Number(acc.rewardsBalance) : null,
     }))
 
     // Separate by subtype
