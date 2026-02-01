@@ -26,6 +26,8 @@ import {
   Baby,
   Wifi,
   DollarSign,
+  X,
+  ChevronRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { StatementUploadDialog } from './StatementUploadDialog'
@@ -188,6 +190,12 @@ export function MonthlyPayments() {
   }>({ creditCards: [], linesOfCredit: [] })
   const [uploadingAccount, setUploadingAccount] = useState<CreditAccount | null>(null)
   const [showUploadPicker, setShowUploadPicker] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState<{
+    key: string
+    label: string
+    gradient: string
+    type: 'fixed' | 'variable'
+  } | null>(null)
 
   const fetchBills = async () => {
     setIsLoading(true)
@@ -276,6 +284,39 @@ export function MonthlyPayments() {
     return bills.filter(b => b.type === 'PERSONAL' && b.category === categoryKey).length
   }
 
+  // Get items for a category
+  const getCategoryItems = (categoryKey: string, categories?: string[]) => {
+    if (categoryKey === 'CREDIT_CARD') {
+      return creditAccounts.creditCards.map(c => ({
+        id: c.id,
+        name: c.nickname || c.name,
+        subtitle: `${c.institutionName} •••• ${c.mask}`,
+        amount: c.currentBalance,
+        extra: c.creditLimit ? `Limit: ${formatCurrency(c.creditLimit)}` : undefined
+      }))
+    }
+    if (categoryKey === 'LINE_OF_CREDIT') {
+      return creditAccounts.linesOfCredit.map(c => ({
+        id: c.id,
+        name: c.nickname || c.name,
+        subtitle: `${c.institutionName} •••• ${c.mask}`,
+        amount: c.currentBalance,
+        extra: c.creditLimit ? `Available: ${formatCurrency(c.creditLimit - c.currentBalance)}` : undefined
+      }))
+    }
+    const filteredBills = categories
+      ? bills.filter(b => b.type === 'PERSONAL' && categories.includes(b.category))
+      : bills.filter(b => b.type === 'PERSONAL' && b.category === categoryKey)
+
+    return filteredBills.map(b => ({
+      id: b.id,
+      name: b.name,
+      subtitle: b.dueDay ? `Due: ${b.dueDay}th` : undefined,
+      amount: b.monthlyAmount || b.amount,
+      extra: b.isAutoPay ? 'Auto-pay' : undefined
+    }))
+  }
+
   // Calculate totals
   const fixedTotal = bills
     .filter(b => b.type === 'PERSONAL')
@@ -332,6 +373,7 @@ export function MonthlyPayments() {
             return (
               <div
                 key={cat.key}
+                onClick={() => setSelectedCategory({ key: cat.key, label: cat.label, gradient: cat.gradient, type: 'fixed' })}
                 className={cn(
                   'relative rounded-2xl p-5 text-white overflow-hidden cursor-pointer',
                   'bg-gradient-to-br',
@@ -399,11 +441,12 @@ export function MonthlyPayments() {
               return (
                 <div
                   key={cat.key}
+                  onClick={() => setSelectedCategory({ key: cat.key, label: cat.label, gradient: cat.gradient, type: 'variable' })}
                   className={cn(
-                    'relative rounded-2xl p-5 text-white overflow-hidden',
+                    'relative rounded-2xl p-5 text-white overflow-hidden cursor-pointer',
                     'bg-gradient-to-br',
                     cat.gradient,
-                    'shadow-lg'
+                    'hover:scale-[1.02] transition-transform shadow-lg'
                   )}
                 >
                   {/* Background pattern */}
@@ -466,6 +509,120 @@ export function MonthlyPayments() {
         </div>
       </div>
 
+      {/* Category Detail Modal */}
+      {selectedCategory && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setSelectedCategory(null)}
+        >
+          <div
+            className="bg-white rounded-3xl max-w-lg w-full max-h-[80vh] overflow-hidden shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className={cn('p-6 text-white bg-gradient-to-br', selectedCategory.gradient)}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-2xl font-bold">{selectedCategory.label}</h3>
+                  <p className="text-white/70 mt-1">
+                    {selectedCategory.type === 'fixed'
+                      ? `${getCategoryCount(selectedCategory.key, CATEGORY_CARDS.find(c => c.key === selectedCategory.key)?.categories as any)} items`
+                      : `${variableData?.categories[selectedCategory.key]?.transactions || 0} transactions`
+                    }
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSelectedCategory(null)}
+                  className="p-2 hover:bg-white/20 rounded-xl transition-colors"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              <p className="text-3xl font-bold mt-4">
+                {selectedCategory.type === 'fixed'
+                  ? formatCurrency(getCategoryTotal(selectedCategory.key, CATEGORY_CARDS.find(c => c.key === selectedCategory.key)?.categories as any))
+                  : formatCurrency(variableData?.categories[selectedCategory.key]?.average || 0)
+                }
+                {selectedCategory.type === 'variable' && <span className="text-lg font-normal text-white/70">/mo avg</span>}
+              </p>
+            </div>
+
+            {/* Content */}
+            <div className="p-4 max-h-[50vh] overflow-y-auto">
+              {selectedCategory.type === 'fixed' ? (
+                <div className="space-y-2">
+                  {getCategoryItems(selectedCategory.key, CATEGORY_CARDS.find(c => c.key === selectedCategory.key)?.categories as any).map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-900 truncate">{item.name}</p>
+                        {item.subtitle && (
+                          <p className="text-sm text-gray-500">{item.subtitle}</p>
+                        )}
+                        {item.extra && (
+                          <p className="text-xs text-gray-400 mt-1">{item.extra}</p>
+                        )}
+                      </div>
+                      <p className="font-bold text-gray-900 ml-4">{formatCurrency(item.amount)}</p>
+                    </div>
+                  ))}
+                  {getCategoryItems(selectedCategory.key, CATEGORY_CARDS.find(c => c.key === selectedCategory.key)?.categories as any).length === 0 && (
+                    <p className="text-center text-gray-500 py-8">No items in this category</p>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Monthly breakdown for variable expenses */}
+                  {variableData?.categories[selectedCategory.key] && (
+                    <>
+                      <div className="grid grid-cols-3 gap-3">
+                        {variableData.monthLabels.map((month) => {
+                          const amount = variableData.categories[selectedCategory.key]?.months[month] || 0
+                          const monthName = new Date(month + '-01').toLocaleDateString('en-US', { month: 'short' })
+                          return (
+                            <div key={month} className="bg-gray-50 rounded-xl p-4 text-center">
+                              <p className="text-xs text-gray-500 uppercase">{monthName}</p>
+                              <p className="text-lg font-bold text-gray-900 mt-1">{formatCurrency(amount)}</p>
+                            </div>
+                          )
+                        })}
+                      </div>
+                      <div className="bg-gray-100 rounded-xl p-4 text-center">
+                        <p className="text-sm text-gray-600">3-Month Average</p>
+                        <p className="text-2xl font-bold text-gray-900">
+                          {formatCurrency(variableData.categories[selectedCategory.key]?.average || 0)}
+                        </p>
+                      </div>
+                    </>
+                  )}
+                  {!variableData?.categories[selectedCategory.key] && (
+                    <p className="text-center text-gray-500 py-8">No transaction data available</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Footer for credit cards - upload option */}
+            {selectedCategory.key === 'CREDIT_CARD' && creditAccounts.creditCards.length > 0 && (
+              <div className="p-4 border-t border-gray-100">
+                <button
+                  onClick={() => {
+                    setSelectedCategory(null)
+                    setShowUploadPicker(true)
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-3 bg-purple-100 text-purple-700 rounded-xl hover:bg-purple-200 transition-colors font-medium"
+                >
+                  <Upload className="h-4 w-4" />
+                  Upload Statement for More History
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Upload Statement Picker */}
       {showUploadPicker && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowUploadPicker(false)}>
@@ -490,6 +647,7 @@ export function MonthlyPayments() {
                     <p className="font-medium text-gray-900">{card.nickname || card.name}</p>
                     <p className="text-sm text-gray-500">{card.institutionName} •••• {card.mask}</p>
                   </div>
+                  <ChevronRight className="h-5 w-5 text-gray-400" />
                 </button>
               ))}
             </div>
