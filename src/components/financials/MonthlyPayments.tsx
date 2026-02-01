@@ -72,83 +72,94 @@ interface CreditAccount {
   minimumPayment: number | null
 }
 
-// Category card configurations
+// Category card configurations with muted colors and background images
 const CATEGORY_CARDS = [
   {
     key: 'CREDIT_CARD',
     label: 'Credit Cards',
     icon: CreditCard,
-    gradient: 'from-violet-500 to-purple-600',
+    gradient: 'from-slate-700 to-slate-800',
+    bgImage: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=400&q=80',
     description: 'Total owed'
   },
   {
     key: 'LINE_OF_CREDIT',
     label: 'Lines of Credit',
     icon: Landmark,
-    gradient: 'from-blue-500 to-blue-600',
+    gradient: 'from-slate-600 to-slate-700',
+    bgImage: 'https://images.unsplash.com/photo-1501167786227-4cba60f6d58f?w=400&q=80',
     description: 'Total balance'
   },
   {
     key: 'SOFTWARE',
     label: 'Subscriptions',
     icon: Zap,
-    gradient: 'from-indigo-500 to-indigo-600',
+    gradient: 'from-indigo-800 to-indigo-900',
+    bgImage: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=400&q=80',
     description: 'Monthly'
   },
   {
     key: 'LOAN',
     label: 'Loans',
     icon: DollarSign,
-    gradient: 'from-amber-500 to-orange-500',
+    gradient: 'from-amber-700 to-amber-800',
+    bgImage: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=400&q=80',
     description: 'Monthly payments'
   },
   {
     key: 'TUITION',
     label: 'Tuition',
     icon: GraduationCap,
-    gradient: 'from-rose-500 to-pink-600',
+    gradient: 'from-rose-800 to-rose-900',
+    bgImage: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=400&q=80',
     description: 'Education'
   },
   {
     key: 'CHILDCARE',
     label: 'Childcare',
     icon: Baby,
-    gradient: 'from-pink-400 to-rose-500',
+    gradient: 'from-pink-700 to-pink-800',
+    bgImage: 'https://images.unsplash.com/photo-1587654780291-39c9404d746b?w=400&q=80',
     description: 'Monthly'
   },
   {
     key: 'CAR_LEASE',
     label: 'Car Lease',
     icon: Car,
-    gradient: 'from-slate-600 to-slate-700',
+    gradient: 'from-zinc-700 to-zinc-800',
+    bgImage: 'https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=400&q=80',
     description: 'Monthly'
   },
   {
     key: 'UTILITIES',
     label: 'Utilities',
     icon: Zap,
-    gradient: 'from-yellow-500 to-amber-500',
+    gradient: 'from-yellow-700 to-yellow-800',
+    bgImage: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&q=80',
     description: 'Hydro, gas, water'
   },
   {
     key: 'INTERNET',
     label: 'Internet',
     icon: Wifi,
-    gradient: 'from-cyan-500 to-teal-500',
+    gradient: 'from-cyan-700 to-cyan-800',
+    bgImage: 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=400&q=80',
     description: 'Monthly'
   },
   {
     key: 'PHONE',
     label: 'Phone',
     icon: Phone,
-    gradient: 'from-gray-600 to-gray-700',
+    gradient: 'from-gray-700 to-gray-800',
+    bgImage: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&q=80',
     description: 'Mobile plans'
   },
   {
     key: 'INSURANCE',
     label: 'Insurance',
     icon: Shield,
-    gradient: 'from-emerald-500 to-green-600',
+    gradient: 'from-emerald-800 to-emerald-900',
+    bgImage: 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=400&q=80',
     description: 'All coverage',
     categories: ['CAR_INSURANCE', 'HOME_INSURANCE', 'LIFE_INSURANCE']
   },
@@ -156,27 +167,71 @@ const CATEGORY_CARDS = [
     key: 'TZEDAKA',
     label: 'Tzedaka',
     icon: Heart,
-    gradient: 'from-red-500 to-red-600',
+    gradient: 'from-red-800 to-red-900',
+    bgImage: 'https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?w=400&q=80',
     description: 'Monthly giving'
   },
   {
     key: 'PROPERTY_TAX',
     label: 'Property Tax',
     icon: Building2,
-    gradient: 'from-blue-700 to-blue-800',
+    gradient: 'from-blue-800 to-blue-900',
+    bgImage: 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400&q=80',
     description: 'Yearly (monthly)'
   },
 ]
 
-// Variable expense categories
+// Variable expense categories with muted colors and background images
 const VARIABLE_CARDS = [
-  { key: 'GROCERIES', label: 'Groceries', icon: ShoppingCart, gradient: 'from-green-500 to-emerald-600' },
-  { key: 'MEAT', label: 'Meat', icon: ShoppingCart, gradient: 'from-red-500 to-red-600' },
-  { key: 'FISH', label: 'Fish', icon: Fish, gradient: 'from-blue-400 to-cyan-500' },
-  { key: 'GAS', label: 'Gas', icon: Fuel, gradient: 'from-amber-500 to-orange-500' },
-  { key: 'MEDICAL', label: 'Medical', icon: Stethoscope, gradient: 'from-pink-500 to-rose-500' },
-  { key: 'CLOTHING', label: 'Clothing', icon: Shirt, gradient: 'from-violet-500 to-purple-500' },
-  { key: 'CAR_SERVICE', label: 'Car Service', icon: Wrench, gradient: 'from-gray-500 to-gray-600' },
+  {
+    key: 'GROCERIES',
+    label: 'Groceries',
+    icon: ShoppingCart,
+    gradient: 'from-green-800 to-green-900',
+    bgImage: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=400&q=80'
+  },
+  {
+    key: 'MEAT',
+    label: 'Meat',
+    icon: ShoppingCart,
+    gradient: 'from-red-900 to-red-950',
+    bgImage: 'https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?w=400&q=80'
+  },
+  {
+    key: 'FISH',
+    label: 'Fish',
+    icon: Fish,
+    gradient: 'from-sky-800 to-sky-900',
+    bgImage: 'https://images.unsplash.com/photo-1510130387422-82bed34b37e9?w=400&q=80'
+  },
+  {
+    key: 'GAS',
+    label: 'Gas',
+    icon: Fuel,
+    gradient: 'from-orange-800 to-orange-900',
+    bgImage: 'https://images.unsplash.com/photo-1545558014-8692077e9b5c?w=400&q=80'
+  },
+  {
+    key: 'MEDICAL',
+    label: 'Medical',
+    icon: Stethoscope,
+    gradient: 'from-teal-800 to-teal-900',
+    bgImage: 'https://images.unsplash.com/photo-1631815588090-d4bfec5b1ccb?w=400&q=80'
+  },
+  {
+    key: 'CLOTHING',
+    label: 'Clothing',
+    icon: Shirt,
+    gradient: 'from-violet-800 to-violet-900',
+    bgImage: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&q=80'
+  },
+  {
+    key: 'CAR_SERVICE',
+    label: 'Car Service',
+    icon: Wrench,
+    gradient: 'from-stone-700 to-stone-800',
+    bgImage: 'https://images.unsplash.com/photo-1487754180451-c456f719a1fc?w=400&q=80'
+  },
 ]
 
 export function MonthlyPayments() {
@@ -348,7 +403,7 @@ export function MonthlyPayments() {
         </div>
         <button
           onClick={() => setShowUploadPicker(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-colors"
         >
           <Upload className="h-4 w-4" />
           Upload Statement
@@ -378,30 +433,37 @@ export function MonthlyPayments() {
                   'relative rounded-2xl p-5 text-white overflow-hidden cursor-pointer',
                   'bg-gradient-to-br',
                   cat.gradient,
-                  'hover:scale-[1.02] transition-transform shadow-lg'
+                  'hover:scale-[1.02] transition-transform shadow-lg group'
                 )}
+                style={{ minHeight: '160px' }}
               >
-                {/* Background pattern */}
-                <div className="absolute inset-0 opacity-10">
-                  <div className="absolute -right-4 -top-4 w-24 h-24 rounded-full bg-white/20" />
-                  <div className="absolute -right-2 -bottom-6 w-32 h-32 rounded-full bg-white/10" />
-                </div>
+                {/* Background image */}
+                <div
+                  className="absolute inset-0 opacity-20 group-hover:opacity-30 transition-opacity"
+                  style={{
+                    backgroundImage: `url(${cat.bgImage})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                  }}
+                />
+                {/* Dark overlay for better text readability */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
 
-                <div className="relative">
+                <div className="relative z-10">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
+                    <div className="p-2.5 bg-white/20 rounded-xl backdrop-blur-sm">
                       <Icon className="h-5 w-5" />
                     </div>
                     {count > 0 && (
-                      <span className="text-xs bg-white/20 px-2 py-1 rounded-full">
+                      <span className="text-xs bg-black/30 px-2.5 py-1 rounded-full backdrop-blur-sm">
                         {count} {count === 1 ? 'item' : 'items'}
                       </span>
                     )}
                   </div>
 
-                  <p className="text-white/80 text-sm font-medium">{cat.label}</p>
-                  <p className="text-2xl font-bold mt-1">{formatCurrency(total)}</p>
-                  <p className="text-white/60 text-xs mt-2">{cat.description}</p>
+                  <p className="text-white/90 text-sm font-medium">{cat.label}</p>
+                  <p className="text-2xl font-bold mt-1 drop-shadow-md">{formatCurrency(total)}</p>
+                  <p className="text-white/70 text-xs mt-2">{cat.description}</p>
                 </div>
               </div>
             )
@@ -446,31 +508,39 @@ export function MonthlyPayments() {
                     'relative rounded-2xl p-5 text-white overflow-hidden cursor-pointer',
                     'bg-gradient-to-br',
                     cat.gradient,
-                    'hover:scale-[1.02] transition-transform shadow-lg'
+                    'hover:scale-[1.02] transition-transform shadow-lg group'
                   )}
+                  style={{ minHeight: '160px' }}
                 >
-                  {/* Background pattern */}
-                  <div className="absolute inset-0 opacity-10">
-                    <div className="absolute -right-4 -top-4 w-24 h-24 rounded-full bg-white/20" />
-                  </div>
+                  {/* Background image */}
+                  <div
+                    className="absolute inset-0 opacity-20 group-hover:opacity-30 transition-opacity"
+                    style={{
+                      backgroundImage: `url(${cat.bgImage})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                    }}
+                  />
+                  {/* Dark overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
 
-                  <div className="relative">
+                  <div className="relative z-10">
                     <div className="flex items-center justify-between mb-4">
-                      <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
+                      <div className="p-2.5 bg-white/20 rounded-xl backdrop-blur-sm">
                         <Icon className="h-5 w-5" />
                       </div>
                       {data && data.transactions > 0 && (
-                        <span className="text-xs bg-white/20 px-2 py-1 rounded-full">
+                        <span className="text-xs bg-black/30 px-2.5 py-1 rounded-full backdrop-blur-sm">
                           {data.transactions} txns
                         </span>
                       )}
                     </div>
 
-                    <p className="text-white/80 text-sm font-medium">{cat.label}</p>
-                    <p className="text-2xl font-bold mt-1">
+                    <p className="text-white/90 text-sm font-medium">{cat.label}</p>
+                    <p className="text-2xl font-bold mt-1 drop-shadow-md">
                       {data ? formatCurrency(data.average) : '$0'}
                     </p>
-                    <p className="text-white/60 text-xs mt-2">avg/month</p>
+                    <p className="text-white/70 text-xs mt-2">avg/month</p>
                   </div>
                 </div>
               )
@@ -612,7 +682,7 @@ export function MonthlyPayments() {
                     setSelectedCategory(null)
                     setShowUploadPicker(true)
                   }}
-                  className="w-full flex items-center justify-center gap-2 py-3 bg-purple-100 text-purple-700 rounded-xl hover:bg-purple-200 transition-colors font-medium"
+                  className="w-full flex items-center justify-center gap-2 py-3 bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 transition-colors font-medium"
                 >
                   <Upload className="h-4 w-4" />
                   Upload Statement for More History
@@ -638,10 +708,10 @@ export function MonthlyPayments() {
                     setUploadingAccount(card)
                     setShowUploadPicker(false)
                   }}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:border-purple-300 hover:bg-purple-50 transition-colors text-left"
+                  className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:border-slate-400 hover:bg-slate-50 transition-colors text-left"
                 >
-                  <div className="p-2 bg-purple-100 rounded-lg">
-                    <CreditCard className="h-5 w-5 text-purple-600" />
+                  <div className="p-2 bg-slate-100 rounded-lg">
+                    <CreditCard className="h-5 w-5 text-slate-600" />
                   </div>
                   <div className="flex-1">
                     <p className="font-medium text-gray-900">{card.nickname || card.name}</p>
