@@ -268,9 +268,7 @@ export function MonthlyPayments() {
     nickname: '',
     creditLimit: '',
     dueDay: '',
-    minimumPayment: '',
     interestRate: '',
-    lastStatementBalance: '',
     statementStartDay: '',
     statementEndDay: '',
     rewardsProgram: '',
@@ -336,9 +334,7 @@ export function MonthlyPayments() {
       nickname: account.nickname || '',
       creditLimit: account.creditLimit?.toString() || '',
       dueDay: account.dueDay?.toString() || '',
-      minimumPayment: account.minimumPayment?.toString() || '',
       interestRate: account.interestRate?.toString() || '',
-      lastStatementBalance: account.lastStatementBalance?.toString() || '',
       statementStartDay: account.statementStartDay?.toString() || '',
       statementEndDay: account.statementEndDay?.toString() || '',
       rewardsProgram: account.rewardsProgram || '',
@@ -1042,26 +1038,6 @@ export function MonthlyPayments() {
                                     value={creditCardForm.interestRate}
                                     onChange={(e) => setCreditCardForm({ ...creditCardForm, interestRate: e.target.value })}
                                     placeholder="19.99"
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="text-xs text-gray-500 block mb-1">Min Payment</label>
-                                  <input
-                                    type="number"
-                                    value={creditCardForm.minimumPayment}
-                                    onChange={(e) => setCreditCardForm({ ...creditCardForm, minimumPayment: e.target.value })}
-                                    placeholder="0"
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="text-xs text-gray-500 block mb-1">Last Statement Balance</label>
-                                  <input
-                                    type="number"
-                                    value={creditCardForm.lastStatementBalance}
-                                    onChange={(e) => setCreditCardForm({ ...creditCardForm, lastStatementBalance: e.target.value })}
-                                    placeholder="23795.63"
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                                   />
                                 </div>

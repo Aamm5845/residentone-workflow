@@ -90,6 +90,10 @@ interface Bill {
   frequency: string
   confidence: string
   accountType?: 'credit_card' | 'loan' | 'line_of_credit' | 'bill'
+  // Credit account specific fields
+  currentBalance?: number
+  creditLimit?: number | null
+  rewardsProgram?: string | null
 }
 
 interface BillsSummary {
@@ -643,14 +647,25 @@ export function BillsCalendar() {
                                   : `Due in ${bill.daysUntilDue} days`}
                           </p>
                           <p className="text-xs text-gray-400 capitalize">
-                            {bill.frequency} • Min payment
+                            {bill.frequency} {bill.currentBalance ? '• Balance owed' : '• Min payment'}
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-semibold text-gray-900">
-                          {formatCurrency(bill.amount)}
-                        </p>
+                        {bill.currentBalance ? (
+                          <>
+                            <p className="font-semibold text-gray-900">
+                              {formatCurrency(bill.currentBalance)}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Min: {formatCurrency(bill.amount)}
+                            </p>
+                          </>
+                        ) : (
+                          <p className="font-semibold text-gray-900">
+                            {formatCurrency(bill.amount)}
+                          </p>
+                        )}
                         {paymentLink && (
                           <a
                             href={paymentLink}

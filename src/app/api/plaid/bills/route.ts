@@ -13,6 +13,10 @@ interface BillPrediction {
   frequency: 'weekly' | 'monthly' | 'yearly'
   confidence: 'high' | 'medium' | 'low'
   accountType?: 'credit_card' | 'loan' | 'line_of_credit' | 'bill'
+  // Credit account specific fields
+  currentBalance?: number
+  creditLimit?: number | null
+  rewardsProgram?: string | null
 }
 
 // GET - Predict upcoming bills based on transaction history AND credit accounts
@@ -39,13 +43,30 @@ export async function GET() {
       where: {
         plaidItem: {
           orgId: session.user.orgId,
+          status: 'ACTIVE',
         },
+        isActive: true,
         type: {
           in: ['credit', 'loan'],
         },
       },
-      include: {
-        plaidItem: true,
+      select: {
+        id: true,
+        name: true,
+        officialName: true,
+        nickname: true,
+        type: true,
+        subtype: true,
+        currentBalance: true,
+        creditLimit: true,
+        dueDay: true,
+        minimumPayment: true,
+        rewardsProgram: true,
+        plaidItem: {
+          select: {
+            institutionName: true,
+          },
+        },
       },
     })
 
@@ -67,24 +88,29 @@ export async function GET() {
       // Skip large lines of credit (likely mortgages)
       if (accountType === 'line_of_credit' && balance > 100000) continue
 
-      // Calculate minimum payment (roughly 2-3% of balance, min $10)
-      const minPayment = Math.max(10, balance * 0.025)
+      // Use actual dueDay from account if available, otherwise estimate
+      const dueDay = account.dueDay || 15
 
-      // Credit card bills are typically due around the same day each month
-      // We'll estimate the 15th of next month if we don't have exact data
+      // Calculate the next due date based on the actual due day
       const dueDate = new Date(now)
-      if (now.getDate() > 20) {
-        // If we're past the 20th, due date is next month
+      dueDate.setDate(dueDay)
+
+      // If we're past the due day this month, set to next month
+      if (now.getDate() > dueDay) {
         dueDate.setMonth(dueDate.getMonth() + 1)
       }
-      dueDate.setDate(15) // Common due date
 
       const daysUntilDue = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
 
-      // Build display name
+      // Build display name - prefer nickname if available
       const institutionName = account.plaidItem?.institutionName || ''
-      const displayName = account.name || account.officialName ||
+      const displayName = account.nickname || account.name || account.officialName ||
         `${institutionName} ${accountType === 'credit_card' ? 'Credit Card' : accountType === 'line_of_credit' ? 'Line of Credit' : 'Loan'}`
+
+      // Use actual minimum payment if available, otherwise calculate estimate
+      const minPayment = account.minimumPayment
+        ? Number(account.minimumPayment)
+        : Math.max(10, balance * 0.025)
 
       predictions.push({
         name: displayName,
@@ -97,6 +123,10 @@ export async function GET() {
         frequency: 'monthly',
         confidence: 'high',
         accountType,
+        // Include extra data for the calendar
+        currentBalance: balance,
+        creditLimit: account.creditLimit ? Number(account.creditLimit) : null,
+        rewardsProgram: account.rewardsProgram,
       })
     }
 
