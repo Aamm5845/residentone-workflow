@@ -77,6 +77,42 @@ const PERSONAL_STRUCTURE_STATIC = [
     ],
   },
   {
+    group: 'Subscriptions',
+    icon: Zap,
+    color: 'text-indigo-600',
+    bg: 'bg-indigo-100',
+    category: 'SOFTWARE',
+    dynamic: true, // Will load items from database
+    items: [],
+  },
+  {
+    group: 'Loans',
+    icon: Landmark,
+    color: 'text-amber-600',
+    bg: 'bg-amber-100',
+    category: 'LOAN',
+    dynamic: true,
+    items: [],
+  },
+  {
+    group: 'Utilities',
+    icon: Zap,
+    color: 'text-yellow-600',
+    bg: 'bg-yellow-100',
+    category: 'UTILITIES',
+    dynamic: true,
+    items: [],
+  },
+  {
+    group: 'Other Bills',
+    icon: Receipt,
+    color: 'text-gray-600',
+    bg: 'bg-gray-100',
+    category: 'OTHER',
+    dynamic: true,
+    items: [],
+  },
+  {
     group: 'Phone',
     icon: Phone,
     color: 'text-slate-600',
@@ -601,8 +637,23 @@ export function MonthlyPayments() {
         balance: acc.currentBalance,
       })),
     }] : []),
-    // Rest of static structure
-    ...PERSONAL_STRUCTURE_STATIC,
+    // Rest of static structure - but populate dynamic sections from bills
+    ...PERSONAL_STRUCTURE_STATIC.map((section) => {
+      if ((section as any).dynamic) {
+        // Populate items from bills database for dynamic sections
+        const sectionBills = personalBills.filter((b) => b.category === section.category)
+        return {
+          ...section,
+          items: sectionBills.map((bill) => ({
+            key: `${section.category.toLowerCase()}-${bill.id}`,
+            name: bill.name,
+            subCategory: bill.subCategory || bill.id,
+            billId: bill.id,
+          })),
+        }
+      }
+      return section
+    }),
   ]
 
   const structure = activeTab === 'PERSONAL' ? PERSONAL_STRUCTURE : BUSINESS_STRUCTURE
