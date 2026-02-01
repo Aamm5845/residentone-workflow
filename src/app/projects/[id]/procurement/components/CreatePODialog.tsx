@@ -172,6 +172,7 @@ export default function CreatePODialog({
     postalCode: '',
     country: 'Canada'
   })
+  const [shippingRecipientName, setShippingRecipientName] = useState<string | null>(null)
   const [notes, setNotes] = useState('')
   const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string>('')
 
@@ -290,6 +291,7 @@ export default function CreatePODialog({
           country: 'Canada'
         })
       }
+      setShippingRecipientName(null) // Will be set when a saved address is selected
       setNotes('')
       setSelectedPaymentMethodId('')
       setExtraCharges([])
@@ -542,6 +544,7 @@ export default function CreatePODialog({
           vendorName: supplier.name,
           vendorEmail: supplier.email,
           items: mainItems,
+          shippingRecipientName: shippingRecipientName || undefined,
           shippingAddress: formattedAddress || undefined,
           notes: notes.trim() || undefined,
           savedPaymentMethodId: selectedPaymentMethodId || undefined,
@@ -938,9 +941,16 @@ export default function CreatePODialog({
               <AddressPicker
                 value={shippingAddress}
                 onChange={setShippingAddress}
+                onAddressNameChange={setShippingRecipientName}
                 showSavedAddresses={true}
                 placeholder="Select or enter shipping address"
               />
+              {shippingRecipientName && (
+                <p className="text-xs text-blue-600 flex items-center gap-1">
+                  <MapPin className="w-3 h-3" />
+                  Shipping to: {shippingRecipientName}
+                </p>
+              )}
             </div>
 
             {/* Credit Card for Supplier */}

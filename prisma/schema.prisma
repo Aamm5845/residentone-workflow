@@ -3769,11 +3769,12 @@ model Order {
   actualDelivery   DateTime?
 
   // Shipping
-  shippingMethod  String?
-  trackingNumber  String?
-  trackingUrl     String?
-  shippingCarrier String?
-  shippingAddress String?
+  shippingMethod        String?
+  trackingNumber        String?
+  trackingUrl           String?
+  shippingCarrier       String?
+  shippingRecipientName String? // Name from saved address (e.g., "Warehouse", "Office") or client name
+  shippingAddress       String?
 
   // Billing Address (from Organization or custom)
   billingAddress String? // Full billing address to display on PO

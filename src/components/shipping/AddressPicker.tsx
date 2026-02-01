@@ -44,6 +44,7 @@ interface AddressData {
 interface AddressPickerProps {
   value: AddressData
   onChange: (address: AddressData) => void
+  onAddressNameChange?: (name: string | null) => void // Called when saved address name changes
   showSavedAddresses?: boolean
   placeholder?: string
 }
@@ -51,6 +52,7 @@ interface AddressPickerProps {
 export default function AddressPicker({
   value,
   onChange,
+  onAddressNameChange,
   showSavedAddresses = true,
   placeholder = "Select or enter address"
 }: AddressPickerProps) {
@@ -149,6 +151,8 @@ export default function AddressPicker({
         postalCode: address.postalCode,
         country: address.country
       })
+      // Notify parent of the address name (e.g., "Warehouse", "Office")
+      onAddressNameChange?.(address.name)
       setShowManualEntry(false)
     }
   }
@@ -218,6 +222,8 @@ export default function AddressPicker({
           })
 
           onChange(addressData)
+          // Clear address name since this is a manual/Google Places entry
+          onAddressNameChange?.(null)
           setNewAddress(prev => ({ ...prev, ...addressData }))
           setSearchQuery(place.formatted_address || '')
           setShowPredictions(false)

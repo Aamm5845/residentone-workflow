@@ -284,6 +284,7 @@ interface CreateManualOrderBody {
   items: ManualOrderItem[]
 
   // Order details
+  shippingRecipientName?: string // Name from saved address (e.g., "Warehouse") or client name
   shippingAddress?: string
   shippingMethod?: string
   shippingCost?: number
@@ -592,6 +593,7 @@ export async function POST(
           taxAmount: taxAmount || null,
           totalAmount,
           currency: orderCurrency,
+          shippingRecipientName: body.shippingRecipientName?.trim() || null,
           shippingAddress: body.shippingAddress?.trim() || null,
           shippingMethod: body.shippingMethod?.trim() || null,
           notes: body.notes?.trim() || null,

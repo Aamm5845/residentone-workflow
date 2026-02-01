@@ -24,9 +24,10 @@ interface POData {
   // Project info
   projectName: string
   projectAddress?: string | null
-  clientName?: string | null
+  clientName?: string | null // Client name from project
 
   // Shipping
+  shippingRecipientName?: string | null // From saved address name (e.g., "Warehouse") or defaults to client name
   shippingAddress?: string | null
   shippingMethod?: string | null
 
@@ -257,6 +258,25 @@ function drawHeader(
   })
   rightY -= LINE_HEIGHT
 
+  // Currency (only show if USD)
+  if (po.currency === 'USD') {
+    page.drawText('Currency:', {
+      x: rightX,
+      y: rightY,
+      size: 10,
+      font: boldFont,
+      color: COLORS.primary,
+    })
+    page.drawText('USD', {
+      x: rightX + 70,
+      y: rightY,
+      size: 10,
+      font: boldFont,
+      color: COLORS.accent,
+    })
+    rightY -= LINE_HEIGHT
+  }
+
   // Expected Delivery
   if (po.expectedDelivery) {
     const deliveryStr = formatDate(po.expectedDelivery)
@@ -356,8 +376,8 @@ function drawVendorShipToSection(
     color: COLORS.primary,
   })
 
-  // Ship to address first line (project name or company)
-  const shipToName = po.projectName
+  // Ship to address first line (saved address name, project name, or client name)
+  const shipToName = po.shippingRecipientName || po.clientName || po.projectName
   page.drawText(shipToName, {
     x: rightX,
     y: yPos,
@@ -515,9 +535,10 @@ function drawLineItemsTable(
   })
   xPos += colWidths.unit
 
-  // Right-align Total header
-  const totalHeaderWidth = boldFont.widthOfTextAtSize('Total', 10)
-  page.drawText('Total', {
+  // Right-align Total header - show currency if USD
+  const totalHeaderText = currency === 'USD' ? 'Total (USD)' : 'Total'
+  const totalHeaderWidth = boldFont.widthOfTextAtSize(totalHeaderText, 10)
+  page.drawText(totalHeaderText, {
     x: width - PAGE_MARGIN - totalHeaderWidth - 5,
     y: headerTextY,
     size: 10,
@@ -712,8 +733,9 @@ function drawTotals(
   })
   yPos -= 15
 
-  // Total (bold)
-  page.drawText('TOTAL:', {
+  // Total (bold) - show currency code if USD
+  const totalLabel = po.currency === 'USD' ? 'TOTAL (USD):' : 'TOTAL:'
+  page.drawText(totalLabel, {
     x: rightX,
     y: yPos,
     size: 12,

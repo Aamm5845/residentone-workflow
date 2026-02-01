@@ -30,7 +30,12 @@ export async function GET(
           select: {
             id: true,
             name: true,
-            address: true
+            address: true,
+            client: {
+              select: {
+                name: true
+              }
+            }
           }
         },
         supplier: {
@@ -106,8 +111,10 @@ export async function GET(
       // Project info
       projectName: order.project.name,
       projectAddress: order.project.address,
+      clientName: order.project.client?.name,
 
       // Shipping
+      shippingRecipientName: order.shippingRecipientName,
       shippingAddress: order.shippingAddress,
       shippingMethod: order.shippingMethod,
 
