@@ -89,57 +89,13 @@ export default function InvoiceForm({
   const clientPhone = fromProposal?.clientPhone || client.phone || ''
   const clientAddress = fromProposal?.clientAddress || ''
 
-  // Create preset line items based on proposal
+  // Create initial line items - start clean so user can pick from presets
   const getInitialLineItems = (): LineItem[] => {
     if (existingInvoice?.lineItems) {
       return existingInvoice.lineItems
     }
 
-    if (fromProposal) {
-      const items: LineItem[] = []
-
-      // If proposal has payment schedule, create line items for each milestone
-      if (fromProposal.paymentSchedule && fromProposal.paymentSchedule.length > 0) {
-        fromProposal.paymentSchedule.forEach((milestone, index) => {
-          items.push({
-            type: milestone.dueOn === 'signing' ? 'DEPOSIT' : 'MILESTONE',
-            description: milestone.title,
-            quantity: 1,
-            unitPrice: milestone.amount,
-            milestoneTitle: milestone.title,
-            milestonePercent: milestone.percent || undefined,
-            amount: milestone.amount,
-            order: index,
-          })
-        })
-      } else if (fromProposal.billingType === 'HOURLY' && fromProposal.hourlyRate) {
-        // For hourly billing, create a single hourly line item
-        items.push({
-          type: 'HOURLY',
-          description: 'Design Services',
-          quantity: 1,
-          unitPrice: fromProposal.hourlyRate,
-          hours: 0,
-          hourlyRate: fromProposal.hourlyRate,
-          amount: 0,
-          order: 0,
-        })
-      } else {
-        // Default: single line item with total
-        items.push({
-          type: 'FIXED',
-          description: fromProposal.title,
-          quantity: 1,
-          unitPrice: fromProposal.subtotal,
-          amount: fromProposal.subtotal,
-          order: 0,
-        })
-      }
-
-      return items
-    }
-
-    // Default empty item
+    // Start with empty item - user picks from presets
     return [{ type: 'FIXED', description: '', quantity: 1, unitPrice: 0, amount: 0, order: 0 }]
   }
 
@@ -375,21 +331,47 @@ export default function InvoiceForm({
 
       {/* Form */}
       <div className="max-w-5xl mx-auto px-6 py-8">
+        {/* Presets from Payment Agreement */}
         {fromProposal && (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
-            <p className="text-sm text-blue-700">
-              Creating invoice from proposal <strong>{fromProposal.number}</strong>
-              {fromProposal.billingType === 'HOURLY' && (
-                <span className="ml-2 px-2 py-0.5 bg-blue-100 rounded text-xs">
-                  Hourly @ {formatCurrency(fromProposal.hourlyRate || 0)}/hr
-                </span>
-              )}
-              {fromProposal.billingType === 'HYBRID' && (
-                <span className="ml-2 px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs">
-                  Hybrid (Fixed + Hourly)
-                </span>
-              )}
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-emerald-800">
+                Payment Agreement Presets
+              </h3>
+              <span className="text-xs text-emerald-600 bg-emerald-100 px-2 py-1 rounded">
+                From {fromProposal.number}
+              </span>
+            </div>
+            <p className="text-sm text-emerald-700 mb-4">
+              Click to add items from the signed proposal. Just enter quantity/hours after adding.
             </p>
+            <div className="flex flex-wrap gap-2">
+              {/* Payment Schedule Milestones */}
+              {fromProposal.paymentSchedule && fromProposal.paymentSchedule.map((milestone, index) => (
+                <Button
+                  key={`milestone-${index}`}
+                  variant="outline"
+                  size="sm"
+                  className="border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-100"
+                  onClick={() => addMilestoneItem(milestone)}
+                >
+                  <DollarSign className="w-3 h-3 mr-1" />
+                  {milestone.title} ({formatCurrency(milestone.amount)})
+                </Button>
+              ))}
+              {/* Hourly Rate Preset */}
+              {(fromProposal.billingType === 'HOURLY' || fromProposal.billingType === 'HYBRID' || fromProposal.hourlyRate) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-blue-300 bg-white text-blue-700 hover:bg-blue-100"
+                  onClick={() => addLineItem('HOURLY')}
+                >
+                  <Clock className="w-3 h-3 mr-1" />
+                  Design Hours @ {formatCurrency(fromProposal.hourlyRate || 200)}/hr
+                </Button>
+              )}
+            </div>
           </div>
         )}
 
@@ -416,38 +398,6 @@ export default function InvoiceForm({
                 </div>
               </div>
             </div>
-
-            {/* Quick Add from Proposal */}
-            {fromProposal?.paymentSchedule && fromProposal.paymentSchedule.length > 0 && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-                <h3 className="text-sm font-medium text-amber-800 mb-3">Quick Add from Proposal</h3>
-                <div className="flex flex-wrap gap-2">
-                  {fromProposal.paymentSchedule.map((milestone, index) => (
-                    <Button
-                      key={index}
-                      variant="outline"
-                      size="sm"
-                      className="border-amber-300 text-amber-700 hover:bg-amber-100"
-                      onClick={() => addMilestoneItem(milestone)}
-                    >
-                      <Plus className="w-3 h-3 mr-1" />
-                      {milestone.title} ({formatCurrency(milestone.amount)})
-                    </Button>
-                  ))}
-                  {(fromProposal.billingType === 'HOURLY' || fromProposal.billingType === 'HYBRID') && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-blue-300 text-blue-700 hover:bg-blue-100"
-                      onClick={() => addLineItem('HOURLY')}
-                    >
-                      <Clock className="w-3 h-3 mr-1" />
-                      Add Hours @ {formatCurrency(fromProposal.hourlyRate || 200)}/hr
-                    </Button>
-                  )}
-                </div>
-              </div>
-            )}
 
             {/* Line Items */}
             <div className="bg-white rounded-xl border p-6">

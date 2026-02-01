@@ -66,15 +66,44 @@ export default async function NewInvoicePage({ params, searchParams }: Props) {
     },
   })
 
-  // If creating from a proposal, get proposal data with payment schedule
+  // Get proposal data - either from URL parameter or find the signed proposal for this project
   let proposal = null
   if (proposalId) {
+    // Explicit proposal ID provided
     proposal = await prisma.proposal.findFirst({
       where: {
         id: proposalId,
         projectId,
         orgId: currentUser.orgId,
       },
+      select: {
+        id: true,
+        proposalNumber: true,
+        title: true,
+        billingType: true,
+        clientName: true,
+        clientEmail: true,
+        clientPhone: true,
+        clientAddress: true,
+        subtotal: true,
+        totalAmount: true,
+        gstRate: true,
+        qstRate: true,
+        hourlyRate: true,
+        depositAmount: true,
+        ccFeePercent: true,
+        paymentSchedule: true,
+      },
+    })
+  } else {
+    // No proposal ID - automatically find the signed proposal for this project
+    proposal = await prisma.proposal.findFirst({
+      where: {
+        projectId,
+        orgId: currentUser.orgId,
+        status: 'SIGNED',
+      },
+      orderBy: { signedAt: 'desc' }, // Most recently signed
       select: {
         id: true,
         proposalNumber: true,
