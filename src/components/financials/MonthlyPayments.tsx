@@ -33,9 +33,23 @@ import {
   Briefcase,
   Receipt,
   Sparkles,
+  TrendingUp,
+  AlertCircle,
+  Check,
+  RefreshCw,
+  Fish,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+
+// Variable expense category mapping
+const VARIABLE_CATEGORY_CONFIG: Record<string, { icon: any; color: string; bg: string; label: string }> = {
+  GROCERIES: { icon: ShoppingCart, color: 'text-green-600', bg: 'bg-green-100', label: 'Groceries' },
+  KOSHER_FOOD: { icon: Fish, color: 'text-amber-600', bg: 'bg-amber-100', label: 'Fish & Meat (Kosher)' },
+  MEDICAL: { icon: Stethoscope, color: 'text-red-600', bg: 'bg-red-100', label: 'Medical' },
+  CLOTHING: { icon: Shirt, color: 'text-violet-600', bg: 'bg-violet-100', label: 'Clothing' },
+  CAR_SERVICE: { icon: Wrench, color: 'text-gray-600', bg: 'bg-gray-100', label: 'Car Service' },
+}
 
 // Bill structure - what should appear in the dashboard
 const PERSONAL_STRUCTURE = [
@@ -131,13 +145,6 @@ const PERSONAL_STRUCTURE = [
   },
 ]
 
-const PERSONAL_VARIABLE = [
-  { key: 'groceries', name: 'Groceries', icon: ShoppingCart, color: 'text-green-600', bg: 'bg-green-100', category: 'GROCERIES' },
-  { key: 'kosher', name: 'Fish & Meat (Kosher)', icon: ShoppingCart, color: 'text-amber-600', bg: 'bg-amber-100', category: 'KOSHER_FOOD' },
-  { key: 'medical', name: 'Medical', icon: Stethoscope, color: 'text-red-600', bg: 'bg-red-100', category: 'MEDICAL' },
-  { key: 'clothing', name: 'Clothing', icon: Shirt, color: 'text-violet-600', bg: 'bg-violet-100', category: 'CLOTHING' },
-  { key: 'car-service', name: 'Car Service', icon: Wrench, color: 'text-gray-600', bg: 'bg-gray-100', category: 'CAR_SERVICE' },
-]
 
 const BUSINESS_STRUCTURE = [
   {
@@ -194,6 +201,25 @@ interface Bill {
   isOverdue: boolean
 }
 
+interface VariableExpenseData {
+  categories: Record<string, {
+    average: number
+    months: Record<string, number>
+    transactions: number
+  }>
+  unknownTransactions: {
+    transactionId: string
+    name: string
+    merchantName: string | null
+    amount: number
+    date: string
+    category: string
+    confidence: string
+  }[]
+  monthLabels: string[]
+  totalTransactionsAnalyzed: number
+}
+
 export function MonthlyPayments() {
   const [bills, setBills] = useState<Bill[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -201,6 +227,12 @@ export function MonthlyPayments() {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['Lines of Credit', 'Credit Cards', 'Tuition', 'Insurance', 'Payroll']))
   const [editingItem, setEditingItem] = useState<{ key: string; bill?: Bill } | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+
+  // Variable expenses state
+  const [variableData, setVariableData] = useState<VariableExpenseData | null>(null)
+  const [isLoadingVariable, setIsLoadingVariable] = useState(false)
+  const [showUnknown, setShowUnknown] = useState(false)
+  const [categorizingId, setCategorizingId] = useState<string | null>(null)
 
   // Form state for editing
   const [editForm, setEditForm] = useState({
@@ -225,8 +257,43 @@ export function MonthlyPayments() {
     }
   }
 
+  const fetchVariableExpenses = async () => {
+    setIsLoadingVariable(true)
+    try {
+      const res = await fetch('/api/monthly-bills/variable-expenses')
+      if (res.ok) {
+        const data = await res.json()
+        setVariableData(data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch variable expenses:', err)
+    } finally {
+      setIsLoadingVariable(false)
+    }
+  }
+
+  const categorizeTransaction = async (transactionId: string, category: string) => {
+    setCategorizingId(transactionId)
+    try {
+      await fetch('/api/monthly-bills/variable-expenses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          categorizations: [{ transactionId, category }],
+        }),
+      })
+      // Refresh the data
+      await fetchVariableExpenses()
+    } catch (err) {
+      console.error('Failed to categorize:', err)
+    } finally {
+      setCategorizingId(null)
+    }
+  }
+
   useEffect(() => {
     fetchBills()
+    fetchVariableExpenses()
   }, [])
 
   const formatCurrency = (amount: number) => {
@@ -549,92 +616,180 @@ export function MonthlyPayments() {
           )
         })}
 
-        {/* Variable Expenses - Personal Only */}
+        {/* Variable Expenses - Personal Only (AI-Powered) */}
         {activeTab === 'PERSONAL' && (
           <div className="mt-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
-              <ShoppingCart className="h-5 w-5 text-gray-500" />
-              Variable Expenses (Monthly Averages)
-            </h2>
-            <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
-              {PERSONAL_VARIABLE.map((item) => {
-                const bill = bills.find((b) => b.category === item.category && b.isVariable)
-                const Icon = item.icon
-                const isEditing = editingItem?.key === item.key
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-gray-500" />
+                Variable Expenses
+                <span className="text-xs font-normal text-gray-400 ml-1">(3-month analysis)</span>
+              </h2>
+              <button
+                onClick={fetchVariableExpenses}
+                disabled={isLoadingVariable}
+                className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700"
+              >
+                <RefreshCw className={cn('h-4 w-4', isLoadingVariable && 'animate-spin')} />
+                Refresh
+              </button>
+            </div>
 
-                return (
-                  <div
-                    key={item.key}
-                    className={cn('px-4 py-3', isEditing ? 'bg-blue-50' : 'hover:bg-gray-50')}
-                  >
-                    {isEditing ? (
-                      <div className="flex items-center gap-3">
-                        <div className={cn('p-2 rounded-lg', item.bg)}>
-                          <Icon className={cn('h-4 w-4', item.color)} />
-                        </div>
-                        <input
-                          type="text"
-                          value={editForm.name}
-                          onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                        />
-                        <div className="relative w-28">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
-                          <input
-                            type="number"
-                            value={editForm.amount}
-                            onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
-                            placeholder="0"
-                            className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm"
-                          />
-                        </div>
-                        <button
-                          onClick={() => setEditingItem(null)}
-                          className="px-3 py-1.5 text-gray-600 hover:bg-gray-100 rounded text-sm"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={() => handleSave(item.category, undefined, 'MONTHLY', true)}
-                          disabled={isSaving}
-                          className="px-4 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
-                        >
-                          Save
-                        </button>
-                      </div>
-                    ) : (
-                      <div
-                        onClick={() => {
-                          setEditingItem({ key: item.key, bill })
-                          setEditForm({
-                            name: bill?.name || item.name,
-                            amount: bill?.averageAmount?.toString() || bill?.amount?.toString() || '',
-                            dueDay: '',
-                            isAutoPay: false,
-                          })
-                        }}
-                        className="flex items-center justify-between cursor-pointer"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={cn('p-2 rounded-lg', item.bg)}>
-                            <Icon className={cn('h-4 w-4', item.color)} />
+            {isLoadingVariable ? (
+              <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+                <Loader2 className="h-6 w-6 animate-spin mx-auto text-gray-400" />
+                <p className="text-gray-500 mt-2 text-sm">Analyzing transactions...</p>
+              </div>
+            ) : variableData ? (
+              <div className="space-y-3">
+                {/* Month labels header */}
+                {variableData.monthLabels.length > 0 && (
+                  <div className="bg-gray-50 rounded-lg px-4 py-2 flex items-center gap-4 text-sm text-gray-500">
+                    <span className="flex-1">Category</span>
+                    {variableData.monthLabels.map((month) => (
+                      <span key={month} className="w-20 text-center">
+                        {new Date(month + '-01').toLocaleDateString('en-US', { month: 'short' })}
+                      </span>
+                    ))}
+                    <span className="w-24 text-right font-medium">3-mo Avg</span>
+                  </div>
+                )}
+
+                {/* Category rows */}
+                <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
+                  {Object.entries(VARIABLE_CATEGORY_CONFIG).map(([catKey, config]) => {
+                    const data = variableData.categories[catKey]
+                    const Icon = config.icon
+
+                    return (
+                      <div key={catKey} className="px-4 py-3 flex items-center gap-4">
+                        <div className="flex items-center gap-3 flex-1">
+                          <div className={cn('p-2 rounded-lg', config.bg)}>
+                            <Icon className={cn('h-4 w-4', config.color)} />
                           </div>
-                          <p className="font-medium text-gray-900">{bill?.name || item.name}</p>
+                          <div>
+                            <p className="font-medium text-gray-900">{config.label}</p>
+                            {data && (
+                              <p className="text-xs text-gray-400">{data.transactions} transactions</p>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {bill ? (
-                            <p className="font-bold text-gray-600">{formatCurrency(bill.averageAmount || bill.amount)}<span className="text-gray-400 font-normal text-sm">/mo avg</span></p>
+
+                        {/* Monthly amounts */}
+                        {variableData.monthLabels.map((month) => (
+                          <div key={month} className="w-20 text-center">
+                            {data?.months[month] ? (
+                              <span className="text-sm text-gray-700">
+                                {formatCurrency(data.months[month])}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-gray-300">—</span>
+                            )}
+                          </div>
+                        ))}
+
+                        {/* Average */}
+                        <div className="w-24 text-right">
+                          {data ? (
+                            <span className="font-bold text-gray-900">
+                              {formatCurrency(data.average)}
+                              <span className="text-gray-400 font-normal text-xs">/mo</span>
+                            </span>
                           ) : (
-                            <p className="text-gray-400 italic">Click to set average</p>
+                            <span className="text-gray-400 text-sm">No data</span>
                           )}
-                          <Edit2 className="h-4 w-4 text-gray-300" />
                         </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Total */}
+                {Object.keys(variableData.categories).length > 0 && (
+                  <div className="bg-gray-50 rounded-lg px-4 py-3 flex items-center justify-between">
+                    <span className="font-medium text-gray-700">Total Variable Expenses</span>
+                    <span className="font-bold text-gray-900">
+                      {formatCurrency(
+                        Object.values(variableData.categories).reduce((sum, cat) => sum + cat.average, 0)
+                      )}
+                      <span className="text-gray-400 font-normal text-sm">/mo avg</span>
+                    </span>
+                  </div>
+                )}
+
+                {/* Unknown transactions that need categorization */}
+                {variableData.unknownTransactions.length > 0 && (
+                  <div className="mt-4">
+                    <button
+                      onClick={() => setShowUnknown(!showUnknown)}
+                      className="flex items-center gap-2 text-sm text-amber-600 hover:text-amber-700 mb-2"
+                    >
+                      <AlertCircle className="h-4 w-4" />
+                      {variableData.unknownTransactions.length} transactions need your help to categorize
+                      {showUnknown ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    </button>
+
+                    {showUnknown && (
+                      <div className="bg-amber-50 rounded-xl border border-amber-200 divide-y divide-amber-100">
+                        {variableData.unknownTransactions.map((txn) => (
+                          <div key={txn.transactionId} className="px-4 py-3">
+                            <div className="flex items-center justify-between mb-2">
+                              <div>
+                                <p className="font-medium text-gray-900">{txn.merchantName || txn.name}</p>
+                                <p className="text-sm text-gray-500">
+                                  {formatCurrency(txn.amount)} • {new Date(txn.date).toLocaleDateString()}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <span className="text-xs text-gray-500 mr-2 self-center">Categorize as:</span>
+                              {Object.entries(VARIABLE_CATEGORY_CONFIG).map(([catKey, config]) => (
+                                <button
+                                  key={catKey}
+                                  onClick={() => categorizeTransaction(txn.transactionId, catKey)}
+                                  disabled={categorizingId === txn.transactionId}
+                                  className={cn(
+                                    'px-2 py-1 rounded text-xs font-medium border transition-colors',
+                                    'hover:bg-white',
+                                    config.bg,
+                                    config.color,
+                                    'border-transparent hover:border-gray-200'
+                                  )}
+                                >
+                                  {categorizingId === txn.transactionId ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    config.label
+                                  )}
+                                </button>
+                              ))}
+                              <button
+                                onClick={() => categorizeTransaction(txn.transactionId, 'SKIP')}
+                                disabled={categorizingId === txn.transactionId}
+                                className="px-2 py-1 rounded text-xs font-medium text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                              >
+                                Skip
+                              </button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
-                )
-              })}
-            </div>
+                )}
+
+                {/* Info about data source */}
+                <p className="text-xs text-gray-400 text-center mt-2">
+                  <Sparkles className="h-3 w-3 inline mr-1" />
+                  AI analyzed {variableData.totalTransactionsAnalyzed} transactions from your connected accounts
+                </p>
+              </div>
+            ) : (
+              <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+                <ShoppingCart className="h-8 w-8 mx-auto text-gray-300" />
+                <p className="text-gray-500 mt-2">Connect your bank accounts to see spending analysis</p>
+              </div>
+            )}
           </div>
         )}
       </div>
