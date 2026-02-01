@@ -4302,6 +4302,148 @@ model BankTransaction {
 }
 
 // ========================================
+// MONTHLY BILLS & EXPENSE TRACKING
+// Personal and Business expense management
+// ========================================
+
+model MonthlyBill {
+  id              String   @id @default(cuid())
+  orgId           String
+
+  // Basic info
+  name            String   // e.g., "TD Visa", "Girls Tuition - Beth Rivkah"
+  amount          Decimal  @db.Decimal(12, 2)
+
+  // Categorization
+  type            BillType           @default(PERSONAL)
+  category        BillCategory
+  subCategory     String?            // e.g., "Boys", "Girls" for tuition or "TD", "BMO" for credit cards
+
+  // Schedule
+  dueDay          Int?               // Day of month (1-31), null for variable
+  frequency       BillFrequency      @default(MONTHLY)
+
+  // For yearly bills - which month
+  yearlyMonth     Int?               // 1-12 for yearly bills
+
+  // Variable expense tracking (for groceries, etc.)
+  isVariable      Boolean            @default(false)
+  averageAmount   Decimal?           @db.Decimal(12, 2)  // Calculated average
+
+  // Optional details
+  description     String?
+  payeeName       String?            // Who you pay
+  accountNumber   String?            // Account/reference number (last 4 digits)
+  paymentUrl      String?            // URL to pay online
+
+  // Auto-pay status
+  isAutoPay       Boolean            @default(false)
+
+  // Source tracking
+  source          BillSource         @default(MANUAL)
+  bankAccountId   String?            // Link to bank account if auto-detected
+  screenshotUrl   String?            // If added via screenshot
+
+  // Status
+  isActive        Boolean            @default(true)
+  sortOrder       Int                @default(0)
+
+  // Payment tracking
+  lastPaidDate    DateTime?
+  lastPaidAmount  Decimal?           @db.Decimal(12, 2)
+
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  createdById     String?
+
+  // Payment history
+  payments        BillPaymentHistory[]
+
+  @@index([orgId])
+  @@index([type])
+  @@index([category])
+  @@index([isActive])
+}
+
+model BillPaymentHistory {
+  id            String      @id @default(cuid())
+  billId        String
+  amount        Decimal     @db.Decimal(12, 2)
+  paidDate      DateTime
+  note          String?
+
+  createdAt     DateTime    @default(now())
+
+  bill          MonthlyBill @relation(fields: [billId], references: [id], onDelete: Cascade)
+
+  @@index([billId])
+  @@index([paidDate])
+}
+
+enum BillType {
+  PERSONAL
+  BUSINESS
+}
+
+enum BillCategory {
+  // Personal - Debt
+  CREDIT_CARD
+  LINE_OF_CREDIT
+  MORTGAGE
+  CAR_LEASE
+  LOAN
+
+  // Personal - Family
+  TUITION
+  CHILDCARE
+  TZEDAKA
+
+  // Personal - Insurance
+  CAR_INSURANCE
+  HOME_INSURANCE
+  LIFE_INSURANCE
+
+  // Personal - Utilities & Services
+  UTILITIES
+  INTERNET
+  PHONE
+
+  // Personal - Variable (averages)
+  GROCERIES
+  KOSHER_FOOD
+  MEDICAL
+  CLOTHING
+  CAR_SERVICE
+  HOUSEHOLD
+
+  // Personal - Yearly
+  PROPERTY_TAX
+
+  // Business
+  OFFICE_RENT
+  PAYROLL
+  SOFTWARE
+  BUSINESS_INSURANCE
+  BUSINESS_OTHER
+
+  OTHER
+}
+
+enum BillFrequency {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum BillSource {
+  MANUAL
+  BANK_DETECTED
+  SCREENSHOT_AI
+}
+
+// ========================================
 // BILLING SYSTEM - PROPOSALS & INVOICES
 // ========================================
 
