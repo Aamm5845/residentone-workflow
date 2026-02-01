@@ -41,6 +41,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { StatementUploadDialog } from './StatementUploadDialog'
 
 // Variable expense category mapping
 const VARIABLE_CATEGORY_CONFIG: Record<string, { icon: any; color: string; bg: string; label: string }> = {
@@ -302,6 +303,9 @@ export function MonthlyPayments() {
 
   // Credit card detail editing
   const [editingCreditCard, setEditingCreditCard] = useState<CreditAccount | null>(null)
+
+  // Statement upload
+  const [uploadingAccount, setUploadingAccount] = useState<CreditAccount | null>(null)
   const [creditCardForm, setCreditCardForm] = useState({
     nickname: '',
     creditLimit: '',
@@ -1173,6 +1177,13 @@ export function MonthlyPayments() {
                                     <p className="text-xs text-gray-500">balance</p>
                                   </div>
                                   <button
+                                    onClick={() => setUploadingAccount((item as any).plaidAccount)}
+                                    className="p-2 hover:bg-purple-100 rounded-lg"
+                                    title="Upload statements"
+                                  >
+                                    <Upload className="h-4 w-4 text-purple-500" />
+                                  </button>
+                                  <button
                                     onClick={() => openCreditCardEdit((item as any).plaidAccount)}
                                     className="p-2 hover:bg-gray-100 rounded-lg"
                                     title="Edit details"
@@ -1468,6 +1479,23 @@ export function MonthlyPayments() {
           </div>
         </div>
       </div>
+
+      {/* Statement Upload Dialog */}
+      {uploadingAccount && (
+        <StatementUploadDialog
+          open={!!uploadingAccount}
+          onOpenChange={(open) => !open && setUploadingAccount(null)}
+          account={{
+            id: uploadingAccount.id,
+            name: uploadingAccount.nickname || uploadingAccount.name,
+            institutionName: uploadingAccount.institutionName,
+            mask: uploadingAccount.mask,
+          }}
+          onUploadComplete={() => {
+            fetchVariableExpenses()
+          }}
+        />
+      )}
     </div>
   )
 }

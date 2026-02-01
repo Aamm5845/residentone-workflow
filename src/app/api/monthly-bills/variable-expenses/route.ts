@@ -45,7 +45,7 @@ export async function GET(request: Request) {
     const now = new Date()
     const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1)
 
-    // Fetch all expense transactions from last 3 months
+    // Fetch all expense transactions from last 3 months (Plaid)
     const transactions = await prisma.bankTransaction.findMany({
       where: {
         bankAccount: {
@@ -70,6 +70,31 @@ export async function GET(request: Request) {
         category: true,
         aiCategory: true,
         aiSubCategory: true,
+      },
+      orderBy: { date: 'desc' },
+    })
+
+    // Fetch statement transactions (non-duplicates) from last 3 months
+    const statementTransactions = await prisma.statementTransaction.findMany({
+      where: {
+        bankAccount: {
+          plaidItem: {
+            orgId: session.user.orgId,
+          },
+        },
+        date: {
+          gte: threeMonthsAgo,
+        },
+        isDuplicate: false, // Only include non-duplicates
+        type: 'DEBIT', // Only expenses
+      },
+      select: {
+        id: true,
+        description: true,
+        merchantName: true,
+        amount: true,
+        date: true,
+        variableCategory: true,
       },
       orderBy: { date: 'desc' },
     })
@@ -129,6 +154,49 @@ export async function GET(request: Request) {
       }
     }
 
+    // Add statement transactions that have a category assigned
+    for (const stmtTxn of statementTransactions) {
+      if (stmtTxn.variableCategory && Object.keys(VARIABLE_CATEGORIES).includes(stmtTxn.variableCategory)) {
+        categorized.push({
+          transactionId: `stmt_${stmtTxn.id}`,
+          name: stmtTxn.description,
+          merchantName: stmtTxn.merchantName,
+          amount: Number(stmtTxn.amount),
+          date: stmtTxn.date.toISOString(),
+          category: stmtTxn.variableCategory as keyof typeof VARIABLE_CATEGORIES,
+          confidence: 'medium',
+        })
+      } else {
+        // Try to categorize statement transactions using keywords
+        const searchText = `${stmtTxn.merchantName || ''} ${stmtTxn.description}`.toLowerCase()
+        let foundCategory: keyof typeof VARIABLE_CATEGORIES | null = null
+        let confidence: 'high' | 'medium' | 'low' = 'low'
+
+        for (const [cat, keywords] of Object.entries(VARIABLE_CATEGORIES)) {
+          for (const keyword of keywords) {
+            if (searchText.includes(keyword)) {
+              foundCategory = cat as keyof typeof VARIABLE_CATEGORIES
+              confidence = keywords.indexOf(keyword) < 3 ? 'high' : 'medium'
+              break
+            }
+          }
+          if (foundCategory) break
+        }
+
+        if (foundCategory) {
+          categorized.push({
+            transactionId: `stmt_${stmtTxn.id}`,
+            name: stmtTxn.description,
+            merchantName: stmtTxn.merchantName,
+            amount: Number(stmtTxn.amount),
+            date: stmtTxn.date.toISOString(),
+            category: foundCategory,
+            confidence,
+          })
+        }
+      }
+    }
+
     // Aggregate by category and month
     const monthlyTotals: Record<string, Record<string, number>> = {}
 
@@ -170,6 +238,7 @@ export async function GET(request: Request) {
       unknownTransactions: unknownTransactions.slice(0, 20), // Return top 20 unknown
       monthLabels: monthLabels.reverse(),
       totalTransactionsAnalyzed: transactions.length,
+      statementTransactionsIncluded: statementTransactions.length,
     })
   } catch (error: any) {
     console.error('Variable expenses analysis error:', error)
