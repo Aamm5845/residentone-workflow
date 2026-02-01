@@ -789,7 +789,16 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                   <TableCell className="text-gray-600">{quote.lineItemsCount}</TableCell>
 
                   {/* Total */}
-                  <TableCell className="text-gray-600">{formatCurrency(quote.totalAmount, quote.currency)}</TableCell>
+                  <TableCell className="text-gray-600">
+                    <div>
+                      <span>{formatCurrency(quote.totalAmount, quote.currency)}</span>
+                      {quote.shippingCost && quote.shippingCost > 0 && (
+                        <div className="text-xs text-blue-600 mt-0.5">
+                          +{formatCurrency(quote.shippingCost, quote.currency)} shipping
+                        </div>
+                      )}
+                    </div>
+                  </TableCell>
 
                   {/* Received */}
                   <TableCell className="text-gray-600">{formatDate(quote.submittedAt)}</TableCell>
@@ -1194,12 +1203,19 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                               <span className="font-medium">{formatCurrency(quote.subtotal, quote.currency)}</span>
                             </div>
                           )}
-                          {quote.shippingCost && quote.shippingCost > 0 && (
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Shipping</span>
-                              <span className="font-medium">{formatCurrency(quote.shippingCost, quote.currency)}</span>
-                            </div>
-                          )}
+                          <div className="flex justify-between">
+                            <span className="text-gray-600 flex items-center gap-1">
+                              Shipping
+                              {!quote.shippingCost && quote.shippingCost !== 0 && (
+                                <span className="text-xs text-amber-600">(not specified)</span>
+                              )}
+                            </span>
+                            <span className={`font-medium ${!quote.shippingCost && quote.shippingCost !== 0 ? 'text-amber-600' : ''}`}>
+                              {quote.shippingCost !== null && quote.shippingCost !== undefined
+                                ? formatCurrency(quote.shippingCost, quote.currency)
+                                : '—'}
+                            </span>
+                          </div>
                           {quote.taxAmount && quote.taxAmount > 0 && (
                             <div className="flex justify-between">
                               <span className="text-gray-600">Tax</span>

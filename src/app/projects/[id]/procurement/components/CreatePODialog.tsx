@@ -38,9 +38,11 @@ import {
   Upload,
   FileText,
   Image as ImageIcon,
-  Trash2
+  Trash2,
+  MapPin
 } from 'lucide-react'
 import { toast } from 'sonner'
+import AddressPicker from '@/components/shipping/AddressPicker'
 
 // Ensure URLs use https to avoid mixed content warnings
 const ensureHttps = (url: string | null | undefined): string | null => {
@@ -162,8 +164,14 @@ export default function CreatePODialog({
   const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(false)
   const [groupCurrency, setGroupCurrency] = useState('CAD')
 
-  // Form state
-  const [shippingAddress, setShippingAddress] = useState('')
+  // Form state - shipping address as structured data
+  const [shippingAddress, setShippingAddress] = useState({
+    street: '',
+    city: '',
+    province: '',
+    postalCode: '',
+    country: 'Canada'
+  })
   const [notes, setNotes] = useState('')
   const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string>('')
 
@@ -175,6 +183,9 @@ export default function CreatePODialog({
   // Tax options (default checked)
   const [includeGst, setIncludeGst] = useState(true)
   const [includeQst, setIncludeQst] = useState(true)
+  const [useCustomTax, setUseCustomTax] = useState(false)
+  const [customTaxPercent, setCustomTaxPercent] = useState('')
+  const [customTaxLabel, setCustomTaxLabel] = useState('Custom Tax')
 
   // Deposit
   const [depositPercent, setDepositPercent] = useState<string>('')
@@ -259,7 +270,26 @@ export default function CreatePODialog({
     if (open) {
       fetchItems()
       fetchPaymentMethods()
-      setShippingAddress(project?.defaultShippingAddress || '')
+      // Parse default shipping address if available (simple string to structured)
+      if (project?.defaultShippingAddress) {
+        // Try to parse the address - it's usually a simple string
+        // We'll just put it in the street field and let user adjust
+        setShippingAddress({
+          street: project.defaultShippingAddress,
+          city: '',
+          province: '',
+          postalCode: '',
+          country: 'Canada'
+        })
+      } else {
+        setShippingAddress({
+          street: '',
+          city: '',
+          province: '',
+          postalCode: '',
+          country: 'Canada'
+        })
+      }
       setNotes('')
       setSelectedPaymentMethodId('')
       setExtraCharges([])
@@ -267,6 +297,9 @@ export default function CreatePODialog({
       setNewChargeAmount('')
       setIncludeGst(true)
       setIncludeQst(true)
+      setUseCustomTax(false)
+      setCustomTaxPercent('')
+      setCustomTaxLabel('Custom Tax')
       setDepositPercent('')
       setUploadedFiles([])
     }
@@ -320,7 +353,9 @@ export default function CreatePODialog({
 
     const gstAmount = includeGst ? subtotalBeforeTax * GST_RATE : 0
     const qstAmount = includeQst ? subtotalBeforeTax * QST_RATE : 0
-    const totalTax = gstAmount + qstAmount
+    const customTaxRate = useCustomTax && customTaxPercent ? parseFloat(customTaxPercent) / 100 : 0
+    const customTaxAmount = useCustomTax ? subtotalBeforeTax * customTaxRate : 0
+    const totalTax = gstAmount + qstAmount + customTaxAmount
     const total = subtotalBeforeTax + totalTax
 
     // Calculate deposit
@@ -334,6 +369,7 @@ export default function CreatePODialog({
       subtotalBeforeTax,
       gstAmount,
       qstAmount,
+      customTaxAmount,
       totalTax,
       total,
       depositAmount,
@@ -465,6 +501,17 @@ export default function CreatePODialog({
     }
   }
 
+  // Format shipping address for API
+  const formatShippingAddress = () => {
+    const parts = []
+    if (shippingAddress.street) parts.push(shippingAddress.street)
+    if (shippingAddress.city) parts.push(shippingAddress.city)
+    if (shippingAddress.province) parts.push(shippingAddress.province)
+    if (shippingAddress.postalCode) parts.push(shippingAddress.postalCode)
+    if (shippingAddress.country && shippingAddress.country !== 'Canada') parts.push(shippingAddress.country)
+    return parts.join(', ')
+  }
+
   const handleCreate = async () => {
     if (flatItems.length === 0) {
       toast.error('No items to order')
@@ -485,6 +532,8 @@ export default function CreatePODialog({
         quantity: item.quantity
       }))
 
+      const formattedAddress = formatShippingAddress()
+
       const res = await fetch(`/api/projects/${projectId}/procurement/orders/create-manual`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -493,7 +542,7 @@ export default function CreatePODialog({
           vendorName: supplier.name,
           vendorEmail: supplier.email,
           items: mainItems,
-          shippingAddress: shippingAddress.trim() || undefined,
+          shippingAddress: formattedAddress || undefined,
           notes: notes.trim() || undefined,
           savedPaymentMethodId: selectedPaymentMethodId || undefined,
           shippingCost: extraCharges.find(c => c.label.toLowerCase().includes('shipping'))?.amount || undefined,
@@ -501,6 +550,8 @@ export default function CreatePODialog({
           // Tax options
           includeGst,
           includeQst,
+          customTaxPercent: useCustomTax && customTaxPercent ? parseFloat(customTaxPercent) : undefined,
+          customTaxLabel: useCustomTax ? customTaxLabel : undefined,
           taxAmount: totals.totalTax > 0 ? totals.totalTax : undefined,
           // Deposit
           depositPercent: depositPercent ? parseFloat(depositPercent) : undefined,
@@ -810,7 +861,46 @@ export default function CreatePODialog({
                     QST (9.975%)
                   </Label>
                 </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="use-custom-tax"
+                    checked={useCustomTax}
+                    onCheckedChange={(checked) => setUseCustomTax(checked === true)}
+                  />
+                  <Label htmlFor="use-custom-tax" className="text-sm font-normal cursor-pointer">
+                    Custom
+                  </Label>
+                </div>
               </div>
+              {/* Custom Tax Input */}
+              {useCustomTax && (
+                <div className="flex items-center gap-3 pl-6 pt-2">
+                  <Input
+                    value={customTaxLabel}
+                    onChange={(e) => setCustomTaxLabel(e.target.value)}
+                    placeholder="Tax name"
+                    className="w-32 h-8 text-sm"
+                  />
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      value={customTaxPercent}
+                      onChange={(e) => setCustomTaxPercent(e.target.value)}
+                      placeholder="0"
+                      className="w-20 h-8 text-sm"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                    />
+                    <span className="text-sm text-gray-500">%</span>
+                  </div>
+                  {customTaxPercent && totals.customTaxAmount > 0 && (
+                    <span className="text-sm text-gray-600">
+                      = {formatCurrency(totals.customTaxAmount)}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Deposit */}
@@ -845,11 +935,11 @@ export default function CreatePODialog({
                 <Truck className="w-4 h-4 text-gray-500" />
                 Ship To Address
               </Label>
-              <Textarea
+              <AddressPicker
                 value={shippingAddress}
-                onChange={(e) => setShippingAddress(e.target.value)}
-                placeholder="Enter shipping address..."
-                rows={3}
+                onChange={setShippingAddress}
+                showSavedAddresses={true}
+                placeholder="Select or enter shipping address"
               />
             </div>
 
@@ -1007,7 +1097,7 @@ export default function CreatePODialog({
                     </p>
                   </div>
                 ))}
-                {(includeGst || includeQst) && (
+                {(includeGst || includeQst || useCustomTax) && (
                   <>
                     <div className="flex items-center justify-between pt-2 border-t border-emerald-200">
                       <p className="text-sm text-emerald-700">Subtotal</p>
@@ -1028,6 +1118,14 @@ export default function CreatePODialog({
                         <p className="text-sm text-emerald-700">QST (9.975%)</p>
                         <p className="font-medium text-emerald-800">
                           {formatCurrency(totals.qstAmount)}{groupCurrency === 'USD' ? ' USD' : ''}
+                        </p>
+                      </div>
+                    )}
+                    {useCustomTax && customTaxPercent && totals.customTaxAmount > 0 && (
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-emerald-700">{customTaxLabel} ({customTaxPercent}%)</p>
+                        <p className="font-medium text-emerald-800">
+                          {formatCurrency(totals.customTaxAmount)}{groupCurrency === 'USD' ? ' USD' : ''}
                         </p>
                       </div>
                     )}
