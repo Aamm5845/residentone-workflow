@@ -262,6 +262,20 @@ export function MonthlyPayments() {
   const [isLoadingDetected, setIsLoadingDetected] = useState(false)
   const [showDetected, setShowDetected] = useState(false)
 
+  // Credit card detail editing
+  const [editingCreditCard, setEditingCreditCard] = useState<CreditAccount | null>(null)
+  const [creditCardForm, setCreditCardForm] = useState({
+    nickname: '',
+    creditLimit: '',
+    dueDay: '',
+    minimumPayment: '',
+    interestRate: '',
+    lastStatementBalance: '',
+    statementStartDay: '',
+    statementEndDay: '',
+    rewardsProgram: '',
+  })
+
   // Form state for editing
   const [editForm, setEditForm] = useState({
     name: '',
@@ -312,6 +326,44 @@ export function MonthlyPayments() {
       }
     } catch (err) {
       console.error('Failed to fetch credit accounts:', err)
+    }
+  }
+
+  // Open credit card edit form
+  const openCreditCardEdit = (account: CreditAccount) => {
+    setEditingCreditCard(account)
+    setCreditCardForm({
+      nickname: account.nickname || '',
+      creditLimit: account.creditLimit?.toString() || '',
+      dueDay: account.dueDay?.toString() || '',
+      minimumPayment: account.minimumPayment?.toString() || '',
+      interestRate: account.interestRate?.toString() || '',
+      lastStatementBalance: account.lastStatementBalance?.toString() || '',
+      statementStartDay: account.statementStartDay?.toString() || '',
+      statementEndDay: account.statementEndDay?.toString() || '',
+      rewardsProgram: account.rewardsProgram || '',
+    })
+  }
+
+  // Save credit card details
+  const saveCreditCardDetails = async () => {
+    if (!editingCreditCard) return
+    setIsSaving(true)
+    try {
+      await fetch('/api/plaid/account-details', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountId: editingCreditCard.id,
+          ...creditCardForm,
+        }),
+      })
+      await fetchCreditAccounts()
+      setEditingCreditCard(null)
+    } catch (err) {
+      console.error('Failed to save credit card details:', err)
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -930,69 +982,214 @@ export function MonthlyPayments() {
                           </div>
                         ) : (item as any).plaidAccount ? (
                           // Enhanced display for Plaid-linked credit cards
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                {(item as any).plaidAccount.dueDay && (
-                                  <div className="w-10 h-10 rounded-full bg-purple-100 flex flex-col items-center justify-center">
-                                    <span className="text-[10px] text-purple-600 -mb-0.5">Due</span>
-                                    <span className="text-sm font-bold text-purple-700">{(item as any).plaidAccount.dueDay}</span>
+                          editingCreditCard?.id === (item as any).plaidAccount.id ? (
+                            // Edit form for credit card details
+                            <div className="space-y-3 bg-purple-50 -mx-4 -my-3 p-4 rounded-lg">
+                              <div className="flex items-center justify-between mb-2">
+                                <p className="font-medium text-purple-900">Edit Credit Card Details</p>
+                                <button onClick={() => setEditingCreditCard(null)} className="text-gray-400 hover:text-gray-600">
+                                  <X className="h-4 w-4" />
+                                </button>
+                              </div>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <label className="text-xs text-gray-500 block mb-1">Nickname</label>
+                                  <input
+                                    type="text"
+                                    value={creditCardForm.nickname}
+                                    onChange={(e) => setCreditCardForm({ ...creditCardForm, nickname: e.target.value })}
+                                    placeholder="e.g., Aeroplan Card"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-xs text-gray-500 block mb-1">Rewards Program</label>
+                                  <input
+                                    type="text"
+                                    value={creditCardForm.rewardsProgram}
+                                    onChange={(e) => setCreditCardForm({ ...creditCardForm, rewardsProgram: e.target.value })}
+                                    placeholder="e.g., Aeroplan, Cash Back"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-xs text-gray-500 block mb-1">Credit Limit</label>
+                                  <input
+                                    type="number"
+                                    value={creditCardForm.creditLimit}
+                                    onChange={(e) => setCreditCardForm({ ...creditCardForm, creditLimit: e.target.value })}
+                                    placeholder="26000"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-xs text-gray-500 block mb-1">Due Day (1-31)</label>
+                                  <input
+                                    type="number"
+                                    value={creditCardForm.dueDay}
+                                    onChange={(e) => setCreditCardForm({ ...creditCardForm, dueDay: e.target.value })}
+                                    placeholder="6"
+                                    min="1"
+                                    max="31"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-xs text-gray-500 block mb-1">Interest Rate (APR %)</label>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={creditCardForm.interestRate}
+                                    onChange={(e) => setCreditCardForm({ ...creditCardForm, interestRate: e.target.value })}
+                                    placeholder="19.99"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-xs text-gray-500 block mb-1">Min Payment</label>
+                                  <input
+                                    type="number"
+                                    value={creditCardForm.minimumPayment}
+                                    onChange={(e) => setCreditCardForm({ ...creditCardForm, minimumPayment: e.target.value })}
+                                    placeholder="0"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-xs text-gray-500 block mb-1">Last Statement Balance</label>
+                                  <input
+                                    type="number"
+                                    value={creditCardForm.lastStatementBalance}
+                                    onChange={(e) => setCreditCardForm({ ...creditCardForm, lastStatementBalance: e.target.value })}
+                                    placeholder="23795.63"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                  />
+                                </div>
+                                <div className="flex gap-2">
+                                  <div className="flex-1">
+                                    <label className="text-xs text-gray-500 block mb-1">Cycle Start</label>
+                                    <input
+                                      type="number"
+                                      value={creditCardForm.statementStartDay}
+                                      onChange={(e) => setCreditCardForm({ ...creditCardForm, statementStartDay: e.target.value })}
+                                      placeholder="11"
+                                      min="1"
+                                      max="31"
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                    />
+                                  </div>
+                                  <div className="flex-1">
+                                    <label className="text-xs text-gray-500 block mb-1">Cycle End</label>
+                                    <input
+                                      type="number"
+                                      value={creditCardForm.statementEndDay}
+                                      onChange={(e) => setCreditCardForm({ ...creditCardForm, statementEndDay: e.target.value })}
+                                      placeholder="12"
+                                      min="1"
+                                      max="31"
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex justify-end gap-2 mt-3">
+                                <button
+                                  onClick={() => setEditingCreditCard(null)}
+                                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  onClick={saveCreditCardDetails}
+                                  disabled={isSaving}
+                                  className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 disabled:opacity-50"
+                                >
+                                  {isSaving ? 'Saving...' : 'Save Details'}
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            // Display mode
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  {(item as any).plaidAccount.dueDay ? (
+                                    <div className="w-10 h-10 rounded-full bg-purple-100 flex flex-col items-center justify-center">
+                                      <span className="text-[10px] text-purple-600 -mb-0.5">Due</span>
+                                      <span className="text-sm font-bold text-purple-700">{(item as any).plaidAccount.dueDay}</span>
+                                    </div>
+                                  ) : (
+                                    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                                      <Calendar className="h-4 w-4 text-gray-400" />
+                                    </div>
+                                  )}
+                                  <div>
+                                    <p className="font-medium text-gray-900">
+                                      {(item as any).plaidAccount.nickname || item.name}
+                                    </p>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 flex items-center gap-1">
+                                        <Check className="h-3 w-3" />
+                                        Live from bank
+                                      </span>
+                                      {(item as any).plaidAccount.rewardsProgram && (
+                                        <span className="text-xs text-purple-600">{(item as any).plaidAccount.rewardsProgram}</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <div className="text-right">
+                                    <p className="font-bold text-gray-900 text-lg">{formatCurrency((item as any).balance)}</p>
+                                    <p className="text-xs text-gray-500">balance</p>
+                                  </div>
+                                  <button
+                                    onClick={() => openCreditCardEdit((item as any).plaidAccount)}
+                                    className="p-2 hover:bg-gray-100 rounded-lg"
+                                    title="Edit details"
+                                  >
+                                    <Edit2 className="h-4 w-4 text-gray-400" />
+                                  </button>
+                                </div>
+                              </div>
+                              {/* Credit card details row */}
+                              <div className="flex items-center gap-4 text-xs text-gray-500 bg-gray-50 rounded-lg p-2 -mx-1">
+                                {(item as any).plaidAccount.creditLimit ? (
+                                  <div>
+                                    <span className="text-gray-400">Limit:</span>{' '}
+                                    <span className="font-medium text-gray-700">{formatCurrency((item as any).plaidAccount.creditLimit)}</span>
+                                  </div>
+                                ) : null}
+                                {(item as any).plaidAccount.availableBalance > 0 && (
+                                  <div>
+                                    <span className="text-gray-400">Available:</span>{' '}
+                                    <span className="font-medium text-green-600">{formatCurrency((item as any).plaidAccount.availableBalance)}</span>
                                   </div>
                                 )}
-                                <div>
-                                  <p className="font-medium text-gray-900">
-                                    {(item as any).plaidAccount.nickname || item.name}
-                                  </p>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 flex items-center gap-1">
-                                      <Check className="h-3 w-3" />
-                                      Live from bank
-                                    </span>
-                                    {(item as any).plaidAccount.rewardsProgram && (
-                                      <span className="text-xs text-purple-600">{(item as any).plaidAccount.rewardsProgram}</span>
-                                    )}
+                                {(item as any).plaidAccount.minimumPayment && (item as any).plaidAccount.minimumPayment > 0 ? (
+                                  <div>
+                                    <span className="text-gray-400">Min:</span>{' '}
+                                    <span className="font-medium text-orange-600">{formatCurrency((item as any).plaidAccount.minimumPayment)}</span>
                                   </div>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <p className="font-bold text-gray-900 text-lg">{formatCurrency((item as any).balance)}</p>
-                                <p className="text-xs text-gray-500">balance</p>
+                                ) : null}
+                                {(item as any).plaidAccount.interestRate ? (
+                                  <div>
+                                    <span className="text-gray-400">APR:</span>{' '}
+                                    <span className="font-medium text-gray-700">{(item as any).plaidAccount.interestRate}%</span>
+                                  </div>
+                                ) : null}
+                                {(item as any).plaidAccount.lastStatementBalance ? (
+                                  <div>
+                                    <span className="text-gray-400">Last stmt:</span>{' '}
+                                    <span className="font-medium text-gray-700">{formatCurrency((item as any).plaidAccount.lastStatementBalance)}</span>
+                                  </div>
+                                ) : null}
+                                {!(item as any).plaidAccount.creditLimit && !(item as any).plaidAccount.dueDay && (
+                                  <span className="text-gray-400 italic">Click edit to add details from your statement</span>
+                                )}
                               </div>
                             </div>
-                            {/* Credit card details row */}
-                            <div className="flex items-center gap-4 text-xs text-gray-500 pl-13 bg-gray-50 rounded-lg p-2 -mx-1">
-                              {(item as any).plaidAccount.creditLimit && (
-                                <div>
-                                  <span className="text-gray-400">Limit:</span>{' '}
-                                  <span className="font-medium text-gray-700">{formatCurrency((item as any).plaidAccount.creditLimit)}</span>
-                                </div>
-                              )}
-                              {(item as any).plaidAccount.availableBalance > 0 && (
-                                <div>
-                                  <span className="text-gray-400">Available:</span>{' '}
-                                  <span className="font-medium text-green-600">{formatCurrency((item as any).plaidAccount.availableBalance)}</span>
-                                </div>
-                              )}
-                              {(item as any).plaidAccount.minimumPayment && (item as any).plaidAccount.minimumPayment > 0 && (
-                                <div>
-                                  <span className="text-gray-400">Min payment:</span>{' '}
-                                  <span className="font-medium text-orange-600">{formatCurrency((item as any).plaidAccount.minimumPayment)}</span>
-                                </div>
-                              )}
-                              {(item as any).plaidAccount.interestRate && (
-                                <div>
-                                  <span className="text-gray-400">APR:</span>{' '}
-                                  <span className="font-medium text-gray-700">{(item as any).plaidAccount.interestRate}%</span>
-                                </div>
-                              )}
-                              {(item as any).plaidAccount.lastStatementBalance && (
-                                <div>
-                                  <span className="text-gray-400">Last stmt:</span>{' '}
-                                  <span className="font-medium text-gray-700">{formatCurrency((item as any).plaidAccount.lastStatementBalance)}</span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
+                          )
                         ) : (
                           // Regular display for non-Plaid items
                           <div
