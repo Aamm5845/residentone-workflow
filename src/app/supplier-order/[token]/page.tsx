@@ -113,6 +113,7 @@ interface OrderData {
     trackingUrl?: string
     shippingCarrier?: string
     shippingMethod?: string
+    shippingRecipientName?: string
     shippingAddress?: string
     billingAddress?: string
     notes?: string
@@ -527,6 +528,11 @@ export default function SupplierOrderPortal() {
                 <div className="flex items-center gap-3 mb-1">
                   <h1 className="text-2xl font-bold">Purchase Order #{order.orderNumber}</h1>
                   <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
+                  {order.currency === 'USD' && (
+                    <Badge variant="outline" className="bg-blue-500/20 text-blue-200 border-blue-400">
+                      USD
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-gray-300">Project: {safeProject.name}</p>
               </div>
@@ -726,9 +732,9 @@ export default function SupplierOrderPortal() {
                     <MapPin className="w-4 h-4 text-gray-500" />
                     <h3 className="font-semibold text-gray-900">Ship To</h3>
                   </div>
-                  {safeProject.clientName && (
-                    <p className="font-medium text-gray-900 mb-1">{safeProject.clientName}</p>
-                  )}
+                  <p className="font-medium text-gray-900 mb-1">
+                    {order.shippingRecipientName || safeProject.clientName || safeProject.name}
+                  </p>
                   <p className="text-sm text-gray-500 mb-1">Project: {safeProject.name}</p>
                   <p className="text-sm text-gray-600 whitespace-pre-line">
                     {order.shippingAddress || safeProject.address || 'No shipping address provided'}
@@ -872,7 +878,9 @@ export default function SupplierOrderPortal() {
                         <th className="text-left p-3 font-medium text-gray-600">Item</th>
                         <th className="text-center p-3 font-medium text-gray-600 w-20">Qty</th>
                         <th className="text-right p-3 font-medium text-gray-600 w-28">Unit Price</th>
-                        <th className="text-right p-3 font-medium text-gray-600 w-28">Total</th>
+                        <th className="text-right p-3 font-medium text-gray-600 w-28">
+                          Total{order.currency === 'USD' ? ' (USD)' : ''}
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
@@ -950,7 +958,7 @@ export default function SupplierOrderPortal() {
                       </div>
                     )}
                     <div className="flex justify-between pt-2 border-t font-semibold text-base">
-                      <span>Total</span>
+                      <span>Total{order.currency === 'USD' ? ' (USD)' : ''}</span>
                       <span>{formatCurrency(order.totalAmount, order.currency)}</span>
                     </div>
                   </div>

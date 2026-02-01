@@ -257,6 +257,7 @@ export async function GET(
         trackingUrl: order.trackingUrl,
         shippingCarrier: order.shippingCarrier,
         shippingMethod: order.shippingMethod,
+        shippingRecipientName: order.shippingRecipientName,
         shippingAddress: order.shippingAddress,
         billingAddress: order.billingAddress,
         notes: order.notes,
