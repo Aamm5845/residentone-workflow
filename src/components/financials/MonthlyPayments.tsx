@@ -52,6 +52,8 @@ const VARIABLE_CATEGORY_CONFIG: Record<string, { icon: any; color: string; bg: s
 }
 
 // Bill structure - what should appear in the dashboard
+// LOC = fixed payment amount (user enters once)
+// Credit Cards = variable (pulled from Plaid balance)
 const PERSONAL_STRUCTURE = [
   {
     group: 'Lines of Credit',
@@ -59,6 +61,7 @@ const PERSONAL_STRUCTURE = [
     color: 'text-blue-600',
     bg: 'bg-blue-100',
     category: 'LINE_OF_CREDIT',
+    description: 'Fixed monthly payment',
     items: [
       { key: 'loc1', name: 'Line of Credit #1', subCategory: 'LOC 1' },
       { key: 'loc2', name: 'Line of Credit #2', subCategory: 'LOC 2' },
@@ -71,6 +74,8 @@ const PERSONAL_STRUCTURE = [
     color: 'text-purple-600',
     bg: 'bg-purple-100',
     category: 'CREDIT_CARD',
+    description: 'Balance changes monthly',
+    linkedToPlaid: true, // These pull from Plaid
     items: [
       { key: 'cc1', name: 'Credit Card #1', subCategory: 'Card 1' },
       { key: 'cc2', name: 'Credit Card #2', subCategory: 'Card 2' },
@@ -220,6 +225,19 @@ interface VariableExpenseData {
   totalTransactionsAnalyzed: number
 }
 
+interface CreditAccount {
+  id: string
+  accountId: string
+  name: string
+  officialName: string | null
+  type: string
+  subtype: string | null
+  mask: string | null
+  currentBalance: number
+  institutionName: string
+  lastUpdated: string | null
+}
+
 export function MonthlyPayments() {
   const [bills, setBills] = useState<Bill[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -233,6 +251,13 @@ export function MonthlyPayments() {
   const [isLoadingVariable, setIsLoadingVariable] = useState(false)
   const [showUnknown, setShowUnknown] = useState(false)
   const [categorizingId, setCategorizingId] = useState<string | null>(null)
+
+  // Credit accounts from Plaid
+  const [creditAccounts, setCreditAccounts] = useState<{
+    creditCards: CreditAccount[]
+    linesOfCredit: CreditAccount[]
+  }>({ creditCards: [], linesOfCredit: [] })
+  const [linkingItem, setLinkingItem] = useState<string | null>(null)
 
   // Form state for editing
   const [editForm, setEditForm] = useState({
@@ -272,6 +297,55 @@ export function MonthlyPayments() {
     }
   }
 
+  const fetchCreditAccounts = async () => {
+    try {
+      const res = await fetch('/api/monthly-bills/credit-accounts')
+      if (res.ok) {
+        const data = await res.json()
+        setCreditAccounts({
+          creditCards: data.creditCards || [],
+          linesOfCredit: data.linesOfCredit || [],
+        })
+      }
+    } catch (err) {
+      console.error('Failed to fetch credit accounts:', err)
+    }
+  }
+
+  // Link a bill to a Plaid account
+  const linkToPlaidAccount = async (billKey: string, category: string, subCategory: string | undefined, plaidAccount: CreditAccount) => {
+    setIsSaving(true)
+    try {
+      // Find existing bill or create new one
+      const existingBill = findBill(billKey, category, subCategory)
+      const url = existingBill ? `/api/monthly-bills/${existingBill.id}` : '/api/monthly-bills'
+      const method = existingBill ? 'PUT' : 'POST'
+
+      await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: plaidAccount.officialName || plaidAccount.name,
+          amount: plaidAccount.currentBalance,
+          type: 'PERSONAL',
+          category,
+          subCategory,
+          frequency: 'MONTHLY',
+          isVariable: category === 'CREDIT_CARD', // Credit cards are variable
+          bankAccountId: plaidAccount.id,
+          payeeName: `${plaidAccount.institutionName} ****${plaidAccount.mask}`,
+        }),
+      })
+
+      await fetchBills()
+      setLinkingItem(null)
+    } catch (err) {
+      console.error('Failed to link account:', err)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   const categorizeTransaction = async (transactionId: string, category: string) => {
     setCategorizingId(transactionId)
     try {
@@ -294,6 +368,7 @@ export function MonthlyPayments() {
   useEffect(() => {
     fetchBills()
     fetchVariableExpenses()
+    fetchCreditAccounts()
   }, [])
 
   const formatCurrency = (amount: number) => {
@@ -470,7 +545,12 @@ export function MonthlyPayments() {
                   </div>
                   <div className="text-left">
                     <h3 className="font-semibold text-gray-900">{section.group}</h3>
-                    <p className="text-sm text-gray-500">{section.items.length} item{section.items.length !== 1 ? 's' : ''}</p>
+                    <p className="text-sm text-gray-500">
+                      {section.items.length} item{section.items.length !== 1 ? 's' : ''}
+                      {(section as any).description && (
+                        <span className="text-gray-400"> • {(section as any).description}</span>
+                      )}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -499,6 +579,53 @@ export function MonthlyPayments() {
                       >
                         {isEditing ? (
                           <div className="space-y-3">
+                            {/* Link to Plaid option for Credit Cards */}
+                            {(section as any).linkedToPlaid && creditAccounts.creditCards.length > 0 && (
+                              <div className="bg-purple-50 rounded-lg p-3 mb-2">
+                                <p className="text-sm font-medium text-purple-800 mb-2">
+                                  Link to bank account (auto-updates balance):
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                  {creditAccounts.creditCards.map((acc) => (
+                                    <button
+                                      key={acc.id}
+                                      onClick={() => linkToPlaidAccount(item.key, itemCategory, item.subCategory, acc)}
+                                      disabled={isSaving}
+                                      className="px-3 py-1.5 bg-white border border-purple-200 rounded-lg text-sm hover:bg-purple-100 flex items-center gap-2"
+                                    >
+                                      <CreditCard className="h-3 w-3 text-purple-500" />
+                                      <span>{acc.institutionName} ****{acc.mask}</span>
+                                      <span className="text-purple-600 font-medium">{formatCurrency(acc.currentBalance)}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Link to Plaid option for Lines of Credit */}
+                            {section.category === 'LINE_OF_CREDIT' && creditAccounts.linesOfCredit.length > 0 && (
+                              <div className="bg-blue-50 rounded-lg p-3 mb-2">
+                                <p className="text-sm font-medium text-blue-800 mb-2">
+                                  Link to bank account:
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                  {creditAccounts.linesOfCredit.map((acc) => (
+                                    <button
+                                      key={acc.id}
+                                      onClick={() => linkToPlaidAccount(item.key, itemCategory, item.subCategory, acc)}
+                                      disabled={isSaving}
+                                      className="px-3 py-1.5 bg-white border border-blue-200 rounded-lg text-sm hover:bg-blue-100 flex items-center gap-2"
+                                    >
+                                      <Landmark className="h-3 w-3 text-blue-500" />
+                                      <span>{acc.institutionName} ****{acc.mask}</span>
+                                      <span className="text-blue-600 font-medium">{formatCurrency(acc.currentBalance)}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            <p className="text-xs text-gray-500">Or enter manually:</p>
                             <div className="flex items-center gap-3">
                               <input
                                 type="text"
@@ -585,6 +712,12 @@ export function MonthlyPayments() {
                                   {(item as any).note && <span className="text-gray-400 text-sm ml-1">{(item as any).note}</span>}
                                 </p>
                                 <div className="flex items-center gap-2">
+                                  {bill?.payeeName && (
+                                    <span className="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 flex items-center gap-1">
+                                      <Sparkles className="h-3 w-3" />
+                                      {bill.payeeName}
+                                    </span>
+                                  )}
                                   {bill?.isAutoPay && (
                                     <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700">Auto-pay</span>
                                   )}
@@ -594,6 +727,12 @@ export function MonthlyPayments() {
                                   {(item as any).frequency === 'YEARLY' && (
                                     <span className="text-xs text-gray-500">Yearly</span>
                                   )}
+                                  {section.category === 'LINE_OF_CREDIT' && (
+                                    <span className="text-xs text-blue-500">Fixed payment</span>
+                                  )}
+                                  {(section as any).linkedToPlaid && bill?.isVariable && (
+                                    <span className="text-xs text-purple-500">Balance varies</span>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -601,7 +740,9 @@ export function MonthlyPayments() {
                               {bill ? (
                                 <p className="font-bold text-gray-900">{formatCurrency(bill.amount)}</p>
                               ) : (
-                                <p className="text-gray-400 italic">Click to set amount</p>
+                                <p className="text-gray-400 italic">
+                                  {(section as any).linkedToPlaid ? 'Click to link account' : 'Click to set amount'}
+                                </p>
                               )}
                               <Edit2 className="h-4 w-4 text-gray-300" />
                             </div>
