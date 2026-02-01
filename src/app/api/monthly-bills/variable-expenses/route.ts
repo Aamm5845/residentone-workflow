@@ -9,9 +9,11 @@ const openai = new OpenAI({
 
 // Variable expense categories we want to track
 const VARIABLE_CATEGORIES = {
-  GROCERIES: ['groceries', 'supermarket', 'grocery', 'food market', 'produce'],
-  KOSHER_FOOD: ['kosher', 'butcher', 'fish market', 'meat', 'glatt', 'judaica'],
-  MEDICAL: ['pharmacy', 'doctor', 'medical', 'healthcare', 'clinic', 'hospital', 'dentist', 'optometrist'],
+  GROCERIES: ['groceries', 'supermarket', 'grocery', 'food market', 'produce', 'costco', 'walmart', 'provigo', 'iga', 'metro'],
+  MEAT: ['butcher', 'meat', 'viande', 'boucherie', 'poultry', 'chicken', 'beef', 'lamb'],
+  FISH: ['fish', 'poisson', 'seafood', 'salmon', 'tuna', 'fishmarket', 'poissonnerie'],
+  GAS: ['gas', 'petro', 'esso', 'shell', 'fuel', 'essence', 'ultramar', 'canadian tire gas', 'costco gas', 'pioneer'],
+  MEDICAL: ['pharmacy', 'doctor', 'medical', 'healthcare', 'clinic', 'hospital', 'dentist', 'optometrist', 'pharmaprix', 'jean coutu'],
   CLOTHING: ['clothing', 'apparel', 'shoes', 'fashion', 'clothes', 'footwear', 'department store'],
   CAR_SERVICE: ['car service', 'auto repair', 'mechanic', 'oil change', 'car wash', 'tire', 'auto parts'],
 }
@@ -238,7 +240,9 @@ async function categorizeWithAI(transactions: any[]): Promise<CategorizedExpense
 
   const prompt = `Categorize these transactions into ONE of these specific categories for personal expense tracking:
 - GROCERIES (general groceries, supermarkets, produce)
-- KOSHER_FOOD (kosher markets, butchers, fish stores, Jewish food stores)
+- MEAT (butcher shops, meat markets, poultry)
+- FISH (fish stores, seafood markets)
+- GAS (gas stations, fuel, petrol)
 - MEDICAL (pharmacy, doctors, dental, medical supplies)
 - CLOTHING (clothes, shoes, apparel stores)
 - CAR_SERVICE (auto repair, oil change, car maintenance, car wash)
@@ -280,7 +284,7 @@ Respond ONLY with the JSON array.`
           merchantName: txn.merchantName,
           amount: Number(txn.amount),
           date: txn.date.toISOString(),
-          category: ['GROCERIES', 'KOSHER_FOOD', 'MEDICAL', 'CLOTHING', 'CAR_SERVICE'].includes(cat.category)
+          category: ['GROCERIES', 'MEAT', 'FISH', 'GAS', 'MEDICAL', 'CLOTHING', 'CAR_SERVICE'].includes(cat.category)
             ? cat.category
             : 'UNKNOWN',
           confidence: cat.confidence || 'low',

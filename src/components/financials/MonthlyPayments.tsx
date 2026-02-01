@@ -45,8 +45,10 @@ import { cn } from '@/lib/utils'
 // Variable expense category mapping
 const VARIABLE_CATEGORY_CONFIG: Record<string, { icon: any; color: string; bg: string; label: string }> = {
   GROCERIES: { icon: ShoppingCart, color: 'text-green-600', bg: 'bg-green-100', label: 'Groceries' },
-  KOSHER_FOOD: { icon: Fish, color: 'text-amber-600', bg: 'bg-amber-100', label: 'Fish & Meat (Kosher)' },
-  MEDICAL: { icon: Stethoscope, color: 'text-red-600', bg: 'bg-red-100', label: 'Medical' },
+  MEAT: { icon: ShoppingCart, color: 'text-red-600', bg: 'bg-red-100', label: 'Meat' },
+  FISH: { icon: Fish, color: 'text-blue-600', bg: 'bg-blue-100', label: 'Fish' },
+  GAS: { icon: Car, color: 'text-amber-600', bg: 'bg-amber-100', label: 'Gas' },
+  MEDICAL: { icon: Stethoscope, color: 'text-pink-600', bg: 'bg-pink-100', label: 'Medical' },
   CLOTHING: { icon: Shirt, color: 'text-violet-600', bg: 'bg-violet-100', label: 'Clothing' },
   CAR_SERVICE: { icon: Wrench, color: 'text-gray-600', bg: 'bg-gray-100', label: 'Car Service' },
 }
