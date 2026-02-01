@@ -238,6 +238,18 @@ interface CreditAccount {
   lastUpdated: string | null
 }
 
+interface DetectedBill {
+  name: string
+  merchantName: string
+  amount: number
+  category: string
+  frequency: string
+  lastDate: string
+  occurrences: number
+  confidence: string
+  monthlyAmounts: Record<string, number>
+}
+
 export function MonthlyPayments() {
   const [bills, setBills] = useState<Bill[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -258,6 +270,14 @@ export function MonthlyPayments() {
     linesOfCredit: CreditAccount[]
   }>({ creditCards: [], linesOfCredit: [] })
   const [linkingItem, setLinkingItem] = useState<string | null>(null)
+
+  // AI-detected recurring bills
+  const [detectedBills, setDetectedBills] = useState<{
+    byCategory: Record<string, DetectedBill[]>
+    monthLabels: string[]
+  } | null>(null)
+  const [isLoadingDetected, setIsLoadingDetected] = useState(false)
+  const [showDetected, setShowDetected] = useState(false)
 
   // Form state for editing
   const [editForm, setEditForm] = useState({
@@ -309,6 +329,56 @@ export function MonthlyPayments() {
       }
     } catch (err) {
       console.error('Failed to fetch credit accounts:', err)
+    }
+  }
+
+  const fetchDetectedBills = async () => {
+    setIsLoadingDetected(true)
+    try {
+      const res = await fetch('/api/monthly-bills/detect-recurring')
+      if (res.ok) {
+        const data = await res.json()
+        setDetectedBills({
+          byCategory: data.byCategory || {},
+          monthLabels: data.monthLabels || [],
+        })
+      }
+    } catch (err) {
+      console.error('Failed to detect recurring bills:', err)
+    } finally {
+      setIsLoadingDetected(false)
+    }
+  }
+
+  // Apply detected bill to a slot
+  const applyDetectedBill = async (detected: DetectedBill, itemKey: string, category: string, subCategory?: string) => {
+    setIsSaving(true)
+    try {
+      const existingBill = findBill(itemKey, category, subCategory)
+      const url = existingBill ? `/api/monthly-bills/${existingBill.id}` : '/api/monthly-bills'
+      const method = existingBill ? 'PUT' : 'POST'
+
+      await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: detected.merchantName,
+          amount: detected.amount,
+          type: 'PERSONAL',
+          category,
+          subCategory,
+          frequency: detected.frequency,
+          isVariable: false,
+          source: 'BANK_DETECTED',
+        }),
+      })
+
+      await fetchBills()
+      setEditingItem(null)
+    } catch (err) {
+      console.error('Failed to apply detected bill:', err)
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -369,6 +439,7 @@ export function MonthlyPayments() {
     fetchBills()
     fetchVariableExpenses()
     fetchCreditAccounts()
+    fetchDetectedBills()
   }, [])
 
   const formatCurrency = (amount: number) => {
@@ -485,6 +556,137 @@ export function MonthlyPayments() {
         </h1>
         <p className="text-gray-500 mt-1">Click on any item to set the amount</p>
       </div>
+
+      {/* AI-Detected Recurring Bills */}
+      {detectedBills && Object.keys(detectedBills.byCategory).length > 0 && (
+        <div className="mb-6">
+          <button
+            onClick={() => setShowDetected(!showDetected)}
+            className="w-full bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-xl p-4 flex items-center justify-between hover:from-purple-100 hover:to-blue-100 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <Sparkles className="h-5 w-5 text-purple-600" />
+              </div>
+              <div className="text-left">
+                <h3 className="font-semibold text-gray-900">AI Detected Your Bills</h3>
+                <p className="text-sm text-gray-500">
+                  Found {Object.values(detectedBills.byCategory).flat().length} recurring payments in your transactions
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-purple-600 font-medium">
+                {showDetected ? 'Hide' : 'Show details'}
+              </span>
+              {showDetected ? <ChevronDown className="h-5 w-5 text-purple-400" /> : <ChevronRight className="h-5 w-5 text-purple-400" />}
+            </div>
+          </button>
+
+          {showDetected && (
+            <div className="mt-3 bg-white rounded-xl border border-gray-200 overflow-hidden">
+              {/* Month labels */}
+              {detectedBills.monthLabels.length > 0 && (
+                <div className="bg-gray-50 px-4 py-2 flex items-center gap-4 text-sm text-gray-500 border-b border-gray-100">
+                  <span className="flex-1">Detected Bill</span>
+                  {detectedBills.monthLabels.map((month) => (
+                    <span key={month} className="w-20 text-center">
+                      {new Date(month + '-01').toLocaleDateString('en-US', { month: 'short' })}
+                    </span>
+                  ))}
+                  <span className="w-20 text-right">Average</span>
+                  <span className="w-24"></span>
+                </div>
+              )}
+
+              {Object.entries(detectedBills.byCategory).map(([category, bills]) => (
+                <div key={category} className="border-b border-gray-100 last:border-b-0">
+                  <div className="px-4 py-2 bg-gray-50 text-sm font-medium text-gray-700">
+                    {category.replace(/_/g, ' ')}
+                  </div>
+                  {bills.map((bill, idx) => (
+                    <div key={idx} className="px-4 py-3 flex items-center gap-4 hover:bg-gray-50">
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900">{bill.merchantName}</p>
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <span className={cn(
+                            'px-1.5 py-0.5 rounded',
+                            bill.confidence === 'high' ? 'bg-green-100 text-green-700' :
+                            bill.confidence === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-gray-100 text-gray-600'
+                          )}>
+                            {bill.confidence} confidence
+                          </span>
+                          <span>{bill.frequency.toLowerCase()}</span>
+                          <span>{bill.occurrences} charges found</span>
+                        </div>
+                      </div>
+
+                      {/* Monthly amounts */}
+                      {detectedBills.monthLabels.map((month) => (
+                        <div key={month} className="w-20 text-center">
+                          {bill.monthlyAmounts[month] ? (
+                            <span className="text-sm text-gray-700">
+                              {formatCurrency(bill.monthlyAmounts[month])}
+                            </span>
+                          ) : (
+                            <span className="text-sm text-gray-300">—</span>
+                          )}
+                        </div>
+                      ))}
+
+                      {/* Average */}
+                      <div className="w-20 text-right font-bold text-gray-900">
+                        {formatCurrency(bill.amount)}
+                      </div>
+
+                      {/* Action */}
+                      <div className="w-24">
+                        <button
+                          onClick={() => {
+                            // Find matching structure item and apply
+                            const structure = PERSONAL_STRUCTURE.find(s => s.category === bill.category)
+                            if (structure && structure.items.length > 0) {
+                              const item = structure.items[0]
+                              applyDetectedBill(bill, item.key, bill.category, item.subCategory)
+                            }
+                          }}
+                          className="px-3 py-1 text-xs bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                        >
+                          Apply
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
+
+              <div className="px-4 py-3 bg-gray-50 flex items-center justify-between">
+                <p className="text-sm text-gray-500">
+                  <Sparkles className="h-4 w-4 inline mr-1" />
+                  AI analyzed your transaction history to find these recurring bills
+                </p>
+                <button
+                  onClick={fetchDetectedBills}
+                  disabled={isLoadingDetected}
+                  className="text-sm text-purple-600 hover:text-purple-700 flex items-center gap-1"
+                >
+                  <RefreshCw className={cn('h-4 w-4', isLoadingDetected && 'animate-spin')} />
+                  Refresh
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Loading state for detected bills */}
+      {isLoadingDetected && !detectedBills && (
+        <div className="mb-6 bg-purple-50 border border-purple-200 rounded-xl p-4 flex items-center gap-3">
+          <Loader2 className="h-5 w-5 animate-spin text-purple-600" />
+          <span className="text-purple-700">Analyzing your transactions to detect recurring bills...</span>
+        </div>
+      )}
 
       {/* Tab Switcher */}
       <div className="flex gap-2 mb-6">
