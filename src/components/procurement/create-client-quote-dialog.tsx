@@ -892,14 +892,32 @@ export default function CreateClientQuoteDialog({
 
               {/* Warning when selecting already invoiced items */}
               {selectedInvoicedItems.length > 0 && (
-                <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-300 rounded-lg text-sm">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                  <p className="text-amber-800">
-                    <span className="font-medium">{selectedInvoicedItems.length} selected item{selectedInvoicedItems.length !== 1 ? 's' : ''}</span> already invoiced/paid.
-                    {selectedInvoicedItems.some(i => i.specStatus === 'CLIENT_PAID') && (
-                      <span className="text-amber-700 font-medium"> Includes paid items!</span>
-                    )}
-                  </p>
+                <div className="flex items-start justify-between gap-2 p-3 bg-amber-50 border border-amber-300 rounded-lg text-sm">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-amber-800">
+                      <span className="font-medium">{selectedInvoicedItems.length} selected item{selectedInvoicedItems.length !== 1 ? 's' : ''}</span> already invoiced/paid.
+                      {selectedInvoicedItems.some(i => i.specStatus === 'CLIENT_PAID') && (
+                        <span className="text-amber-700 font-medium"> Includes paid items!</span>
+                      )}
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      // Remove all invoiced/paid items from selection
+                      setSelectedItemIds(prev => {
+                        const next = new Set(prev)
+                        selectedInvoicedItems.forEach(item => next.delete(item.id))
+                        return next
+                      })
+                    }}
+                    className="flex-shrink-0 border-amber-400 text-amber-700 hover:bg-amber-100"
+                  >
+                    <Trash2 className="w-3 h-3 mr-1" />
+                    Remove Paid
+                  </Button>
                 </div>
               )}
 
