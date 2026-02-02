@@ -563,6 +563,14 @@ export default function SupplierOrderPortal() {
                     Mark Shipped
                   </Button>
                 )}
+
+                {/* Paid in Full Badge */}
+                {(order.supplierPaymentAmount || 0) > 0 && order.totalAmount - (order.supplierPaymentAmount || 0) <= 0 && (
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-full font-medium text-sm">
+                    <CheckCircle className="w-4 h-4" />
+                    Paid in Full
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -764,14 +772,12 @@ export default function SupplierOrderPortal() {
                   <div className="flex items-center gap-2 mb-4">
                     <CreditCard className="w-4 h-4 text-gray-500" />
                     <h3 className="font-semibold text-gray-900">Payment Card</h3>
-                    <span className={`text-xs ml-auto ${
-                      order.totalAmount - (order.supplierPaymentAmount || 0) <= 0 ? 'text-emerald-600 font-medium' : 'text-gray-500'
-                    }`}>
+                    <span className="text-xs text-gray-500 ml-auto">
                       {order.depositRequired && order.depositRequired > 0 && (!order.depositPaid || order.depositPaid < order.depositRequired)
                         ? `Please charge ${formatCurrency(order.depositRequired - (order.depositPaid || 0), order.currency)} deposit to this card`
                         : order.totalAmount - (order.supplierPaymentAmount || 0) > 0
                           ? `Please charge ${formatCurrency(order.totalAmount - (order.supplierPaymentAmount || 0), order.currency)} to this card`
-                          : '✓ Paid in Full'
+                          : 'Card on file'
                       }
                     </span>
                   </div>
