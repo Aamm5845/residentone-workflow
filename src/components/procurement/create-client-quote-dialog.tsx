@@ -607,9 +607,9 @@ export default function CreateClientQuoteDialog({
               order: index
             })),
             // Additional charges as line items
-            ...additionalCharges.filter(c => c.amount > 0).map((charge, index) => ({
+            ...additionalCharges.filter(c => c.amount !== 0).map((charge, index) => ({
               roomFFEItemId: null,
-              groupId: 'Additional Charges',
+              groupId: charge.amount < 0 ? 'Credits & Adjustments' : 'Additional Charges',
               itemName: charge.name,
               itemDescription: null,
               quantity: 1,
@@ -767,7 +767,7 @@ export default function CreateClientQuoteDialog({
           allowCreditCard: showCreditCardOption,
           // Additional fees
           shippingCost: additionalCharges.find(c => c.name.toLowerCase().includes('delivery'))?.amount || null,
-          customFees: additionalCharges.filter(c => !c.name.toLowerCase().includes('delivery') && c.amount > 0),
+          customFees: additionalCharges.filter(c => !c.name.toLowerCase().includes('delivery') && c.amount !== 0),
           lineItems: lineItems.map((item, index) => ({
             roomFFEItemId: item.isComponent ? null : item.itemId,
             groupId: item.category,
@@ -1152,14 +1152,14 @@ export default function CreateClientQuoteDialog({
                 </div>
               </div>
 
-              {/* Additional Charges Section */}
+              {/* Additional Charges & Credits Section */}
               <div className="border rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <Truck className="w-4 h-4 text-gray-500" />
-                    <h4 className="font-medium text-gray-700">Additional Charges</h4>
+                    <h4 className="font-medium text-gray-700">Charges & Credits</h4>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap justify-end">
                     <Button
                       type="button"
                       variant="outline"
@@ -1190,47 +1190,78 @@ export default function CreateClientQuoteDialog({
                       <Plus className="w-3 h-3 mr-1" />
                       Custom
                     </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => addCharge('Previously Paid', 0)}
+                      className="text-xs h-7 border-green-300 text-green-700 hover:bg-green-50"
+                    >
+                      <DollarSign className="w-3 h-3 mr-1" />
+                      Credit
+                    </Button>
                   </div>
                 </div>
 
                 {additionalCharges.length === 0 ? (
-                  <p className="text-sm text-gray-400 text-center py-2">No additional charges added</p>
+                  <p className="text-sm text-gray-400 text-center py-2">No charges or credits added</p>
                 ) : (
                   <div className="space-y-2">
-                    {additionalCharges.map(charge => (
-                      <div key={charge.id} className="flex items-center gap-2">
-                        <Input
-                          value={charge.name}
-                          onChange={(e) => updateCharge(charge.id, 'name', e.target.value)}
-                          placeholder="Charge name"
-                          className="flex-1 h-9"
-                        />
-                        <div className="relative w-28">
-                          <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
+                    {additionalCharges.map(charge => {
+                      const isCredit = charge.amount < 0 || charge.name.toLowerCase().includes('paid') || charge.name.toLowerCase().includes('credit')
+                      return (
+                        <div key={charge.id} className={cn(
+                          "flex items-center gap-2 p-2 rounded-lg -mx-2",
+                          isCredit && charge.amount !== 0 && "bg-green-50"
+                        )}>
                           <Input
-                            type="number"
-                            value={charge.amount || ''}
-                            onChange={(e) => updateCharge(charge.id, 'amount', e.target.value)}
-                            placeholder="0.00"
-                            className="h-9 pl-6 text-right"
-                            min={0}
-                            step={0.01}
+                            value={charge.name}
+                            onChange={(e) => updateCharge(charge.id, 'name', e.target.value)}
+                            placeholder={isCredit ? "Credit reason (e.g., Previously Paid - Item Name)" : "Charge name"}
+                            className={cn("flex-1 h-9", isCredit && "border-green-300")}
                           />
+                          <div className="relative w-32">
+                            {isCredit ? (
+                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-green-600 font-medium">-$</span>
+                            ) : (
+                              <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
+                            )}
+                            <Input
+                              type="number"
+                              value={isCredit ? Math.abs(charge.amount) || '' : charge.amount || ''}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value) || 0
+                                // If it's a credit line, store as negative
+                                updateCharge(charge.id, 'amount', isCredit ? -Math.abs(val) : val)
+                              }}
+                              placeholder="0.00"
+                              className={cn("h-9 pl-7 text-right", isCredit && "border-green-300 text-green-700")}
+                              step={0.01}
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeCharge(charge.id)}
+                            className="h-9 w-9 p-0 text-gray-400 hover:text-red-500"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeCharge(charge.id)}
-                          className="h-9 w-9 p-0 text-gray-400 hover:text-red-500"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    ))}
+                      )
+                    })}
                     <div className="flex justify-between text-sm pt-2 border-t">
-                      <span className="text-gray-500">Additional Charges Total</span>
-                      <span className="font-medium">{formatCurrency(totals.chargesTotal, invoiceCurrency)}</span>
+                      <span className="text-gray-500">
+                        {totals.chargesTotal >= 0 ? 'Additional Charges Total' : 'Net Credits'}
+                      </span>
+                      <span className={cn(
+                        "font-medium",
+                        totals.chargesTotal < 0 && "text-green-600"
+                      )}>
+                        {totals.chargesTotal < 0 && '-'}
+                        {formatCurrency(Math.abs(totals.chargesTotal), invoiceCurrency)}
+                      </span>
                     </div>
                   </div>
                 )}
