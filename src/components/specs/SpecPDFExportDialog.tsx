@@ -83,12 +83,12 @@ export default function SpecPDFExportDialog({
 
   // Visibility options
   const [showBrand, setShowBrand] = useState(true)
-  const [showSupplier, setShowSupplier] = useState(true)
+  const [showSupplier, setShowSupplier] = useState(false)
   const [showPricing, setShowPricing] = useState(false)
   const [showDimensions, setShowDimensions] = useState(true)
   const [showFinish, setShowFinish] = useState(true)
   const [showColor, setShowColor] = useState(true)
-  const [showMaterial, setShowMaterial] = useState(false)
+  const [showMaterial, setShowMaterial] = useState(true)
   const [showNotes, setShowNotes] = useState(true)
   const [showLink, setShowLink] = useState(true)
   const [showLeadTime, setShowLeadTime] = useState(false)
