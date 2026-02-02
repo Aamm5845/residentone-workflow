@@ -70,6 +70,56 @@ interface GroupedItems {
   items: SpecPDFItem[]
 }
 
+// Pre-fetch and embed all images in parallel for faster PDF generation
+async function prefetchImages(
+  pdfDoc: PDFDocument,
+  items: SpecPDFItem[]
+): Promise<Map<string, any>> {
+  const imageMap = new Map<string, any>()
+
+  // Collect all unique image URLs
+  const imageUrls = [...new Set(items.map(item => item.imageUrl).filter(Boolean))] as string[]
+
+  // Fetch all images in parallel with 15-second timeout each
+  const fetchPromises = imageUrls.map(async (url) => {
+    try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout
+
+      const response = await fetch(url, { signal: controller.signal })
+      clearTimeout(timeoutId)
+
+      if (response.ok) {
+        const imageBytes = await response.arrayBuffer()
+        const contentType = response.headers.get('content-type') || ''
+
+        let image
+        if (contentType.includes('png')) {
+          image = await pdfDoc.embedPng(imageBytes)
+        } else {
+          image = await pdfDoc.embedJpg(imageBytes)
+        }
+
+        return { url, image }
+      }
+    } catch (error) {
+      // Silent fail for individual images - continue with others
+      console.log(`Failed to fetch image: ${url}`)
+    }
+    return { url, image: null }
+  })
+
+  const results = await Promise.all(fetchPromises)
+
+  for (const result of results) {
+    if (result.image) {
+      imageMap.set(result.url, result.image)
+    }
+  }
+
+  return imageMap
+}
+
 export async function generateSpecPDF(
   items: SpecPDFItem[],
   options: SpecPDFOptions
@@ -83,6 +133,9 @@ export async function generateSpecPDF(
   const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica)
   const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
 
+  // Pre-fetch all images in parallel (much faster than sequential)
+  const imageMap = await prefetchImages(pdfDoc, items)
+
   if (options.includeCover) {
     await addCoverPage(pdfDoc, options.projectName, helvetica, helveticaBold)
   }
@@ -90,7 +143,7 @@ export async function generateSpecPDF(
   const groupBy = options.groupBy || 'category'
   const groupedItems = groupItems(items, groupBy)
 
-  await addContentPages(pdfDoc, groupedItems, options, helvetica, helveticaBold)
+  await addContentPages(pdfDoc, groupedItems, options, helvetica, helveticaBold, imageMap)
 
   addPageNumbers(pdfDoc, helvetica, options.includeCover || false)
 
@@ -194,7 +247,8 @@ async function addContentPages(
   groups: GroupedItems[],
   options: SpecPDFOptions,
   font: PDFFont,
-  boldFont: PDFFont
+  boldFont: PDFFont,
+  imageMap: Map<string, any>
 ) {
   let currentPage: PDFPage | null = null
   let currentRow = 0
@@ -246,7 +300,7 @@ async function addContentPages(
 
       // Draw item
       const cellX = MARGIN + (currentCol * CELL_WIDTH)
-      await drawItemCell(pdfDoc, currentPage, item, cellX, currentRow, options, font, boldFont)
+      await drawItemCell(pdfDoc, currentPage, item, cellX, currentRow, options, font, boldFont, imageMap)
 
       // Next position
       currentCol++
@@ -311,7 +365,8 @@ async function drawItemCell(
   row: number,
   options: SpecPDFOptions,
   font: PDFFont,
-  boldFont: PDFFont
+  boldFont: PDFFont,
+  imageMap: Map<string, any>
 ) {
   const white = rgb(1, 1, 1)
 
@@ -323,26 +378,11 @@ async function drawItemCell(
   const circleCenterY = rowTop - 120 - IMAGE_RADIUS
 
   // === DRAW IMAGE ===
+  // Use pre-fetched image from imageMap (fetched in parallel for speed)
   if (item.imageUrl) {
-    try {
-      // Add timeout to prevent slow images from blocking the entire export
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout per image
-
-      const response = await fetch(item.imageUrl, { signal: controller.signal })
-      clearTimeout(timeoutId)
-
-      if (response.ok) {
-        const imageBytes = await response.arrayBuffer()
-        const contentType = response.headers.get('content-type') || ''
-
-        let image
-        if (contentType.includes('png')) {
-          image = await pdfDoc.embedPng(imageBytes)
-        } else {
-          image = await pdfDoc.embedJpg(imageBytes)
-        }
-
+    const image = imageMap.get(item.imageUrl)
+    if (image) {
+      try {
         const { width: imgWidth, height: imgHeight } = image
         const imgAspect = imgWidth / imgHeight
 
@@ -425,9 +465,9 @@ async function drawItemCell(
           height: (IMAGE_RADIUS + maskExtend) * 2,
           color: white
         })
+      } catch (error) {
+        // Silent fail - image couldn't be drawn
       }
-    } catch (error) {
-      // Silent fail
     }
   }
 
