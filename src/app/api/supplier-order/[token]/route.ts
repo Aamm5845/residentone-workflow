@@ -48,7 +48,8 @@ export async function GET(
             name: true,
             email: true,
             phone: true,
-            contactName: true
+            contactName: true,
+            logo: true
           }
         },
         items: {

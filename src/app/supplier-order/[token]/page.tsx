@@ -151,6 +151,7 @@ interface OrderData {
     email?: string
     phone?: string
     contactName?: string
+    logo?: string
   }
   items: OrderItem[]
   documents: Document[]
@@ -498,7 +499,7 @@ export default function SupplierOrderPortal() {
   // Add null safety
   const safeOrganization = organization || { name: 'Meisner Interiors', logo: null, phone: null, email: null, address: null }
   const safeProject = project || { id: '', name: 'Project', address: null, clientName: null }
-  const safeSupplier = supplier || { id: '', name: 'Supplier', email: null, phone: null, contactName: null }
+  const safeSupplier = supplier || { id: '', name: 'Supplier', email: null, phone: null, contactName: null, logo: null }
 
   const statusConfig = STATUS_CONFIG[order.status] || STATUS_CONFIG.DRAFT
   const isConfirmed = !!order.supplierConfirmedAt
@@ -1024,9 +1025,15 @@ export default function SupplierOrderPortal() {
             <Card>
               <CardContent className="py-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                    <Building2 className="w-5 h-5 text-gray-500" />
-                  </div>
+                  {safeSupplier.logo ? (
+                    <div className="w-10 h-10 rounded-full bg-white border flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      <img src={safeSupplier.logo} alt={safeSupplier.name} className="w-full h-full object-contain" />
+                    </div>
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                      <Building2 className="w-5 h-5 text-gray-500" />
+                    </div>
+                  )}
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-gray-900 truncate">{safeSupplier.name}</p>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500">

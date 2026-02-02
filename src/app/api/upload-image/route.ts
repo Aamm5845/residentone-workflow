@@ -13,7 +13,7 @@ const uploadSchema = z.object({
 
 const MAX_FILE_SIZE = 4 * 1024 * 1024 // 4MB
 const MAX_FILE_SIZE_QUOTE = 10 * 1024 * 1024 // 10MB for quote documents
-const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/svg+xml']
 const ALLOWED_TYPES_QUOTE = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf']
 
 export async function POST(request: NextRequest) {
@@ -66,8 +66,8 @@ export async function POST(request: NextRequest) {
     if (!allowedTypes.includes(file.type)) {
       return NextResponse.json({
         error: isQuoteDocument
-          ? 'Invalid file type. Only JPEG, PNG, WebP, and PDF are allowed'
-          : 'Invalid file type. Only JPEG, PNG, and WebP are allowed'
+          ? 'Invalid file type. Only JPEG, PNG, WebP, SVG, and PDF are allowed'
+          : 'Invalid file type. Only JPEG, PNG, WebP, and SVG are allowed'
       }, { status: 400 })
     }
 
