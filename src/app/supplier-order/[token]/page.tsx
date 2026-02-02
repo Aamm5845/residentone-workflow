@@ -1000,6 +1000,27 @@ export default function SupplierOrderPortal() {
                       <span>Total{order.currency === 'USD' ? ' (USD)' : ''}</span>
                       <span>{formatCurrency(order.totalAmount, order.currency)}</span>
                     </div>
+                    {/* Deposit Information */}
+                    {order.depositRequired && order.depositRequired > 0 && (
+                      <div className="mt-3 pt-3 border-t border-dashed space-y-2">
+                        <div className="flex justify-between text-amber-700">
+                          <span className="font-medium">Deposit Required</span>
+                          <span className="font-semibold">{formatCurrency(order.depositRequired, order.currency)}</span>
+                        </div>
+                        {order.depositPaid && order.depositPaid > 0 && (
+                          <div className="flex justify-between text-emerald-600">
+                            <span>Deposit Paid</span>
+                            <span>-{formatCurrency(order.depositPaid, order.currency)}</span>
+                          </div>
+                        )}
+                        {order.balanceDue && order.balanceDue > 0 && (
+                          <div className="flex justify-between font-medium">
+                            <span>Balance Due</span>
+                            <span>{formatCurrency(order.balanceDue, order.currency)}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>
