@@ -70,7 +70,14 @@ export async function GET(
                 supplierLink: true,
                 width: true,
                 height: true,
-                depth: true
+                depth: true,
+                components: {
+                  select: {
+                    id: true,
+                    modelNumber: true,
+                    link: true
+                  }
+                }
               }
             },
             supplierQuoteLineItem: {
@@ -311,6 +318,19 @@ export async function GET(
           ? [item.imageUrl]
           : (roomImages && roomImages.length > 0 ? roomImages : null)
 
+        // For components, get the component's modelNumber instead of parent's SKU
+        let sku = item.roomFFEItem?.sku || item.roomFFEItem?.modelNumber
+        let supplierLink = item.roomFFEItem?.supplierLink
+
+        if (item.componentId && item.roomFFEItem?.components) {
+          const component = (item.roomFFEItem.components as Array<{ id: string; modelNumber: string | null; link: string | null }>)
+            .find(c => c.id === item.componentId)
+          if (component) {
+            sku = component.modelNumber || sku
+            supplierLink = component.link || supplierLink
+          }
+        }
+
         return {
           id: item.id,
           name: item.name,
@@ -322,13 +342,13 @@ export async function GET(
           expectedDelivery: item.expectedDelivery,
           status: item.status,
           notes: item.notes,
-          sku: item.roomFFEItem?.sku || item.roomFFEItem?.modelNumber,
+          sku,
           brand: item.roomFFEItem?.brand,
           color: item.roomFFEItem?.color,
           finish: item.roomFFEItem?.finish,
           material: item.roomFFEItem?.material,
           images,
-          supplierLink: item.roomFFEItem?.supplierLink,
+          supplierLink,
           dimensions: item.roomFFEItem?.width || item.roomFFEItem?.height || item.roomFFEItem?.depth
             ? `${item.roomFFEItem?.width || '-'} × ${item.roomFFEItem?.height || '-'} × ${item.roomFFEItem?.depth || '-'}`
             : null
