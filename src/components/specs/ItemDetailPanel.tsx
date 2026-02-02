@@ -279,7 +279,7 @@ function ActivityTab({ itemId, roomId, mode, specStatus, onStageClick }: { itemI
       'approved': { activityType: 'CLIENT_APPROVED', specStatus: 'BUDGET_APPROVED', title: 'Client Approved' },
       'invoiced': { activityType: 'SENT_TO_CLIENT_QUOTE', specStatus: 'INVOICED_TO_CLIENT', title: 'Invoiced to Client' },
       'paid': { activityType: 'CLIENT_QUOTE_PAID', specStatus: 'CLIENT_PAID', title: 'Client Paid' },
-      'ordered': { activityType: 'ORDERED', specStatus: 'ORDERED', title: 'Ordered from Supplier' },
+      'ordered': { activityType: 'ORDERED', specStatus: 'ORDERED', title: 'Ordered' },
       'delivered': { activityType: 'DELIVERED', specStatus: 'DELIVERED', title: 'Delivered' },
     }
 

@@ -136,7 +136,7 @@ const ITEM_STATUS_OPTIONS = [
   { value: 'QUOTE_APPROVED', label: 'Quote Accepted', icon: CheckCircle2, color: 'text-green-500', requiresApproval: false },
   { value: 'INVOICED_TO_CLIENT', label: 'Invoiced to Client', icon: CreditCard, color: 'text-blue-500', requiresApproval: false },
   { value: 'CLIENT_PAID', label: 'Client Paid', icon: CreditCard, color: 'text-emerald-600', requiresApproval: false },
-  { value: 'ORDERED', label: 'Ordered from Supplier', icon: PackageCheck, color: 'text-blue-600', requiresApproval: true },
+  { value: 'ORDERED', label: 'Ordered', icon: PackageCheck, color: 'text-blue-600', requiresApproval: true },
   { value: 'SHIPPED', label: 'Shipped', icon: Truck, color: 'text-indigo-500', requiresApproval: true },
   { value: 'DELIVERED', label: 'Delivered', icon: PackageCheck, color: 'text-teal-600', requiresApproval: true },
   { value: 'INSTALLED', label: 'Installed', icon: CheckCheck, color: 'text-green-600', requiresApproval: true },

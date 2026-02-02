@@ -291,20 +291,13 @@ export async function POST(
         }
       })
 
-      // Update all items to ORDERED status
+      // Update all items to ORDERED status (order items, not spec items)
+      // Note: Spec items (roomFFEItem.specStatus) are only updated to ORDERED
+      // when payment is recorded AND the PO is confirmed by the supplier
       await prisma.orderItem.updateMany({
         where: { orderId: id },
         data: { status: 'ORDERED' }
       })
-
-      // Update spec items status to ORDERED
-      const roomFFEItemIds = order.items.map(item => item.roomFFEItemId)
-      if (roomFFEItemIds.length > 0) {
-        await prisma.roomFFEItem.updateMany({
-          where: { id: { in: roomFFEItemIds } },
-          data: { specStatus: 'ORDERED' }
-        })
-      }
     }
 
     return NextResponse.json({

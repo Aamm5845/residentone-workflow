@@ -477,6 +477,21 @@ export async function POST(
           }
         })
 
+        // If payment has already been recorded, update spec items to ORDERED
+        // (spec items only become ORDERED when BOTH confirmed AND paid)
+        if (order.supplierPaidAt) {
+          const roomFFEItemIds = order.items
+            .map(item => item.roomFFEItemId)
+            .filter((id): id is string => id !== null)
+
+          if (roomFFEItemIds.length > 0) {
+            await prisma.roomFFEItem.updateMany({
+              where: { id: { in: roomFFEItemIds } },
+              data: { specStatus: 'ORDERED' }
+            })
+          }
+        }
+
         return NextResponse.json({ success: true, message: 'Order confirmed' })
       }
 
@@ -755,16 +770,22 @@ export async function POST(
           data: { status: 'ORDERED' }
         })
 
-        // Update all linked spec items (roomFFEItem) to ORDERED status
-        const roomFFEItemIds = order.items
-          .map(item => item.roomFFEItemId)
-          .filter((id): id is string => id !== null)
+        // Update spec items to ORDERED only if the order is also confirmed
+        // (spec items only become ORDERED when BOTH confirmed AND paid)
+        const isConfirmed = order.supplierConfirmedAt || order.status === 'CONFIRMED' || !isShippedOrDelivered
+        // Note: !isShippedOrDelivered means we're about to set status to CONFIRMED above
 
-        if (roomFFEItemIds.length > 0) {
-          await prisma.roomFFEItem.updateMany({
-            where: { id: { in: roomFFEItemIds } },
-            data: { specStatus: 'ORDERED' }
-          })
+        if (isConfirmed) {
+          const roomFFEItemIds = order.items
+            .map(item => item.roomFFEItemId)
+            .filter((id): id is string => id !== null)
+
+          if (roomFFEItemIds.length > 0) {
+            await prisma.roomFFEItem.updateMany({
+              where: { id: { in: roomFFEItemIds } },
+              data: { specStatus: 'ORDERED' }
+            })
+          }
         }
 
         await prisma.orderActivity.create({

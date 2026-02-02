@@ -764,12 +764,14 @@ export default function SupplierOrderPortal() {
                   <div className="flex items-center gap-2 mb-4">
                     <CreditCard className="w-4 h-4 text-gray-500" />
                     <h3 className="font-semibold text-gray-900">Payment Card</h3>
-                    <span className="text-xs text-gray-500 ml-auto">
+                    <span className={`text-xs ml-auto ${
+                      order.totalAmount - (order.supplierPaymentAmount || 0) <= 0 ? 'text-emerald-600 font-medium' : 'text-gray-500'
+                    }`}>
                       {order.depositRequired && order.depositRequired > 0 && (!order.depositPaid || order.depositPaid < order.depositRequired)
                         ? `Please charge ${formatCurrency(order.depositRequired - (order.depositPaid || 0), order.currency)} deposit to this card`
                         : order.totalAmount - (order.supplierPaymentAmount || 0) > 0
                           ? `Please charge ${formatCurrency(order.totalAmount - (order.supplierPaymentAmount || 0), order.currency)} to this card`
-                          : 'Payment complete'
+                          : '✓ Paid in Full'
                       }
                     </span>
                   </div>
@@ -875,29 +877,40 @@ export default function SupplierOrderPortal() {
                 </div>
 
                 <div className="bg-gray-50 rounded-lg p-4 border">
-                  <div className="grid grid-cols-3 gap-4 text-center">
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">Order Total</p>
-                      <p className="text-lg font-semibold text-gray-900">
-                        {formatCurrency(order.totalAmount, order.currency)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">Paid</p>
-                      <p className="text-lg font-semibold text-emerald-600">
-                        {formatCurrency(order.supplierPaymentAmount || 0, order.currency)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">Owed</p>
-                      <p className="text-lg font-semibold text-amber-600">
-                        {formatCurrency(
-                          Math.max(0, order.totalAmount - (order.supplierPaymentAmount || 0)),
-                          order.currency
-                        )}
-                      </p>
-                    </div>
-                  </div>
+                  {(() => {
+                    const amountOwed = Math.max(0, order.totalAmount - (order.supplierPaymentAmount || 0))
+                    const isPaidInFull = amountOwed === 0 && (order.supplierPaymentAmount || 0) > 0
+
+                    return (
+                      <div className="grid grid-cols-3 gap-4 text-center">
+                        <div>
+                          <p className="text-sm text-gray-500 mb-1">Order Total</p>
+                          <p className="text-lg font-semibold text-gray-900">
+                            {formatCurrency(order.totalAmount, order.currency)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500 mb-1">Paid</p>
+                          <p className="text-lg font-semibold text-emerald-600">
+                            {formatCurrency(order.supplierPaymentAmount || 0, order.currency)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500 mb-1">Owed</p>
+                          {isPaidInFull ? (
+                            <div className="flex items-center justify-center gap-1">
+                              <CheckCircle className="w-5 h-5 text-emerald-500" />
+                              <span className="text-lg font-semibold text-emerald-600">Paid in Full</span>
+                            </div>
+                          ) : (
+                            <p className="text-lg font-semibold text-amber-600">
+                              {formatCurrency(amountOwed, order.currency)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </div>
               </CardContent>
             </Card>
