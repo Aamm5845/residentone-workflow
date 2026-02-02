@@ -598,12 +598,51 @@ async function drawItemCell(
 // Sanitize text to remove characters that WinAnsi encoding cannot handle
 function sanitizeText(text: string): string {
   if (!text) return ''
-  // Replace newlines, carriage returns, and tabs with spaces
-  // Then collapse multiple spaces into single space and trim
-  return text
-    .replace(/[\n\r\t]/g, ' ')
-    .replace(/\s+/g, ' ')
+
+  // Replace Unicode fractions with ASCII equivalents
+  const fractionMap: Record<string, string> = {
+    '⅛': '1/8',
+    '¼': '1/4',
+    '⅜': '3/8',
+    '½': '1/2',
+    '⅝': '5/8',
+    '¾': '3/4',
+    '⅞': '7/8',
+    '⅓': '1/3',
+    '⅔': '2/3',
+    '⅕': '1/5',
+    '⅖': '2/5',
+    '⅗': '3/5',
+    '⅘': '4/5',
+    '⅙': '1/6',
+    '⅚': '5/6',
+  }
+
+  let sanitized = text
+  for (const [unicode, ascii] of Object.entries(fractionMap)) {
+    sanitized = sanitized.replace(new RegExp(unicode, 'g'), ascii)
+  }
+
+  // Replace other common problematic Unicode characters
+  sanitized = sanitized
+    .replace(/[\u2018\u2019]/g, "'")  // Smart single quotes
+    .replace(/[\u201C\u201D]/g, '"')  // Smart double quotes
+    .replace(/\u2014/g, '-')          // Em dash
+    .replace(/\u2013/g, '-')          // En dash
+    .replace(/\u2026/g, '...')        // Ellipsis
+    .replace(/\u00A0/g, ' ')          // Non-breaking space
+    .replace(/[\u2022\u2023\u25E6\u2043\u2219]/g, '-')  // Bullet points
+    .replace(/\u00B0/g, ' deg')       // Degree symbol
+    .replace(/\u00D7/g, 'x')          // Multiplication sign
+    .replace(/[\n\r\t]/g, ' ')        // Newlines, carriage returns, tabs
+    .replace(/\s+/g, ' ')             // Collapse multiple spaces
     .trim()
+
+  // Remove any remaining non-WinAnsi characters (keep basic ASCII + extended Latin)
+  // WinAnsi supports characters 0x20-0x7E and 0xA0-0xFF
+  sanitized = sanitized.replace(/[^\x20-\x7E\xA0-\xFF]/g, '')
+
+  return sanitized
 }
 
 function truncateText(text: string, font: PDFFont, size: number, maxWidth: number): string {
