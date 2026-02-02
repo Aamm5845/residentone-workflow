@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
     const pdfOptions: SpecPDFOptions = {
       projectName,
       includeCover: options?.includeCover ?? true,
+      coverStyle: options?.coverStyle || 'dark',
       showBrand: options?.showBrand ?? true,
       showSupplier: options?.showSupplier ?? false,
       showPricing: options?.showPricing ?? false,

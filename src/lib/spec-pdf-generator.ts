@@ -49,6 +49,7 @@ export interface SpecPDFItem {
 export interface SpecPDFOptions {
   projectName: string
   includeCover?: boolean
+  coverStyle?: 'dark' | 'minimal'  // Cover page style option
   showBrand?: boolean
   showSupplier?: boolean
   showPricing?: boolean
@@ -137,7 +138,12 @@ export async function generateSpecPDF(
   const imageMap = await prefetchImages(pdfDoc, items)
 
   if (options.includeCover) {
-    await addCoverPage(pdfDoc, options.projectName, helvetica, helveticaBold)
+    // Choose cover style - default to 'dark' for backwards compatibility
+    if (options.coverStyle === 'minimal') {
+      await addCoverPageMinimal(pdfDoc, options.projectName, helvetica, helveticaBold)
+    } else {
+      await addCoverPage(pdfDoc, options.projectName, helvetica, helveticaBold)
+    }
   }
 
   const groupBy = options.groupBy || 'category'
@@ -239,6 +245,133 @@ async function addCoverPage(
     size: 18,
     font: font,
     color: rgb(0.5, 0.5, 0.5)
+  })
+}
+
+// Minimal/Modern cover page - clean white design
+async function addCoverPageMinimal(
+  pdfDoc: PDFDocument,
+  projectName: string,
+  font: PDFFont,
+  boldFont: PDFFont
+) {
+  const page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT])
+
+  // Clean white background
+  page.drawRectangle({
+    x: 0,
+    y: 0,
+    width: PAGE_WIDTH,
+    height: PAGE_HEIGHT,
+    color: rgb(1, 1, 1)
+  })
+
+  // Subtle top border accent
+  page.drawRectangle({
+    x: 0,
+    y: PAGE_HEIGHT - 8,
+    width: PAGE_WIDTH,
+    height: 8,
+    color: BRAND_COLOR
+  })
+
+  // Left side vertical line accent
+  page.drawRectangle({
+    x: MARGIN,
+    y: PAGE_HEIGHT / 2 - 200,
+    width: 3,
+    height: 400,
+    color: rgb(0.9, 0.9, 0.9)
+  })
+
+  // "SPECIFICATIONS" label - small, uppercase, spaced
+  const labelText = 'S P E C I F I C A T I O N S'
+  const labelSize = 14
+  const labelWidth = font.widthOfTextAtSize(labelText, labelSize)
+  page.drawText(labelText, {
+    x: MARGIN + 30,
+    y: PAGE_HEIGHT / 2 + 180,
+    size: labelSize,
+    font: font,
+    color: rgb(0.6, 0.6, 0.6)
+  })
+
+  // Project name - large, bold, left-aligned
+  const sanitizedProjectName = sanitizeText(projectName)
+  const projectSize = 72
+  const projectLines = wrapText(sanitizedProjectName, boldFont, projectSize, PAGE_WIDTH - MARGIN * 2 - 60)
+  let projectY = PAGE_HEIGHT / 2 + 100
+  for (const line of projectLines) {
+    page.drawText(line, {
+      x: MARGIN + 30,
+      y: projectY,
+      size: projectSize,
+      font: boldFont,
+      color: rgb(0.1, 0.1, 0.1)
+    })
+    projectY -= 85
+  }
+
+  // Thin horizontal line under project name
+  page.drawRectangle({
+    x: MARGIN + 30,
+    y: projectY + 30,
+    width: 200,
+    height: 2,
+    color: BRAND_COLOR
+  })
+
+  // Date - clean, minimal
+  const dateText = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+  page.drawText(dateText, {
+    x: MARGIN + 30,
+    y: projectY - 20,
+    size: 18,
+    font: font,
+    color: rgb(0.5, 0.5, 0.5)
+  })
+
+  // Company name - bottom left, subtle
+  const companyText = 'MEISNER INTERIORS'
+  page.drawText(companyText, {
+    x: MARGIN + 30,
+    y: MARGIN + 40,
+    size: 16,
+    font: font,
+    color: rgb(0.7, 0.7, 0.7)
+  })
+
+  // Small decorative squares in bottom right
+  const squareSize = 20
+  const squareGap = 8
+  const squareStartX = PAGE_WIDTH - MARGIN - (squareSize * 3 + squareGap * 2)
+  const squareY = MARGIN + 30
+
+  // Three small squares
+  page.drawRectangle({
+    x: squareStartX,
+    y: squareY,
+    width: squareSize,
+    height: squareSize,
+    color: rgb(0.92, 0.92, 0.92)
+  })
+  page.drawRectangle({
+    x: squareStartX + squareSize + squareGap,
+    y: squareY,
+    width: squareSize,
+    height: squareSize,
+    color: rgb(0.85, 0.85, 0.85)
+  })
+  page.drawRectangle({
+    x: squareStartX + (squareSize + squareGap) * 2,
+    y: squareY,
+    width: squareSize,
+    height: squareSize,
+    color: BRAND_COLOR
   })
 }
 

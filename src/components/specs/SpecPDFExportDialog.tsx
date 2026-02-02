@@ -66,6 +66,7 @@ interface SpecPDFExportDialogProps {
 type PageSizeOption = '24x36' | 'letter' | 'tabloid'
 type StyleOption = 'grid' | 'list'
 type GroupByOption = 'category' | 'room'
+type CoverStyleOption = 'dark' | 'minimal'
 
 export default function SpecPDFExportDialog({
   open,
@@ -81,6 +82,7 @@ export default function SpecPDFExportDialog({
   const [approvedOnly, setApprovedOnly] = useState(true) // Default to approved items only
   const [exportSelected, setExportSelected] = useState(false)
   const [includeCover, setIncludeCover] = useState(true)
+  const [coverStyle, setCoverStyle] = useState<CoverStyleOption>('dark')
   const [pageSize, setPageSize] = useState<PageSizeOption>('24x36')
   const [style, setStyle] = useState<StyleOption>('grid')
   const [groupBy, setGroupBy] = useState<GroupByOption>('category')
@@ -164,6 +166,7 @@ export default function SpecPDFExportDialog({
           items: pdfItems,
           options: {
             includeCover,
+            coverStyle,
             showBrand,
             showSupplier,
             showPricing,
@@ -385,12 +388,47 @@ export default function SpecPDFExportDialog({
           </div>
 
           {/* Cover Page */}
-          <div className="flex items-center justify-between p-3 border rounded-lg">
-            <div className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-slate-500" />
-              <span className="text-sm">Include Cover Page</span>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-3 border rounded-lg">
+              <div className="flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-slate-500" />
+                <span className="text-sm">Include Cover Page</span>
+              </div>
+              <Switch checked={includeCover} onCheckedChange={setIncludeCover} />
             </div>
-            <Switch checked={includeCover} onCheckedChange={setIncludeCover} />
+
+            {/* Cover Style - only show when cover is enabled */}
+            {includeCover && (
+              <div className="ml-4">
+                <Label className="text-xs font-medium text-slate-500 mb-2 block">Cover Style</Label>
+                <RadioGroup
+                  value={coverStyle}
+                  onValueChange={(v) => setCoverStyle(v as CoverStyleOption)}
+                  className="flex gap-3"
+                >
+                  <label className={cn(
+                    "flex items-center gap-2 p-2 px-3 border rounded-lg cursor-pointer transition-colors text-sm",
+                    coverStyle === 'dark' ? "border-emerald-500 bg-emerald-50" : "hover:bg-slate-50"
+                  )}>
+                    <RadioGroupItem value="dark" />
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 rounded bg-slate-800 border" />
+                      <span>Dark</span>
+                    </div>
+                  </label>
+                  <label className={cn(
+                    "flex items-center gap-2 p-2 px-3 border rounded-lg cursor-pointer transition-colors text-sm",
+                    coverStyle === 'minimal' ? "border-emerald-500 bg-emerald-50" : "hover:bg-slate-50"
+                  )}>
+                    <RadioGroupItem value="minimal" />
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 rounded bg-white border-2 border-slate-200" />
+                      <span>Minimal</span>
+                    </div>
+                  </label>
+                </RadioGroup>
+              </div>
+            )}
           </div>
 
           {/* Visibility Options */}
