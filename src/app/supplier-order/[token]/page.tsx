@@ -668,38 +668,44 @@ export default function SupplierOrderPortal() {
           </div>
         )}
 
-        {/* Documents Alert Banner */}
-        {documents.length > 0 && (
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Paperclip className="w-5 h-5 text-purple-600" />
-                <div>
-                  <p className="font-medium text-purple-800">
-                    {documents.length} Document{documents.length !== 1 ? 's' : ''} Attached
-                  </p>
-                  <p className="text-sm text-purple-600">
-                    Spec sheets, drawings, and other order documents are available below
-                  </p>
+        {/* Documents Alert Banner - only show for spec sheets, drawings, etc. (not receipts/invoices/shipping docs) */}
+        {(() => {
+          const importantDocs = documents.filter(doc =>
+            !['RECEIPT', 'INVOICE', 'SHIPPING_DOC', 'PACKING_SLIP'].includes(doc.type)
+          )
+          if (importantDocs.length === 0) return null
+          return (
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Paperclip className="w-5 h-5 text-purple-600" />
+                  <div>
+                    <p className="font-medium text-purple-800">
+                      {importantDocs.length} Document{importantDocs.length !== 1 ? 's' : ''} Attached
+                    </p>
+                    <p className="text-sm text-purple-600">
+                      Spec sheets, drawings, and other order documents are available below
+                    </p>
+                  </div>
                 </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-purple-300 text-purple-700 hover:bg-purple-100"
+                  onClick={() => {
+                    // Switch to documents tab and scroll to it
+                    setActiveTab('documents')
+                    setTimeout(() => {
+                      document.getElementById('documents-section')?.scrollIntoView({ behavior: 'smooth' })
+                    }, 100)
+                  }}
+                >
+                  View Documents
+                </Button>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-purple-300 text-purple-700 hover:bg-purple-100"
-                onClick={() => {
-                  // Switch to documents tab and scroll to it
-                  setActiveTab('documents')
-                  setTimeout(() => {
-                    document.getElementById('documents-section')?.scrollIntoView({ behavior: 'smooth' })
-                  }, 100)
-                }}
-              >
-                View Documents
-              </Button>
             </div>
-          </div>
-        )}
+          )
+        })()}
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
