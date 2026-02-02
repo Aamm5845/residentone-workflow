@@ -308,16 +308,21 @@ export default function CreatePODialog({
   }, [open, fetchItems, fetchPaymentMethods, project?.defaultShippingAddress])
 
   // Flatten items and components into single list
-  // All prices come from spec trade prices
+  // Use quote price if available, otherwise fall back to spec trade price
   const flatItems: FlatItem[] = []
   items.forEach(item => {
+    // Prefer supplier quote unit price over spec trade price
+    const unitPrice = item.hasQuote && item.quoteUnitPrice != null
+      ? item.quoteUnitPrice
+      : item.tradePrice
+
     flatItems.push({
       id: item.id,
       name: item.name,
       roomName: item.roomName,
       quantity: item.quantity,
       imageUrl: item.imageUrl,
-      unitPrice: item.tradePrice,
+      unitPrice,
       currency: item.currency || groupCurrency,
       isComponent: false,
       hasQuote: item.hasQuote,
