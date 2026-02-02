@@ -354,7 +354,7 @@ export default function CreateSpecShareLinkDialog({
 
             {/* Search */}
             <div className="relative mb-2">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
               <Input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -386,12 +386,12 @@ export default function CreateSpecShareLinkDialog({
                           onClick={() => toggleCategory(category)}
                         >
                           {isExpanded ? (
-                            <ChevronDown className="w-4 h-4 text-slate-400" />
+                            <ChevronDown className="w-4 h-4 text-slate-600" />
                           ) : (
-                            <ChevronRight className="w-4 h-4 text-slate-400" />
+                            <ChevronRight className="w-4 h-4 text-slate-600" />
                           )}
-                          <span className="text-sm font-medium text-slate-700">{category}</span>
-                          <span className="text-xs text-slate-400">
+                          <span className="text-sm font-semibold text-slate-800">{category}</span>
+                          <span className="text-xs text-slate-600 font-medium">
                             ({selectedInCategory}/{categoryItems.length})
                           </span>
                         </div>
@@ -430,10 +430,10 @@ export default function CreateSpecShareLinkDialog({
                                 onCheckedChange={() => toggleItem(item.id)}
                               />
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-slate-900 truncate">
+                                <p className="text-sm font-medium text-slate-800 truncate">
                                   {item.name}
                                 </p>
-                                <p className="text-xs text-slate-500">{item.roomName}</p>
+                                <p className="text-xs text-slate-600 font-medium">{item.roomName}</p>
                               </div>
                             </label>
                           ))}
