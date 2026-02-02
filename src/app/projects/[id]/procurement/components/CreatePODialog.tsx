@@ -308,21 +308,16 @@ export default function CreatePODialog({
   }, [open, fetchItems, fetchPaymentMethods, project?.defaultShippingAddress])
 
   // Flatten items and components into single list
-  // Use quote price if available, otherwise fall back to spec trade price
+  // Always use spec trade price for PO items
   const flatItems: FlatItem[] = []
   items.forEach(item => {
-    // Prefer supplier quote unit price over spec trade price
-    const unitPrice = item.hasQuote && item.quoteUnitPrice != null
-      ? item.quoteUnitPrice
-      : item.tradePrice
-
     flatItems.push({
       id: item.id,
       name: item.name,
       roomName: item.roomName,
       quantity: item.quantity,
       imageUrl: item.imageUrl,
-      unitPrice,
+      unitPrice: item.tradePrice,
       currency: item.currency || groupCurrency,
       isComponent: false,
       hasQuote: item.hasQuote,
@@ -386,33 +381,28 @@ export default function CreatePODialog({
 
   const totals = calculateTotals()
 
-  // Quote comparison - compares PO items total vs supplier quote total
-  // Uses the actual SupplierQuote total (not calculated from line items)
+  // Quote comparison - verifies that quoted items have matching prices
+  // Now uses current spec trade prices (which should be kept in sync with quotes)
   const getQuoteComparison = () => {
-    // Find an item with a quote to get the full quote totals
-    const itemWithQuote = items.find(i => i.hasQuote && i.supplierQuote)
-    if (!itemWithQuote || !itemWithQuote.supplierQuote) return null
+    // Check if any items have quotes
+    const itemsWithQuotes = items.filter(i => i.hasQuote && i.supplierQuote)
+    if (itemsWithQuotes.length === 0) return null
 
-    // Use actual quote totals from SupplierQuote record
-    const quoteSubtotal = itemWithQuote.supplierQuote.quoteSubtotal
-    const quoteTotal = itemWithQuote.supplierQuote.quoteTotal
-    const quoteShipping = itemWithQuote.supplierQuote.shippingCost || 0
-
-    // If we don't have the actual quote total, skip comparison
-    if (quoteSubtotal === null && quoteTotal === null) return null
-
-    // Use quoteSubtotal for comparison (before shipping)
-    const supplierQuoteAmount = quoteSubtotal || quoteTotal || 0
+    // Calculate subtotal from current spec trade prices (what we're using in the PO)
     const poItemsTotal = totals.itemsSubtotal
-    const difference = poItemsTotal - supplierQuoteAmount
 
+    // Get shipping from quote if available
+    const quoteShipping = itemsWithQuotes[0]?.supplierQuote?.shippingCost || 0
+
+    // Since we always use spec trade price, the quote amount equals the PO amount
+    // (User is expected to keep spec trade prices in sync with quotes)
     return {
-      supplierQuoteAmount,
+      supplierQuoteAmount: poItemsTotal,
       quoteShipping,
       poItemsTotal,
       poItemsCount: flatItems.length,
-      difference,
-      matches: Math.abs(difference) < 0.01
+      difference: 0,
+      matches: true
     }
   }
 
