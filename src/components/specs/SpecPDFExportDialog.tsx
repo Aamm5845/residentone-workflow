@@ -21,7 +21,9 @@ import {
   Clock,
   StickyNote,
   Layers,
-  BookOpen
+  BookOpen,
+  CheckCircle2,
+  AlertTriangle
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -49,6 +51,7 @@ interface SpecItem {
   images?: string[]
   categoryName?: string
   roomName?: string
+  clientApproved?: boolean
 }
 
 interface SpecPDFExportDialogProps {
@@ -75,6 +78,7 @@ export default function SpecPDFExportDialog({
   const [exporting, setExporting] = useState(false)
 
   // Export options
+  const [approvedOnly, setApprovedOnly] = useState(true) // Default to approved items only
   const [exportSelected, setExportSelected] = useState(false)
   const [includeCover, setIncludeCover] = useState(true)
   const [pageSize, setPageSize] = useState<PageSizeOption>('24x36')
@@ -94,9 +98,18 @@ export default function SpecPDFExportDialog({
   const [showLeadTime, setShowLeadTime] = useState(false)
 
   const hasSelection = selectedItemIds && selectedItemIds.size > 0
-  const itemsToExport = exportSelected && hasSelection
-    ? items.filter(item => selectedItemIds!.has(item.id))
+
+  // Filter items based on approval status and selection
+  const baseItems = approvedOnly
+    ? items.filter(item => item.clientApproved)
     : items
+  const itemsToExport = exportSelected && hasSelection
+    ? baseItems.filter(item => selectedItemIds!.has(item.id))
+    : baseItems
+
+  // Count items missing doc codes
+  const itemsWithoutDocCode = itemsToExport.filter(item => !item.docCode)
+  const approvedCount = items.filter(item => item.clientApproved).length
 
   const handleExport = async () => {
     if (itemsToExport.length === 0) {
@@ -211,6 +224,23 @@ export default function SpecPDFExportDialog({
         </DialogHeader>
 
         <div className="space-y-6 py-4">
+          {/* Approved Items Only Toggle */}
+          <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-lg border border-emerald-200">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+              <div>
+                <p className="font-medium text-sm">Approved Items Only</p>
+                <p className="text-xs text-slate-500">
+                  {approvedCount} of {items.length} items are approved
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={approvedOnly}
+              onCheckedChange={setApprovedOnly}
+            />
+          </div>
+
           {/* Export Selection */}
           {hasSelection && (
             <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border">
@@ -227,6 +257,31 @@ export default function SpecPDFExportDialog({
                 checked={exportSelected}
                 onCheckedChange={setExportSelected}
               />
+            </div>
+          )}
+
+          {/* Warning for items without doc code */}
+          {itemsWithoutDocCode.length > 0 && (
+            <div className="flex items-start gap-3 p-4 bg-amber-50 rounded-lg border border-amber-200">
+              <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-sm text-amber-800">
+                  {itemsWithoutDocCode.length} item{itemsWithoutDocCode.length > 1 ? 's' : ''} missing Doc Code
+                </p>
+                <p className="text-xs text-amber-700 mt-1">
+                  Items without a Doc Code will show "-" in the PDF. Consider adding Doc Codes before exporting.
+                </p>
+                <div className="mt-2 max-h-20 overflow-y-auto">
+                  <ul className="text-xs text-amber-600 space-y-0.5">
+                    {itemsWithoutDocCode.slice(0, 5).map(item => (
+                      <li key={item.id}>• {item.name}</li>
+                    ))}
+                    {itemsWithoutDocCode.length > 5 && (
+                      <li className="text-amber-500">...and {itemsWithoutDocCode.length - 5} more</li>
+                    )}
+                  </ul>
+                </div>
+              </div>
             </div>
           )}
 
