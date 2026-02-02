@@ -757,7 +757,14 @@ export default function SupplierOrderPortal() {
                   <div className="flex items-center gap-2 mb-4">
                     <CreditCard className="w-4 h-4 text-gray-500" />
                     <h3 className="font-semibold text-gray-900">Payment Card</h3>
-                    <span className="text-xs text-gray-500 ml-auto">Please charge the order total to this card</span>
+                    <span className="text-xs text-gray-500 ml-auto">
+                      {order.depositRequired && order.depositRequired > 0 && (!order.depositPaid || order.depositPaid < order.depositRequired)
+                        ? `Please charge ${formatCurrency(order.depositRequired - (order.depositPaid || 0), order.currency)} deposit to this card`
+                        : order.totalAmount - (order.supplierPaymentAmount || 0) > 0
+                          ? `Please charge ${formatCurrency(order.totalAmount - (order.supplierPaymentAmount || 0), order.currency)} to this card`
+                          : 'Payment complete'
+                      }
+                    </span>
                   </div>
                   <div className="bg-gray-50 rounded-lg p-4 border">
                     {showFullCardDetails && order.paymentCardNumber ? (
