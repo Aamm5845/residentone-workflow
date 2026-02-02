@@ -214,7 +214,7 @@ export default function SupplierOrderPortal() {
   const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [uploadTitle, setUploadTitle] = useState('')
   const [uploadDescription, setUploadDescription] = useState('')
-  const [uploadType, setUploadType] = useState('OTHER')
+  const [uploadType, setUploadType] = useState('RECEIPT')
   const [submitting, setSubmitting] = useState(false)
   const [showFullCardDetails, setShowFullCardDetails] = useState(false)
 
@@ -1762,6 +1762,8 @@ export default function SupplierOrderPortal() {
                 onChange={(e) => setUploadType(e.target.value)}
                 className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
               >
+                <option value="RECEIPT">Payment Receipt</option>
+                <option value="INVOICE">Invoice</option>
                 <option value="DRAWING">Drawing</option>
                 <option value="SPEC_SHEET">Spec Sheet</option>
                 <option value="SHIPPING_DOC">Shipping Document</option>
