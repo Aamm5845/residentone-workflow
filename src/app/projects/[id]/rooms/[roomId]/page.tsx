@@ -125,10 +125,11 @@ export default async function RoomWorkspace({ params }: Props) {
     return ROOM_PHASES.map(phaseConfig => {
       // Map old stage types to new phase IDs
       const stageTypeMap: Record<string, string> = {
+        'DESIGN': 'DESIGN_CONCEPT',
         'DESIGN_CONCEPT': 'DESIGN_CONCEPT',
         'THREE_D': 'RENDERING',
         'RENDERING': 'RENDERING',
-        'CLIENT_APPROVAL': 'CLIENT_APPROVAL', 
+        'CLIENT_APPROVAL': 'CLIENT_APPROVAL',
         'DRAWINGS': 'DRAWINGS',
         'FFE': 'FFE'
       }
