@@ -625,11 +625,16 @@ async function drawItemCell(
   })
   textY -= lineHeight
 
-  // ITEM NAME - show prominently below doc code
+  // ITEM NAME - show prominently below doc code (limit to 2 lines)
   const itemName = item.name || 'Unnamed Item'
   // Wrap name if too long
   const nameMaxWidth = textAreaWidth - 10
-  const nameLines = wrapText(itemName, boldFont, 18, nameMaxWidth)
+  let nameLines = wrapText(itemName, boldFont, 18, nameMaxWidth)
+  // Limit name to 2 lines to prevent overflow
+  if (nameLines.length > 2) {
+    nameLines = nameLines.slice(0, 2)
+    nameLines[1] = nameLines[1].slice(0, -3) + '...'
+  }
   for (const line of nameLines) {
     page.drawText(line, {
       x: textX,
@@ -678,7 +683,7 @@ async function drawItemCell(
   if (options.showColor) drawField('Color', item.color)
   if (options.showMaterial) drawField('Material', item.material)
 
-  // NOTES - Show in RED, BIGGER, and wrap to multiple lines (no truncation)
+  // NOTES - Show in RED, limit to 3 lines to prevent overflow
   if (options.showNotes && item.notes) {
     page.drawText('Notes:', {
       x: textX,
@@ -689,10 +694,16 @@ async function drawItemCell(
     })
     textY -= lineHeight
 
-    // Wrap notes to multiple lines - show ALL text, no truncation
+    // Wrap notes to multiple lines - LIMIT to 3 lines to prevent overflow
     const notesSize = 16  // Bigger notes text
     const notesMaxWidth = textAreaWidth - 20
-    const notesLines = wrapText(item.notes, font, notesSize, notesMaxWidth)
+    let notesLines = wrapText(item.notes, font, notesSize, notesMaxWidth)
+    // Limit notes to 3 lines max
+    const MAX_NOTE_LINES = 3
+    if (notesLines.length > MAX_NOTE_LINES) {
+      notesLines = notesLines.slice(0, MAX_NOTE_LINES)
+      notesLines[MAX_NOTE_LINES - 1] = notesLines[MAX_NOTE_LINES - 1].slice(0, -3) + '...'
+    }
     for (const line of notesLines) {
       page.drawText(line, {
         x: textX + 10,

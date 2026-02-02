@@ -52,6 +52,9 @@ interface SpecItem {
   categoryName?: string
   roomName?: string
   clientApproved?: boolean
+  specStatus?: string | null
+  isArchived?: boolean
+  isHidden?: boolean
 }
 
 interface SpecPDFExportDialogProps {
@@ -101,17 +104,30 @@ export default function SpecPDFExportDialog({
 
   const hasSelection = selectedItemIds && selectedItemIds.size > 0
 
+  // Statuses that should be included with "approved" items
+  const APPROVED_STATUSES = ['CLIENT_TO_ORDER', 'CONTRACTOR_TO_ORDER']
+
+  // Filter out archived and hidden items first
+  const visibleItems = items.filter(item => !item.isArchived && !item.isHidden)
+
   // Filter items based on approval status and selection
+  // "Approved" includes: clientApproved OR status is CLIENT_TO_ORDER/CONTRACTOR_TO_ORDER
   const baseItems = approvedOnly
-    ? items.filter(item => item.clientApproved)
-    : items
+    ? visibleItems.filter(item =>
+        item.clientApproved ||
+        APPROVED_STATUSES.includes(item.specStatus || '')
+      )
+    : visibleItems
   const itemsToExport = exportSelected && hasSelection
     ? baseItems.filter(item => selectedItemIds!.has(item.id))
     : baseItems
 
   // Count items missing doc codes
   const itemsWithoutDocCode = itemsToExport.filter(item => !item.docCode)
-  const approvedCount = items.filter(item => item.clientApproved).length
+  const approvedCount = visibleItems.filter(item =>
+    item.clientApproved ||
+    APPROVED_STATUSES.includes(item.specStatus || '')
+  ).length
 
   const handleExport = async () => {
     if (itemsToExport.length === 0) {
