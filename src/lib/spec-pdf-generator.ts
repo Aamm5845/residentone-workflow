@@ -154,8 +154,9 @@ async function addCoverPage(
   })
 
   const projectSize = 48
-  const projectWidth = font.widthOfTextAtSize(projectName, projectSize)
-  page.drawText(projectName, {
+  const sanitizedProjectName = sanitizeText(projectName)
+  const projectWidth = font.widthOfTextAtSize(sanitizedProjectName, projectSize)
+  page.drawText(sanitizedProjectName, {
     x: (PAGE_WIDTH - projectWidth) / 2,
     y: PAGE_HEIGHT / 2 - 50,
     size: projectSize,
@@ -259,8 +260,9 @@ async function addContentPages(
 
 function drawPageHeader(page: PDFPage, projectName: string, font: PDFFont) {
   const textSize = 22
-  const textWidth = font.widthOfTextAtSize(projectName, textSize)
-  page.drawText(projectName, {
+  const sanitizedProjectName = sanitizeText(projectName)
+  const textWidth = font.widthOfTextAtSize(sanitizedProjectName, textSize)
+  page.drawText(sanitizedProjectName, {
     x: PAGE_WIDTH - MARGIN - textWidth,
     y: PAGE_HEIGHT - MARGIN + 10,
     size: textSize,
@@ -280,8 +282,9 @@ function drawPageHeader(page: PDFPage, projectName: string, font: PDFFont) {
 function drawCategoryHeader(page: PDFPage, groupName: string, row: number, boldFont: PDFFont) {
   const rowTop = PAGE_HEIGHT - MARGIN - 50 - (row * ROW_HEIGHT)
 
-  // Category name at top of row
-  page.drawText(groupName.toUpperCase(), {
+  // Category name at top of row - sanitize to handle any problematic characters
+  const sanitizedGroupName = sanitizeText(groupName).toUpperCase()
+  page.drawText(sanitizedGroupName, {
     x: MARGIN,
     y: rowTop,
     size: 16,
@@ -290,7 +293,7 @@ function drawCategoryHeader(page: PDFPage, groupName: string, row: number, boldF
   })
 
   // Accent line
-  const textWidth = boldFont.widthOfTextAtSize(groupName.toUpperCase(), 16)
+  const textWidth = boldFont.widthOfTextAtSize(sanitizedGroupName, 16)
   page.drawRectangle({
     x: MARGIN,
     y: rowTop - 6,
@@ -433,7 +436,7 @@ async function drawItemCell(
   const maxValueWidth = textAreaWidth - 95
 
   // DOC CODE (green tag) - use actual docCode only, show "-" if missing
-  const docCode = item.docCode || '-'
+  const docCode = sanitizeText(item.docCode || '-')
   page.drawText(docCode, {
     x: textX,
     y: textY,
@@ -592,8 +595,19 @@ async function drawItemCell(
   }
 }
 
+// Sanitize text to remove characters that WinAnsi encoding cannot handle
+function sanitizeText(text: string): string {
+  if (!text) return ''
+  // Replace newlines, carriage returns, and tabs with spaces
+  // Then collapse multiple spaces into single space and trim
+  return text
+    .replace(/[\n\r\t]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 function truncateText(text: string, font: PDFFont, size: number, maxWidth: number): string {
-  let truncated = text
+  let truncated = sanitizeText(text)
   while (font.widthOfTextAtSize(truncated, size) > maxWidth && truncated.length > 3) {
     truncated = truncated.slice(0, -4) + '...'
   }
@@ -601,7 +615,9 @@ function truncateText(text: string, font: PDFFont, size: number, maxWidth: numbe
 }
 
 function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
-  const words = text.split(' ')
+  // Sanitize text to handle newlines and other problematic characters
+  const sanitized = sanitizeText(text)
+  const words = sanitized.split(' ')
   const lines: string[] = []
   let currentLine = ''
 
