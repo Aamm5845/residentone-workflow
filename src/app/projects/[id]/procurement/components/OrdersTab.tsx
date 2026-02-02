@@ -279,9 +279,15 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
       acc.shipped++
       acc.shippedValue += orderValue
     } else if (!isCancelled) {
-      // In progress = everything else (PAYMENT_RECEIVED, ORDERED, CONFIRMED, IN_PRODUCTION)
-      acc.inProgress++
-      acc.inProgressValue += orderValue
+      // In progress = only when confirmed OR has payment (deposit or full)
+      // DRAFT and ORDERED (sent but not confirmed) are NOT "in progress"
+      const isConfirmed = order.status === 'CONFIRMED' || order.status === 'IN_PRODUCTION'
+      const hasPayment = order.supplierPaidAt || (order.paymentSummary?.supplierPaymentAmount && order.paymentSummary.supplierPaymentAmount > 0)
+
+      if (isConfirmed || hasPayment) {
+        acc.inProgress++
+        acc.inProgressValue += orderValue
+      }
     }
 
     // Supplier payment tracking - use paymentSummary for accurate tracking
@@ -449,8 +455,11 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
       const isFullyPaid = paymentStatus === 'FULLY_PAID' || paymentStatus === 'OVERPAID'
 
       if (filterStatus === 'IN_PROGRESS') {
-        // Everything that's not delivered or cancelled (includes shipped)
-        matchesStatus = !isCancelled && !isDelivered
+        // In progress = confirmed OR has payment, not delivered/cancelled
+        const isConfirmed = order.status === 'CONFIRMED' || order.status === 'IN_PRODUCTION'
+        const hasPayment = order.supplierPaidAt || (order.paymentSummary?.supplierPaymentAmount && order.paymentSummary.supplierPaymentAmount > 0)
+        const isShipped = order.status === 'SHIPPED' || order.status === 'IN_TRANSIT'
+        matchesStatus = !isCancelled && !isDelivered && (isConfirmed || hasPayment || isShipped)
       } else if (filterStatus === 'DELIVERED') {
         matchesStatus = isDelivered
       } else if (filterStatus === 'SUPPLIER_PAID') {
