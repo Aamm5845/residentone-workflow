@@ -143,8 +143,10 @@ export default function CreateClientQuoteDialog({
 
   // Item selection state (for step 0)
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set())
+  const [excludedComponentIds, setExcludedComponentIds] = useState<Set<string>>(new Set()) // Components to exclude even if parent selected
   const [selectionSearchQuery, setSelectionSearchQuery] = useState('')
   const [selectionExpandedCategories, setSelectionExpandedCategories] = useState<Set<string>>(new Set())
+  const [expandedItemIds, setExpandedItemIds] = useState<Set<string>>(new Set()) // Items expanded to show components
 
   // Created quote data (for Step 3 preview)
   const [createdQuote, setCreatedQuote] = useState<any>(null)
@@ -247,7 +249,7 @@ export default function CreateClientQuoteDialog({
         !EXCLUDED_INVOICE_STATUSES.includes(item.specStatus || '')
       )
 
-      buildLineItems(invoiceableItems)
+      buildLineItems(invoiceableItems, excludedComponentIds)
 
       // Auto-generate title - use item name if only one item, otherwise use categories
       if (invoiceableItems.length === 1) {
@@ -269,7 +271,7 @@ export default function CreateClientQuoteDialog({
       const categories = [...new Set(invoiceableItems.map(i => i.category || i.sectionName || 'Items'))]
       setExpandedCategories(new Set(categories))
     }
-  }, [specItems, preselectedItemIds, selectedItemIds])
+  }, [specItems, preselectedItemIds, selectedItemIds, excludedComponentIds])
 
   const loadSpecItems = async () => {
     setLoading(true)
@@ -294,7 +296,8 @@ export default function CreateClientQuoteDialog({
   // Build line items using RRP only (no markup calculation needed)
   // Items must have RRP set - this is validated in the filter above
   // Components are added as separate line items with their own qty, price, image
-  const buildLineItems = (items: SpecItem[]) => {
+  // excludedComps: Set of component IDs to exclude from the invoice
+  const buildLineItems = (items: SpecItem[], excludedComps: Set<string> = new Set()) => {
     const newLineItems: LineItem[] = []
 
     items.forEach(item => {
@@ -307,27 +310,35 @@ export default function CreateClientQuoteDialog({
       const sellingPrice = item.rrp || 0
       const quantity = item.quantity || 1
 
-      // Add main item
-      newLineItems.push({
-        id: `line-${item.id}`,
-        itemId: item.id,
-        name: item.name,
-        description: item.description,
-        category,
-        quantity,
-        unitType: item.unitType || 'units',
-        costPrice,
-        sellingPrice,
-        totalPrice: sellingPrice * quantity,
-        roomName: item.roomName,
-        currency: item.rrpCurrency || 'CAD',
-        imageUrl: item.images && item.images.length > 0 ? item.images[0] : undefined,
-        isComponent: false
-      })
+      // Add main item (check if item itself is not excluded - for component-only selection)
+      // An item is excluded if ALL its components are selected but item itself is in excludedComponentIds
+      const itemExcludedAsParent = excludedComps.has(`parent-${item.id}`)
 
-      // Add each component as a separate line item
+      if (!itemExcludedAsParent) {
+        newLineItems.push({
+          id: `line-${item.id}`,
+          itemId: item.id,
+          name: item.name,
+          description: item.description,
+          category,
+          quantity,
+          unitType: item.unitType || 'units',
+          costPrice,
+          sellingPrice,
+          totalPrice: sellingPrice * quantity,
+          roomName: item.roomName,
+          currency: item.rrpCurrency || 'CAD',
+          imageUrl: item.images && item.images.length > 0 ? item.images[0] : undefined,
+          isComponent: false
+        })
+      }
+
+      // Add each component as a separate line item (unless excluded)
       if (item.components && item.components.length > 0) {
         item.components.forEach(comp => {
+          // Skip if this component is excluded
+          if (excludedComps.has(comp.id)) return
+
           // Use priceWithMarkup (RRP) for client-facing price, fallback to price
           const compPrice = comp.priceWithMarkup ?? comp.price ?? 0
           const compQty = comp.quantity || 1
@@ -666,6 +677,8 @@ export default function CreateClientQuoteDialog({
     setShowCreditCardOption(true)
     setAdditionalCharges([])
     setSelectedItemIds(new Set())
+    setExcludedComponentIds(new Set())
+    setExpandedItemIds(new Set())
     setSelectionSearchQuery('')
     setSelectionExpandedCategories(new Set())
   }
@@ -998,74 +1011,195 @@ export default function CreateClientQuoteDialog({
                                   ? 'Not approved'
                                   : null
 
+                                const hasComponents = item.components && item.components.length > 0
+                                const isItemExpanded = expandedItemIds.has(item.id)
+                                const isParentExcluded = excludedComponentIds.has(`parent-${item.id}`)
+
                                 return (
-                                  <div
-                                    key={item.id}
-                                    className={cn(
-                                      'flex items-center gap-3 p-2 rounded-lg border',
-                                      canInvoice
-                                        ? 'cursor-pointer hover:bg-gray-50'
-                                        : 'opacity-60 cursor-not-allowed bg-gray-50',
-                                      isSelected && 'border-emerald-300 bg-emerald-50',
-                                      hasInvoiceStatus && !isSelected && 'border-amber-200 bg-amber-50/50'
-                                    )}
-                                    onClick={() => canInvoice && toggleItemSelection(item.id)}
-                                  >
-                                    <Checkbox
-                                      checked={isSelected}
-                                      disabled={!canInvoice}
-                                      className={cn(!canInvoice && 'opacity-50')}
-                                    />
-                                    {item.images?.[0] && (
-                                      <img
-                                        src={item.images[0]}
-                                        alt=""
-                                        className="w-10 h-10 rounded object-cover"
-                                      />
-                                    )}
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center gap-2">
-                                        <p className="font-medium text-sm truncate">{item.name}</p>
-                                        {isApproved ? (
-                                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" title="Client Approved" />
-                                        ) : hasPrice && (
-                                          <ShieldX className="w-3.5 h-3.5 text-red-400 flex-shrink-0" title="Not Approved" />
-                                        )}
-                                        {isPaid && (
-                                          <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-300 px-1.5 py-0">
-                                            <DollarSign className="w-3 h-3 mr-0.5" />
-                                            Paid
-                                          </Badge>
-                                        )}
-                                        {isAlreadyInvoiced && (
-                                          <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-300 px-1.5 py-0">
-                                            <FileText className="w-3 h-3 mr-0.5" />
-                                            Invoiced
-                                          </Badge>
-                                        )}
-                                      </div>
-                                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                                        {item.roomName && <span>{item.roomName}</span>}
-                                        {item.brand && <span>• {item.brand}</span>}
-                                      </div>
-                                    </div>
-                                    <div className="text-right">
-                                      {canInvoice ? (
-                                        <>
-                                          <p className="font-medium text-sm">{formatCurrency(price, invoiceCurrency)}</p>
-                                          <p className="text-xs text-gray-500">
-                                            Qty: {item.quantity || 1}
-                                          </p>
-                                        </>
-                                      ) : (
-                                        <p className={cn(
-                                          "text-xs",
-                                          !hasPrice ? "text-amber-600" : "text-red-500"
-                                        )}>
-                                          {disabledReason}
-                                        </p>
+                                  <div key={item.id} className="space-y-1">
+                                    <div
+                                      className={cn(
+                                        'flex items-center gap-3 p-2 rounded-lg border',
+                                        canInvoice
+                                          ? 'cursor-pointer hover:bg-gray-50'
+                                          : 'opacity-60 cursor-not-allowed bg-gray-50',
+                                        isSelected && !isParentExcluded && 'border-emerald-300 bg-emerald-50',
+                                        isSelected && isParentExcluded && 'border-gray-300 bg-gray-50',
+                                        hasInvoiceStatus && !isSelected && 'border-amber-200 bg-amber-50/50'
                                       )}
+                                    >
+                                      {/* Expand button for items with components */}
+                                      {hasComponents ? (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            setExpandedItemIds(prev => {
+                                              const next = new Set(prev)
+                                              if (next.has(item.id)) {
+                                                next.delete(item.id)
+                                              } else {
+                                                next.add(item.id)
+                                              }
+                                              return next
+                                            })
+                                          }}
+                                          className="p-0.5 hover:bg-gray-200 rounded"
+                                        >
+                                          {isItemExpanded ? (
+                                            <ChevronDown className="w-4 h-4 text-gray-400" />
+                                          ) : (
+                                            <ChevronRight className="w-4 h-4 text-gray-400" />
+                                          )}
+                                        </button>
+                                      ) : (
+                                        <div className="w-5" />
+                                      )}
+                                      <div onClick={() => canInvoice && toggleItemSelection(item.id)} className="flex items-center gap-3 flex-1">
+                                        <Checkbox
+                                          checked={isSelected && !isParentExcluded}
+                                          disabled={!canInvoice}
+                                          className={cn(!canInvoice && 'opacity-50')}
+                                          onCheckedChange={() => {
+                                            if (canInvoice) {
+                                              if (isSelected && isParentExcluded) {
+                                                // Re-include parent
+                                                setExcludedComponentIds(prev => {
+                                                  const next = new Set(prev)
+                                                  next.delete(`parent-${item.id}`)
+                                                  return next
+                                                })
+                                              } else if (isSelected) {
+                                                // Exclude parent but keep components
+                                                setExcludedComponentIds(prev => {
+                                                  const next = new Set(prev)
+                                                  next.add(`parent-${item.id}`)
+                                                  return next
+                                                })
+                                              } else {
+                                                toggleItemSelection(item.id)
+                                              }
+                                            }
+                                          }}
+                                        />
+                                        {item.images?.[0] && (
+                                          <img
+                                            src={item.images[0]}
+                                            alt=""
+                                            className="w-10 h-10 rounded object-cover"
+                                          />
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-2">
+                                            <p className={cn(
+                                              "font-medium text-sm truncate",
+                                              isParentExcluded && "line-through text-gray-400"
+                                            )}>{item.name}</p>
+                                            {isApproved ? (
+                                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" title="Client Approved" />
+                                            ) : hasPrice && (
+                                              <ShieldX className="w-3.5 h-3.5 text-red-400 flex-shrink-0" title="Not Approved" />
+                                            )}
+                                            {isPaid && (
+                                              <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-300 px-1.5 py-0">
+                                                <DollarSign className="w-3 h-3 mr-0.5" />
+                                                Paid
+                                              </Badge>
+                                            )}
+                                            {isAlreadyInvoiced && (
+                                              <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-300 px-1.5 py-0">
+                                                <FileText className="w-3 h-3 mr-0.5" />
+                                                Invoiced
+                                              </Badge>
+                                            )}
+                                            {hasComponents && (
+                                              <Badge variant="outline" className="text-xs bg-blue-50 text-blue-600 border-blue-200 px-1.5 py-0">
+                                                {item.components!.length} component{item.components!.length !== 1 ? 's' : ''}
+                                              </Badge>
+                                            )}
+                                          </div>
+                                          <div className="flex items-center gap-2 text-xs text-gray-500">
+                                            {item.roomName && <span>{item.roomName}</span>}
+                                            {item.brand && <span>• {item.brand}</span>}
+                                          </div>
+                                        </div>
+                                        <div className="text-right">
+                                          {canInvoice ? (
+                                            <>
+                                              <p className={cn(
+                                                "font-medium text-sm",
+                                                isParentExcluded && "line-through text-gray-400"
+                                              )}>{formatCurrency(price, invoiceCurrency)}</p>
+                                              <p className="text-xs text-gray-500">
+                                                Qty: {item.quantity || 1}
+                                              </p>
+                                            </>
+                                          ) : (
+                                            <p className={cn(
+                                              "text-xs",
+                                              !hasPrice ? "text-amber-600" : "text-red-500"
+                                            )}>
+                                              {disabledReason}
+                                            </p>
+                                          )}
+                                        </div>
+                                      </div>
                                     </div>
+
+                                    {/* Components list */}
+                                    {hasComponents && isItemExpanded && isSelected && (
+                                      <div className="ml-8 pl-4 border-l-2 border-blue-200 space-y-1">
+                                        {item.components!.map(comp => {
+                                          const compPrice = comp.priceWithMarkup ?? comp.price ?? 0
+                                          const isCompExcluded = excludedComponentIds.has(comp.id)
+
+                                          return (
+                                            <div
+                                              key={comp.id}
+                                              className={cn(
+                                                "flex items-center gap-3 p-2 rounded-lg border cursor-pointer hover:bg-gray-50",
+                                                !isCompExcluded && "border-emerald-200 bg-emerald-50/50",
+                                                isCompExcluded && "border-gray-200 bg-gray-50 opacity-60"
+                                              )}
+                                              onClick={() => {
+                                                setExcludedComponentIds(prev => {
+                                                  const next = new Set(prev)
+                                                  if (next.has(comp.id)) {
+                                                    next.delete(comp.id)
+                                                  } else {
+                                                    next.add(comp.id)
+                                                  }
+                                                  return next
+                                                })
+                                              }}
+                                            >
+                                              <Checkbox checked={!isCompExcluded} />
+                                              {comp.image && (
+                                                <img
+                                                  src={comp.image}
+                                                  alt=""
+                                                  className="w-8 h-8 rounded object-cover"
+                                                />
+                                              )}
+                                              <div className="flex-1 min-w-0">
+                                                <p className={cn(
+                                                  "text-sm",
+                                                  isCompExcluded && "line-through text-gray-400"
+                                                )}>{comp.name}</p>
+                                                <p className="text-xs text-blue-600">Component</p>
+                                              </div>
+                                              <div className="text-right">
+                                                <p className={cn(
+                                                  "text-sm font-medium",
+                                                  isCompExcluded && "line-through text-gray-400"
+                                                )}>{formatCurrency(compPrice, invoiceCurrency)}</p>
+                                                <p className="text-xs text-gray-500">Qty: {comp.quantity || 1}</p>
+                                              </div>
+                                            </div>
+                                          )
+                                        })}
+                                      </div>
+                                    )}
                                   </div>
                                 )
                               })}
