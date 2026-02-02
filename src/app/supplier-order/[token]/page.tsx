@@ -841,44 +841,17 @@ export default function SupplierOrderPortal() {
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {order.paymentCardNumber && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setShowFullCardDetails(true)}
-                              className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                            >
-                              <Eye className="w-4 h-4 mr-1" />
-                              Show Full Details
-                            </Button>
-                          )}
-                          {/* Quick Confirm Charge Button (visible even when card details hidden) */}
-                          {(() => {
-                            const hasUnpaidDeposit = order.depositRequired && order.depositRequired > 0 && (!order.depositPaid || order.depositPaid < order.depositRequired)
-                            const depositRemaining = hasUnpaidDeposit ? (order.depositRequired! - (order.depositPaid || 0)) : 0
-                            const balanceRemaining = order.totalAmount - (order.supplierPaymentAmount || 0)
-                            const amountToCharge = hasUnpaidDeposit ? depositRemaining : balanceRemaining
-
-                            if (amountToCharge <= 0) return null
-
-                            return (
-                              <Button
-                                size="sm"
-                                onClick={() => handleAction('record_payment', {
-                                  amount: amountToCharge,
-                                  method: 'CARD',
-                                  notes: hasUnpaidDeposit ? 'Deposit charged to card on file' : 'Charged to card on file'
-                                })}
-                                disabled={submitting}
-                                className="bg-emerald-600 hover:bg-emerald-700"
-                              >
-                                {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
-                                Confirm Charge
-                              </Button>
-                            )
-                          })()}
-                        </div>
+                        {order.paymentCardNumber && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowFullCardDetails(true)}
+                            className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            Show Full Details
+                          </Button>
+                        )}
                       </div>
                     )}
                   </div>
