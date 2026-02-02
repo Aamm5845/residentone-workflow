@@ -325,7 +325,13 @@ async function drawItemCell(
   // === DRAW IMAGE ===
   if (item.imageUrl) {
     try {
-      const response = await fetch(item.imageUrl)
+      // Add timeout to prevent slow images from blocking the entire export
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout per image
+
+      const response = await fetch(item.imageUrl, { signal: controller.signal })
+      clearTimeout(timeoutId)
+
       if (response.ok) {
         const imageBytes = await response.arrayBuffer()
         const contentType = response.headers.get('content-type') || ''
