@@ -18,7 +18,6 @@ import {
   CalendarDays,
   Package,
   FileText,
-  Building2
 } from 'lucide-react'
 import { changelog, countUnseenUpdates } from '@/data/changelog'
 
@@ -100,8 +99,6 @@ export function NavigationMenu({ sidebarCollapsed, userRole }: NavigationMenuPro
     { name: 'Timeline', href: '/timeline', icon: Clock, color: 'text-cyan-600' },
     { name: 'Team', href: '/team', icon: Users, color: 'text-green-600' },
     { name: 'Reports', href: '/reports', icon: BarChart3, color: 'text-purple-600' },
-    // Financials - OWNER only
-    ...(userRole === 'OWNER' ? [{ name: 'Financials', href: '/financials', icon: Building2, color: 'text-green-600' }] : []),
   ]
 
   const updatesNavigation = [
