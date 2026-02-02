@@ -31,8 +31,10 @@ import {
   Check,
   FileText,
   History,
-  Percent
+  Percent,
+  Crop
 } from 'lucide-react'
+import LogoCropperDialog from '@/components/image/LogoCropperDialog'
 
 // Flag icons as SVG components
 const CanadaFlag = ({ className }: { className?: string }) => (
@@ -200,6 +202,8 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
   const [saving, setSaving] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [newEmail, setNewEmail] = useState('')
+  const [showCropperDialog, setShowCropperDialog] = useState(false)
+  const [pendingImageFile, setPendingImageFile] = useState<File | null>(null)
   
   // Category form
   const [newCategoryName, setNewCategoryName] = useState('')
@@ -420,17 +424,24 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
     }
   }
 
-  const handleLogoUpload = async (file: File) => {
+  // Handle file selection - open cropper
+  const handleFileSelect = (file: File) => {
+    setPendingImageFile(file)
+    setShowCropperDialog(true)
+  }
+
+  // Handle cropped image upload
+  const handleCroppedLogoUpload = async (croppedBlob: Blob) => {
     try {
       setUploadingLogo(true)
       const formDataUpload = new FormData()
-      formDataUpload.append('file', file)
-      
+      formDataUpload.append('file', croppedBlob, 'logo.png')
+
       const response = await fetch('/api/upload-image', {
         method: 'POST',
         body: formDataUpload
       })
-      
+
       if (response.ok) {
         const data = await response.json()
         if (data.url) {
@@ -445,6 +456,7 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
       toast.error('Failed to upload logo')
     } finally {
       setUploadingLogo(false)
+      setPendingImageFile(null)
     }
   }
 
@@ -549,7 +561,7 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0]
-                if (file) handleLogoUpload(file)
+                if (file) handleFileSelect(file)
               }}
               disabled={uploadingLogo}
             />
@@ -1406,6 +1418,14 @@ export default function SuppliersPhonebook({ orgId, user }: SuppliersPhonebookPr
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Logo Cropper Dialog */}
+      <LogoCropperDialog
+        open={showCropperDialog}
+        onOpenChange={setShowCropperDialog}
+        imageFile={pendingImageFile}
+        onCropComplete={handleCroppedLogoUpload}
+      />
     </div>
   )
 }
