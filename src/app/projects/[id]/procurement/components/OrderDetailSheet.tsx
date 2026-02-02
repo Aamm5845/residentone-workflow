@@ -593,7 +593,7 @@ export default function OrderDetailSheet({
                   </div>
                   {order.orderedAt && (
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Ordered</span>
+                      <span className="text-gray-500">Sent</span>
                       <span>{formatDate(order.orderedAt)}</span>
                     </div>
                   )}
