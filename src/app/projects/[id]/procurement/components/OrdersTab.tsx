@@ -714,29 +714,11 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                 const groupKey = group.supplierId || `name-${group.supplierName}`
                 const isExpanded = expandedSuppliers.has(groupKey)
 
-                // Flatten items and components into one list
-                const allItems: any[] = []
+                // Calculate total item count (parents + components)
                 const currency = group.currency || 'CAD'
-                group.items.forEach(item => {
-                  allItems.push({ ...item, isComponent: false, currency })
-                  // Add components as separate items
-                  if (item.components && item.components.length > 0) {
-                    item.components.forEach((comp: any) => {
-                      allItems.push({
-                        id: comp.id,
-                        name: comp.name,
-                        description: comp.modelNumber ? `Model: ${comp.modelNumber}` : null,
-                        roomName: item.roomName,
-                        quantity: comp.quantity || 1,
-                        tradePrice: comp.price,
-                        imageUrl: comp.imageUrl || null,
-                        isComponent: true,
-                        parentName: item.name,
-                        currency
-                      })
-                    })
-                  }
-                })
+                const totalItemCount = group.items.reduce((count, item) => {
+                  return count + 1 + (item.components?.length || 0)
+                }, 0)
 
                 return (
                   <div key={groupKey} className="border border-gray-200 rounded-lg bg-white overflow-hidden">
@@ -763,7 +745,7 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                         )}
                         <span className="font-medium text-gray-900">{group.supplierName}</span>
                         <Badge variant="outline" className="ml-2">
-                          {allItems.length} item{allItems.length > 1 ? 's' : ''}
+                          {totalItemCount} item{totalItemCount > 1 ? 's' : ''}
                         </Badge>
                       </button>
                       <div className="flex items-center gap-3">
@@ -788,53 +770,77 @@ export default function OrdersTab({ projectId, searchQuery }: OrdersTabProps) {
                     {isExpanded && (
                       <div className="border-t bg-gray-50 p-3">
                         <div className="space-y-2">
-                          {allItems.map((item, itemIndex) => (
-                            <div
-                              key={item.id || `item-${itemIndex}`}
-                              className="flex items-center justify-between p-2 bg-white rounded border"
-                            >
-                              <div className="flex items-center gap-3">
-                                {/* Item Image */}
-                                {item.imageUrl ? (
-                                  <img
-                                    src={item.imageUrl}
-                                    alt={item.name}
-                                    className="w-10 h-10 object-cover rounded border"
-                                  />
-                                ) : (
-                                  <div className="w-10 h-10 bg-gray-100 rounded border flex items-center justify-center">
-                                    <Package className="w-5 h-5 text-gray-400" />
-                                  </div>
-                                )}
-                                <div>
-                                  <p className="text-sm font-medium">
-                                    {item.name}
-                                    {item.isComponent && (
-                                      <span className="ml-2 text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
-                                        Component
-                                      </span>
-                                    )}
-                                  </p>
-                                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                                    {item.roomName && <span>{item.roomName}</span>}
-                                    <span>•</span>
-                                    <span>Qty: {item.quantity}</span>
-                                    {item.isComponent && item.parentName && (
-                                      <>
-                                        <span>•</span>
-                                        <span>for {item.parentName}</span>
-                                      </>
-                                    )}
+                          {group.items.map((item, itemIndex) => (
+                            <div key={item.id || `item-${itemIndex}`}>
+                              {/* Parent Item */}
+                              <div className="flex items-center justify-between p-2 bg-white rounded border">
+                                <div className="flex items-center gap-3">
+                                  {item.imageUrl ? (
+                                    <img
+                                      src={item.imageUrl}
+                                      alt={item.name}
+                                      className="w-10 h-10 object-cover rounded border"
+                                    />
+                                  ) : (
+                                    <div className="w-10 h-10 bg-gray-100 rounded border flex items-center justify-center">
+                                      <Package className="w-5 h-5 text-gray-400" />
+                                    </div>
+                                  )}
+                                  <div>
+                                    <p className="text-sm font-medium">{item.name}</p>
+                                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                                      {item.roomName && <span>{item.roomName}</span>}
+                                      <span>•</span>
+                                      <span>Qty: {item.quantity}</span>
+                                    </div>
                                   </div>
                                 </div>
+                                <div className="text-right">
+                                  <p className="text-sm font-medium">
+                                    {formatCurrency(
+                                      (item.supplierQuote?.unitPrice || item.tradePrice || 0) * (item.quantity || 1)
+                                    )}{currency === 'USD' ? ' USD' : ''}
+                                  </p>
+                                </div>
                               </div>
-                              <div className="text-right">
-                                <p className="text-sm font-medium">
-                                  {formatCurrency(
-                                    (item.supplierQuote?.unitPrice || item.tradePrice || 0) * (item.quantity || 1)
-                                  )}{item.currency === 'USD' ? ' USD' : ''}
-                                </p>
-                              </div>
+                              {/* Child Components - indented under parent */}
+                              {item.components && item.components.length > 0 && (
+                                <div className="ml-6 mt-1 space-y-1">
+                                  {item.components.map((comp: any, compIndex: number) => (
+                                    <div
+                                      key={comp.id || `comp-${compIndex}`}
+                                      className="flex items-center justify-between p-2 bg-white rounded border border-l-2 border-l-gray-300"
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        {comp.imageUrl ? (
+                                          <img
+                                            src={comp.imageUrl}
+                                            alt={comp.name}
+                                            className="w-8 h-8 object-cover rounded border"
+                                          />
+                                        ) : (
+                                          <div className="w-8 h-8 bg-gray-100 rounded border flex items-center justify-center">
+                                            <Package className="w-4 h-4 text-gray-400" />
+                                          </div>
+                                        )}
+                                        <div>
+                                          <p className="text-sm">{comp.name}</p>
+                                          <div className="flex items-center gap-2 text-xs text-gray-500">
+                                            {comp.modelNumber && <span>{comp.modelNumber}</span>}
+                                            <span>•</span>
+                                            <span>Qty: {comp.quantity || 1}</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="text-right">
+                                        <p className="text-sm">
+                                          {formatCurrency((comp.price || 0) * (comp.quantity || 1))}{currency === 'USD' ? ' USD' : ''}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>

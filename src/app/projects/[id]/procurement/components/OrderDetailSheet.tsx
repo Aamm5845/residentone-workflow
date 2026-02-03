@@ -637,65 +637,83 @@ export default function OrderDetailSheet({
                   Items ({order.items.length})
                 </h3>
                 <div className="space-y-2">
-                  {order.items.map((item) => {
-                    const imageUrl = item.imageUrl || item.roomFFEItem?.images?.[0]
+                  {(() => {
+                    // Group items: parent items first, then their components
+                    const parentItems = order.items.filter(item => !item.isComponent)
+                    const componentItems = order.items.filter(item => item.isComponent)
 
-                    return (
-                      <div
-                        key={item.id}
-                        className="flex items-center justify-between p-3 bg-white border rounded-lg"
-                      >
-                        <div className="flex items-center gap-3">
-                          {imageUrl ? (
-                            <img
-                              src={imageUrl}
-                              alt={item.name}
-                              className="w-10 h-10 object-cover rounded border"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 bg-gray-100 rounded border flex items-center justify-center">
-                              <Package className="w-5 h-5 text-gray-400" />
-                            </div>
-                          )}
-                          <div>
-                            <p className="font-medium text-gray-900">
-                              {item.name}
-                              {item.isComponent && (
-                                <span className="ml-2 text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
-                                  Component
-                                </span>
-                              )}
-                            </p>
-                            <div className="flex items-center gap-2 text-xs text-gray-500">
-                              {item.roomName && (
-                                <>
-                                  <span>{item.roomName}</span>
-                                  <span>•</span>
-                                </>
-                              )}
-                              <span>Qty: {item.quantity}</span>
-                              {item.roomFFEItem?.modelNumber && (
-                                <>
-                                  <span>•</span>
-                                  <span>{item.roomFFEItem.modelNumber}</span>
-                                </>
-                              )}
+                    // Build ordered list: each parent followed by its components
+                    const orderedItems: OrderItem[] = []
+                    parentItems.forEach(parent => {
+                      orderedItems.push(parent)
+                      // Find components that belong to this parent
+                      const children = componentItems.filter(c => c.parentItemId === parent.id)
+                      orderedItems.push(...children)
+                    })
+                    // Add any orphan components (no parent found)
+                    const usedComponentIds = new Set(orderedItems.filter(i => i.isComponent).map(i => i.id))
+                    componentItems.forEach(comp => {
+                      if (!usedComponentIds.has(comp.id)) {
+                        orderedItems.push(comp)
+                      }
+                    })
+
+                    return orderedItems.map((item) => {
+                      const imageUrl = item.imageUrl || item.roomFFEItem?.images?.[0]
+                      const isComponent = item.isComponent
+
+                      return (
+                        <div
+                          key={item.id}
+                          className={`flex items-center justify-between p-3 bg-white border rounded-lg ${isComponent ? 'ml-6 border-l-2 border-l-gray-300' : ''}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            {imageUrl ? (
+                              <img
+                                src={imageUrl}
+                                alt={item.name}
+                                className={`object-cover rounded border ${isComponent ? 'w-8 h-8' : 'w-10 h-10'}`}
+                              />
+                            ) : (
+                              <div className={`bg-gray-100 rounded border flex items-center justify-center ${isComponent ? 'w-8 h-8' : 'w-10 h-10'}`}>
+                                <Package className={`text-gray-400 ${isComponent ? 'w-4 h-4' : 'w-5 h-5'}`} />
+                              </div>
+                            )}
+                            <div>
+                              <p className={`font-medium text-gray-900 ${isComponent ? 'text-sm' : ''}`}>
+                                {item.name}
+                              </p>
+                              <div className="flex items-center gap-2 text-xs text-gray-500">
+                                {item.roomName && (
+                                  <>
+                                    <span>{item.roomName}</span>
+                                    <span>•</span>
+                                  </>
+                                )}
+                                <span>Qty: {item.quantity}</span>
+                                {item.roomFFEItem?.modelNumber && (
+                                  <>
+                                    <span>•</span>
+                                    <span>{item.roomFFEItem.modelNumber}</span>
+                                  </>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-medium text-gray-900">
-                            {formatCurrency(item.totalPrice, order.currency)}
-                          </p>
-                          {item.quantity > 1 && (
-                            <p className="text-xs text-gray-500">
-                              {formatCurrency(item.unitPrice, order.currency)} × {item.quantity}
+                          <div className="text-right">
+                            <p className={`font-medium text-gray-900 ${isComponent ? 'text-sm' : ''}`}>
+                              {formatCurrency(item.totalPrice, order.currency)}
                             </p>
-                          )}
+                            {item.quantity > 1 && (
+                              <p className="text-xs text-gray-500">
+                                {formatCurrency(item.unitPrice, order.currency)} × {item.quantity}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    )
-                  })}
+                      )
+                    })
+                  })()}
                 </div>
               </div>
 
