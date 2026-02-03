@@ -57,7 +57,7 @@ interface Order {
     id: string
     name: string
     email: string | null
-  }
+  } | null
   _count: {
     items: number
   }
@@ -319,7 +319,7 @@ export default function DeliveryTrackerTab({ projectId, searchQuery }: DeliveryT
   // Filter orders based on search
   const filteredOrders = orders.filter(order =>
     !searchQuery ||
-    order.supplier.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    order.supplier?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
     order.trackingNumber?.toLowerCase().includes(searchQuery.toLowerCase())
   )
@@ -433,7 +433,7 @@ export default function DeliveryTrackerTab({ projectId, searchQuery }: DeliveryT
                           <div className="flex items-start justify-between mb-2">
                             <div>
                               <span className="text-sm font-medium text-gray-900">
-                                {order.supplier.name}
+                                {order.supplier?.name || 'No Supplier'}
                               </span>
                               <p className="text-xs text-gray-500 font-mono">
                                 PO-{order.orderNumber}
@@ -613,7 +613,7 @@ export default function DeliveryTrackerTab({ projectId, searchQuery }: DeliveryT
                       onClick={() => setSelectedOrderId(order.id)}
                     >
                       <td className="p-3 font-mono text-sm text-gray-900">PO-{order.orderNumber}</td>
-                      <td className="p-3 font-medium text-gray-900">{order.supplier.name}</td>
+                      <td className="p-3 font-medium text-gray-900">{order.supplier?.name || 'No Supplier'}</td>
                       <td className="p-3 text-gray-600">{order._count.items}</td>
                       <td className="p-3">
                         <div className="flex items-center gap-2">
@@ -687,7 +687,7 @@ export default function DeliveryTrackerTab({ projectId, searchQuery }: DeliveryT
             </DialogTitle>
             <DialogDescription>
               {selectedOrder && (
-                <>PO-{selectedOrder.orderNumber} • {selectedOrder.supplier.name}</>
+                <>PO-{selectedOrder.orderNumber} • {selectedOrder.supplier?.name || 'No Supplier'}</>
               )}
             </DialogDescription>
           </DialogHeader>
