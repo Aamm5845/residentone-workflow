@@ -1,9 +1,16 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
 import { Loader2, FileText, ChevronDown, Building, Banknote, CheckCircle, X, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import dynamic from 'next/dynamic'
+
+// Dynamically import Solo payment form (client-side only)
+const SoloPaymentForm = dynamic(
+  () => import('@/components/client-portal/SoloPaymentForm'),
+  { ssr: false, loading: () => <div className="py-8 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto" /></div> }
+)
 
 interface LineItem {
   id: string
@@ -76,13 +83,16 @@ interface InvoiceData {
 
 export default function BillingInvoiceClientPage() {
   const params = useParams()
+  const searchParams = useSearchParams()
   const token = params?.token as string
+  const paymentStatus = searchParams?.get('payment')
   const [invoice, setInvoice] = useState<InvoiceData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showWireInfo, setShowWireInfo] = useState(false)
   const [showEtransferInfo, setShowEtransferInfo] = useState(false)
   const [showCheckInfo, setShowCheckInfo] = useState(false)
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false)
 
   useEffect(() => {
     if (token) {
@@ -128,6 +138,18 @@ export default function BillingInvoiceClientPage() {
     return invoice.balanceDue + ccFee
   }
 
+  const handlePayWithCard = () => {
+    setShowPaymentDialog(true)
+  }
+
+  const handlePaymentSuccess = () => {
+    setShowPaymentDialog(false)
+    // Reload invoice to show updated status
+    loadInvoice()
+    // Update URL to show success
+    window.history.replaceState({}, '', `${window.location.pathname}?payment=success`)
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -154,6 +176,17 @@ export default function BillingInvoiceClientPage() {
   return (
     <div className="min-h-screen bg-gray-100 py-8 px-4">
       <div className="max-w-4xl mx-auto">
+        {/* Payment Success Message */}
+        {paymentStatus === 'success' && (
+          <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
+            <CheckCircle className="w-6 h-6 text-green-600" />
+            <div>
+              <p className="font-medium text-green-800">Payment Successful!</p>
+              <p className="text-sm text-green-600">Thank you for your payment. You will receive a confirmation email shortly.</p>
+            </div>
+          </div>
+        )}
+
         {/* Invoice Card */}
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
           {/* Header */}
@@ -161,11 +194,13 @@ export default function BillingInvoiceClientPage() {
             <div className="flex justify-between items-start">
               <div>
                 {invoice.organization?.logoUrl ? (
-                  <img
-                    src={invoice.organization.logoUrl}
-                    alt={companyName}
-                    className="h-16 mb-4"
-                  />
+                  <div className="bg-white rounded-lg p-3 inline-block mb-4">
+                    <img
+                      src={invoice.organization.logoUrl}
+                      alt={companyName}
+                      className="h-12 max-w-[200px] object-contain"
+                    />
+                  </div>
                 ) : (
                   <h1 className="text-2xl font-bold mb-2">{companyName}</h1>
                 )}
@@ -333,10 +368,10 @@ export default function BillingInvoiceClientPage() {
               <div className="space-y-4">
                 {/* Credit Card */}
                 {invoice.allowCreditCard && (
-                  <div className="bg-white rounded-xl border-2 border-emerald-200 p-5">
+                  <div className="bg-white rounded-xl border-2 border-slate-200 p-5">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
+                        <div className="w-10 h-10 bg-[#635BFF] rounded-lg flex items-center justify-center">
                           <svg viewBox="0 0 24 24" className="w-6 h-6 text-white" fill="currentColor">
                             <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zm0 2v2h16V6H4zm0 6v6h16v-6H4zm2 2h4v2H6v-2z"/>
                           </svg>
@@ -361,7 +396,10 @@ export default function BillingInvoiceClientPage() {
                         <span>{formatCurrency(calculateCCTotal())}</span>
                       </div>
                     </div>
-                    <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 text-lg">
+                    <Button
+                      onClick={handlePayWithCard}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 text-lg"
+                    >
                       Pay {formatCurrency(calculateCCTotal())}
                     </Button>
                   </div>
@@ -453,6 +491,26 @@ export default function BillingInvoiceClientPage() {
             </div>
           )}
 
+          {/* Paid Section */}
+          {isPaid && (
+            <div className="bg-green-50 p-8 border-t">
+              <div className="text-center py-4">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
+                  <CheckCircle className="w-10 h-10 text-green-600" />
+                </div>
+                <h3 className="text-xl font-bold text-green-700 mb-2">Invoice Paid</h3>
+                <p className="text-gray-600">
+                  Thank you for your payment of {formatCurrency(invoice.amountPaid || invoice.totalAmount)}
+                </p>
+                {invoice.paidInFullAt && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    Paid on {formatDate(invoice.paidInFullAt)}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Notes & Footer */}
           {(invoice.notes || invoice.termsAndConditions) && (
             <div className="px-8 py-6 border-t bg-slate-50">
@@ -485,6 +543,37 @@ export default function BillingInvoiceClientPage() {
           </Button>
         </div>
       </div>
+
+      {/* Payment Dialog */}
+      {showPaymentDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Make Payment</h2>
+                <p className="text-sm text-gray-500">{invoice.invoiceNumber}</p>
+              </div>
+              <button
+                onClick={() => setShowPaymentDialog(false)}
+                className="p-2 hover:bg-gray-100 rounded-full"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="p-6">
+              <SoloPaymentForm
+                token={token}
+                quoteId={invoice.id}
+                amount={invoice.balanceDue}
+                currency="CAD"
+                onSuccess={handlePaymentSuccess}
+                onCancel={() => setShowPaymentDialog(false)}
+                apiBasePath="/api/billing/invoices"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

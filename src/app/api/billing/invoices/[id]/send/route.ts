@@ -108,7 +108,7 @@ export async function POST(
     }
     const typeLabel = typeLabels[invoice.type] || 'Invoice'
 
-    // Build email HTML
+    // Build email HTML with slate colors matching the portal
     const html = `
       <!DOCTYPE html>
       <html>
@@ -117,8 +117,10 @@ export async function POST(
           <title>${typeLabel} from ${companyName}</title>
           <style>
             .container { max-width: 600px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-            .header { background: linear-gradient(135deg, #10b981 0%, #14b8a6 100%); padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+            .header { background: linear-gradient(135deg, #334155 0%, #475569 100%); padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
             .header h1 { color: white; margin: 0; font-size: 24px; }
+            .logo-container { background: white; display: inline-block; padding: 12px 16px; border-radius: 8px; margin-bottom: 12px; }
+            .logo-container img { height: 40px; max-width: 180px; object-fit: contain; }
             .content { padding: 30px; background-color: #f8fafc; }
             .invoice-box {
               background-color: white;
@@ -152,7 +154,7 @@ export async function POST(
             .button {
               display: inline-block;
               padding: 14px 32px;
-              background: linear-gradient(135deg, #10b981 0%, #14b8a6 100%);
+              background: linear-gradient(135deg, #334155 0%, #475569 100%);
               color: white;
               text-decoration: none;
               border-radius: 6px;
@@ -173,7 +175,13 @@ export async function POST(
         <body style="background-color: #f1f5f9; padding: 20px;">
           <div class="container">
             <div class="header">
-              <h1>${companyName}</h1>
+              ${org?.logoUrl ? `
+                <div class="logo-container">
+                  <img src="${org.logoUrl}" alt="${companyName}" />
+                </div>
+              ` : `
+                <h1>${companyName}</h1>
+              `}
             </div>
             <div class="content">
               <p style="color: #475569; line-height: 1.6;">
@@ -183,7 +191,7 @@ export async function POST(
                 Please find attached your ${typeLabel.toLowerCase()} for <strong>${invoice.project.name}</strong>.
               </p>
               ${customMessage ? `
-              <div style="background-color: #f8fafc; border-left: 3px solid #10b981; padding: 16px; margin: 16px 0; border-radius: 4px;">
+              <div style="background-color: #f8fafc; border-left: 3px solid #475569; padding: 16px; margin: 16px 0; border-radius: 4px;">
                 <p style="color: #475569; line-height: 1.6; margin: 0; white-space: pre-wrap;">${customMessage}</p>
               </div>
               ` : ''}
