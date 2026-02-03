@@ -38,7 +38,7 @@ export default function RecordPaymentDialog({
   onSuccess,
 }: RecordPaymentDialogProps) {
   const [amount, setAmount] = useState(invoice.balanceDue.toString())
-  const [method, setMethod] = useState('BANK_TRANSFER')
+  const [method, setMethod] = useState('WIRE_TRANSFER')
   const [reference, setReference] = useState('')
   const [notes, setNotes] = useState('')
   const [paidAt, setPaidAt] = useState(new Date().toISOString().split('T')[0])
@@ -95,7 +95,7 @@ export default function RecordPaymentDialog({
         // Reset state
         setSuccess(false)
         setAmount(invoice.balanceDue.toString())
-        setMethod('BANK_TRANSFER')
+        setMethod('WIRE_TRANSFER')
         setReference('')
         setNotes('')
       }, 1500)
@@ -179,7 +179,7 @@ export default function RecordPaymentDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
+                <SelectItem value="WIRE_TRANSFER">Wire/Bank Transfer</SelectItem>
                 <SelectItem value="E_TRANSFER">Interac e-Transfer</SelectItem>
                 <SelectItem value="CHECK">Check</SelectItem>
                 <SelectItem value="CREDIT_CARD">Credit Card</SelectItem>

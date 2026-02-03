@@ -65,7 +65,7 @@ export async function POST(
     // Get method label for display
     const methodLabels: Record<string, string> = {
       CREDIT_CARD: 'Credit Card',
-      BANK_TRANSFER: 'Bank Transfer',
+      WIRE_TRANSFER: 'Wire Transfer',
       E_TRANSFER: 'Interac e-Transfer',
       CHECK: 'Check',
       CASH: 'Cash',
@@ -84,15 +84,16 @@ export async function POST(
     // Create payment record and update invoice
     await prisma.$transaction(async (tx) => {
       // Create payment record
-      await tx.billingInvoicePayment.create({
+      await tx.billingPayment.create({
         data: {
           billingInvoiceId: invoice.id,
           amount: paymentAmount,
           method: paymentMethod,
-          status: 'COMPLETED',
-          reference: reference || `MANUAL-${Date.now()}`,
+          status: 'CONFIRMED',
           notes: notes || undefined,
           paidAt: paidAt ? new Date(paidAt) : new Date(),
+          confirmedAt: new Date(),
+          confirmedById: session.user.id,
         }
       })
 
