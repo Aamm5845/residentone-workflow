@@ -37,6 +37,19 @@ export async function POST(
       return NextResponse.json({ error: 'No billing access' }, { status: 403 })
     }
 
+    // Parse optional body for custom email settings
+    let customEmail: string | undefined
+    let customSubject: string | undefined
+    let customMessage: string | undefined
+    try {
+      const body = await request.json()
+      customEmail = body.email
+      customSubject = body.subject
+      customMessage = body.message
+    } catch {
+      // No body or invalid JSON is fine
+    }
+
     // Get invoice with project info
     const invoice = await prisma.billingInvoice.findFirst({
       where: {
@@ -169,6 +182,11 @@ export async function POST(
               <p style="color: #475569; line-height: 1.6;">
                 Please find attached your ${typeLabel.toLowerCase()} for <strong>${invoice.project.name}</strong>.
               </p>
+              ${customMessage ? `
+              <div style="background-color: #f8fafc; border-left: 3px solid #10b981; padding: 16px; margin: 16px 0; border-radius: 4px;">
+                <p style="color: #475569; line-height: 1.6; margin: 0; white-space: pre-wrap;">${customMessage}</p>
+              </div>
+              ` : ''}
 
               <div class="invoice-box">
                 <div class="invoice-number">${invoice.invoiceNumber}</div>
@@ -207,10 +225,14 @@ export async function POST(
       </html>
     `
 
+    // Determine recipient and subject
+    const recipientEmail = customEmail || invoice.clientEmail
+    const emailSubject = customSubject || `${typeLabel} ${invoice.invoiceNumber} from ${companyName}`
+
     // Send email
     const emailSent = await sendEmail({
-      to: invoice.clientEmail,
-      subject: `${typeLabel} ${invoice.invoiceNumber} from ${companyName}`,
+      to: recipientEmail,
+      subject: emailSubject,
       html,
     })
 
@@ -232,13 +254,13 @@ export async function POST(
       data: {
         billingInvoiceId: id,
         type: 'SENT',
-        message: `Invoice sent to ${invoice.clientEmail}`,
+        message: `Invoice sent to ${recipientEmail}`,
       },
     })
 
     return NextResponse.json({
       success: true,
-      message: `Invoice sent to ${invoice.clientEmail}`,
+      message: `Invoice sent to ${recipientEmail}`,
     })
   } catch (error) {
     console.error('Error sending invoice:', error)

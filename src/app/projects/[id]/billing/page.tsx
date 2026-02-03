@@ -53,8 +53,18 @@ export default async function ProjectBillingPage({ params }: PageProps) {
   const org = session.user.orgId ? await prisma.organization.findUnique({
     where: { id: session.user.orgId },
     select: {
+      name: true,
       defaultGstRate: true,
       defaultQstRate: true,
+      businessName: true,
+      businessEmail: true,
+      businessPhone: true,
+      businessAddress: true,
+      businessCity: true,
+      businessProvince: true,
+      businessPostal: true,
+      wireInstructions: true,
+      etransferEmail: true,
     },
   }) : null
 
@@ -79,6 +89,18 @@ export default async function ProjectBillingPage({ params }: PageProps) {
           }}
           defaultGstRate={org?.defaultGstRate ? Number(org.defaultGstRate) : 5}
           defaultQstRate={org?.defaultQstRate ? Number(org.defaultQstRate) : 9.975}
+          organization={org ? {
+            name: org.name,
+            businessName: org.businessName || undefined,
+            businessEmail: org.businessEmail || undefined,
+            businessPhone: org.businessPhone || undefined,
+            businessAddress: org.businessAddress || undefined,
+            businessCity: org.businessCity || undefined,
+            businessProvince: org.businessProvince || undefined,
+            businessPostal: org.businessPostal || undefined,
+            wireInstructions: org.wireInstructions || undefined,
+            etransferEmail: org.etransferEmail || undefined,
+          } : null}
         />
       </Suspense>
     </DashboardLayout>
