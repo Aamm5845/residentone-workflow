@@ -39,6 +39,9 @@ const createInvoiceSchema = z.object({
   notes: z.string().optional().nullable(),
   termsAndConditions: z.string().optional().nullable(),
   allowCreditCard: z.boolean().default(true),
+  allowBankTransfer: z.boolean().default(true),
+  allowEtransfer: z.boolean().default(true),
+  allowCheck: z.boolean().default(true),
   ccFeePercent: z.number().min(0).default(2.9),
 })
 
@@ -145,6 +148,9 @@ export async function GET(request: NextRequest) {
       clientAddress: inv.clientAddress,
       accessToken: inv.accessToken,
       allowCreditCard: inv.allowCreditCard,
+      allowBankTransfer: inv.allowBankTransfer,
+      allowEtransfer: inv.allowEtransfer,
+      allowCheck: inv.allowCheck,
       ccFeePercent: Number(inv.ccFeePercent),
       notes: inv.notes,
       createdAt: inv.createdAt,
@@ -234,6 +240,9 @@ export async function POST(request: NextRequest) {
         notes: validatedData.notes,
         termsAndConditions: validatedData.termsAndConditions,
         allowCreditCard: validatedData.allowCreditCard,
+        allowBankTransfer: validatedData.allowBankTransfer,
+        allowEtransfer: validatedData.allowEtransfer,
+        allowCheck: validatedData.allowCheck,
         ccFeePercent: validatedData.ccFeePercent,
         createdById: session.user.id,
         lineItems: {

@@ -4400,8 +4400,11 @@ model BillingInvoice {
   viewedAt    DateTime?
 
   // Payment options
-  allowCreditCard Boolean  @default(true)
-  ccFeePercent    Decimal? @default(2.9) @db.Decimal(5, 2)
+  allowCreditCard   Boolean  @default(true)
+  ccFeePercent      Decimal? @default(2.9) @db.Decimal(5, 2)
+  allowBankTransfer Boolean  @default(true)
+  allowEtransfer    Boolean  @default(true)
+  allowCheck        Boolean  @default(true)
 
   // Metadata
   notes              String?  @db.Text

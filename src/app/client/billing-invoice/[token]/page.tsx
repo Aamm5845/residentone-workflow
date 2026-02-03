@@ -54,6 +54,9 @@ interface InvoiceData {
   dueDate?: string
   paidInFullAt?: string
   allowCreditCard: boolean
+  allowBankTransfer?: boolean
+  allowEtransfer?: boolean
+  allowCheck?: boolean
   ccFeePercent: number
   notes?: string
   termsAndConditions?: string
@@ -413,87 +416,93 @@ export default function BillingInvoiceClientPage() {
                 )}
 
                 {/* Wire Transfer */}
-                <div className="bg-white rounded-xl border">
-                  <button
-                    onClick={() => setShowWireInfo(!showWireInfo)}
-                    className="w-full p-5 flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Building className="w-5 h-5 text-slate-400" />
-                      <span className="font-medium text-slate-900">Wire Transfer / Direct Deposit</span>
-                    </div>
-                    <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${showWireInfo ? 'rotate-180' : ''}`} />
-                  </button>
-                  {showWireInfo && (
-                    <div className="px-5 pb-5 border-t">
-                      <div className="bg-slate-50 rounded-lg p-4 mt-4 text-sm text-slate-600">
-                        {invoice.organization?.wireInstructions ? (
-                          <pre className="whitespace-pre-wrap font-sans">{invoice.organization.wireInstructions}</pre>
-                        ) : (
-                          <>
-                            <p><span className="text-slate-400">Account #:</span> 0001827</p>
-                            <p><span className="text-slate-400">Routing #:</span> 01371</p>
-                            <p><span className="text-slate-400">Transit #:</span> 0006</p>
-                          </>
-                        )}
+                {(invoice.allowBankTransfer !== false) && (
+                  <div className="bg-white rounded-xl border">
+                    <button
+                      onClick={() => setShowWireInfo(!showWireInfo)}
+                      className="w-full p-5 flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Building className="w-5 h-5 text-slate-400" />
+                        <span className="font-medium text-slate-900">Wire Transfer / Direct Deposit</span>
                       </div>
-                      <p className="text-xs text-slate-400 mt-3">Reference: {invoice.invoiceNumber}</p>
-                    </div>
-                  )}
-                </div>
+                      <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${showWireInfo ? 'rotate-180' : ''}`} />
+                    </button>
+                    {showWireInfo && (
+                      <div className="px-5 pb-5 border-t">
+                        <div className="bg-slate-50 rounded-lg p-4 mt-4 text-sm text-slate-600">
+                          {invoice.organization?.wireInstructions ? (
+                            <pre className="whitespace-pre-wrap font-sans">{invoice.organization.wireInstructions}</pre>
+                          ) : (
+                            <>
+                              <p><span className="text-slate-400">Account #:</span> 0001827</p>
+                              <p><span className="text-slate-400">Routing #:</span> 01371</p>
+                              <p><span className="text-slate-400">Transit #:</span> 0006</p>
+                            </>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-400 mt-3">Reference: {invoice.invoiceNumber}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* E-Transfer */}
-                <div className="bg-white rounded-xl border">
-                  <button
-                    onClick={() => setShowEtransferInfo(!showEtransferInfo)}
-                    className="w-full p-5 flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-3">
-                      <img src="/interac.svg" alt="Interac" className="w-5 h-5 opacity-60" />
-                      <span className="font-medium text-slate-900">Interac e-Transfer</span>
-                    </div>
-                    <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${showEtransferInfo ? 'rotate-180' : ''}`} />
-                  </button>
-                  {showEtransferInfo && (
-                    <div className="px-5 pb-5 border-t">
-                      <div className="bg-slate-50 rounded-lg p-4 mt-4 text-sm text-slate-600">
-                        <p><span className="text-slate-400">Send to:</span> {invoice.organization?.etransferEmail || 'aaron@meisnerinteriors.com'}</p>
-                        <p><span className="text-slate-400">Amount:</span> {formatCurrency(invoice.balanceDue)}</p>
+                {(invoice.allowEtransfer !== false) && (
+                  <div className="bg-white rounded-xl border">
+                    <button
+                      onClick={() => setShowEtransferInfo(!showEtransferInfo)}
+                      className="w-full p-5 flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <img src="/interac.svg" alt="Interac" className="w-5 h-5 opacity-60" />
+                        <span className="font-medium text-slate-900">Interac e-Transfer</span>
                       </div>
-                      <p className="text-xs text-slate-400 mt-3">Message/Memo: {invoice.invoiceNumber}</p>
-                    </div>
-                  )}
-                </div>
+                      <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${showEtransferInfo ? 'rotate-180' : ''}`} />
+                    </button>
+                    {showEtransferInfo && (
+                      <div className="px-5 pb-5 border-t">
+                        <div className="bg-slate-50 rounded-lg p-4 mt-4 text-sm text-slate-600">
+                          <p><span className="text-slate-400">Send to:</span> {invoice.organization?.etransferEmail || 'aaron@meisnerinteriors.com'}</p>
+                          <p><span className="text-slate-400">Amount:</span> {formatCurrency(invoice.balanceDue)}</p>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-3">Message/Memo: {invoice.invoiceNumber}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Check */}
-                <div className="bg-white rounded-xl border">
-                  <button
-                    onClick={() => setShowCheckInfo(!showCheckInfo)}
-                    className="w-full p-5 flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Banknote className="w-5 h-5 text-slate-400" />
-                      <span className="font-medium text-slate-900">Check</span>
-                    </div>
-                    <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${showCheckInfo ? 'rotate-180' : ''}`} />
-                  </button>
-                  {showCheckInfo && (
-                    <div className="px-5 pb-5 border-t">
-                      <div className="bg-slate-50 rounded-lg p-4 mt-4 text-sm text-slate-600">
-                        <p className="font-medium text-slate-700 mb-2">Make payable to:</p>
-                        <p>{companyName}</p>
-                        {invoice.organization?.businessAddress && (
-                          <div className="mt-3">
-                            <p className="font-medium text-slate-700 mb-1">Mail to:</p>
-                            <p>{invoice.organization.businessAddress}</p>
-                            <p>{invoice.organization.businessCity}, {invoice.organization.businessProvince} {invoice.organization.businessPostal}</p>
-                          </div>
-                        )}
+                {(invoice.allowCheck !== false) && (
+                  <div className="bg-white rounded-xl border">
+                    <button
+                      onClick={() => setShowCheckInfo(!showCheckInfo)}
+                      className="w-full p-5 flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Banknote className="w-5 h-5 text-slate-400" />
+                        <span className="font-medium text-slate-900">Check</span>
                       </div>
-                      <p className="text-xs text-slate-400 mt-3">Memo: {invoice.invoiceNumber}</p>
-                    </div>
-                  )}
-                </div>
+                      <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${showCheckInfo ? 'rotate-180' : ''}`} />
+                    </button>
+                    {showCheckInfo && (
+                      <div className="px-5 pb-5 border-t">
+                        <div className="bg-slate-50 rounded-lg p-4 mt-4 text-sm text-slate-600">
+                          <p className="font-medium text-slate-700 mb-2">Make payable to:</p>
+                          <p>{companyName}</p>
+                          {invoice.organization?.businessAddress && (
+                            <div className="mt-3">
+                              <p className="font-medium text-slate-700 mb-1">Mail to:</p>
+                              <p>{invoice.organization.businessAddress}</p>
+                              <p>{invoice.organization.businessCity}, {invoice.organization.businessProvince} {invoice.organization.businessPostal}</p>
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-400 mt-3">Memo: {invoice.invoiceNumber}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}

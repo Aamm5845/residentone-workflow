@@ -37,6 +37,9 @@ const updateInvoiceSchema = z.object({
   notes: z.string().optional().nullable(),
   termsAndConditions: z.string().optional().nullable(),
   allowCreditCard: z.boolean().optional(),
+  allowBankTransfer: z.boolean().optional(),
+  allowEtransfer: z.boolean().optional(),
+  allowCheck: z.boolean().optional(),
   ccFeePercent: z.number().min(0).optional(),
 })
 

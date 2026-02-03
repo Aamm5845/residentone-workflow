@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Save, Send, Loader2, Plus, Trash2, Calculator, User, Clock, DollarSign } from 'lucide-react'
+import { ArrowLeft, Save, Send, Loader2, Plus, Trash2, Calculator, User, Clock, DollarSign, CreditCard, Building2, Banknote, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
 import Link from 'next/link'
 
 interface Client {
@@ -118,6 +119,12 @@ export default function InvoiceForm({
 
   // Notes
   const [notes, setNotes] = useState(existingInvoice?.notes || '')
+
+  // Payment method options
+  const [allowCreditCard, setAllowCreditCard] = useState(existingInvoice?.allowCreditCard ?? true)
+  const [allowBankTransfer, setAllowBankTransfer] = useState(existingInvoice?.allowBankTransfer ?? true)
+  const [allowEtransfer, setAllowEtransfer] = useState(existingInvoice?.allowEtransfer ?? true)
+  const [allowCheck, setAllowCheck] = useState(existingInvoice?.allowCheck ?? true)
 
   // Selected milestone for quick-create
   const [selectedMilestone, setSelectedMilestone] = useState<string>('')
@@ -239,7 +246,10 @@ export default function InvoiceForm({
         dueDate,
         notes: notes || null,
         termsAndConditions: 'Payment is due within 7 days of invoice date.',
-        allowCreditCard: true,
+        allowCreditCard,
+        allowBankTransfer,
+        allowEtransfer,
+        allowCheck,
         ccFeePercent,
       }
 
@@ -501,6 +511,80 @@ export default function InvoiceForm({
                   placeholder="Additional notes..."
                   className="w-full h-20 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                 />
+              </div>
+            </div>
+
+            {/* Payment Methods */}
+            <div className="bg-white rounded-xl border p-6">
+              <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <CreditCard className="w-4 h-4" />
+                Payment Methods
+              </h3>
+              <p className="text-sm text-gray-500 mb-4">Select which payment methods are available for this invoice</p>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+                      <CreditCard className="w-4 h-4 text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">Credit Card</p>
+                      <p className="text-xs text-gray-500">+{ccFeePercent}% processing fee</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={allowCreditCard}
+                    onCheckedChange={setAllowCreditCard}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                      <Building2 className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">Bank Transfer / Wire</p>
+                      <p className="text-xs text-gray-500">Direct deposit or wire transfer</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={allowBankTransfer}
+                    onCheckedChange={setAllowBankTransfer}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+                      <Banknote className="w-4 h-4 text-purple-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">Interac e-Transfer</p>
+                      <p className="text-xs text-gray-500">Canadian electronic transfer</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={allowEtransfer}
+                    onCheckedChange={setAllowEtransfer}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-slate-200 flex items-center justify-center">
+                      <FileText className="w-4 h-4 text-slate-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">Check</p>
+                      <p className="text-xs text-gray-500">Mail a check</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={allowCheck}
+                    onCheckedChange={setAllowCheck}
+                  />
+                </div>
               </div>
             </div>
           </div>

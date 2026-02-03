@@ -62,6 +62,9 @@ interface Invoice {
   dueDate?: string
   notes?: string
   allowCreditCard: boolean
+  allowBankTransfer?: boolean
+  allowEtransfer?: boolean
+  allowCheck?: boolean
   ccFeePercent: number
   accessToken?: string
 }
@@ -106,9 +109,9 @@ export default function SendInvoiceDialog({
 
   // Payment options
   const [allowCreditCard, setAllowCreditCard] = useState(invoice.allowCreditCard)
-  const [allowBankTransfer, setAllowBankTransfer] = useState(true)
-  const [allowEtransfer, setAllowEtransfer] = useState(true)
-  const [allowCheck, setAllowCheck] = useState(true)
+  const [allowBankTransfer, setAllowBankTransfer] = useState(invoice.allowBankTransfer !== false)
+  const [allowEtransfer, setAllowEtransfer] = useState(invoice.allowEtransfer !== false)
+  const [allowCheck, setAllowCheck] = useState(invoice.allowCheck !== false)
 
   // Client billing info (override)
   const [clientName, setClientName] = useState(invoice.clientName)
@@ -140,6 +143,15 @@ export default function SendInvoiceDialog({
       const updates: Record<string, any> = {}
       if (allowCreditCard !== invoice.allowCreditCard) {
         updates.allowCreditCard = allowCreditCard
+      }
+      if (allowBankTransfer !== (invoice.allowBankTransfer !== false)) {
+        updates.allowBankTransfer = allowBankTransfer
+      }
+      if (allowEtransfer !== (invoice.allowEtransfer !== false)) {
+        updates.allowEtransfer = allowEtransfer
+      }
+      if (allowCheck !== (invoice.allowCheck !== false)) {
+        updates.allowCheck = allowCheck
       }
       if (clientName !== invoice.clientName) {
         updates.clientName = clientName
