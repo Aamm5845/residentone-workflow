@@ -80,7 +80,7 @@ async function createDepositInvoice(proposal: any): Promise<void> {
       title: `${proposal.title} - Deposit`,
       description: `Deposit payment for ${proposal.proposalNumber}`,
       type: 'DEPOSIT',
-      status: 'SENT', // Auto-send since proposal was just signed
+      status: 'DRAFT', // Save as draft for review before sending
       clientName: proposal.clientName,
       clientEmail: proposal.clientEmail,
       clientPhone: proposal.clientPhone,
@@ -95,7 +95,6 @@ async function createDepositInvoice(proposal: any): Promise<void> {
       depositPercent: proposal.depositPercent,
       depositAmount: depositAmount,
       dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Due in 7 days
-      sentAt: new Date(),
       allowCreditCard: true,
       ccFeePercent: proposal.ccFeePercent || 3.5,
       termsAndConditions: 'Payment is due within 7 days of invoice date.',
@@ -124,7 +123,7 @@ async function createDepositInvoice(proposal: any): Promise<void> {
     data: {
       proposalId: proposal.id,
       type: 'DEPOSIT_INVOICE_CREATED',
-      message: `Deposit invoice ${invoiceNumber} created for ${depositAmount.toLocaleString('en-CA', { style: 'currency', currency: 'CAD' })}`,
+      message: `Deposit invoice ${invoiceNumber} created as draft for ${depositAmount.toLocaleString('en-CA', { style: 'currency', currency: 'CAD' })}`,
       metadata: {
         invoiceNumber,
         depositAmount,
