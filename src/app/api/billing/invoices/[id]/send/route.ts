@@ -108,127 +108,132 @@ export async function POST(
     }
     const typeLabel = typeLabels[invoice.type] || 'Invoice'
 
-    // Build email HTML with slate colors matching the portal
+    // Format due date
+    const formattedDueDate = invoice.dueDate
+      ? new Date(invoice.dueDate).toLocaleDateString('en-CA', {
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric'
+        })
+      : 'Upon Receipt'
+
+    // Build email HTML with fully inline styles for maximum email client compatibility
     const html = `
       <!DOCTYPE html>
       <html>
         <head>
           <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>${typeLabel} from ${companyName}</title>
-          <style>
-            .container { max-width: 600px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-            .header { background: linear-gradient(135deg, #334155 0%, #475569 100%); padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
-            .header h1 { color: white; margin: 0; font-size: 24px; }
-            .logo-container { background: white; display: inline-block; padding: 12px 16px; border-radius: 8px; margin-bottom: 12px; }
-            .logo-container img { height: 40px; max-width: 180px; object-fit: contain; }
-            .content { padding: 30px; background-color: #f8fafc; }
-            .invoice-box {
-              background-color: white;
-              border: 1px solid #e2e8f0;
-              border-radius: 8px;
-              padding: 24px;
-              margin: 20px 0;
-            }
-            .invoice-number {
-              font-family: monospace;
-              color: #64748b;
-              font-size: 14px;
-              margin-bottom: 8px;
-            }
-            .invoice-title {
-              font-size: 20px;
-              font-weight: 600;
-              color: #1e293b;
-              margin-bottom: 16px;
-            }
-            .amount-box {
-              background-color: #f1f5f9;
-              border-radius: 6px;
-              padding: 16px;
-              text-align: center;
-              margin: 20px 0;
-            }
-            .amount-label { color: #64748b; font-size: 14px; margin-bottom: 4px; }
-            .amount-value { color: #1e293b; font-size: 28px; font-weight: 700; }
-            .due-date { color: #ef4444; font-size: 14px; margin-top: 8px; }
-            .button {
-              display: inline-block;
-              padding: 14px 32px;
-              background: linear-gradient(135deg, #334155 0%, #475569 100%);
-              color: white;
-              text-decoration: none;
-              border-radius: 6px;
-              font-weight: 600;
-              font-size: 16px;
-            }
-            .footer {
-              background-color: #1e293b;
-              padding: 20px;
-              text-align: center;
-              font-size: 12px;
-              color: #94a3b8;
-              border-radius: 0 0 8px 8px;
-            }
-            .footer a { color: #60a5fa; text-decoration: none; }
-          </style>
         </head>
-        <body style="background-color: #f1f5f9; padding: 20px;">
-          <div class="container">
-            <div class="header">
-              ${org?.logoUrl ? `
-                <div class="logo-container">
-                  <img src="${org.logoUrl}" alt="${companyName}" />
-                </div>
-              ` : `
-                <h1>${companyName}</h1>
-              `}
-            </div>
-            <div class="content">
-              <p style="color: #475569; line-height: 1.6;">
-                Hi ${invoice.clientName},
-              </p>
-              <p style="color: #475569; line-height: 1.6;">
-                Please find attached your ${typeLabel.toLowerCase()} for <strong>${invoice.project.name}</strong>.
-              </p>
-              ${customMessage ? `
-              <div style="background-color: #f8fafc; border-left: 3px solid #475569; padding: 16px; margin: 16px 0; border-radius: 4px;">
-                <p style="color: #475569; line-height: 1.6; margin: 0; white-space: pre-wrap;">${customMessage}</p>
-              </div>
-              ` : ''}
+        <body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f1f5f9;">
+            <tr>
+              <td style="padding: 40px 20px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
 
-              <div class="invoice-box">
-                <div class="invoice-number">${invoice.invoiceNumber}</div>
-                <div class="invoice-title">${invoice.title}</div>
+                  <!-- Header -->
+                  <tr>
+                    <td style="background-color: #334155; padding: 32px 40px; text-align: center;">
+                      ${org?.logoUrl ? `
+                        <div style="background-color: #ffffff; display: inline-block; padding: 12px 20px; border-radius: 8px;">
+                          <img src="${org.logoUrl}" alt="${companyName}" style="height: 44px; max-width: 200px; display: block;" />
+                        </div>
+                      ` : `
+                        <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.5px;">${companyName}</h1>
+                      `}
+                    </td>
+                  </tr>
 
-                <div class="amount-box">
-                  <div class="amount-label">Amount Due</div>
-                  <div class="amount-value">${formatCurrency(Number(invoice.balanceDue))}</div>
-                  ${invoice.dueDate ? `
-                    <div class="due-date">Due by ${new Date(invoice.dueDate).toLocaleDateString('en-CA', {
-                      month: 'long',
-                      day: 'numeric',
-                      year: 'numeric'
-                    })}</div>
-                  ` : ''}
-                </div>
-              </div>
+                  <!-- Main Content -->
+                  <tr>
+                    <td style="padding: 40px;">
+                      <!-- Greeting -->
+                      <p style="color: #334155; font-size: 16px; line-height: 1.6; margin: 0 0 16px;">
+                        Hi ${invoice.clientName},
+                      </p>
+                      <p style="color: #475569; font-size: 16px; line-height: 1.6; margin: 0 0 24px;">
+                        Please find your ${typeLabel.toLowerCase()} for <strong style="color: #1e293b;">${invoice.project.name}</strong> below.
+                      </p>
 
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="${invoiceUrl}" class="button">View & Pay Invoice</a>
-              </div>
+                      ${customMessage ? `
+                      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 24px;">
+                        <tr>
+                          <td style="background-color: #f8fafc; border-left: 4px solid #475569; padding: 16px 20px; border-radius: 0 8px 8px 0;">
+                            <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0; white-space: pre-wrap;">${customMessage}</p>
+                          </td>
+                        </tr>
+                      </table>
+                      ` : ''}
 
-              <p style="color: #64748b; font-size: 14px; text-align: center;">
-                Click the button above to view the invoice details and make a payment.
-              </p>
-            </div>
-            <div class="footer">
-              <p>This invoice was sent by ${companyName}</p>
-              ${org?.businessEmail ? `<p>Contact: <a href="mailto:${org.businessEmail}">${org.businessEmail}</a></p>` : ''}
-              <p style="margin-top: 12px;">
-                <a href="${invoiceUrl}">View invoice online</a>
-              </p>
-            </div>
-          </div>
+                      <!-- Invoice Card -->
+                      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f8fafc; border-radius: 12px; margin-bottom: 32px;">
+                        <tr>
+                          <td style="padding: 24px;">
+                            <!-- Invoice Header -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 20px;">
+                              <tr>
+                                <td>
+                                  <p style="color: #64748b; font-size: 12px; font-family: monospace; margin: 0 0 4px; text-transform: uppercase; letter-spacing: 1px;">${invoice.invoiceNumber}</p>
+                                  <p style="color: #1e293b; font-size: 18px; font-weight: 600; margin: 0;">${invoice.title}</p>
+                                </td>
+                              </tr>
+                            </table>
+
+                            <!-- Amount Box -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0;">
+                              <tr>
+                                <td style="padding: 24px; text-align: center;">
+                                  <p style="color: #64748b; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px;">Amount Due</p>
+                                  <p style="color: #1e293b; font-size: 36px; font-weight: 700; margin: 0; letter-spacing: -1px;">${formatCurrency(Number(invoice.balanceDue))}</p>
+                                  <p style="color: ${invoice.dueDate && new Date(invoice.dueDate) < new Date() ? '#dc2626' : '#64748b'}; font-size: 14px; margin: 12px 0 0; font-weight: 500;">
+                                    Due: ${formattedDueDate}
+                                  </p>
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                      </table>
+
+                      <!-- CTA Button -->
+                      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                        <tr>
+                          <td style="text-align: center; padding-bottom: 24px;">
+                            <a href="${invoiceUrl}" style="display: inline-block; background-color: #334155; color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; padding: 16px 40px; border-radius: 8px;">
+                              View &amp; Pay Invoice
+                            </a>
+                          </td>
+                        </tr>
+                      </table>
+
+                      <p style="color: #94a3b8; font-size: 13px; text-align: center; margin: 0;">
+                        Click the button above to view the full invoice and make a secure payment.
+                      </p>
+                    </td>
+                  </tr>
+
+                  <!-- Footer -->
+                  <tr>
+                    <td style="background-color: #1e293b; padding: 24px 40px; text-align: center;">
+                      <p style="color: #94a3b8; font-size: 13px; margin: 0 0 8px;">
+                        This invoice was sent by <strong style="color: #cbd5e1;">${companyName}</strong>
+                      </p>
+                      ${org?.businessEmail ? `
+                        <p style="margin: 0 0 12px;">
+                          <a href="mailto:${org.businessEmail}" style="color: #60a5fa; font-size: 13px; text-decoration: none;">${org.businessEmail}</a>
+                        </p>
+                      ` : ''}
+                      <p style="margin: 0;">
+                        <a href="${invoiceUrl}" style="color: #60a5fa; font-size: 12px; text-decoration: none;">View invoice online</a>
+                      </p>
+                    </td>
+                  </tr>
+
+                </table>
+              </td>
+            </tr>
+          </table>
         </body>
       </html>
     `

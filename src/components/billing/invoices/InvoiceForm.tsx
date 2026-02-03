@@ -109,11 +109,11 @@ export default function InvoiceForm({
   // CC Fee - always 3% (or from proposal)
   const ccFeePercent = existingInvoice?.ccFeePercent ?? fromProposal?.ccFeePercent ?? 3
 
-  // Dates
+  // Dates - default to today (due upon receipt)
   const [dueDate, setDueDate] = useState(
     existingInvoice?.dueDate
       ? new Date(existingInvoice.dueDate).toISOString().split('T')[0]
-      : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 7 days default
+      : new Date().toISOString().split('T')[0] // Due today (upon receipt)
   )
 
   // Notes

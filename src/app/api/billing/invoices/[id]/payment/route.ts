@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { soloService } from '@/lib/solo-service'
 
 // Initialize payment - creates a pending payment record
 export async function POST(
@@ -42,8 +43,13 @@ export async function POST(
       return NextResponse.json({ error: 'Invoice is already paid' }, { status: 400 })
     }
 
-    // Get Cardknox iFields key
-    const iFieldsKey = invoice.project?.organization?.cardknoxKey || process.env.CARDKNOX_IFIELDS_KEY
+    // Check if Solo payment service is configured
+    if (!soloService.isConfigured()) {
+      return NextResponse.json({ error: 'Payment processing not configured' }, { status: 500 })
+    }
+
+    // Get Cardknox iFields key (prefer organization-specific, fallback to global)
+    const iFieldsKey = invoice.project?.organization?.cardknoxKey || soloService.getIFieldsKey()
 
     if (!iFieldsKey) {
       return NextResponse.json({ error: 'Payment processing not configured' }, { status: 500 })
@@ -95,6 +101,17 @@ export async function PATCH(
       return NextResponse.json({ error: 'Missing payment information' }, { status: 400 })
     }
 
+    // Validate expiration format (should be MMYY)
+    if (!expiration || !/^\d{4}$/.test(expiration)) {
+      return NextResponse.json({ error: 'Invalid expiration date format. Please use MM/YY.' }, { status: 400 })
+    }
+
+    // Validate month is 01-12
+    const month = parseInt(expiration.substring(0, 2), 10)
+    if (month < 1 || month > 12) {
+      return NextResponse.json({ error: 'Invalid expiration month' }, { status: 400 })
+    }
+
     // Get payment and invoice
     const payment = await prisma.billingInvoicePayment.findUnique({
       where: { id: paymentId },
@@ -127,43 +144,51 @@ export async function PATCH(
 
     const invoice = payment.billingInvoice
 
-    // Get Cardknox API key
-    const cardknoxKey = invoice.project?.organization?.cardknoxKey || process.env.CARDKNOX_KEY
-
-    if (!cardknoxKey) {
+    // Check if Solo payment service is configured
+    if (!soloService.isConfigured()) {
       return NextResponse.json({ error: 'Payment processing not configured' }, { status: 500 })
     }
 
-    // Process payment with Cardknox
-    const cardknoxResponse = await fetch('https://x1.cardknox.com/gateway', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        xKey: cardknoxKey,
-        xVersion: '5.0.0',
-        xSoftwareName: 'ResidentOne',
-        xSoftwareVersion: '1.0.0',
-        xCommand: 'cc:sale',
-        xAmount: Number(payment.amount).toFixed(2),
-        xCardNum: cardToken,
-        xCVV: cvvToken || '',
-        xExp: expiration,
-        xInvoice: invoice.invoiceNumber,
-        xBillFirstName: invoice.clientName.split(' ')[0] || '',
-        xBillLastName: invoice.clientName.split(' ').slice(1).join(' ') || '',
-        xEmail: invoice.clientEmail,
-      }).toString()
+    // Parse client name for billing
+    const nameParts = invoice.clientName.split(' ')
+    const firstName = nameParts[0] || ''
+    const lastName = nameParts.slice(1).join(' ') || ''
+
+    console.log('[Billing Payment] Processing with Solo service:', {
+      amount: Number(payment.amount),
+      invoiceNumber: invoice.invoiceNumber,
+      clientEmail: invoice.clientEmail,
     })
 
-    const responseText = await cardknoxResponse.text()
-    const params = new URLSearchParams(responseText)
-    const result = Object.fromEntries(params.entries())
+    // Process payment with Solo service (uses Cardknox JSON API)
+    const result = await soloService.processSale({
+      amount: Number(payment.amount),
+      currency: 'CAD',
+      cardToken,
+      cvvToken: cvvToken || undefined,
+      expiration,
+      customerEmail: invoice.clientEmail,
+      customerName: invoice.clientName,
+      billingAddress: {
+        firstName,
+        lastName,
+      },
+      description: `Payment for Invoice ${invoice.invoiceNumber}`,
+      invoiceNumber: invoice.invoiceNumber,
+      metadata: {
+        invoiceId: invoice.id,
+        paymentId: payment.id,
+      }
+    })
 
-    console.log('[Billing Payment] Cardknox response:', result)
+    console.log('[Billing Payment] Solo service response:', {
+      success: result.success,
+      transactionId: result.transactionId,
+      error: result.error,
+      errorCode: result.errorCode,
+    })
 
-    if (result.xResult === 'A' || result.xStatus === 'Approved') {
+    if (result.success) {
       // Payment approved
       await prisma.$transaction(async (tx) => {
         // Update payment record
@@ -171,7 +196,7 @@ export async function PATCH(
           where: { id: paymentId },
           data: {
             status: 'COMPLETED',
-            reference: result.xRefNum || payment.reference,
+            reference: result.transactionId || payment.reference,
             paidAt: new Date(),
           }
         })
@@ -195,7 +220,7 @@ export async function PATCH(
           data: {
             billingInvoiceId: invoice.id,
             type: 'PAYMENT_RECEIVED',
-            message: `Payment of $${Number(payment.amount).toFixed(2)} received via credit card`,
+            message: `Payment of $${Number(payment.amount).toFixed(2)} received via credit card (${result.cardType || 'Card'} ending ${result.maskedCard?.slice(-4) || '****'})`,
           }
         })
       })
@@ -203,7 +228,7 @@ export async function PATCH(
       return NextResponse.json({
         success: true,
         message: 'Payment processed successfully',
-        refNum: result.xRefNum
+        refNum: result.transactionId
       })
     } else {
       // Payment declined
@@ -211,13 +236,13 @@ export async function PATCH(
         where: { id: paymentId },
         data: {
           status: 'FAILED',
-          notes: result.xError || result.xErrorCode || 'Payment declined',
+          notes: result.error || 'Payment declined',
         }
       })
 
       return NextResponse.json({
         success: false,
-        error: result.xError || 'Payment was declined'
+        error: result.error || 'Payment was declined'
       }, { status: 400 })
     }
   } catch (error) {

@@ -89,6 +89,7 @@ export default function BillingInvoiceClientPage() {
   const [invoice, setInvoice] = useState<InvoiceData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showCreditCardInfo, setShowCreditCardInfo] = useState(false)
   const [showWireInfo, setShowWireInfo] = useState(false)
   const [showEtransferInfo, setShowEtransferInfo] = useState(false)
   const [showCheckInfo, setShowCheckInfo] = useState(false)
@@ -368,40 +369,46 @@ export default function BillingInvoiceClientPage() {
               <div className="space-y-4">
                 {/* Credit Card */}
                 {invoice.allowCreditCard && (
-                  <div className="bg-white rounded-xl border-2 border-slate-200 p-5">
-                    <div className="flex items-center justify-between mb-4">
+                  <div className="bg-white rounded-xl border">
+                    <button
+                      onClick={() => setShowCreditCardInfo(!showCreditCardInfo)}
+                      className="w-full p-5 flex items-center justify-between"
+                    >
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-[#635BFF] rounded-lg flex items-center justify-center">
-                          <svg viewBox="0 0 24 24" className="w-6 h-6 text-white" fill="currentColor">
+                        <div className="w-8 h-8 bg-[#635BFF] rounded flex items-center justify-center">
+                          <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="currentColor">
                             <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zm0 2v2h16V6H4zm0 6v6h16v-6H4zm2 2h4v2H6v-2z"/>
                           </svg>
                         </div>
-                        <div>
-                          <p className="font-semibold text-slate-900">Pay with Credit Card</p>
-                          <p className="text-xs text-slate-500">Visa, Mastercard, Amex accepted</p>
+                        <span className="font-medium text-slate-900">Credit / Debit Card</span>
+                      </div>
+                      <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${showCreditCardInfo ? 'rotate-180' : ''}`} />
+                    </button>
+                    {showCreditCardInfo && (
+                      <div className="px-5 pb-5 border-t">
+                        <div className="bg-slate-50 rounded-lg p-4 mt-4 space-y-2 text-sm">
+                          <div className="flex justify-between text-slate-600">
+                            <span>Invoice Amount</span>
+                            <span>{formatCurrency(invoice.balanceDue)}</span>
+                          </div>
+                          <div className="flex justify-between text-slate-500">
+                            <span>Credit Card Fee ({invoice.ccFeePercent}%)</span>
+                            <span>+{formatCurrency(invoice.balanceDue * (invoice.ccFeePercent / 100))}</span>
+                          </div>
+                          <div className="flex justify-between font-semibold text-slate-900 pt-2 border-t border-slate-200">
+                            <span>Total to Pay</span>
+                            <span>{formatCurrency(calculateCCTotal())}</span>
+                          </div>
                         </div>
+                        <Button
+                          onClick={handlePayWithCard}
+                          className="w-full mt-4 bg-emerald-600 hover:bg-emerald-700 text-white"
+                        >
+                          Pay {formatCurrency(calculateCCTotal())}
+                        </Button>
+                        <p className="text-xs text-slate-400 mt-3 text-center">Visa, Mastercard, Amex accepted</p>
                       </div>
-                    </div>
-                    <div className="bg-slate-50 rounded-lg p-4 mb-4 space-y-2 text-sm">
-                      <div className="flex justify-between text-slate-600">
-                        <span>Invoice Amount</span>
-                        <span>{formatCurrency(invoice.balanceDue)}</span>
-                      </div>
-                      <div className="flex justify-between text-slate-500">
-                        <span>Credit Card Fee ({invoice.ccFeePercent}%)</span>
-                        <span>+{formatCurrency(invoice.balanceDue * (invoice.ccFeePercent / 100))}</span>
-                      </div>
-                      <div className="flex justify-between font-semibold text-slate-900 pt-2 border-t border-slate-200">
-                        <span>Total to Pay</span>
-                        <span>{formatCurrency(calculateCCTotal())}</span>
-                      </div>
-                    </div>
-                    <Button
-                      onClick={handlePayWithCard}
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 text-lg"
-                    >
-                      Pay {formatCurrency(calculateCCTotal())}
-                    </Button>
+                    )}
                   </div>
                 )}
 

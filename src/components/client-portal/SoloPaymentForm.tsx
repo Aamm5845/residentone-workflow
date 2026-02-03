@@ -41,6 +41,8 @@ export default function SoloPaymentForm({
   // Determine API endpoint based on base path
   const apiEndpoint = apiBasePath === '/api/quote'
     ? `${apiBasePath}/${token}/payment`
+    : apiBasePath === '/api/billing/invoices'
+    ? `${apiBasePath}/${token}/payment`
     : `${apiBasePath}/${token}/pay`
 
   const [paymentData, setPaymentData] = useState<PaymentData | null>(null)

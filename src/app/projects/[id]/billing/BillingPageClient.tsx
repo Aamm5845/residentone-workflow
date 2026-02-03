@@ -38,6 +38,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import SendInvoiceDialog from '@/components/billing/invoices/SendInvoiceDialog'
+import RecordPaymentDialog from '@/components/billing/invoices/RecordPaymentDialog'
 import { toast } from 'sonner'
 
 interface Client {
@@ -153,6 +154,13 @@ export default function BillingPageClient({
   // Send invoice dialog
   const [sendDialogOpen, setSendDialogOpen] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
+
+  // Record payment dialog
+  const [recordPaymentOpen, setRecordPaymentOpen] = useState(false)
+  const [paymentInvoice, setPaymentInvoice] = useState<Invoice | null>(null)
+
+  // Sending receipt state
+  const [sendingReceipt, setSendingReceipt] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -307,6 +315,39 @@ export default function BillingPageClient({
       .then(res => res.json())
       .then(data => setInvoices(data))
       .catch(console.error)
+  }
+
+  const openRecordPayment = (invoice: Invoice) => {
+    setPaymentInvoice(invoice)
+    setRecordPaymentOpen(true)
+  }
+
+  const handlePaymentSuccess = () => {
+    // Refresh invoices
+    fetch(`/api/billing/invoices?projectId=${projectId}`)
+      .then(res => res.json())
+      .then(data => setInvoices(data))
+      .catch(console.error)
+  }
+
+  const sendReceipt = async (invoiceId: string) => {
+    setSendingReceipt(invoiceId)
+    try {
+      const response = await fetch(`/api/billing/invoices/${invoiceId}/send-receipt`, {
+        method: 'POST',
+      })
+      const data = await response.json()
+      if (response.ok) {
+        toast.success(data.message || 'Receipt sent successfully')
+      } else {
+        toast.error(data.error || 'Failed to send receipt')
+      }
+    } catch (error) {
+      console.error('Error sending receipt:', error)
+      toast.error('Failed to send receipt')
+    } finally {
+      setSendingReceipt(null)
+    }
   }
 
   // Calculate quick stats
@@ -633,6 +674,26 @@ export default function BillingPageClient({
                                   View as Client
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
+                                {invoice.status !== 'PAID' && invoice.status !== 'VOID' && invoice.status !== 'CANCELLED' && (
+                                  <DropdownMenuItem onClick={() => openRecordPayment(invoice)}>
+                                    <DollarSign className="w-4 h-4 mr-2" />
+                                    Record Payment
+                                  </DropdownMenuItem>
+                                )}
+                                {(invoice.status === 'PAID' || invoice.status === 'PARTIALLY_PAID') && (
+                                  <DropdownMenuItem
+                                    onClick={() => sendReceipt(invoice.id)}
+                                    disabled={sendingReceipt === invoice.id}
+                                  >
+                                    {sendingReceipt === invoice.id ? (
+                                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    ) : (
+                                      <Receipt className="w-4 h-4 mr-2" />
+                                    )}
+                                    Send Receipt
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => window.open(`/api/billing/invoices/${invoice.id}/pdf`, '_blank')}>
                                   <Download className="w-4 h-4 mr-2" />
                                   Download PDF
@@ -834,6 +895,16 @@ export default function BillingPageClient({
           organization={organization}
           projectId={projectId}
           onSuccess={handleSendSuccess}
+        />
+      )}
+
+      {/* Record Payment Dialog */}
+      {paymentInvoice && (
+        <RecordPaymentDialog
+          open={recordPaymentOpen}
+          onOpenChange={setRecordPaymentOpen}
+          invoice={paymentInvoice}
+          onSuccess={handlePaymentSuccess}
         />
       )}
     </div>
