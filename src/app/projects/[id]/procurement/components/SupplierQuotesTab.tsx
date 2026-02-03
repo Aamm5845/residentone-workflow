@@ -208,7 +208,7 @@ interface SupplierQuote {
     email: string | null
     phone: string | null
     logo: string | null
-  }
+  } | null
   rfq: {
     id: string
     rfqNumber: string
@@ -366,7 +366,7 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
   const filteredQuotes = quotes
     .filter(quote => {
       const matchesSearch = !searchQuery ||
-        quote.supplier.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        quote.supplier?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         quote.rfq.rfqNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (quote.quoteNumber && quote.quoteNumber.toLowerCase().includes(searchQuery.toLowerCase()))
 
@@ -378,7 +378,7 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
       let comparison = 0
       switch (sortBy) {
         case 'supplier':
-          comparison = a.supplier.name.localeCompare(b.supplier.name)
+          comparison = (a.supplier?.name || '').localeCompare(b.supplier?.name || '')
           break
         case 'status':
           const statusOrder = ['SUBMITTED', 'ACCEPTED', 'REJECTED', 'REVISION_REQUESTED', 'REVISED', 'EXPIRED', 'PENDING']
@@ -750,21 +750,21 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                   {/* Supplier with logo */}
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      {quote.supplier.logo ? (
+                      {quote.supplier?.logo ? (
                         <img
                           src={quote.supplier.logo}
-                          alt={quote.supplier.name}
+                          alt={quote.supplier?.name || 'Supplier'}
                           className="w-7 h-7 rounded-full object-cover border border-gray-200 flex-shrink-0"
                         />
                       ) : (
                         <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
                           <span className="text-xs font-medium text-gray-600">
-                            {quote.supplier.name.charAt(0).toUpperCase()}
+                            {(quote.supplier?.name || 'S').charAt(0).toUpperCase()}
                           </span>
                         </div>
                       )}
                       <div>
-                        <span className="text-gray-600">{quote.supplier.name}</span>
+                        <span className="text-gray-600">{quote.supplier?.name || 'No Supplier'}</span>
                         {/* Show mismatch summary badges */}
                         {quote.aiMatchSummary && (quote.aiMatchSummary.extra > 0 || quote.aiMatchSummary.missing > 0) && (
                           <div className="flex items-center gap-1.5 mt-0.5">
@@ -869,7 +869,7 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
                             onClick={() => {
                               setSelectedQuoteForInvoice(quote.id)
                               setSelectedQuoteData({
-                                supplierName: quote.supplier.name,
+                                supplierName: quote.supplier?.name || 'Unknown Supplier',
                                 quoteNumber: quote.quoteNumber || ''
                               })
                               setInvoiceDialogOpen(true)
@@ -1316,7 +1316,7 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
             <DialogTitle>Review Quote</DialogTitle>
             <DialogDescription>
               {selectedQuote && (
-                <>Quote from {selectedQuote.supplier.name} for {selectedQuote.rfq.rfqNumber}</>
+                <>Quote from {selectedQuote.supplier?.name || 'Unknown Supplier'} for {selectedQuote.rfq.rfqNumber}</>
               )}
             </DialogDescription>
           </DialogHeader>
@@ -1545,7 +1545,7 @@ export default function SupplierQuotesTab({ projectId, searchQuery, highlightQuo
           }}
           quoteDocumentUrl={pdfReviewQuote.quoteDocumentUrl}
           aiExtractedData={pdfReviewQuote.aiExtractedData}
-          supplierName={pdfReviewQuote.supplier.name}
+          supplierName={pdfReviewQuote.supplier?.name || 'Unknown Supplier'}
           quoteId={pdfReviewQuote.id}
           projectId={projectId}
           quoteStatus={pdfReviewQuote.status}
