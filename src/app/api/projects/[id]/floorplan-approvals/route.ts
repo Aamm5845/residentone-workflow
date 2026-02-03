@@ -38,141 +38,91 @@ export async function GET(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
-    // Get all versions - use separate queries to avoid failures from orphaned data
-    let versions: any[] = []
-    
+    // Get all versions with related data in a single query to avoid N+1
+    let mappedVersions: any[] = []
+
     try {
-      // First, get basic version data without relations that might fail
-      const baseVersions = await prisma.floorplanApprovalVersion.findMany({
+      const versionsWithRelations = await prisma.floorplanApprovalVersion.findMany({
         where: {
           projectId: resolvedParams.id
         },
         orderBy: {
           createdAt: 'desc'
         },
-        take: 5
-      })
-      
-      // Now fetch related data separately for each version with error handling
-      versions = await Promise.all(baseVersions.map(async (v) => {
-        // Fetch assets - filter out orphaned ones
-        let assets: any[] = []
-        try {
-          const rawAssets = await prisma.floorplanApprovalAsset.findMany({
-            where: { versionId: v.id },
+        take: 5,
+        include: {
+          aaronApprovedBy: {
+            select: { id: true, name: true }
+          },
+          sentBy: {
+            select: { id: true, name: true }
+          },
+          assets: {
             orderBy: [
               { displayOrder: 'asc' },
               { createdAt: 'desc' }
-            ]
-          })
-          
-          // Fetch actual asset data only for assets that exist
-          const assetIds = rawAssets.map(a => a.assetId)
-          const existingAssets = await prisma.asset.findMany({
-            where: { id: { in: assetIds } }
-          })
-          const assetMap = new Map(existingAssets.map(a => [a.id, a]))
-          
-          // Only include assets that exist
-          assets = rawAssets
-            .filter(a => assetMap.has(a.assetId))
-            .map(a => ({
-              id: a.id,
-              includeInEmail: a.includeInEmail,
-              displayOrder: a.displayOrder,
-              asset: assetMap.get(a.assetId)
-            }))
-        } catch (assetError) {
-          console.error(`Error fetching assets for version ${v.id}:`, assetError)
-        }
-        
-        // Fetch activity logs
-        let activityLogs: any[] = []
-        try {
-          activityLogs = await prisma.floorplanApprovalActivity.findMany({
-            where: { versionId: v.id },
+            ],
+            include: {
+              asset: true
+            }
+          },
+          activityLogs: {
+            orderBy: { createdAt: 'desc' },
+            take: 15,
             include: {
               user: {
                 select: { id: true, name: true }
               }
-            },
-            orderBy: { createdAt: 'desc' },
-            take: 15
-          })
-          // Handle null user references
-          activityLogs = activityLogs.map(log => ({
-            ...log,
-            user: log.user || { id: null, name: 'Unknown User' }
-          }))
-        } catch (logError) {
-          console.error(`Error fetching activity logs for version ${v.id}:`, logError)
-        }
-        
-        // Fetch email logs count
-        let emailCount = 0
-        try {
-          emailCount = await prisma.floorplanApprovalEmailLog.count({
-            where: { versionId: v.id }
-          })
-        } catch (emailError) {
-          console.error(`Error fetching email logs for version ${v.id}:`, emailError)
-        }
-        
-        // Fetch user references safely
-        let aaronApprovedBy = null
-        if (v.aaronApprovedById) {
-          try {
-            aaronApprovedBy = await prisma.user.findUnique({
-              where: { id: v.aaronApprovedById },
-              select: { id: true, name: true }
-            })
-          } catch (e) {
-            console.error(`Error fetching aaronApprovedBy user:`, e)
+            }
+          },
+          _count: {
+            select: {
+              emailLogs: true
+            }
           }
         }
-        
-        let sentBy = null
-        if (v.sentById) {
-          try {
-            sentBy = await prisma.user.findUnique({
-              where: { id: v.sentById },
-              select: { id: true, name: true }
-            })
-          } catch (e) {
-            console.error(`Error fetching sentBy user:`, e)
-          }
-        }
-        
-        return {
-          id: v.id,
-          version: v.version,
-          status: v.status,
-          approvedByAaron: v.approvedByAaron,
-          aaronApprovedAt: v.aaronApprovedAt,
-          aaronApprovedBy,
-          sentToClientAt: v.sentToClientAt,
-          sentBy,
-          emailOpenedAt: v.emailOpenedAt,
-          followUpCompletedAt: v.followUpCompletedAt,
-          followUpNotes: v.followUpNotes,
-          clientDecision: v.clientDecision,
-          clientDecidedAt: v.clientDecidedAt,
-          clientMessage: v.clientMessage,
-          revisionItems: v.revisionItems,
-          notes: v.notes,
-          createdAt: v.createdAt,
-          updatedAt: v.updatedAt,
-          assets,
-          activityLogs,
-          emailCount
-        }
+      })
+
+      // Map versions and filter out orphaned assets (assets where asset relation is null)
+      mappedVersions = versionsWithRelations.map(v => ({
+        id: v.id,
+        version: v.version,
+        status: v.status,
+        approvedByAaron: v.approvedByAaron,
+        aaronApprovedAt: v.aaronApprovedAt,
+        aaronApprovedBy: v.aaronApprovedBy,
+        sentToClientAt: v.sentToClientAt,
+        sentBy: v.sentBy,
+        emailOpenedAt: v.emailOpenedAt,
+        followUpCompletedAt: v.followUpCompletedAt,
+        followUpNotes: v.followUpNotes,
+        clientDecision: v.clientDecision,
+        clientDecidedAt: v.clientDecidedAt,
+        clientMessage: v.clientMessage,
+        revisionItems: v.revisionItems,
+        notes: v.notes,
+        createdAt: v.createdAt,
+        updatedAt: v.updatedAt,
+        // Filter out orphaned assets (where asset is null) and map to expected format
+        assets: v.assets
+          .filter(a => a.asset !== null)
+          .map(a => ({
+            id: a.id,
+            includeInEmail: a.includeInEmail,
+            displayOrder: a.displayOrder,
+            asset: a.asset
+          })),
+        // Handle null user references in activity logs
+        activityLogs: v.activityLogs.map(log => ({
+          ...log,
+          user: log.user || { id: null, name: 'Unknown User' }
+        })),
+        emailCount: v._count.emailLogs
       }))
     } catch (queryError) {
       console.error('Error in main query for floorplan versions:', queryError)
       throw queryError
     }
-    
-    const mappedVersions = versions
 
     return NextResponse.json({
       success: true,

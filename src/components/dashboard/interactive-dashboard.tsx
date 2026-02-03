@@ -121,6 +121,13 @@ export default function InteractiveDashboard({ user }: { user: any }) {
   const [tasksCollapsed, setTasksCollapsed] = useState(true)
   const [showRecentCompletions, setShowRecentCompletions] = useState(false)
   const [showPendingApprovals, setShowPendingApprovals] = useState(false)
+  const [greeting, setGreeting] = useState('Hello')
+
+  // Set greeting on client-side only to avoid hydration mismatch
+  useEffect(() => {
+    const hour = new Date().getHours()
+    setGreeting(hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening')
+  }, [])
   
   // Fetch dashboard stats
   const { data: statsData, error: statsError, mutate: mutateStats } = useSWR<DashboardStats>('/api/dashboard/stats', fetcher, {
@@ -164,7 +171,7 @@ export default function InteractiveDashboard({ user }: { user: any }) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
-            Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, {user.name}!
+            {greeting}, {user.name}!
           </h1>
           <p className="text-gray-600 mt-1">
             {isLoading ? (
