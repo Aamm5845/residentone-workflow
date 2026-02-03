@@ -62,6 +62,8 @@ interface OrderItem {
   status?: string
   supplierLink?: string
   notes?: string
+  isComponent?: boolean
+  parentItemId?: string | null
 }
 
 interface Document {
@@ -942,50 +944,73 @@ export default function SupplierOrderPortal() {
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {items.map((item) => (
-                        <tr key={item.id} className="hover:bg-gray-50">
-                          <td className="p-3">
-                            <div className="flex items-start gap-3">
-                              <div className="w-12 h-12 rounded bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
-                                {item.images && item.images[0] ? (
-                                  <img src={item.images[0]} alt={item.name} className="w-full h-full object-cover" />
-                                ) : (
-                                  <Package className="w-5 h-5 text-gray-300" />
-                                )}
-                              </div>
-                              <div className="min-w-0">
-                                <p className="font-medium text-gray-900">{item.name}</p>
-                                <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-gray-500">
-                                  {item.sku && <span className="bg-gray-100 px-1.5 py-0.5 rounded font-mono">{item.sku}</span>}
-                                  {item.brand && <span>{item.brand}</span>}
-                                  {item.color && <span>Color: {item.color}</span>}
-                                  {item.finish && <span>Finish: {item.finish}</span>}
+                      {(() => {
+                        // Group items: parent items first, then their components
+                        const parentItems = items.filter(item => !item.isComponent)
+                        const componentItems = items.filter(item => item.isComponent)
+
+                        // Build ordered list: each parent followed by its components
+                        const orderedItems: OrderItem[] = []
+                        parentItems.forEach(parent => {
+                          orderedItems.push(parent)
+                          const children = componentItems.filter(c => c.parentItemId === parent.id)
+                          orderedItems.push(...children)
+                        })
+                        // Add any orphan components
+                        const usedIds = new Set(orderedItems.map(i => i.id))
+                        componentItems.forEach(comp => {
+                          if (!usedIds.has(comp.id)) orderedItems.push(comp)
+                        })
+
+                        return orderedItems.map((item) => {
+                          const isComponent = item.isComponent
+
+                          return (
+                            <tr key={item.id} className={`hover:bg-gray-50 ${isComponent ? 'bg-gray-50/50' : ''}`}>
+                              <td className={`p-3 ${isComponent ? 'pl-8' : ''}`}>
+                                <div className="flex items-start gap-3">
+                                  <div className={`rounded bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0 ${isComponent ? 'w-10 h-10' : 'w-12 h-12'}`}>
+                                    {item.images && item.images[0] ? (
+                                      <img src={item.images[0]} alt={item.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <Package className={`text-gray-300 ${isComponent ? 'w-4 h-4' : 'w-5 h-5'}`} />
+                                    )}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className={`font-medium text-gray-900 ${isComponent ? 'text-sm' : ''}`}>{item.name}</p>
+                                    <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-gray-500">
+                                      {item.sku && <span className="bg-gray-100 px-1.5 py-0.5 rounded font-mono">{item.sku}</span>}
+                                      {item.brand && <span>{item.brand}</span>}
+                                      {item.color && <span>Color: {item.color}</span>}
+                                      {item.finish && <span>Finish: {item.finish}</span>}
+                                    </div>
+                                    {item.supplierLink && (
+                                      <a
+                                        href={item.supplierLink}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 mt-1 text-xs text-blue-600 hover:underline"
+                                      >
+                                        View Product
+                                        <ExternalLink className="w-3 h-3" />
+                                      </a>
+                                    )}
+                                  </div>
                                 </div>
-                                {item.supplierLink && (
-                                  <a
-                                    href={item.supplierLink}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1 mt-1 text-xs text-blue-600 hover:underline"
-                                  >
-                                    View Product
-                                    <ExternalLink className="w-3 h-3" />
-                                  </a>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="p-3 text-center">
-                            {item.quantity}
-                          </td>
-                          <td className="p-3 text-right text-gray-600">
-                            {formatCurrency(item.unitPrice, order.currency)}
-                          </td>
-                          <td className="p-3 text-right font-medium">
-                            {formatCurrency(item.totalPrice, order.currency)}
-                          </td>
-                        </tr>
-                      ))}
+                              </td>
+                              <td className={`p-3 text-center ${isComponent ? 'text-sm' : ''}`}>
+                                {item.quantity}
+                              </td>
+                              <td className={`p-3 text-right text-gray-600 ${isComponent ? 'text-sm' : ''}`}>
+                                {formatCurrency(item.unitPrice, order.currency)}
+                              </td>
+                              <td className={`p-3 text-right font-medium ${isComponent ? 'text-sm' : ''}`}>
+                                {formatCurrency(item.totalPrice, order.currency)}
+                              </td>
+                            </tr>
+                          )
+                        })
+                      })()}
                     </tbody>
                   </table>
                 </div>

@@ -351,7 +351,9 @@ export async function GET(
           supplierLink,
           dimensions: item.roomFFEItem?.width || item.roomFFEItem?.height || item.roomFFEItem?.depth
             ? `${item.roomFFEItem?.width || '-'} × ${item.roomFFEItem?.height || '-'} × ${item.roomFFEItem?.depth || '-'}`
-            : null
+            : null,
+          isComponent: item.isComponent || false,
+          parentItemId: item.parentItemId || null
         }
       }),
       documents: order.documents.map(doc => ({

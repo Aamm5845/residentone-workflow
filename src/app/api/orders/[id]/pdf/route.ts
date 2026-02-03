@@ -120,12 +120,15 @@ export async function GET(
 
       // Line items
       lineItems: order.items.map(item => ({
+        id: item.id,
         name: item.name,
         description: item.description,
         quantity: item.quantity,
         unitType: item.unitType || item.roomFFEItem?.unitType,
         unitPrice: parseFloat(item.unitPrice.toString()),
-        totalPrice: parseFloat(item.totalPrice.toString())
+        totalPrice: parseFloat(item.totalPrice.toString()),
+        isComponent: item.isComponent || false,
+        parentItemId: item.parentItemId || null
       })),
 
       // Pricing

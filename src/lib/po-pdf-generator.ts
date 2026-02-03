@@ -7,6 +7,9 @@ interface POLineItem {
   unitType?: string | null
   unitPrice: number
   totalPrice: number
+  isComponent?: boolean
+  parentItemId?: string | null
+  id?: string
 }
 
 interface POData {
@@ -548,21 +551,40 @@ function drawLineItemsTable(
 
   yPos -= rowHeight
 
+  // Group items: parent items first, then their components
+  const parentItems = items.filter(item => !item.isComponent)
+  const componentItems = items.filter(item => item.isComponent)
+
+  // Build ordered list: each parent followed by its components
+  const orderedItems: POLineItem[] = []
+  parentItems.forEach(parent => {
+    orderedItems.push(parent)
+    const children = componentItems.filter(c => c.parentItemId === parent.id)
+    orderedItems.push(...children)
+  })
+  // Add any orphan components
+  const usedIds = new Set(orderedItems.filter(i => i.id).map(i => i.id))
+  componentItems.forEach(comp => {
+    if (comp.id && !usedIds.has(comp.id)) orderedItems.push(comp)
+  })
+
   // Draw items
-  for (const item of items) {
+  for (const item of orderedItems) {
     // Check if we need a new page
     if (yPos < 150) {
       page = pdfDoc.addPage([612, 792])
       yPos = 792 - PAGE_MARGIN
     }
 
+    const isComponent = item.isComponent || false
     const itemRowHeight = 18
     const textY = yPos - 13
-    xPos = PAGE_MARGIN + 5
+    const indent = isComponent ? 15 : 0
+    xPos = PAGE_MARGIN + 5 + indent
 
     // Item name (truncate if needed)
     let itemName = item.name
-    const maxItemWidth = colWidths.item - 10
+    const maxItemWidth = colWidths.item - 10 - indent
     if (font.widthOfTextAtSize(itemName, 9) > maxItemWidth) {
       while (font.widthOfTextAtSize(itemName + '...', 9) > maxItemWidth && itemName.length > 0) {
         itemName = itemName.slice(0, -1)
@@ -573,44 +595,44 @@ function drawLineItemsTable(
     page.drawText(itemName, {
       x: xPos,
       y: textY,
-      size: 9,
+      size: isComponent ? 8 : 9,
       font: font,
-      color: COLORS.primary,
+      color: isComponent ? COLORS.secondary : COLORS.primary,
     })
-    xPos += colWidths.item
+    xPos = PAGE_MARGIN + 5 + colWidths.item
 
     // Quantity (just the number)
     const qtyText = `${item.quantity}`
     page.drawText(qtyText, {
       x: xPos,
       y: textY,
-      size: 9,
+      size: isComponent ? 8 : 9,
       font: font,
-      color: COLORS.primary,
+      color: isComponent ? COLORS.secondary : COLORS.primary,
     })
     xPos += colWidths.qty
 
     // Unit price (centered in its column)
     const unitPriceText = formatCurrency(item.unitPrice, currency)
-    const unitPriceWidth = font.widthOfTextAtSize(unitPriceText, 9)
+    const unitPriceWidth = font.widthOfTextAtSize(unitPriceText, isComponent ? 8 : 9)
     const unitPriceCenterX = xPos + (colWidths.unit - unitPriceWidth) / 2
     page.drawText(unitPriceText, {
       x: unitPriceCenterX,
       y: textY,
-      size: 9,
+      size: isComponent ? 8 : 9,
       font: font,
-      color: COLORS.primary,
+      color: isComponent ? COLORS.secondary : COLORS.primary,
     })
 
     // Total (right-aligned)
     const totalText = formatCurrency(item.totalPrice, currency)
-    const totalWidth = font.widthOfTextAtSize(totalText, 9)
+    const totalWidth = font.widthOfTextAtSize(totalText, isComponent ? 8 : 9)
     page.drawText(totalText, {
       x: width - PAGE_MARGIN - totalWidth - 5,
       y: textY,
-      size: 9,
+      size: isComponent ? 8 : 9,
       font: font,
-      color: COLORS.primary,
+      color: isComponent ? COLORS.secondary : COLORS.primary,
     })
 
     yPos -= itemRowHeight
