@@ -195,7 +195,7 @@ export default function DeliveryTrackerTab({ projectId, searchQuery }: DeliveryT
     fetchOrders()
   }, [fetchOrders])
 
-  // Fetch tracking info for an order
+  // Fetch tracking info for an order and auto-update status if delivered
   const fetchTrackingInfo = async (trackingNumber: string, orderId?: string) => {
     if (!trackingNumber) return null
 
@@ -206,10 +206,47 @@ export default function DeliveryTrackerTab({ projectId, searchQuery }: DeliveryT
     try {
       const res = await fetch(`/api/tracking/${encodeURIComponent(trackingNumber)}`)
       if (!res.ok) throw new Error('Failed to fetch tracking')
-      const data = await res.json()
+      const data: TrackingInfo = await res.json()
 
       if (orderId) {
         setTrackingCache(prev => ({ ...prev, [orderId]: data }))
+
+        // Auto-update order status to DELIVERED if tracking shows delivered
+        if (data.success && data.status === 'DELIVERED') {
+          const order = orders.find(o => o.id === orderId)
+          if (order && order.status !== 'DELIVERED' && order.status !== 'COMPLETED' && order.status !== 'INSTALLED') {
+            // Get delivery date from tracking events or use current date
+            let deliveryDate = new Date().toISOString()
+            if (data.events && data.events.length > 0) {
+              const deliveredEvent = data.events.find(e =>
+                e.status?.toUpperCase().includes('DELIVERED') ||
+                e.description?.toUpperCase().includes('DELIVERED')
+              )
+              if (deliveredEvent?.date) {
+                deliveryDate = new Date(deliveredEvent.date).toISOString()
+              }
+            }
+
+            // Update order status automatically
+            try {
+              const updateRes = await fetch(`/api/orders/${orderId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  status: 'DELIVERED',
+                  actualDelivery: deliveryDate
+                })
+              })
+
+              if (updateRes.ok) {
+                toast.success(`Order ${order.orderNumber} marked as delivered`)
+                fetchOrders() // Refresh orders list
+              }
+            } catch (updateError) {
+              console.error('Failed to auto-update order status:', updateError)
+            }
+          }
+        }
       }
 
       return data
