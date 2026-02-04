@@ -74,6 +74,7 @@ export async function POST(
     }
 
     console.log('[SurveyPhotos] Project access verified:', project.name)
+    console.log('[SurveyPhotos] Project Dropbox folder from DB:', project.dropboxFolder || 'NOT SET')
 
     // Verify update exists and belongs to project
     const update = await prisma.projectUpdate.findFirst({

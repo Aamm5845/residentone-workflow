@@ -45,7 +45,14 @@ export async function POST(
       console.log('📁 Creating Dropbox folder structure for project:', projectName)
       const folderPath = await dropboxService.createProjectFolderStructure(projectName)
       console.log('✅ Dropbox folder created:', folderPath)
-      
+
+      // Save the folder path to the project in the database
+      await prisma.project.update({
+        where: { id: projectId },
+        data: { dropboxFolder: folderPath }
+      })
+      console.log('✅ Dropbox folder path saved to project:', folderPath)
+
       return NextResponse.json({
         success: true,
         folderPath
