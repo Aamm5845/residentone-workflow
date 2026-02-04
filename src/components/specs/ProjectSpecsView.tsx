@@ -283,6 +283,7 @@ interface SpecItem {
   tradeDiscount: number | null
   markupPercent: number | null
   // FFE Linking fields (legacy one-to-one)
+  isSpecItem: boolean
   ffeRequirementId: string | null
   ffeRequirementName: string | null
   // Notes field
@@ -2770,20 +2771,51 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     }
   }
 
-  // Remove item from schedule (delete)
+  // Remove item from schedule (delete spec items, reset FFE items)
   const handleRemoveFromSchedule = async (item: SpecItem) => {
     if (!confirm('Are you sure you want to remove this item from the schedule?')) return
 
     try {
-      const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${item.id}`, {
-        method: 'DELETE'
-      })
+      // If this is an FFE item (not a spec item), reset it instead of deleting
+      // This keeps the FFE requirement in FFE Workspace but removes it from All Specs
+      if (!item.isSpecItem) {
+        const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${item.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            specStatus: 'DRAFT',
+            // Clear spec-related fields but keep the FFE requirement
+            supplierName: null,
+            supplierLink: null,
+            supplierId: null,
+            brand: null,
+            sku: null,
+            modelNumber: null,
+            tradePrice: null,
+            rrp: null,
+            unitCost: null,
+            images: []
+          })
+        })
 
-      if (res.ok) {
-        toast.success('Item removed from schedule')
-        fetchSpecs(true) // Preserve scroll position
+        if (res.ok) {
+          toast.success('Item removed from schedule (FFE requirement kept in workspace)')
+          fetchSpecs(true)
+        } else {
+          throw new Error('Failed to reset item')
+        }
       } else {
-        throw new Error('Failed to remove')
+        // This is an actual spec item - delete it
+        const res = await fetch(`/api/ffe/v2/rooms/${item.roomId}/items/${item.id}`, {
+          method: 'DELETE'
+        })
+
+        if (res.ok) {
+          toast.success('Item removed from schedule')
+          fetchSpecs(true)
+        } else {
+          throw new Error('Failed to remove')
+        }
       }
     } catch (error) {
       console.error('Error removing item:', error)
