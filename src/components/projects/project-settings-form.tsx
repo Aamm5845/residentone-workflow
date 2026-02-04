@@ -1051,7 +1051,7 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
         <p className="text-sm text-gray-500">File storage location</p>
       </div>
 
-      {project.dropboxFolder ? (
+      {project.dropboxFolder && editingField !== 'dropbox' ? (
         <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-purple-200 rounded-lg flex items-center justify-center">
@@ -1061,11 +1061,23 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
               <p className="text-sm font-medium text-purple-900 truncate">{project.dropboxFolder}</p>
               <p className="text-xs text-purple-600">Connected</p>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => setEditingField('dropbox')}>Change</Button>
+            <Button variant="ghost" size="sm" onClick={() => {
+              setDropboxFolderPath(project.dropboxFolder || '')
+              setDropboxOption('link')
+              setEditingField('dropbox')
+            }}>Change</Button>
           </div>
         </div>
       ) : editingField === 'dropbox' ? (
         <div className="space-y-4">
+          {/* Show current folder if changing */}
+          {project.dropboxFolder && (
+            <div className="p-3 bg-gray-100 rounded-lg text-sm">
+              <p className="text-gray-500">Current folder:</p>
+              <p className="font-medium text-gray-700 truncate">{project.dropboxFolder}</p>
+            </div>
+          )}
+
           <div onClick={() => setDropboxOption('create')} className={`p-4 rounded-xl border-2 cursor-pointer ${dropboxOption === 'create' ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-gray-300'}`}>
             <div className="flex items-center gap-3">
               <FolderPlus className="w-5 h-5 text-purple-600" />
