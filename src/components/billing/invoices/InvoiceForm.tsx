@@ -13,6 +13,14 @@ interface Client {
   name: string
   email: string
   phone: string | null
+  // Billing information
+  billingName?: string | null
+  billingEmail?: string | null
+  billingAddress?: string | null
+  billingCity?: string | null
+  billingProvince?: string | null
+  billingPostalCode?: string | null
+  billingCountry?: string | null
 }
 
 interface LineItem {
@@ -84,11 +92,37 @@ export default function InvoiceForm({
   )
   const [description, setDescription] = useState(existingInvoice?.description || '')
 
-  // Client info comes from client record - just display it
-  const clientName = fromProposal?.clientName || client.name
-  const clientEmail = fromProposal?.clientEmail || client.email
+  // Check if billing info is available
+  const hasBillingInfo = !!(client.billingName || client.billingEmail || client.billingAddress)
+
+  // Build full billing address from components
+  const buildBillingAddress = () => {
+    const parts = [
+      client.billingAddress,
+      client.billingCity,
+      client.billingProvince,
+      client.billingPostalCode,
+      client.billingCountry
+    ].filter(Boolean)
+    return parts.join(', ')
+  }
+
+  // State to select billing info vs client info
+  const [useBillingInfo, setUseBillingInfo] = useState(
+    existingInvoice?.useBillingInfo ?? false
+  )
+
+  // Client info comes from client record or billing info based on selection
+  const clientName = useBillingInfo && client.billingName
+    ? client.billingName
+    : (fromProposal?.clientName || client.name)
+  const clientEmail = useBillingInfo && client.billingEmail
+    ? client.billingEmail
+    : (fromProposal?.clientEmail || client.email)
   const clientPhone = fromProposal?.clientPhone || client.phone || ''
-  const clientAddress = fromProposal?.clientAddress || ''
+  const clientAddress = useBillingInfo && client.billingAddress
+    ? buildBillingAddress()
+    : (fromProposal?.clientAddress || '')
 
   // Create initial line items - start clean so user can pick from presets
   const getInitialLineItems = (): LineItem[] => {
@@ -595,8 +629,25 @@ export default function InvoiceForm({
             <div className="bg-white rounded-xl border p-6">
               <h3 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
                 <User className="w-4 h-4" />
-                Client
+                Bill To
               </h3>
+
+              {/* Option to use billing info */}
+              {hasBillingInfo && (
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-blue-900">Use Billing Info</p>
+                      <p className="text-xs text-blue-600">Use saved billing contact instead of client</p>
+                    </div>
+                    <Switch
+                      checked={useBillingInfo}
+                      onCheckedChange={setUseBillingInfo}
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-3 text-sm">
                 <div className="p-3 bg-gray-50 rounded-lg">
                   <p className="font-medium text-gray-900">{clientName}</p>
@@ -604,6 +655,13 @@ export default function InvoiceForm({
                   {clientPhone && <p className="text-gray-500">{clientPhone}</p>}
                   {clientAddress && <p className="text-gray-500 mt-1">{clientAddress}</p>}
                 </div>
+
+                {/* Show what billing info looks like if not selected */}
+                {hasBillingInfo && !useBillingInfo && (
+                  <div className="text-xs text-gray-500 mt-2">
+                    Billing contact available: {client.billingName || client.billingEmail}
+                  </div>
+                )}
               </div>
             </div>
 

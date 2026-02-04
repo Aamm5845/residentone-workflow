@@ -100,7 +100,15 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
     name: project.client?.name || '',
     email: project.client?.email || '',
     phone: project.client?.phone || '',
-    company: project.client?.company || ''
+    company: project.client?.company || '',
+    // Billing information
+    billingName: project.client?.billingName || '',
+    billingEmail: project.client?.billingEmail || '',
+    billingAddress: project.client?.billingAddress || '',
+    billingCity: project.client?.billingCity || '',
+    billingProvince: project.client?.billingProvince || '',
+    billingPostalCode: project.client?.billingPostalCode || '',
+    billingCountry: project.client?.billingCountry || 'Canada'
   })
   const [additionalEmails, setAdditionalEmails] = useState<Array<{ label: string; email: string }>>(
     project.client?.additionalEmails || []
@@ -252,7 +260,14 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
         name: project.client?.name || '',
         email: project.client?.email || '',
         phone: project.client?.phone || '',
-        company: project.client?.company || ''
+        company: project.client?.company || '',
+        billingName: project.client?.billingName || '',
+        billingEmail: project.client?.billingEmail || '',
+        billingAddress: project.client?.billingAddress || '',
+        billingCity: project.client?.billingCity || '',
+        billingProvince: project.client?.billingProvince || '',
+        billingPostalCode: project.client?.billingPostalCode || '',
+        billingCountry: project.client?.billingCountry || 'Canada'
       })
     }
   }, [editingField, project.client])
@@ -722,6 +737,41 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
                 Add Additional Email
               </Button>
 
+              {/* Billing Information */}
+              <div className="border-t pt-4 mt-4">
+                <h4 className="text-sm font-semibold text-gray-700 mb-3">Billing Information</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Billing Contact Name</label>
+                    <Input value={clientFormData.billingName} onChange={(e) => setClientFormData(p => ({ ...p, billingName: e.target.value }))} placeholder="Accounts Payable" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Billing Email</label>
+                    <Input type="email" value={clientFormData.billingEmail} onChange={(e) => setClientFormData(p => ({ ...p, billingEmail: e.target.value }))} placeholder="billing@example.com" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Billing Address</label>
+                    <Input value={clientFormData.billingAddress} onChange={(e) => setClientFormData(p => ({ ...p, billingAddress: e.target.value }))} placeholder="123 Main St, Suite 100" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                    <Input value={clientFormData.billingCity} onChange={(e) => setClientFormData(p => ({ ...p, billingCity: e.target.value }))} placeholder="Montreal" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Province/State</label>
+                    <Input value={clientFormData.billingProvince} onChange={(e) => setClientFormData(p => ({ ...p, billingProvince: e.target.value }))} placeholder="Quebec" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Postal Code</label>
+                    <Input value={clientFormData.billingPostalCode} onChange={(e) => setClientFormData(p => ({ ...p, billingPostalCode: e.target.value }))} placeholder="H2X 1Y4" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                    <Input value={clientFormData.billingCountry} onChange={(e) => setClientFormData(p => ({ ...p, billingCountry: e.target.value }))} placeholder="Canada" />
+                  </div>
+                </div>
+              </div>
+
               <div className="flex gap-2 pt-2">
                 <Button type="submit" size="sm" disabled={isLoading} className="bg-[#a657f0] hover:bg-[#a657f0]/90">Save Changes</Button>
                 <Button type="button" variant="ghost" size="sm" onClick={() => setEditingField(null)}>Cancel</Button>
@@ -748,6 +798,22 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
                   </div>
                 )}
               </div>
+
+              {/* Billing Information Display */}
+              {(project.client?.billingName || project.client?.billingEmail || project.client?.billingAddress) && (
+                <div className="border-t border-gray-200 mt-4 pt-4">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Billing Information</h4>
+                  <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+                    <InfoRow label="Billing Contact" value={project.client?.billingName} />
+                    <InfoRow label="Billing Email" value={project.client?.billingEmail} />
+                    <InfoRow label="Billing Address" value={project.client?.billingAddress} />
+                    <InfoRow label="City" value={project.client?.billingCity} />
+                    <InfoRow label="Province/State" value={project.client?.billingProvince} />
+                    <InfoRow label="Postal Code" value={project.client?.billingPostalCode} />
+                    <InfoRow label="Country" value={project.client?.billingCountry} />
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

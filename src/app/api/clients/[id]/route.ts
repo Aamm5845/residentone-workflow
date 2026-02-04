@@ -10,6 +10,14 @@ const updateClientSchema = z.object({
   email: z.string().email("Invalid email address").optional(),
   phone: z.string().optional(),
   company: z.string().optional(),
+  // Billing information
+  billingName: z.string().optional().nullable(),
+  billingEmail: z.string().email("Invalid billing email").optional().nullable(),
+  billingAddress: z.string().optional().nullable(),
+  billingCity: z.string().optional().nullable(),
+  billingProvince: z.string().optional().nullable(),
+  billingPostalCode: z.string().optional().nullable(),
+  billingCountry: z.string().optional().nullable(),
 })
 
 interface AuthSession extends Session {
@@ -125,7 +133,7 @@ export async function PUT(
     const updateData: any = {
       updatedAt: new Date(),
     }
-    
+
     if (validatedData.name !== undefined) {
       updateData.name = validatedData.name
     }
@@ -137,6 +145,28 @@ export async function PUT(
     }
     if (validatedData.company !== undefined) {
       updateData.company = validatedData.company
+    }
+    // Billing information
+    if (validatedData.billingName !== undefined) {
+      updateData.billingName = validatedData.billingName
+    }
+    if (validatedData.billingEmail !== undefined) {
+      updateData.billingEmail = validatedData.billingEmail
+    }
+    if (validatedData.billingAddress !== undefined) {
+      updateData.billingAddress = validatedData.billingAddress
+    }
+    if (validatedData.billingCity !== undefined) {
+      updateData.billingCity = validatedData.billingCity
+    }
+    if (validatedData.billingProvince !== undefined) {
+      updateData.billingProvince = validatedData.billingProvince
+    }
+    if (validatedData.billingPostalCode !== undefined) {
+      updateData.billingPostalCode = validatedData.billingPostalCode
+    }
+    if (validatedData.billingCountry !== undefined) {
+      updateData.billingCountry = validatedData.billingCountry
     }
 
     // Update client

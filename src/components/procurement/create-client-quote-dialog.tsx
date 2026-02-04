@@ -156,6 +156,13 @@ export default function CreateClientQuoteDialog({
   const [clientAddress, setClientAddress] = useState('')
   const [showCreditCardOption, setShowCreditCardOption] = useState(true)
 
+  // Billing information
+  const [hasBillingInfo, setHasBillingInfo] = useState(false)
+  const [useBillingInfo, setUseBillingInfo] = useState(false)
+  const [billingName, setBillingName] = useState('')
+  const [billingEmail, setBillingEmail] = useState('')
+  const [billingAddress, setBillingAddress] = useState('')
+
   // Form data - Step 1
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -215,6 +222,23 @@ export default function CreateClientQuoteDialog({
           setClientEmail(project.client.email || '')
           setClientName(project.client.name || '')
           setClientPhone(project.client.phone || '')
+
+          // Load billing info if available
+          const hasBilling = !!(project.client.billingName || project.client.billingEmail || project.client.billingAddress)
+          setHasBillingInfo(hasBilling)
+          if (hasBilling) {
+            setBillingName(project.client.billingName || '')
+            setBillingEmail(project.client.billingEmail || '')
+            // Build billing address
+            const billingParts = [
+              project.client.billingAddress,
+              project.client.billingCity,
+              project.client.billingProvince,
+              project.client.billingPostalCode,
+              project.client.billingCountry
+            ].filter(Boolean)
+            setBillingAddress(billingParts.join(', '))
+          }
         }
 
         // Build address from project (streetAddress, city, province, postalCode)
@@ -681,6 +705,12 @@ export default function CreateClientQuoteDialog({
     setExpandedItemIds(new Set())
     setSelectionSearchQuery('')
     setSelectionExpandedCategories(new Set())
+    // Reset billing info
+    setHasBillingInfo(false)
+    setUseBillingInfo(false)
+    setBillingName('')
+    setBillingEmail('')
+    setBillingAddress('')
   }
 
   const handleSendToClient = async () => {
@@ -1683,6 +1713,34 @@ export default function CreateClientQuoteDialog({
                   <h4 className="font-medium text-gray-900">Bill To</h4>
                   <span className="text-xs text-gray-400">(editable)</span>
                 </div>
+
+                {/* Option to use billing info */}
+                {hasBillingInfo && (
+                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-blue-900">Use Billing Info</p>
+                        <p className="text-xs text-blue-600">
+                          {billingName || billingEmail}
+                        </p>
+                      </div>
+                      <Checkbox
+                        id="useBillingInfo"
+                        checked={useBillingInfo}
+                        onCheckedChange={(checked) => {
+                          setUseBillingInfo(checked === true)
+                          if (checked) {
+                            // Apply billing info
+                            if (billingName) setClientName(billingName)
+                            if (billingEmail) setClientEmail(billingEmail)
+                            if (billingAddress) setClientAddress(billingAddress)
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label className="text-xs text-gray-500">Client Name</Label>

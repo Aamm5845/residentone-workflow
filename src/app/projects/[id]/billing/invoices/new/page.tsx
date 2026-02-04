@@ -35,7 +35,7 @@ export default async function NewInvoicePage({ params, searchParams }: Props) {
     redirect(`/projects/${projectId}`)
   }
 
-  // Get project with client info
+  // Get project with client info including billing information
   const project = await prisma.project.findFirst({
     where: { id: projectId },
     select: {
@@ -48,6 +48,14 @@ export default async function NewInvoicePage({ params, searchParams }: Props) {
           name: true,
           email: true,
           phone: true,
+          // Billing information
+          billingName: true,
+          billingEmail: true,
+          billingAddress: true,
+          billingCity: true,
+          billingProvince: true,
+          billingPostalCode: true,
+          billingCountry: true,
         },
       },
     },

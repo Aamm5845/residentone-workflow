@@ -258,6 +258,15 @@ model Client {
   organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   projects     Project[]
 
+  // Billing Information
+  billingName       String?  // Contact name for billing (e.g., "Accounts Payable")
+  billingEmail      String?  // Email for invoices
+  billingAddress    String?  // Street address
+  billingCity       String?
+  billingProvince   String?  // Province/State
+  billingPostalCode String?
+  billingCountry    String?  @default("Canada")
+
   @@unique([orgId, email])
 }
 
