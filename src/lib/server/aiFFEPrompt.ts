@@ -231,7 +231,7 @@ Please identify ALL FFE items visible in the image(s). Be thorough and specific.
       type: 'image_url',
       image_url: {
         url: imageUrl,
-        detail: 'high' // Use high detail for accurate item detection
+        detail: 'auto' // Let OpenAI decide - 'high' was causing timeouts
       }
     })
   }

@@ -27,7 +27,7 @@ export function getOpenAI(): OpenAI {
   if (!openaiClient) {
     openaiClient = new OpenAI({
       apiKey,
-      timeout: 30000, // 30 second timeout
+      timeout: 90000, // 90 second timeout for Vision API calls
       maxRetries: 2
     })
   }

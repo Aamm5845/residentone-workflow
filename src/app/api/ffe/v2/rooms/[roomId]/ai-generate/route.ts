@@ -15,7 +15,7 @@ import { dropboxService } from '@/lib/dropbox-service'
 // Configure Next.js route
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
-export const maxDuration = 60 // 60 second timeout for image analysis
+export const maxDuration = 120 // 120 second timeout for image analysis with OpenAI Vision
 
 // Rate limiting
 const rateLimitMap = new Map<string, number>()
@@ -175,20 +175,17 @@ export async function POST(
     }
 
     // 8. Get image URLs (prefer Blob for fast access, fallback to Dropbox)
-    const imageUrls: string[] = []
-
-    for (const asset of imageAssets) {
+    // Process assets in parallel to avoid sequential Dropbox API calls
+    const imageUrlPromises = imageAssets.map(async (asset) => {
       // First check if there's a blob URL in metadata (fast access)
       const metadata = typeof asset.metadata === 'string' ? JSON.parse(asset.metadata || '{}') : (asset.metadata || {})
       if (metadata.blobUrl) {
-        imageUrls.push(metadata.blobUrl)
-        continue
+        return metadata.blobUrl
       }
 
       // If provider is blob, use URL directly
       if (asset.provider === 'blob' && asset.url?.startsWith('http')) {
-        imageUrls.push(asset.url)
-        continue
+        return asset.url
       }
 
       // Handle Dropbox links
@@ -196,19 +193,23 @@ export async function POST(
         try {
           const temporaryLink = await dropboxService.getTemporaryLink(asset.url)
           if (temporaryLink) {
-            imageUrls.push(temporaryLink)
+            return temporaryLink
           }
         } catch (error) {
           console.error(`Failed to get Dropbox link for asset ${asset.id}:`, error)
           // Try using the URL directly as fallback
           if (asset.url.startsWith('http')) {
-            imageUrls.push(asset.url)
+            return asset.url
           }
         }
       } else if (asset.url && asset.url.startsWith('http')) {
-        imageUrls.push(asset.url)
+        return asset.url
       }
-    }
+      return null
+    })
+
+    const imageUrlResults = await Promise.all(imageUrlPromises)
+    const imageUrls = imageUrlResults.filter((url): url is string => url !== null)
 
     if (imageUrls.length === 0) {
       return NextResponse.json({
