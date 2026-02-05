@@ -7,10 +7,10 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { 
-  Sparkles, 
-  RefreshCw, 
-  AlertTriangle, 
+import {
+  Sparkles,
+  RefreshCw,
+  AlertTriangle,
   ChevronRight,
   ChevronDown,
   Package,
@@ -24,8 +24,12 @@ import {
   ArrowRight,
   Trash2,
   Link,
-  Settings2
+  Settings2,
+  Search,
+  ExternalLink,
+  ShoppingBag
 } from 'lucide-react'
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
@@ -140,6 +144,15 @@ export interface ImportableCategory {
   }>
 }
 
+// Product search result from Google Custom Search
+interface ProductSearchResult {
+  title: string
+  link: string
+  snippet: string
+  image?: string
+  source: string
+}
+
 interface AIGenerateFFEDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -165,6 +178,11 @@ export default function AIGenerateFFEDialog({
   const [customItems, setCustomItems] = useState<Set<string>>(new Set()) // Track items marked as custom
   const [meta, setMeta] = useState<any>(null)
 
+  // Product search state
+  const [searchingItems, setSearchingItems] = useState<Set<string>>(new Set())
+  const [productResults, setProductResults] = useState<Map<string, ProductSearchResult[]>>(new Map())
+  const [openPopovers, setOpenPopovers] = useState<Set<string>>(new Set())
+
   const handleAnalyze = async () => {
     setLoading(true)
     setError(null)
@@ -173,6 +191,10 @@ export default function AIGenerateFFEDialog({
     setSelectedItems(new Set())
     setExpandedCategories(new Set())
     setCustomItems(new Set())
+    // Reset product search state
+    setSearchingItems(new Set())
+    setProductResults(new Map())
+    setOpenPopovers(new Set())
 
     try {
       const response = await fetch(`/api/ffe/v2/rooms/${roomId}/ai-generate`, {
@@ -364,6 +386,53 @@ export default function AIGenerateFFEDialog({
       }
       return cat
     }))
+  }
+
+  // Handle product search for an item
+  const handleProductSearch = async (categoryName: string, item: EditableItem) => {
+    const key = `${categoryName}::${item.name}`
+
+    // If already have results, just toggle the popover
+    if (productResults.has(key)) {
+      return
+    }
+
+    // Start searching
+    setSearchingItems(prev => new Set(prev).add(key))
+
+    try {
+      const response = await fetch('/api/ffe/product-search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          itemName: item.name,
+          description: item.description,
+          category: categoryName
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Search failed')
+      }
+
+      if (data.success && data.results) {
+        setProductResults(prev => new Map(prev).set(key, data.results))
+      } else {
+        setProductResults(prev => new Map(prev).set(key, []))
+      }
+    } catch (err: any) {
+      console.error('Product search error:', err)
+      toast.error(err.message || 'Failed to search for products')
+      setProductResults(prev => new Map(prev).set(key, []))
+    } finally {
+      setSearchingItems(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(key)
+        return newSet
+      })
+    }
   }
 
   const handleImport = async () => {
@@ -647,6 +716,101 @@ export default function AIGenerateFFEDialog({
                                         {item.description && <p className="text-sm text-gray-500 mt-0.5">{item.description}</p>}
                                       </div>
                                       <div className="flex items-center gap-1">
+                                        {/* Find Products Button with Popover */}
+                                        <Popover
+                                          open={openPopovers.has(`${category.name}::${item.name}`)}
+                                          onOpenChange={(open) => {
+                                            const key = `${category.name}::${item.name}`
+                                            setOpenPopovers(prev => {
+                                              const newSet = new Set(prev)
+                                              if (open) {
+                                                newSet.add(key)
+                                                // Trigger search when opening
+                                                handleProductSearch(category.name, item)
+                                              } else {
+                                                newSet.delete(key)
+                                              }
+                                              return newSet
+                                            })
+                                          }}
+                                        >
+                                          <PopoverTrigger asChild>
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="text-gray-400 hover:text-[#e94d97]"
+                                              title="Find products to buy"
+                                            >
+                                              {searchingItems.has(`${category.name}::${item.name}`) ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                              ) : (
+                                                <Search className="h-4 w-4" />
+                                              )}
+                                            </Button>
+                                          </PopoverTrigger>
+                                          <PopoverContent className="w-80 p-0" align="end">
+                                            <div className="p-3 border-b border-gray-100">
+                                              <div className="flex items-center gap-2">
+                                                <ShoppingBag className="h-4 w-4 text-[#e94d97]" />
+                                                <span className="font-medium text-sm text-gray-900">Product Results</span>
+                                              </div>
+                                            </div>
+                                            <div className="max-h-64 overflow-y-auto">
+                                              {searchingItems.has(`${category.name}::${item.name}`) ? (
+                                                <div className="p-4 text-center">
+                                                  <Loader2 className="h-5 w-5 animate-spin mx-auto text-gray-400" />
+                                                  <p className="text-sm text-gray-500 mt-2">Searching...</p>
+                                                </div>
+                                              ) : productResults.get(`${category.name}::${item.name}`)?.length === 0 ? (
+                                                <div className="p-4 text-center">
+                                                  <Search className="h-5 w-5 mx-auto text-gray-300" />
+                                                  <p className="text-sm text-gray-500 mt-2">No products found</p>
+                                                </div>
+                                              ) : (
+                                                <div className="divide-y divide-gray-100">
+                                                  {productResults.get(`${category.name}::${item.name}`)?.map((product, idx) => (
+                                                    <div key={idx} className="p-3 hover:bg-gray-50 transition-colors">
+                                                      <div className="flex gap-3">
+                                                        {product.image ? (
+                                                          <div className="w-12 h-12 rounded bg-gray-100 flex-shrink-0 overflow-hidden">
+                                                            <img
+                                                              src={product.image}
+                                                              alt={product.title}
+                                                              className="w-full h-full object-cover"
+                                                              onError={(e) => {
+                                                                (e.target as HTMLImageElement).style.display = 'none'
+                                                              }}
+                                                            />
+                                                          </div>
+                                                        ) : (
+                                                          <div className="w-12 h-12 rounded bg-gray-100 flex-shrink-0 flex items-center justify-center">
+                                                            <Package className="h-5 w-5 text-gray-300" />
+                                                          </div>
+                                                        )}
+                                                        <div className="flex-1 min-w-0">
+                                                          <p className="text-sm font-medium text-gray-900 line-clamp-2">
+                                                            {product.title}
+                                                          </p>
+                                                          <p className="text-xs text-gray-500 mt-0.5">{product.source}</p>
+                                                        </div>
+                                                        <a
+                                                          href={product.link}
+                                                          target="_blank"
+                                                          rel="noopener noreferrer"
+                                                          className="flex-shrink-0"
+                                                        >
+                                                          <Button size="sm" variant="ghost" className="h-8 px-2 text-[#e94d97] hover:text-[#d63d87]">
+                                                            <ExternalLink className="h-3.5 w-3.5" />
+                                                          </Button>
+                                                        </a>
+                                                      </div>
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              )}
+                                            </div>
+                                          </PopoverContent>
+                                        </Popover>
                                         <Button size="sm" variant="ghost" onClick={() => handleStartEdit(categoryIndex, itemIndex)} className="text-gray-400 hover:text-gray-600">
                                           <Edit3 className="h-4 w-4" />
                                         </Button>
