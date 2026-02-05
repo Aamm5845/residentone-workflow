@@ -419,21 +419,36 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
   const updateClient = async () => {
     try {
       setIsLoading(true)
+
+      // Transform empty strings to null for billing fields
+      const dataToSend = {
+        ...clientFormData,
+        billingName: clientFormData.billingName?.trim() || null,
+        billingEmail: clientFormData.billingEmail?.trim() || null,
+        billingAddress: clientFormData.billingAddress?.trim() || null,
+        billingCity: clientFormData.billingCity?.trim() || null,
+        billingProvince: clientFormData.billingProvince?.trim() || null,
+        billingPostalCode: clientFormData.billingPostalCode?.trim() || null,
+        billingCountry: clientFormData.billingCountry?.trim() || null,
+        additionalEmails: additionalEmails.filter(e => e.email) // Only include emails that have values
+      }
+
       const response = await fetch(`/api/clients/${project.clientId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...clientFormData,
-          additionalEmails: additionalEmails.filter(e => e.email) // Only include emails that have values
-        }),
+        body: JSON.stringify(dataToSend),
         credentials: 'include'
       })
 
-      if (!response.ok) throw new Error('Failed to update client')
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to update client')
+      }
       setEditingField(null)
       router.refresh()
     } catch (error) {
-      alert('Failed to update client')
+      console.error('Client update error:', error)
+      alert(error instanceof Error ? error.message : 'Failed to update client')
     } finally {
       setIsLoading(false)
     }

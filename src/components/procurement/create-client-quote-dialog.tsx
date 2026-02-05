@@ -224,7 +224,17 @@ export default function CreateClientQuoteDialog({
           setClientPhone(project.client.phone || '')
 
           // Load billing info if available
+          console.log('[Invoice Dialog] Client billing data:', {
+            billingName: project.client.billingName,
+            billingEmail: project.client.billingEmail,
+            billingAddress: project.client.billingAddress,
+            billingCity: project.client.billingCity,
+            billingProvince: project.client.billingProvince,
+            billingPostalCode: project.client.billingPostalCode,
+            billingCountry: project.client.billingCountry
+          })
           const hasBilling = !!(project.client.billingName || project.client.billingEmail || project.client.billingAddress)
+          console.log('[Invoice Dialog] hasBillingInfo:', hasBilling)
           setHasBillingInfo(hasBilling)
           if (hasBilling) {
             setBillingName(project.client.billingName || '')
@@ -1452,6 +1462,86 @@ export default function CreateClientQuoteDialog({
                     ? 'Client will see credit card option with 3% processing fee'
                     : 'Client will only see e-Transfer and wire transfer options'}
                 </p>
+              </div>
+
+              {/* Bill To Section */}
+              <div className="border rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <User className="w-4 h-4 text-gray-500" />
+                  <h4 className="font-medium text-gray-700">Bill To</h4>
+                </div>
+
+                {/* Billing Info Option */}
+                {hasBillingInfo && (
+                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-blue-900">Use Billing Contact</p>
+                        <p className="text-xs text-blue-600">
+                          {billingName}{billingEmail ? ` • ${billingEmail}` : ''}
+                        </p>
+                      </div>
+                      <Checkbox
+                        id="useBillingInfoStep1"
+                        checked={useBillingInfo}
+                        onCheckedChange={(checked) => {
+                          setUseBillingInfo(checked === true)
+                          if (checked) {
+                            if (billingName) setClientName(billingName)
+                            if (billingEmail) setClientEmail(billingEmail)
+                            if (billingAddress) setClientAddress(billingAddress)
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-gray-500">Client Name</Label>
+                    <Input
+                      value={clientName}
+                      onChange={(e) => setClientName(e.target.value)}
+                      placeholder="Client name..."
+                      className="h-9"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-gray-500">Email</Label>
+                    <Input
+                      type="email"
+                      value={clientEmail}
+                      onChange={(e) => setClientEmail(e.target.value)}
+                      placeholder="email@example.com"
+                      className="h-9"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-gray-500">Phone</Label>
+                    <Input
+                      value={clientPhone}
+                      onChange={(e) => setClientPhone(e.target.value)}
+                      placeholder="Phone number..."
+                      className="h-9"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-gray-500">Address</Label>
+                    <Input
+                      value={clientAddress}
+                      onChange={(e) => setClientAddress(e.target.value)}
+                      placeholder="Address..."
+                      className="h-9"
+                    />
+                  </div>
+                </div>
+
+                {!hasBillingInfo && (
+                  <p className="text-xs text-gray-400 mt-3">
+                    Tip: Add billing info in Project Settings to quickly switch between contacts
+                  </p>
+                )}
               </div>
 
               {/* Summary Preview */}

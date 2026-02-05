@@ -12,7 +12,10 @@ const updateClientSchema = z.object({
   company: z.string().optional(),
   // Billing information
   billingName: z.string().optional().nullable(),
-  billingEmail: z.string().email("Invalid billing email").optional().nullable(),
+  billingEmail: z.string().optional().nullable().refine(
+    (val) => !val || val === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val),
+    { message: "Invalid billing email" }
+  ),
   billingAddress: z.string().optional().nullable(),
   billingCity: z.string().optional().nullable(),
   billingProvince: z.string().optional().nullable(),
