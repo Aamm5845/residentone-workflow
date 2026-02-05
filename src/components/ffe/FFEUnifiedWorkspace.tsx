@@ -1362,20 +1362,35 @@ export default function FFEUnifiedWorkspace({
 
   const handleUpdateSectionName = async (sectionId: string) => {
     if (!editSectionName.trim()) { toast.error('Section name is required'); return }
+
+    const newName = editSectionName.trim()
+
+    // Close the editor immediately
+    setEditingSectionId(null)
+    setEditSectionName('')
+
+    // Optimistic update - update local state immediately without reloading
+    setSections(prevSections =>
+      prevSections.map(section =>
+        section.id === sectionId
+          ? { ...section, name: newName }
+          : section
+      )
+    )
+
     try {
       setSaving(true)
       const response = await fetch(`/api/ffe/v2/rooms/${roomId}/sections?sectionId=${sectionId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: editSectionName.trim() })
+        body: JSON.stringify({ name: newName })
       })
       if (!response.ok) throw new Error('Failed to update section name')
-      await loadFFEData()
-      setEditingSectionId(null)
-      setEditSectionName('')
       toast.success('Section name updated')
     } catch (error) {
       toast.error('Failed to update section name')
+      // Revert on error by reloading data
+      await loadFFEData()
     } finally {
       setSaving(false)
     }
@@ -1383,40 +1398,75 @@ export default function FFEUnifiedWorkspace({
 
   const handleUpdateItemName = async (itemId: string) => {
     if (!editItemName.trim()) { toast.error('Item name is required'); return }
+
+    const newName = editItemName.trim()
+
+    // Close the editor immediately
+    setEditingItemId(null)
+    setEditItemName('')
+
+    // Optimistic update - update local state immediately without reloading
+    setSections(prevSections =>
+      prevSections.map(section => ({
+        ...section,
+        items: section.items.map(item =>
+          item.id === itemId
+            ? { ...item, name: newName }
+            : item
+        )
+      }))
+    )
+
     try {
       setSaving(true)
       const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${itemId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: editItemName.trim() })
+        body: JSON.stringify({ name: newName })
       })
       if (!response.ok) throw new Error('Failed to update item name')
-      await loadFFEData()
-      setEditingItemId(null)
-      setEditItemName('')
       toast.success('Item name updated')
     } catch (error) {
       toast.error('Failed to update item name')
+      // Revert on error by reloading data
+      await loadFFEData()
     } finally {
       setSaving(false)
     }
   }
   
   const handleUpdateItemNotes = async (itemId: string) => {
+    const newNotes = editNotesValue.trim() || null
+
+    // Close the editor immediately
+    setEditingNotesItemId(null)
+    setEditNotesValue('')
+
+    // Optimistic update - update local state immediately without reloading
+    setSections(prevSections =>
+      prevSections.map(section => ({
+        ...section,
+        items: section.items.map(item =>
+          item.id === itemId
+            ? { ...item, notes: newNotes }
+            : item
+        )
+      }))
+    )
+
     try {
       setSavingNotes(true)
       const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${itemId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ notes: editNotesValue.trim() || null })
+        body: JSON.stringify({ notes: newNotes })
       })
       if (!response.ok) throw new Error('Failed to update item notes')
-      await loadFFEData()
-      setEditingNotesItemId(null)
-      setEditNotesValue('')
       toast.success('Notes updated')
     } catch (error) {
       toast.error('Failed to update notes')
+      // Revert on error by reloading data
+      await loadFFEData()
     } finally {
       setSavingNotes(false)
     }

@@ -203,6 +203,7 @@ model User {
   timeEntries                 TimeEntry[]                 @relation("UserTimeEntries")
   timeEntryEdits              TimeEntryEdit[]             @relation("UserTimeEntryEdits")
   timeSettings                UserTimeSettings?           @relation("UserTimeSettings")
+  offDays                     UserOffDay[]                @relation("UserOffDays")
   // Floorplan chat relations
   floorplanChatMessages       FloorplanChatMessage[]      @relation("FloorplanChatAuthor")
   floorplanChatMentions       FloorplanChatMention[]      @relation("FloorplanChatMentioned")
@@ -3037,6 +3038,32 @@ model UserTimeSettings {
   user User @relation("UserTimeSettings", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// User off days for time tracking (vacation, sick days, etc.)
+model UserOffDay {
+  id        String      @id @default(cuid())
+  userId    String
+  date      DateTime    @db.Date // The specific day off
+  reason    OffDayType  @default(VACATION)
+  notes     String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  user User @relation("UserOffDays", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date]) // One entry per user per day
+  @@index([userId])
+  @@index([userId, date])
+  @@index([date])
+}
+
+enum OffDayType {
+  VACATION
+  SICK
+  PERSONAL
+  HOLIDAY
+  OTHER
 }
 
 // Floorplan Chat Models

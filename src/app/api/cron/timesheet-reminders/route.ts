@@ -8,10 +8,11 @@ export const maxDuration = 60
 /**
  * GET /api/cron/timesheet-reminders
  *
- * Sends email reminders to team members who haven't logged hours in 2-3 business days.
- * Excludes Friday, Saturday, and Sunday from the check.
+ * Sends email reminders to team members who haven't logged hours in the last 2 business days.
+ * Business days are Monday-Friday. Excludes user's registered off days.
+ * Email includes specific dates that are missing time entries.
  *
- * Should be run daily (Monday-Thursday) via Vercel Cron or external scheduler.
+ * Should be run daily (Monday-Friday) via Vercel Cron or external scheduler.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -30,19 +31,19 @@ export async function GET(request: NextRequest) {
     const today = new Date()
     const dayOfWeek = today.getDay() // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
 
-    // Skip running on Friday (5), Saturday (6), and Sunday (0)
-    if (dayOfWeek === 0 || dayOfWeek === 5 || dayOfWeek === 6) {
+    // Skip running on Saturday (6) and Sunday (0)
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
       return NextResponse.json({
         success: true,
-        message: 'Skipped - today is a weekend day (Fri/Sat/Sun)',
+        message: 'Skipped - today is a weekend day (Sat/Sun)',
         skipped: true
       })
     }
 
-    // Calculate the date range to check (last 2-3 business days)
-    const checkFromDate = getBusinessDaysAgo(3) // Check if no entries in last 3 business days
+    // Get the last 2 business days to check (Monday-Friday)
+    const businessDaysToCheck = getLastBusinessDays(2)
 
-    console.log(`Checking for missing timesheet entries since ${checkFromDate.toISOString()}`)
+    console.log(`Checking for missing timesheet entries for dates: ${businessDaysToCheck.map(d => formatDateShort(d)).join(', ')}`)
 
     // Get all organizations
     const organizations = await prisma.organization.findMany({
@@ -80,43 +81,76 @@ export async function GET(request: NextRequest) {
       for (const member of teamMembers) {
         if (!member.email) continue
 
-        // Check if user has any time entries in the check period
-        const recentEntry = await prisma.timeEntry.findFirst({
+        // Get user's off days for the check period
+        const userOffDays = await prisma.userOffDay.findMany({
           where: {
             userId: member.id,
-            startTime: {
-              gte: checkFromDate
+            date: {
+              in: businessDaysToCheck
             }
           },
-          orderBy: { startTime: 'desc' }
+          select: { date: true }
         })
 
-        // If no recent entries, send reminder
-        if (!recentEntry) {
+        const offDayDates = new Set(userOffDays.map(od => od.date.toISOString().split('T')[0]))
+
+        // Filter out off days from the days to check
+        const daysToCheck = businessDaysToCheck.filter(
+          day => !offDayDates.has(day.toISOString().split('T')[0])
+        )
+
+        // If all days are off days, skip this user
+        if (daysToCheck.length === 0) {
+          console.log(`Skipping ${member.email} - all days are marked as off`)
+          continue
+        }
+
+        // Check which days are missing time entries
+        const missingDays: Date[] = []
+
+        for (const day of daysToCheck) {
+          const dayStart = new Date(day)
+          dayStart.setHours(0, 0, 0, 0)
+          const dayEnd = new Date(day)
+          dayEnd.setHours(23, 59, 59, 999)
+
+          const entryForDay = await prisma.timeEntry.findFirst({
+            where: {
+              userId: member.id,
+              startTime: {
+                gte: dayStart,
+                lte: dayEnd
+              }
+            }
+          })
+
+          if (!entryForDay) {
+            missingDays.push(day)
+          }
+        }
+
+        // If there are missing days, send reminder
+        if (missingDays.length > 0) {
           const lastEntry = await prisma.timeEntry.findFirst({
             where: { userId: member.id },
             orderBy: { startTime: 'desc' },
             select: { startTime: true }
           })
 
-          const lastEntryDate = lastEntry?.startTime
-            ? formatDate(lastEntry.startTime)
-            : 'never'
-
-          // Send reminder email
+          // Send reminder email with specific missing dates
           try {
             await sendTimesheetReminderEmail({
               to: member.email,
               userName: member.name || 'Team Member',
               organizationName: org.name,
-              lastEntryDate,
-              daysWithoutEntry: getDaysSince(lastEntry?.startTime)
+              missingDates: missingDays,
+              lastEntryDate: lastEntry?.startTime ? formatDate(lastEntry.startTime) : null
             })
 
             usersToRemind.push(member.email)
             totalReminders++
 
-            console.log(`Sent timesheet reminder to ${member.email}`)
+            console.log(`Sent timesheet reminder to ${member.email} for missing dates: ${missingDays.map(d => formatDateShort(d)).join(', ')}`)
           } catch (emailError) {
             console.error(`Failed to send reminder to ${member.email}:`, emailError)
           }
@@ -137,7 +171,7 @@ export async function GET(request: NextRequest) {
       message: `Sent ${totalReminders} timesheet reminders`,
       totalReminders,
       results,
-      checkPeriodStart: checkFromDate.toISOString()
+      datesChecked: businessDaysToCheck.map(d => formatDateShort(d))
     })
 
   } catch (error) {
@@ -150,40 +184,28 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * Get the date X business days ago (excluding Fri, Sat, Sun)
+ * Get the last X business days (Monday-Friday), not including today
  */
-function getBusinessDaysAgo(days: number): Date {
+function getLastBusinessDays(count: number): Date[] {
+  const days: Date[] = []
   const date = new Date()
   date.setHours(0, 0, 0, 0)
 
-  let businessDaysCount = 0
-
-  while (businessDaysCount < days) {
+  while (days.length < count) {
     date.setDate(date.getDate() - 1)
     const dayOfWeek = date.getDay()
 
-    // Count only Monday (1) through Thursday (4)
-    // Skip Friday (5), Saturday (6), Sunday (0)
-    if (dayOfWeek >= 1 && dayOfWeek <= 4) {
-      businessDaysCount++
+    // Include Monday (1) through Friday (5)
+    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+      days.push(new Date(date))
     }
   }
 
-  return date
+  return days.reverse() // Return in chronological order
 }
 
 /**
- * Calculate days since a date
- */
-function getDaysSince(date?: Date | null): number {
-  if (!date) return -1
-  const now = new Date()
-  const diffTime = now.getTime() - date.getTime()
-  return Math.floor(diffTime / (1000 * 60 * 60 * 24))
-}
-
-/**
- * Format date for display
+ * Format date for display (e.g., "Monday, Feb 3")
  */
 function formatDate(date: Date): string {
   return new Intl.DateTimeFormat('en-US', {
@@ -194,26 +216,42 @@ function formatDate(date: Date): string {
 }
 
 /**
- * Send timesheet reminder email
+ * Format date short (e.g., "Feb 3")
+ */
+function formatDateShort(date: Date): string {
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric'
+  }).format(date)
+}
+
+/**
+ * Send timesheet reminder email with specific missing dates
  */
 async function sendTimesheetReminderEmail({
   to,
   userName,
   organizationName,
-  lastEntryDate,
-  daysWithoutEntry
+  missingDates,
+  lastEntryDate
 }: {
   to: string
   userName: string
   organizationName: string
-  lastEntryDate: string
-  daysWithoutEntry: number
+  missingDates: Date[]
+  lastEntryDate: string | null
 }) {
   const subject = `Reminder: Please log your hours - ${organizationName}`
 
-  const daysText = daysWithoutEntry > 0
-    ? `${daysWithoutEntry} day${daysWithoutEntry > 1 ? 's' : ''}`
-    : 'a while'
+  // Format the missing dates list
+  const formattedDates = missingDates.map(d => formatDate(d))
+  const missingDatesText = formattedDates.length === 1
+    ? formattedDates[0]
+    : formattedDates.slice(0, -1).join(', ') + ' and ' + formattedDates[formattedDates.length - 1]
+
+  const lastEntryText = lastEntryDate
+    ? `Your last time entry was on <strong>${lastEntryDate}</strong>.`
+    : `We don't have any time entries recorded for you yet.`
 
   const html = `
     <!DOCTYPE html>
@@ -227,7 +265,7 @@ async function sendTimesheetReminderEmail({
         <div style="background-color: white; border-radius: 8px; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
 
           <h1 style="margin: 0 0 24px 0; font-size: 24px; font-weight: 600; color: #1a1a1a;">
-            ⏰ Timesheet Reminder
+            Timesheet Reminder
           </h1>
 
           <p style="margin: 0 0 16px 0; font-size: 16px; color: #333; line-height: 1.5;">
@@ -235,8 +273,17 @@ async function sendTimesheetReminderEmail({
           </p>
 
           <p style="margin: 0 0 16px 0; font-size: 16px; color: #333; line-height: 1.5;">
-            We noticed you haven't logged any hours for <strong>${daysText}</strong>.
-            Your last time entry was on <strong>${lastEntryDate}</strong>.
+            We noticed you haven't logged any hours for the following date${missingDates.length > 1 ? 's' : ''}:
+          </p>
+
+          <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 16px; margin: 0 0 16px 0; border-radius: 0 4px 4px 0;">
+            <p style="margin: 0; font-size: 16px; color: #92400e; font-weight: 500;">
+              ${missingDatesText}
+            </p>
+          </div>
+
+          <p style="margin: 0 0 24px 0; font-size: 14px; color: #666; line-height: 1.5;">
+            ${lastEntryText}
           </p>
 
           <p style="margin: 0 0 24px 0; font-size: 16px; color: #333; line-height: 1.5;">
@@ -250,15 +297,18 @@ async function sendTimesheetReminderEmail({
 
           <hr style="margin: 32px 0; border: none; border-top: 1px solid #e5e5e5;">
 
+          <p style="margin: 0 0 12px 0; font-size: 14px; color: #666; line-height: 1.5;">
+            <strong>Taking time off?</strong> You can mark days as off in the Timeline page to avoid future reminders.
+          </p>
+
           <p style="margin: 0; font-size: 14px; color: #666; line-height: 1.5;">
             This is an automated reminder from ${organizationName}.
-            If you were on leave or this doesn't apply to you, please disregard this message.
           </p>
 
         </div>
 
         <p style="margin: 16px 0 0 0; font-size: 12px; color: #999; text-align: center;">
-          ${organizationName} • Timesheet Management
+          ${organizationName} - Timesheet Management
         </p>
       </div>
     </body>
