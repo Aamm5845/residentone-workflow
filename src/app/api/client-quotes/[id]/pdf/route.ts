@@ -58,14 +58,16 @@ export async function GET(
     })
 
     // Prepare data for PDF generation
+    // Use invoice's saved billing info first, fall back to project client
     const pdfData = {
       quoteNumber: quote.quoteNumber,
       title: quote.title,
       description: quote.description,
       projectName: quote.project.name,
-      clientName: quote.project.client?.name || 'Client',
-      clientEmail: quote.project.client?.email,
-      clientPhone: quote.project.client?.phone,
+      clientName: quote.clientName || quote.project.client?.name || 'Client',
+      clientEmail: quote.clientEmail || quote.project.client?.email,
+      clientPhone: quote.clientPhone || quote.project.client?.phone,
+      clientAddress: quote.clientAddress || null,
       createdAt: quote.createdAt,
       validUntil: quote.validUntil,
       paymentTerms: quote.paymentTerms,
@@ -169,14 +171,16 @@ export async function POST(
     })
 
     // Generate PDF
+    // Use invoice's saved billing info first, fall back to project client
     const pdfData = {
       quoteNumber: quote.quoteNumber,
       title: quote.title,
       description: quote.description,
       projectName: quote.project.name,
-      clientName: quote.project.client?.name || 'Client',
-      clientEmail: quote.project.client?.email,
-      clientPhone: quote.project.client?.phone,
+      clientName: quote.clientName || quote.project.client?.name || 'Client',
+      clientEmail: quote.clientEmail || quote.project.client?.email,
+      clientPhone: quote.clientPhone || quote.project.client?.phone,
+      clientAddress: quote.clientAddress || null,
       createdAt: quote.createdAt,
       validUntil: quote.validUntil,
       paymentTerms: quote.paymentTerms,

@@ -101,6 +101,7 @@ interface InvoiceData {
   ccFeeRate: number
   allowCreditCard?: boolean
   lineItems: LineItem[]
+  clientAddress?: string
   project: {
     name: string
     client?: {
@@ -339,6 +340,12 @@ export default function ClientInvoicePage() {
                   <p className="font-medium text-gray-900">{invoice.project.client?.name || 'Client'}</p>
                   {invoice.project.client?.email && (
                     <p className="text-sm text-gray-500">{invoice.project.client.email}</p>
+                  )}
+                  {invoice.project.client?.phone && (
+                    <p className="text-sm text-gray-500">{invoice.project.client.phone}</p>
+                  )}
+                  {invoice.clientAddress && (
+                    <p className="text-sm text-gray-500 mt-1">{invoice.clientAddress}</p>
                   )}
                 </div>
                 <div className="sm:text-right">

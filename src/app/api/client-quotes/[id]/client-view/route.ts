@@ -281,7 +281,17 @@ export async function GET(
           } : null
         }
       }),
-      project: quote.project,
+      project: {
+        ...quote.project,
+        // Override client info with invoice's billing info if set
+        client: {
+          name: quote.clientName || quote.project.client?.name || 'Client',
+          email: quote.clientEmail || quote.project.client?.email,
+          phone: quote.clientPhone || quote.project.client?.phone
+        }
+      },
+      // Also include billing address separately
+      clientAddress: quote.clientAddress || null,
       organization,
       // Payment status
       isPaid,
