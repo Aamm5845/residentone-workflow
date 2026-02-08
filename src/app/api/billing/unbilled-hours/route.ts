@@ -108,9 +108,14 @@ export async function GET(request: NextRequest) {
 
     const hourlyRate = proposal?.hourlyRate ? Number(proposal.hourlyRate) : null
 
+    // Round minutes to nearest half-hour
+    const roundToHalfHour = (minutes: number) => {
+      return Math.round((minutes / 60) * 2) / 2
+    }
+
     // Calculate summary
     const totalUnbilledMinutes = entries.reduce((sum, e) => sum + (e.duration || 0), 0)
-    const totalUnbilledHours = Math.round((totalUnbilledMinutes / 60) * 100) / 100
+    const totalUnbilledHours = roundToHalfHour(totalUnbilledMinutes)
     const estimatedAmount = hourlyRate ? totalUnbilledHours * hourlyRate : null
 
     return NextResponse.json({
@@ -130,7 +135,7 @@ export async function GET(request: NextRequest) {
         startTime: e.startTime.toISOString(),
         endTime: e.endTime?.toISOString() || null,
         duration: e.duration,
-        durationHours: Math.round(((e.duration || 0) / 60) * 100) / 100,
+        durationHours: roundToHalfHour(e.duration || 0),
         room: e.room ? { id: e.room.id, name: e.room.name, type: e.room.type } : null,
         stage: e.stage ? { id: e.stage.id, type: e.stage.type } : null,
       })),

@@ -74,6 +74,7 @@ interface InvoiceFormProps {
   defaultQstRate?: number
   fromProposal?: FromProposal
   existingInvoice?: any
+  autoOpenTimeSelector?: boolean
 }
 
 export default function InvoiceForm({
@@ -84,6 +85,7 @@ export default function InvoiceForm({
   defaultQstRate = 9.975,
   fromProposal,
   existingInvoice,
+  autoOpenTimeSelector = false,
 }: InvoiceFormProps) {
   const router = useRouter()
   const isEditing = !!existingInvoice
@@ -168,6 +170,29 @@ export default function InvoiceForm({
   // Time entry selector state
   const [timeEntrySelectorOpen, setTimeEntrySelectorOpen] = useState(false)
   const [timeEntrySelectorIndex, setTimeEntrySelectorIndex] = useState<number | null>(null)
+  const [autoOpenDone, setAutoOpenDone] = useState(false)
+
+  // Auto-open timeline selector when coming from "Invoice Now"
+  useEffect(() => {
+    if (autoOpenTimeSelector && !autoOpenDone && !isEditing) {
+      setAutoOpenDone(true)
+      const hourlyRate = fromProposal?.hourlyRate || 200
+      const newItem: LineItem = {
+        type: 'HOURLY',
+        description: 'Design Hours',
+        quantity: 1,
+        unitPrice: hourlyRate,
+        hours: 0,
+        hourlyRate,
+        timeEntryIds: [],
+        amount: 0,
+        order: 0,
+      }
+      setLineItems(prev => [...prev, newItem])
+      setTimeEntrySelectorIndex(lineItems.length)
+      setTimeEntrySelectorOpen(true)
+    }
+  }, [autoOpenTimeSelector, autoOpenDone, isEditing])
 
   // UI state
   const [saving, setSaving] = useState(false)

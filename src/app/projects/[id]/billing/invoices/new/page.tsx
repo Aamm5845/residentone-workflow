@@ -6,7 +6,7 @@ import InvoiceForm from '@/components/billing/invoices/InvoiceForm'
 
 interface Props {
   params: { id: string }
-  searchParams: { proposalId?: string }
+  searchParams: { proposalId?: string; fromUnbilled?: string }
 }
 
 export default async function NewInvoicePage({ params, searchParams }: Props) {
@@ -17,7 +17,7 @@ export default async function NewInvoicePage({ params, searchParams }: Props) {
   }
 
   const { id: projectId } = await params
-  const { proposalId } = await searchParams || {}
+  const { proposalId, fromUnbilled } = await searchParams || {}
 
   // Check billing permission
   const currentUser = await prisma.user.findUnique({
@@ -139,6 +139,7 @@ export default async function NewInvoicePage({ params, searchParams }: Props) {
         projectId={project.id}
         projectName={project.name}
         client={project.client}
+        autoOpenTimeSelector={fromUnbilled === 'true'}
         defaultGstRate={org?.defaultGstRate ? Number(org.defaultGstRate) : 5}
         defaultQstRate={org?.defaultQstRate ? Number(org.defaultQstRate) : 9.975}
         fromProposal={proposal ? {

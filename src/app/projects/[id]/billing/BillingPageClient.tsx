@@ -451,7 +451,7 @@ export default function BillingPageClient({
             </div>
             <Button
               className="bg-blue-600 hover:bg-blue-700"
-              onClick={() => router.push(`/projects/${projectId}/billing/invoices/new`)}
+              onClick={() => router.push(`/projects/${projectId}/billing/invoices/new?fromUnbilled=true`)}
             >
               <Receipt className="w-4 h-4 mr-2" />
               Invoice Now
