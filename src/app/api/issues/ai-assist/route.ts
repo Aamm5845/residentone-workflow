@@ -47,6 +47,7 @@ CONTEXT:
 - This is a ${priority} priority issue for an interior design project management app
 - The app has: Projects, Rooms, FFE (furniture/fixtures), Procurement, Suppliers, Specs, etc.
 ${pageName && projectName ? `- User is on: ${pageName} page in "${projectName}" project` : pageName ? `- User is on: ${pageName} page` : ''}
+${currentPage ? `- Page link: ${currentPage}` : ''}
 
 IMPORTANT - WHEN TO ASK QUESTIONS:
 - For BUGS: If clear what's broken, don't ask questions. Just confirm.
@@ -74,13 +75,13 @@ RULES:
 \`\`\`json
 {
   "title": "Brief issue title (max 10 words)",
-  "description": "Clear description including: what should happen, where in the app${pageName ? ` (Location: ${pageName}${projectName ? ` in ${projectName}` : ''})` : ''}",
+  "description": "Clear description including: what should happen, where in the app${currentPage ? ` (Location: ${currentPage})` : pageName ? ` (Location: ${pageName}${projectName ? ` in ${projectName}` : ''})` : ''}",
   "suggestedType": "BUG" | "FEATURE_REQUEST" | "UPDATE_REQUEST" | "GENERAL"
 }
 \`\`\`
 
 CURRENT STATUS:
-- Page: ${pageName || 'Unknown'}${projectName ? ` (Project: ${projectName})` : ''}
+- Page: ${pageName || 'Unknown'}${projectName ? ` (Project: ${projectName})` : ''}${currentPage ? `\n- Page link: ${currentPage}` : ''}
 - Console log: ${hasConsoleLog ? 'Yes' : 'No'}
 - Screenshot: ${hasScreenshot ? 'Yes' : 'No'}
 ${consoleLog ? `\nConsole:\n${consoleLog.substring(0, 500)}` : ''}
