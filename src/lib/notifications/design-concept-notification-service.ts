@@ -52,7 +52,7 @@ export async function notifyItemAdded({
         </head>
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-            <h1 style="color: white; margin: 0; font-size: 24px;">🎨 New Design Item Added</h1>
+            <h1 style="color: white; margin: 0; font-size: 24px;">New Design Item Added</h1>
           </div>
           
           <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
@@ -91,7 +91,7 @@ export async function notifyItemAdded({
 
       await sendEmail({
         to: vitor.email,
-        subject: `🎨 New Design Item: ${itemName} - ${projectName}`,
+        subject: `New Design Item: ${itemName} - ${projectName}`,
         html: emailHtml,
       });
 
@@ -149,7 +149,7 @@ export async function notifyItemCompleted({
         </head>
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-            <h1 style="color: white; margin: 0; font-size: 24px;">✅ Design Item Completed</h1>
+            <h1 style="color: white; margin: 0; font-size: 24px;">Design Item Completed</h1>
           </div>
           
           <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
@@ -188,7 +188,7 @@ export async function notifyItemCompleted({
 
       await sendEmail({
         to: aaron.email,
-        subject: `✅ Design Item Completed: ${itemName} - ${projectName}`,
+        subject: `Design Item Completed: ${itemName} - ${projectName}`,
         html: emailHtml,
       });
 
@@ -208,7 +208,7 @@ export async function notifyItemCompleted({
           formattedPhone = `+1${digitsOnly}`;
         }
 
-        const smsBody = `✅ Design item completed by ${completedBy.name || 'Vitor'}: "${itemName}" for ${projectName} - ${roomName}. Ready for review!`;
+        const smsBody = `Design item completed by ${completedBy.name || 'Vitor'}: "${itemName}" for ${projectName} - ${roomName}. Ready for review!`;
 
         await twilioClient.messages.create({
           body: smsBody,

@@ -207,7 +207,7 @@ export class PhaseNotificationService {
 
         // Collect next phase info
         const emailPreview = {
-          subject: `🚀 ${this.getPhaseDisplayName(stage.type)} Phase Ready to Start - ${project.name}`,
+          subject: `${this.getPhaseDisplayName(stage.type)} Phase Ready to Start - ${project.name}`,
           preview: `Client approval for ${room.name || room.type} has been completed. You can now start the ${this.getPhaseDisplayName(stage.type)} phase.`
         }
         
@@ -275,7 +275,7 @@ export class PhaseNotificationService {
 
       // Collect next phase info
       const emailPreview = {
-        subject: `🚀 ${this.getPhaseDisplayName(nextStage.type)} Phase Ready to Start - ${project.name}`,
+        subject: `${this.getPhaseDisplayName(nextStage.type)} Phase Ready to Start - ${project.name}`,
         preview: `${this.getPhaseDisplayName(completedStage.type)} for ${room.name || room.type} has been completed. You can now start the ${this.getPhaseDisplayName(nextStage.type)} phase.`
       }
       
@@ -322,7 +322,7 @@ export class PhaseNotificationService {
       
       const emailData = {
         to: [project.organization.users?.map((u: any) => u.email).filter(Boolean) || []].flat(),
-        subject: `✅ ${phaseDisplayName} Phase Completed - ${project.name}`,
+        subject: `${phaseDisplayName} Phase Completed - ${project.name}`,
         html: this.generatePhaseCompletionEmailHtml({
           phaseDisplayName,
           roomDisplayName,
@@ -374,7 +374,7 @@ export class PhaseNotificationService {
       
       const emailData = {
         to: assignedUser.email,
-        subject: `🚀 ${nextPhaseDisplayName} Phase Ready to Start - ${project.name}`,
+        subject: `${nextPhaseDisplayName} Phase Ready to Start - ${project.name}`,
         html: this.generatePhaseReadyEmailHtml({
           assigneeName: assignedUser.name,
           nextPhaseDisplayName,
@@ -496,7 +496,7 @@ export class PhaseNotificationService {
         <body>
           <div class="container">
             <div class="header">
-              <h1>✅ Phase Completed</h1>
+              <h1>Phase Completed</h1>
               <span class="success-badge">Completed</span>
             </div>
             <div class="content">
@@ -601,7 +601,7 @@ ResidentOne Workflow Team
         <body>
           <div class="container">
             <div class="header">
-              <h1>🚀 Your Phase is Ready!</h1>
+              <h1>Your Phase is Ready!</h1>
               <span class="ready-badge">Ready to Start</span>
             </div>
             <div class="content">

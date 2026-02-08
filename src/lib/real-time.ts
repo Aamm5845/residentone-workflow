@@ -440,7 +440,7 @@ export class NotificationService {
     const projectUsers = realTimeService.getProjectUsers(projectId)
     const notification = {
       id: `urgent-task-${task.id}`,
-      title: '🚨 Urgent Task Created',
+      title: 'Urgent Task Created',
       message: `${createdBy.name} created an urgent task: "${task.title}"`,
       type: 'warning' as const,
       relatedId: task.id,
@@ -461,7 +461,7 @@ export class NotificationService {
     const projectUsers = realTimeService.getProjectUsers(projectId)
     const notification = {
       id: `milestone-${milestone.id}`,
-      title: '🎉 Milestone Reached!',
+      title: 'Milestone Reached',
       message: `"${milestone.name}" milestone has been completed`,
       type: 'success' as const,
       relatedId: milestone.id,

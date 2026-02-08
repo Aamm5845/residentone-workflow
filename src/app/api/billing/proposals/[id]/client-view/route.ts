@@ -356,6 +356,7 @@ export async function POST(
               clientEmail: proposal.clientEmail || '',
               totalAmount: Number(proposal.totalAmount),
               projectName: project?.name,
+              projectId: proposal.projectId,
               signedByName: validatedData.signedByName,
               signedAt: updatedProposal.signedAt!,
             }

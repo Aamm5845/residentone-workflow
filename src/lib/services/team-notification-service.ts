@@ -364,7 +364,7 @@ export class TeamNotificationService {
     const roomName = room.name || room.type.replace('_', ' ').toLowerCase()
     const actorName = completedBy?.name || 'Team member'
     
-    const subject = `🚀 Next Step Ready: ${project.name} - ${nextPhaseNames}`
+    const subject = `Next Step Ready: ${project.name} - ${nextPhaseNames}`
     
     // Generate URL to the room with the first next phase stage selected
     const nextStageId = nextPhases[0]?.id || stage.id
@@ -441,7 +441,7 @@ ${actorName} and the team`
                  draggable="false" 
                  ondragstart="return false;" 
                  oncontextmenu="return false;"/>
-            <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 600; letter-spacing: -0.025em;">🚀 Next Phase Ready</h1>
+            <h1 style="margin: 0; color: white; font-size: 28px; font-weight: 600; letter-spacing: -0.025em;">Next Phase Ready</h1>
             <p style="margin: 8px 0 0 0; color: #d1fae5; font-size: 16px; font-weight: 400;">${roomName} • ${projectName}</p>
         </div>
         

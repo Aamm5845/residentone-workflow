@@ -66,11 +66,11 @@ export async function getOverduePhases(orgId: string): Promise<OverdueNotificati
         
         if (isOverdue) {
           const daysOverdue = Math.floor((new Date().getTime() - new Date(stage.dueDate!).getTime()) / (1000 * 60 * 60 * 24))
-          title = `🚨 ${phaseName} Phase Overdue`
+          title = `${phaseName} Phase Overdue`
           message = `${phaseName} phase for ${roomName} in ${stage.room.project.name} is ${daysOverdue} day${daysOverdue > 1 ? 's' : ''} overdue`
         } else {
           const daysUntilDue = Math.ceil((new Date(stage.dueDate!).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
-          title = `⏰ ${phaseName} Phase Due Soon`
+          title = `${phaseName} Phase Due Soon`
           message = `${phaseName} phase for ${roomName} in ${stage.room.project.name} is due in ${daysUntilDue} day${daysUntilDue > 1 ? 's' : ''}`
         }
 
@@ -202,7 +202,7 @@ ResidentOne Workflow Team
         // TODO: Integrate with your email service here
         // await emailService.send({
         //   to: user.email,
-        //   subject: `🚨 Critical Overdue Tasks - Action Required`,
+        //   subject: `Critical Overdue Tasks - Action Required`,
         //   body: emailContent
         // })
       }

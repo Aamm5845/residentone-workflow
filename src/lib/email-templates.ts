@@ -331,7 +331,7 @@ export function generateFollowUpEmailTemplate(data: EmailTemplateData): { subjec
         </div>
 
         <div style="background: #fef3c7; border: 1px solid #f59e0b; padding: 20px; border-radius: 8px; margin: 30px 0;">
-            <h3 style="margin-top: 0; color: #92400e;">⏰ Time Sensitive</h3>
+            <h3 style="margin-top: 0; color: #92400e;">Time Sensitive</h3>
             <p style="margin-bottom: 0;">To stay on track with your project timeline, we'd love to hear from you by the end of the week. If you have any questions or need to discuss the renderings, please don't hesitate to reach out.</p>
         </div>
 
@@ -425,7 +425,7 @@ export function generateConfirmationEmailTemplate(data: { clientName: string; pr
     <div class="container">
         <div class="header">
             <div class="logo">ResidentOne</div>
-            <div class="status-icon">${isApproved ? '✅' : '📝'}</div>
+            <div class="status-icon">${isApproved ? 'Approved' : 'Feedback'}</div>
             <h1>${isApproved ? 'Renderings Approved!' : 'Feedback Received'}</h1>
         </div>
 
@@ -448,7 +448,7 @@ export function generateConfirmationEmailTemplate(data: { clientName: string; pr
         ` : ''}
 
         <div style="background: ${isApproved ? '#f0fdf4' : '#fef3c7'}; border: 1px solid ${isApproved ? '#22c55e' : '#f59e0b'}; padding: 20px; border-radius: 8px; margin: 30px 0;">
-            <h3 style="margin-top: 0; color: ${isApproved ? '#15803d' : '#92400e'};">${isApproved ? '🎉' : '⚡'} What's Next?</h3>
+            <h3 style="margin-top: 0; color: ${isApproved ? '#15803d' : '#92400e'};">What's Next?</h3>
             <p style="margin-bottom: 0;">
                 ${isApproved 
                   ? "We'll begin working on the next phase of your project and will keep you informed of our progress every step of the way."
@@ -537,14 +537,14 @@ export function generateSupplierQuoteEmailTemplate(data: SupplierQuoteEmailData)
         <td style="padding: 16px; border-bottom: 1px solid #e5e7eb; vertical-align: top; width: 80px;">
           ${imageUrl
             ? `<img src="${imageUrl}" alt="${item.name}" width="70" height="70" style="width: 70px; height: 70px; object-fit: cover; border-radius: 8px; border: 1px solid #e5e7eb;" />`
-            : `<div style="width: 70px; height: 70px; background: #f3f4f6; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 24px;">📦</div>`
+            : `<div style="width: 70px; height: 70px; background: #f3f4f6; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 12px;">No image</div>`
           }
         </td>
         <td style="padding: 16px; border-bottom: 1px solid #e5e7eb; vertical-align: top;">
           <div style="font-weight: 600; color: #111827; font-size: 15px; margin-bottom: 4px;">${item.name}</div>
           ${item.description ? `<div style="color: #6b7280; font-size: 13px; margin-bottom: 6px;">${item.description}</div>` : ''}
           ${specs ? `<div style="color: #9ca3af; font-size: 12px;">${specs}</div>` : ''}
-          ${item.section?.instance?.room?.name ? `<div style="color: #9ca3af; font-size: 11px; margin-top: 4px;">📍 ${item.section.instance.room.name} - ${item.section.name}</div>` : ''}
+          ${item.section?.instance?.room?.name ? `<div style="color: #9ca3af; font-size: 11px; margin-top: 4px;">${item.section.instance.room.name} - ${item.section.name}</div>` : ''}
           ${notesHtml}
         </td>
         <td style="padding: 16px; border-bottom: 1px solid #e5e7eb; vertical-align: top; text-align: center; width: 100px;">
@@ -557,7 +557,7 @@ export function generateSupplierQuoteEmailTemplate(data: SupplierQuoteEmailData)
 
   const previewBanner = data.isPreview ? `
   <div style="background: #fef3c7; border: 1px solid #f59e0b; padding: 12px 20px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
-    <strong style="color: #92400e;">📧 Email Preview</strong>
+    <strong style="color: #92400e;">Email Preview</strong>
     <span style="color: #92400e;"> - This is exactly what the supplier will receive. Click the button to test the portal.</span>
   </div>
   ` : ''
@@ -642,7 +642,7 @@ export function generateSupplierQuoteEmailTemplate(data: SupplierQuoteEmailData)
     <!-- Spec Sheet Note -->
     <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 16px; margin: 24px 0;">
       <p style="margin: 0; color: #0369a1; font-size: 14px;">
-        <strong>📋 Spec sheets & documents available</strong><br>
+        <strong>Spec sheets & documents available</strong><br>
         <span style="font-size: 13px; color: #0284c7;">Full specifications and product documents are available in the portal for your review.</span>
       </p>
     </div>
@@ -1427,7 +1427,7 @@ export function generateBudgetApprovalNotificationEmail(data: BudgetApprovalNoti
             <div style="text-align: center;">
                 <a href="${data.dashboardUrl}"
                    style="display: inline-block; background: #111827; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 14px;">
-                    View in Dashboard
+                    View in Procurement
                 </a>
             </div>
         </div>
@@ -1496,7 +1496,7 @@ export function generateBudgetQuestionNotificationEmail(data: BudgetQuestionNoti
             <div style="text-align: center;">
                 <a href="${data.dashboardUrl}"
                    style="display: inline-block; background: #111827; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 14px;">
-                    View in Dashboard
+                    View in Procurement
                 </a>
             </div>
         </div>

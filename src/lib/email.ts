@@ -26,7 +26,7 @@ export const sendEmail = async (options: SendEmailOptions): Promise<boolean> => 
     })
     return true
   } catch (error) {
-    console.error('❌ Failed to send email:', error)
+    console.error('Failed to send email:', error)
     return false
   }
 }
@@ -201,7 +201,7 @@ export const sendPasswordChangedEmail = async (email: string, name: string): Pro
 
             <div class="warning-box">
               <p>
-                <strong>⚠️ Security Notice:</strong> If you did not make this change, please reset your password immediately or contact our support team.
+                <strong>Security Notice:</strong> If you did not make this change, please reset your password immediately or contact our support team.
               </p>
             </div>
 
@@ -328,7 +328,7 @@ export const sendIssueResolvedEmail = async (
       <body style="background-color: #f1f5f9; padding: 20px;">
         <div class="container">
           <div class="header">
-            <h1>🎉 Issue Resolved!</h1>
+            <h1>Issue Resolved!</h1>
           </div>
           <div class="content">
             <div class="success-icon"></div>
@@ -349,7 +349,7 @@ export const sendIssueResolvedEmail = async (
 
             <div class="info-box">
               <p>
-                <strong>📋 Please verify:</strong> Try the feature again to make sure the fix works for you. If you still experience issues, you can reopen the ticket or create a new one.
+                <strong>Please verify:</strong> Try the feature again to make sure the fix works for you. If you still experience issues, you can reopen the ticket or create a new one.
               </p>
             </div>
 
@@ -387,7 +387,7 @@ export const sendIssueResolvedEmail = async (
 
   return sendEmail({
     to: email,
-    subject: `✅ Issue Resolved: "${issueTitle}" - ${companyName}`,
+    subject: `Issue Resolved: "${issueTitle}" - ${companyName}`,
     html,
     text
   })
@@ -438,7 +438,7 @@ export const sendIssueCreatedEmail = async (
             justify-content: center;
           }
           .bug-icon::after {
-            content: "🐛";
+            content: "!";
             font-size: 30px;
           }
           .message-box {
@@ -505,7 +505,7 @@ export const sendIssueCreatedEmail = async (
       <body style="background-color: #f1f5f9; padding: 20px;">
         <div class="container">
           <div class="header">
-            <h1>🐛 New Issue Reported</h1>
+            <h1>New Issue Reported</h1>
           </div>
           <div class="content">
             <div class="bug-icon"></div>
@@ -563,7 +563,7 @@ export const sendIssueCreatedEmail = async (
 
   return sendEmail({
     to: recipientEmail,
-    subject: `🐛 New Issue: "${issueTitle}" [${priority}] - ${companyName}`,
+    subject: `New Issue: "${issueTitle}" [${priority}] - ${companyName}`,
     html,
     text
   })
@@ -862,6 +862,7 @@ export const sendProposalSignedNotification = async (
     clientEmail: string
     totalAmount: number
     projectName?: string
+    projectId?: string
     signedByName: string
     signedAt: Date
   }
@@ -971,7 +972,7 @@ export const sendProposalSignedNotification = async (
       <body style="background-color: #f1f5f9; padding: 20px;">
         <div class="container">
           <div class="header">
-            <h1>Proposal Signed!</h1>
+            <h1>Proposal Signed</h1>
           </div>
           <div class="content">
             <div class="success-icon"></div>
@@ -1025,7 +1026,7 @@ export const sendProposalSignedNotification = async (
             </div>
 
             <div style="text-align: center;">
-              <a href="${appUrl}/dashboard" class="button">View Dashboard</a>
+              <a href="${proposal.projectId ? `${appUrl}/projects/${proposal.projectId}/billing` : `${appUrl}/dashboard`}" class="button">View Proposal</a>
             </div>
           </div>
           <div class="footer">
@@ -1052,7 +1053,7 @@ export const sendProposalSignedNotification = async (
 
     Contract Value: ${formattedAmount}
 
-    View your dashboard at: ${appUrl}/dashboard
+    View the proposal at: ${proposal.projectId ? `${appUrl}/projects/${proposal.projectId}/billing` : `${appUrl}/dashboard`}
   `
 
   return sendEmail({
