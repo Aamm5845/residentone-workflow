@@ -13,7 +13,7 @@ interface FinancialsPageClientProps {
 
 export default function FinancialsPageClient({ isOwner }: FinancialsPageClientProps) {
   return (
-    <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
+    <div className="p-6">
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-2">
