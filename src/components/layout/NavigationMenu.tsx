@@ -19,6 +19,8 @@ import {
   Package,
   FileText,
   DollarSign,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react'
 import { changelog, countUnseenUpdates } from '@/data/changelog'
 
@@ -36,7 +38,8 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
   const searchParams = useSearchParams()
   const { getNotificationsByType } = useNotifications({ limit: 50 })
   const [unseenUpdatesCount, setUnseenUpdatesCount] = useState(0)
-  
+  const [procurementExpanded, setProcurementExpanded] = useState(false)
+
   // On mobile, always show expanded menu (sidebarCollapsed only applies to desktop)
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
   
@@ -103,6 +106,7 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
   )
 
   const procurementCount = procurementData?.totalCount || 0
+  const procurementProjects: { projectId: string; projectName: string; items: any[] }[] = procurementData?.projects || []
 
   // Fetch user permissions for conditional nav items
   const { data: userPerms } = useSWR(
@@ -112,17 +116,28 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
   )
   const showFinancials = userRole === 'OWNER' || canSeeFinancials || userPerms?.canSeeFinancials
 
-  const mainNavigation = [
+  const mainNavigationBefore = [
     { name: 'Home', href: '/dashboard', icon: Home, color: 'text-purple-600' },
     { name: 'Projects', href: '/projects', icon: FolderOpen, color: 'text-blue-600' },
     { name: 'Products', href: '/products', icon: Package, color: 'text-emerald-600' },
-    { name: 'Procurement', href: '/procurement', icon: FileText, color: 'text-amber-600', badgeCount: procurementCount, badgeColor: 'bg-amber-500' },
+  ]
+
+  const mainNavigationAfter = [
     { name: 'Calendar', href: '/calendar', icon: CalendarDays, color: 'text-orange-500' },
     { name: 'Timeline', href: '/timeline', icon: Clock, color: 'text-cyan-600' },
     { name: 'Team', href: '/team', icon: Users, color: 'text-green-600' },
     { name: 'Reports', href: '/reports', icon: BarChart3, color: 'text-purple-600' },
     ...(showFinancials ? [{ name: 'Financials', href: '/financials', icon: DollarSign, color: 'text-emerald-600' }] : []),
   ]
+
+  // Combined flat list for collapsed view (no sub-items)
+  const mainNavigation = [
+    ...mainNavigationBefore,
+    { name: 'Procurement', href: '/procurement', icon: FileText, color: 'text-amber-600', badgeCount: procurementCount, badgeColor: 'bg-amber-500' },
+    ...mainNavigationAfter,
+  ]
+
+  const isProcurementActive = pathname.startsWith('/procurement') || pathname.match(/^\/projects\/[^/]+\/procurement/)
 
   const updatesNavigation = [
     { name: 'Messages', href: '/messages', icon: MessageSquare, color: 'text-indigo-600', badgeCount: unreadMentionCount, badgeColor: 'bg-[#6366ea]' },
@@ -218,10 +233,8 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
       <div>
         <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Navigation</h3>
         <nav className="space-y-1">
-          {mainNavigation.map((item) => {
+          {mainNavigationBefore.map((item) => {
             const Icon = item.icon
-            const showBadge = 'badgeCount' in item && item.badgeCount && item.badgeCount > 0
-
             return (
               <Link
                 key={item.name}
@@ -237,14 +250,109 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
                   <Icon className={cn('flex-shrink-0 h-5 w-5 mr-3', item.color)} />
                   {item.name}
                 </div>
-                {showBadge && (
-                  <span className={cn(
-                    "text-white text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center",
-                    'badgeColor' in item && item.badgeColor ? item.badgeColor : "bg-red-500"
-                  )}>
-                    {item.badgeCount! > 99 ? '99+' : item.badgeCount}
+              </Link>
+            )
+          })}
+
+          {/* Procurement — expandable with project sub-items */}
+          <div>
+            <button
+              onClick={() => setProcurementExpanded(prev => !prev)}
+              className={cn(
+                'w-full group flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors',
+                isProcurementActive
+                  ? 'bg-purple-50 text-purple-700 border-r-2 border-purple-700'
+                  : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+              )}
+            >
+              <div className="flex items-center">
+                <FileText className="flex-shrink-0 h-5 w-5 mr-3 text-amber-600" />
+                Procurement
+              </div>
+              <div className="flex items-center gap-1.5">
+                {procurementCount > 0 && (
+                  <span className="text-white text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center bg-amber-500">
+                    {procurementCount > 99 ? '99+' : procurementCount}
                   </span>
                 )}
+                {procurementExpanded ? (
+                  <ChevronDown className="h-4 w-4 text-gray-400" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-gray-400" />
+                )}
+              </div>
+            </button>
+
+            {procurementExpanded && (
+              <div className="ml-5 mt-1 space-y-0.5 border-l-2 border-gray-100 pl-3">
+                {/* All Items link */}
+                <Link
+                  href="/procurement"
+                  className={cn(
+                    'flex items-center justify-between px-2 py-1.5 text-sm rounded-md transition-colors',
+                    pathname === '/procurement'
+                      ? 'text-amber-700 bg-amber-50 font-medium'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  )}
+                >
+                  All Items
+                  {procurementCount > 0 && (
+                    <span className="text-xs text-gray-400">{procurementCount}</span>
+                  )}
+                </Link>
+
+                {/* Per-project links */}
+                {procurementProjects.map(project => {
+                  const projectProcurementHref = `/projects/${project.projectId}/procurement`
+                  const isProjectActive = pathname === projectProcurementHref
+                  const urgentCount = project.items.filter((i: any) => i.priority === 'urgent').length
+
+                  return (
+                    <Link
+                      key={project.projectId}
+                      href={projectProcurementHref}
+                      className={cn(
+                        'flex items-center justify-between px-2 py-1.5 text-sm rounded-md transition-colors',
+                        isProjectActive
+                          ? 'text-amber-700 bg-amber-50 font-medium'
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      )}
+                    >
+                      <span className="truncate">{project.projectName}</span>
+                      <span className={cn(
+                        'text-xs rounded-full px-1.5 py-0.5 min-w-[18px] text-center flex-shrink-0 ml-2',
+                        urgentCount > 0 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'
+                      )}>
+                        {project.items.length}
+                      </span>
+                    </Link>
+                  )
+                })}
+
+                {procurementProjects.length === 0 && (
+                  <span className="block px-2 py-1.5 text-xs text-gray-400">No active items</span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {mainNavigationAfter.map((item) => {
+            const Icon = item.icon
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                className={cn(
+                  'group flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors',
+                  isActive(item.href)
+                    ? 'bg-purple-50 text-purple-700 border-r-2 border-purple-700'
+                    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                )}
+              >
+                <div className="flex items-center">
+                  <Icon className={cn('flex-shrink-0 h-5 w-5 mr-3', item.color)} />
+                  {item.name}
+                </div>
               </Link>
             )
           })}
