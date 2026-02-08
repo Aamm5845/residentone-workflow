@@ -144,11 +144,12 @@ export function TimeEntryModal({ isOpen, onClose, onSuccess, entryId }: TimeEntr
         startTime = new Date(customStartTime).toISOString()
       }
 
+      const isFloorplan = stageId === 'FLOORPLAN'
       const entry = await startTimer({
         projectId: projectId || undefined,
         roomId: roomId || undefined,
-        stageId: stageId || undefined,
-        description: description || undefined,
+        stageId: isFloorplan ? undefined : (stageId || undefined),
+        description: description || (isFloorplan ? 'Working on Floorplan' : undefined),
         startTime
       })
 
@@ -174,14 +175,15 @@ export function TimeEntryModal({ isOpen, onClose, onSuccess, entryId }: TimeEntr
       const url = isEditing ? `/api/timeline/entries/${entryId}` : '/api/timeline/entries'
       const method = isEditing ? 'PATCH' : 'POST'
 
+      const isFloorplan = stageId === 'FLOORPLAN'
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectId: projectId || null,
           roomId: roomId || null,
-          stageId: stageId || null,
-          description: description || null,
+          stageId: isFloorplan ? null : (stageId || null),
+          description: description || (isFloorplan ? 'Working on Floorplan' : null),
           startTime: startDateTime.toISOString(),
           endTime: endDateTime.toISOString(),
           isManual: true
@@ -291,6 +293,22 @@ export function TimeEntryModal({ isOpen, onClose, onSuccess, entryId }: TimeEntr
                         {formatStageType(stage.type)}
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Floorplan phase option - available without a room */}
+            {projectId && !roomId && (
+              <div className="space-y-2">
+                <Label>Phase (optional)</Label>
+                <Select value={stageId || 'none'} onValueChange={(v) => setStageId(v === 'none' ? '' : v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a phase..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Phase</SelectItem>
+                    <SelectItem value="FLOORPLAN">Floorplan</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

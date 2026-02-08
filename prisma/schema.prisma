@@ -2532,6 +2532,7 @@ enum StageType {
   CLIENT_APPROVAL
   DRAWINGS
   FFE
+  FLOORPLAN
 }
 
 enum StageStatus {

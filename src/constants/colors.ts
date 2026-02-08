@@ -46,6 +46,14 @@ export const PHASE_COLORS = {
     border: '#e94d97/30',
     text: '#db2777',         // For readable text (pink-600)
   },
+  FLOORPLAN: {
+    name: 'Floorplan',
+    primary: '#0ea5e9',      // Sky Blue
+    light: '#0ea5e9/10',
+    medium: '#0ea5e9/20',
+    border: '#0ea5e9/30',
+    text: '#0284c7',         // For readable text (sky-600)
+  },
 } as const
 
 /**

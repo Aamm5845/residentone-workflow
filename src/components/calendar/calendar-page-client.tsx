@@ -81,7 +81,7 @@ export default function CalendarPageClient({
   const [currentDate, setCurrentDate] = useState(new Date())
   const [viewMode, setViewMode] = useState<'all' | 'mine'>('all')
   const [showHolidays, setShowHolidays] = useState(true)
-  const [selectedPhases, setSelectedPhases] = useState<string[]>(['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE'])
+  const [selectedPhases, setSelectedPhases] = useState<string[]>(['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE', 'FLOORPLAN'])
 
   // Transform projects into calendar tasks
   const allTasks = useMemo(() => {

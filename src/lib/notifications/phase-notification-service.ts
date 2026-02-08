@@ -249,7 +249,7 @@ export class PhaseNotificationService {
     options: { autoEmail?: boolean } = { autoEmail: true }
   ) {
     // Define phase sequence
-    const phaseSequence = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE']
+    const phaseSequence = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE', 'FLOORPLAN']
     const currentIndex = phaseSequence.indexOf(completedStage.type)
     
     if (currentIndex === -1 || currentIndex === phaseSequence.length - 1) {

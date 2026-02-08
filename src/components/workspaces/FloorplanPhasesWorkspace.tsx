@@ -17,6 +17,7 @@ import {
   BookOpen
 } from 'lucide-react'
 import Link from 'next/link'
+import { WorkspaceTimerButton } from '@/components/timeline/WorkspaceTimerButton'
 
 interface FloorplanPhasesWorkspaceProps {
   project: {
@@ -84,6 +85,10 @@ export function FloorplanPhasesWorkspace({
                 </div>
               </div>
             </div>
+            <WorkspaceTimerButton
+              projectId={project.id}
+              stageType="FLOORPLAN"
+            />
           </div>
         </div>
       </div>

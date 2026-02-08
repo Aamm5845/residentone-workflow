@@ -9,8 +9,8 @@ import { getStageName } from '@/constants/workflow'
 
 interface WorkspaceTimerButtonProps {
   projectId: string
-  roomId: string
-  stageId: string
+  roomId?: string
+  stageId?: string
   stageType: string
   className?: string
 }
@@ -42,7 +42,9 @@ export function WorkspaceTimerButton({
   const [isStarting, setIsStarting] = useState(false)
   
   // Check timer status relative to this stage
-  const isTimerForThisStage = activeEntry?.stageId === stageId
+  const isTimerForThisStage = stageId
+    ? activeEntry?.stageId === stageId
+    : activeEntry?.projectId === projectId && !activeEntry?.stageId && !activeEntry?.roomId
   const hasActiveTimerElsewhere = !!activeEntry && !isTimerForThisStage
   
   const handleStart = async () => {
@@ -52,8 +54,8 @@ export function WorkspaceTimerButton({
     try {
       await startTimer({
         projectId,
-        roomId,
-        stageId,
+        roomId: roomId || undefined,
+        stageId: stageId || undefined,
         description: `Working on ${getStageName(stageType)}`
       })
     } finally {

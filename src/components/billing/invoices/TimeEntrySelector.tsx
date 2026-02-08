@@ -187,7 +187,7 @@ export default function TimeEntrySelector({
     })
 
     // Convert to sorted array
-    const phaseOrder = ['DESIGN_CONCEPT', 'DESIGN', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE', '_NONE']
+    const phaseOrder = ['DESIGN_CONCEPT', 'DESIGN', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE', 'FLOORPLAN', '_NONE']
 
     return Object.entries(phaseMap)
       .sort(([a], [b]) => {

@@ -213,6 +213,14 @@ export const COLOR_CLASSES = {
     ring: 'ring-[#e94d97]/20',
     solid: 'bg-[#e94d97]'
   },
+  sky: {
+    bg: 'bg-[#0ea5e9]/10',
+    text: 'text-[#0ea5e9]',
+    border: 'border-[#0ea5e9]/30',
+    hover: 'hover:bg-[#0ea5e9]/20',
+    ring: 'ring-[#0ea5e9]/20',
+    solid: 'bg-[#0ea5e9]'
+  },
   green: {
     bg: 'bg-green-50',
     text: 'text-green-800',

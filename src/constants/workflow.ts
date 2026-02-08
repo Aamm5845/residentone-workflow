@@ -6,10 +6,11 @@ import { PHASE_COLORS } from './colors'
 
 export const WORKFLOW_STAGES = [
   'DESIGN_CONCEPT',
-  'THREE_D', 
+  'THREE_D',
   'CLIENT_APPROVAL',
   'DRAWINGS',
-  'FFE'
+  'FFE',
+  'FLOORPLAN'
 ] as const
 
 export type WorkflowStageType = typeof WORKFLOW_STAGES[number]
@@ -112,6 +113,25 @@ export const STAGE_CONFIG = {
       NOT_APPLICABLE: 'text-slate-600'
     },
     description: 'Premium furniture, fixtures, and equipment sourcing with detailed specifications'
+  },
+  FLOORPLAN: {
+    name: 'Floorplan',
+    icon: '📋',
+    color: PHASE_COLORS.FLOORPLAN.primary, // #0ea5e9 Sky Blue
+    baseColor: 'bg-[#0ea5e9]',
+    colors: {
+      NOT_STARTED: 'border-gray-200 bg-white shadow-sm hover:shadow-md transition-all duration-300',
+      IN_PROGRESS: 'border-[#0ea5e9]/40 bg-gradient-to-br from-[#0ea5e9]/5 to-[#0ea5e9]/15 shadow-lg ring-2 ring-[#0ea5e9]/20',
+      COMPLETED: 'border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg ring-2 ring-green-200',
+      NOT_APPLICABLE: 'border-slate-200 bg-slate-50 opacity-75 shadow-sm'
+    },
+    textColors: {
+      NOT_STARTED: 'text-gray-600',
+      IN_PROGRESS: 'text-[#0ea5e9]',
+      COMPLETED: 'text-green-800',
+      NOT_APPLICABLE: 'text-slate-600'
+    },
+    description: 'Floor plan layouts and spatial planning'
   }
 } as const
 
@@ -164,9 +184,10 @@ export function getStageStatusTextColor(stageType: string, status: StageStatus) 
 const STAGE_TYPE_MAP = {
   'DESIGN': 'DESIGN_CONCEPT',
   'THREE_D': 'THREE_D',
-  'CLIENT_APPROVAL': 'CLIENT_APPROVAL', 
+  'CLIENT_APPROVAL': 'CLIENT_APPROVAL',
   'DRAWINGS': 'DRAWINGS',
-  'FFE': 'FFE'
+  'FFE': 'FFE',
+  'FLOORPLAN': 'FLOORPLAN'
 } as const
 
 export function getStageName(stageType: string) {

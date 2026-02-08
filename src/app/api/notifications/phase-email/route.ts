@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
     })
 
     // Define phase sequence to find previous stage
-    const phaseSequence = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE']
+    const phaseSequence = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE', 'FLOORPLAN']
     const currentIndex = phaseSequence.indexOf(stage.type)
     let previousStage = null
 
