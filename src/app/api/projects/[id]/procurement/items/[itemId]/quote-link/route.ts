@@ -322,11 +322,12 @@ export async function DELETE(
       }
     })
 
-    // Update the item to remove the quote link
+    // Update the item to remove the quote link and revert status
     const updatedItem = await prisma.roomFFEItem.update({
       where: { id: itemId },
       data: {
         acceptedQuoteLineItemId: null,
+        specStatus: 'SELECTED',
         updatedById: userId
       }
     })

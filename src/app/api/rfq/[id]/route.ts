@@ -336,7 +336,7 @@ export async function DELETE(
     const existing = await prisma.rFQ.findFirst({
       where: { id, orgId },
       include: {
-        lineItems: { select: { id: true } },
+        lineItems: { select: { id: true, roomFFEItemId: true } },
         supplierRFQs: {
           include: {
             quotes: { select: { id: true } }
@@ -398,6 +398,21 @@ export async function DELETE(
       await tx.rFQ.delete({
         where: { id }
       })
+
+      // 9. Revert spec item statuses: items that were RFQ_SENT go back to SELECTED
+      const affectedItemIds = existing.lineItems
+        .map(li => li.roomFFEItemId)
+        .filter((id): id is string => !!id)
+
+      if (affectedItemIds.length > 0) {
+        await tx.roomFFEItem.updateMany({
+          where: {
+            id: { in: affectedItemIds },
+            specStatus: { in: ['RFQ_SENT', 'QUOTE_RECEIVED'] }
+          },
+          data: { specStatus: 'SELECTED' }
+        })
+      }
     })
 
     return NextResponse.json({ success: true })

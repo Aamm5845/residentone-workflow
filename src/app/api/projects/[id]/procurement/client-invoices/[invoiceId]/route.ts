@@ -187,7 +187,10 @@ export async function DELETE(
         orgId
       },
       include: {
-        payments: true
+        payments: true,
+        lineItems: {
+          select: { roomFFEItemId: true }
+        }
       }
     })
 
@@ -214,6 +217,11 @@ export async function DELETE(
     }
     // === END DROPBOX CLEANUP ===
 
+    // Collect affected item IDs before deleting line items
+    const affectedItemIds = invoice.lineItems
+      .map(li => li.roomFFEItemId)
+      .filter((id): id is string => !!id)
+
     // Delete related records first
     await prisma.clientQuoteLineItem.deleteMany({
       where: { clientQuoteId: invoiceId }
@@ -228,6 +236,20 @@ export async function DELETE(
     await prisma.clientQuote.delete({
       where: { id: invoiceId }
     })
+
+    // Revert spec item statuses: items that were INVOICED_TO_CLIENT go back to QUOTE_APPROVED
+    if (affectedItemIds.length > 0) {
+      await prisma.roomFFEItem.updateMany({
+        where: {
+          id: { in: affectedItemIds },
+          specStatus: 'INVOICED_TO_CLIENT'
+        },
+        data: {
+          specStatus: 'QUOTE_APPROVED',
+          paymentStatus: 'NOT_INVOICED'
+        }
+      })
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {

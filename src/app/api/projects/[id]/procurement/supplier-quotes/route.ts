@@ -1022,6 +1022,13 @@ export async function DELETE(
     const quote = await prisma.supplierQuote.findFirst({
       where: { id: quoteId },
       include: {
+        lineItems: {
+          select: {
+            rfqLineItem: {
+              select: { roomFFEItemId: true }
+            }
+          }
+        },
         supplierRFQ: {
           include: {
             rfq: {
@@ -1040,6 +1047,11 @@ export async function DELETE(
       return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
     }
 
+    // Collect affected item IDs before deletion
+    const affectedItemIds = quote.lineItems
+      .map(li => li.rfqLineItem?.roomFFEItemId)
+      .filter((id): id is string => !!id)
+
     // Delete associated line items first
     await prisma.supplierQuoteLineItem.deleteMany({
       where: { supplierQuoteId: quoteId }
@@ -1049,6 +1061,27 @@ export async function DELETE(
     await prisma.supplierQuote.delete({
       where: { id: quoteId }
     })
+
+    // Revert spec item statuses for items that no longer have any quotes
+    if (affectedItemIds.length > 0) {
+      for (const itemId of affectedItemIds) {
+        // Check if the item still has other quotes
+        const remainingQuotes = await prisma.supplierQuoteLineItem.count({
+          where: { roomFFEItemId: itemId }
+        })
+
+        if (remainingQuotes === 0) {
+          // No more quotes - revert to SELECTED
+          await prisma.roomFFEItem.updateMany({
+            where: {
+              id: itemId,
+              specStatus: { in: ['QUOTE_RECEIVED', 'QUOTE_APPROVED'] }
+            },
+            data: { specStatus: 'SELECTED' }
+          })
+        }
+      }
+    }
 
     return NextResponse.json({
       success: true,
