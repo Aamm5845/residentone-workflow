@@ -90,11 +90,23 @@ export function NavigationMenu({ sidebarCollapsed, userRole }: NavigationMenuPro
   
   const unreadActivitiesCount = activitiesData?.unreadCount || 0
 
+  // Fetch procurement inbox count with auto-refresh
+  const { data: procurementData } = useSWR(
+    '/api/procurement/inbox',
+    fetcher,
+    {
+      refreshInterval: 60000, // Auto-refresh every 60 seconds
+      revalidateOnFocus: true
+    }
+  )
+
+  const procurementCount = procurementData?.totalCount || 0
+
   const mainNavigation = [
     { name: 'Home', href: '/dashboard', icon: Home, color: 'text-purple-600' },
     { name: 'Projects', href: '/projects', icon: FolderOpen, color: 'text-blue-600' },
     { name: 'Products', href: '/products', icon: Package, color: 'text-emerald-600' },
-    { name: 'Procurement', href: '/procurement', icon: FileText, color: 'text-amber-600', comingSoon: true },
+    { name: 'Procurement', href: '/procurement', icon: FileText, color: 'text-amber-600', badgeCount: procurementCount, badgeColor: 'bg-amber-500' },
     { name: 'Calendar', href: '/calendar', icon: CalendarDays, color: 'text-orange-500' },
     { name: 'Timeline', href: '/timeline', icon: Clock, color: 'text-cyan-600' },
     { name: 'Team', href: '/team', icon: Users, color: 'text-green-600' },
@@ -125,19 +137,7 @@ export function NavigationMenu({ sidebarCollapsed, userRole }: NavigationMenuPro
         <div className="space-y-1">
           {mainNavigation.map((item) => {
             const Icon = item.icon
-            const isComingSoon = 'comingSoon' in item && item.comingSoon
-
-            if (isComingSoon) {
-              return (
-                <div
-                  key={item.name}
-                  className="group flex items-center justify-center p-2 text-sm font-medium rounded-md cursor-not-allowed opacity-50 relative"
-                  title={`${item.name} - Coming Soon`}
-                >
-                  <Icon className="h-5 w-5 text-gray-400" />
-                </div>
-              )
-            }
+            const showBadge = 'badgeCount' in item && item.badgeCount && item.badgeCount > 0
 
             return (
               <Link
@@ -152,6 +152,14 @@ export function NavigationMenu({ sidebarCollapsed, userRole }: NavigationMenuPro
                 title={item.name}
               >
                 <Icon className={cn('h-5 w-5', item.color)} />
+                {showBadge && (
+                  <span className={cn(
+                    "absolute -top-1 -right-1 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center",
+                    'badgeColor' in item && item.badgeColor ? item.badgeColor : "bg-red-500"
+                  )}>
+                    {item.badgeCount! > 99 ? '99+' : item.badgeCount}
+                  </span>
+                )}
               </Link>
             )
           })}
@@ -201,23 +209,7 @@ export function NavigationMenu({ sidebarCollapsed, userRole }: NavigationMenuPro
         <nav className="space-y-1">
           {mainNavigation.map((item) => {
             const Icon = item.icon
-            const isComingSoon = 'comingSoon' in item && item.comingSoon
-
-            if (isComingSoon) {
-              return (
-                <div
-                  key={item.name}
-                  className="group flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md cursor-not-allowed opacity-50"
-                  title="Coming Soon"
-                >
-                  <div className="flex items-center">
-                    <Icon className="flex-shrink-0 h-5 w-5 mr-3 text-gray-400" />
-                    <span className="text-gray-400">{item.name}</span>
-                  </div>
-                  <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">Soon</span>
-                </div>
-              )
-            }
+            const showBadge = 'badgeCount' in item && item.badgeCount && item.badgeCount > 0
 
             return (
               <Link
@@ -234,6 +226,14 @@ export function NavigationMenu({ sidebarCollapsed, userRole }: NavigationMenuPro
                   <Icon className={cn('flex-shrink-0 h-5 w-5 mr-3', item.color)} />
                   {item.name}
                 </div>
+                {showBadge && (
+                  <span className={cn(
+                    "text-white text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center",
+                    'badgeColor' in item && item.badgeColor ? item.badgeColor : "bg-red-500"
+                  )}>
+                    {item.badgeCount! > 99 ? '99+' : item.badgeCount}
+                  </span>
+                )}
               </Link>
             )
           })}
