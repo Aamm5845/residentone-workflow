@@ -92,7 +92,8 @@ model Organization {
   chatMessages   ChatMessage[]  @relation("OrgChatMessages")
   savedAddresses SavedAddress[]
   programaItems  ProgramaItem[] @relation("OrgProgramaItems")
-  budgetQuotes   BudgetQuote[]  @relation("BudgetQuoteOrg")
+  budgetQuotes      BudgetQuote[]      @relation("BudgetQuoteOrg")
+  plaidConnections  PlaidConnection[]
 }
 
 // Shipping address phonebook - saved addresses for quick selection
@@ -129,6 +130,7 @@ model User {
   smsNotificationsEnabled     Boolean                     @default(false)
   mustChangePassword          Boolean                     @default(false)
   canSeeBilling               Boolean                     @default(false)
+  canSeeFinancials            Boolean                     @default(false)
   approvalStatus              UserApprovalStatus          @default(PENDING)
   approvedAt                  DateTime?
   approvedBy                  String?
@@ -245,6 +247,8 @@ model User {
   proposalsCreated            Proposal[]                  @relation("ProposalCreatedBy")
   billingInvoicesCreated      BillingInvoice[]            @relation("BillingInvoiceCreatedBy")
   billingPaymentsConfirmed    BillingPayment[]            @relation("BillingPaymentConfirmedBy")
+  // Plaid connections
+  plaidConnections            PlaidConnection[]           @relation("PlaidConnectedBy")
 }
 
 model Client {
@@ -4583,4 +4587,27 @@ model BillingInvoiceActivity {
 
   @@index([billingInvoiceId])
   @@index([createdAt])
+}
+
+// Plaid bank connection for financial reconciliation
+model PlaidConnection {
+  id                 String    @id @default(cuid())
+  orgId              String
+  accessToken        String    // Plaid access token (encrypt in app layer)
+  itemId             String    // Plaid item ID
+  institutionId      String?
+  institutionName    String?
+  accounts           Json?     // [{accountId, name, type, mask}]
+  status             String    @default("ACTIVE")
+  transactionsCursor String?
+  lastSyncedAt       DateTime?
+  connectedById      String
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  connectedBy  User         @relation("PlaidConnectedBy", fields: [connectedById], references: [id])
+
+  @@unique([orgId, itemId])
+  @@index([orgId])
 }

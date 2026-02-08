@@ -18,18 +18,20 @@ import {
   CalendarDays,
   Package,
   FileText,
+  DollarSign,
 } from 'lucide-react'
 import { changelog, countUnseenUpdates } from '@/data/changelog'
 
 interface NavigationMenuProps {
   sidebarCollapsed: boolean
   userRole?: string
+  canSeeFinancials?: boolean
 }
 
 const fetcher = (url: string) => fetch(url).then(res => res.ok ? res.json() : { unreadCount: 0 })
 const SEEN_UPDATES_KEY = 'studioflow-seen-updates'
 
-export function NavigationMenu({ sidebarCollapsed, userRole }: NavigationMenuProps) {
+export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }: NavigationMenuProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const { getNotificationsByType } = useNotifications({ limit: 50 })
@@ -102,6 +104,14 @@ export function NavigationMenu({ sidebarCollapsed, userRole }: NavigationMenuPro
 
   const procurementCount = procurementData?.totalCount || 0
 
+  // Fetch user permissions for conditional nav items
+  const { data: userPerms } = useSWR(
+    '/api/user/permissions',
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 60000 }
+  )
+  const showFinancials = userRole === 'OWNER' || canSeeFinancials || userPerms?.canSeeFinancials
+
   const mainNavigation = [
     { name: 'Home', href: '/dashboard', icon: Home, color: 'text-purple-600' },
     { name: 'Projects', href: '/projects', icon: FolderOpen, color: 'text-blue-600' },
@@ -111,6 +121,7 @@ export function NavigationMenu({ sidebarCollapsed, userRole }: NavigationMenuPro
     { name: 'Timeline', href: '/timeline', icon: Clock, color: 'text-cyan-600' },
     { name: 'Team', href: '/team', icon: Users, color: 'text-green-600' },
     { name: 'Reports', href: '/reports', icon: BarChart3, color: 'text-purple-600' },
+    ...(showFinancials ? [{ name: 'Financials', href: '/financials', icon: DollarSign, color: 'text-emerald-600' }] : []),
   ]
 
   const updatesNavigation = [

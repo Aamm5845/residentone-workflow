@@ -15,6 +15,7 @@ const updateUserSchema = z.object({
   phoneNumber: z.string().optional().nullable(),
   smsNotificationsEnabled: z.boolean().optional(),
   canSeeBilling: z.boolean().optional(),
+  canSeeFinancials: z.boolean().optional(),
 })
 
 interface AuthSession extends Session {
@@ -202,6 +203,13 @@ export async function PUT(
       }, { status: 403 })
     }
 
+    // Check financials permission change - only OWNER can modify
+    if (validatedData.canSeeFinancials !== undefined && session.user.role !== 'OWNER') {
+      return NextResponse.json({
+        error: 'Only owners can modify financials permissions.'
+      }, { status: 403 })
+    }
+
     // Update user
     const updatedUser = await prisma.user.update({
       where: { id: params.userId },
@@ -213,6 +221,7 @@ export async function PUT(
         ...(validatedData.phoneNumber !== undefined && { phoneNumber: validatedData.phoneNumber ? validatedData.phoneNumber.replace(/\D/g, '') : null }),
         ...(validatedData.smsNotificationsEnabled !== undefined && { smsNotificationsEnabled: validatedData.smsNotificationsEnabled }),
         ...(validatedData.canSeeBilling !== undefined && session.user.role === 'OWNER' && { canSeeBilling: validatedData.canSeeBilling }),
+        ...(validatedData.canSeeFinancials !== undefined && session.user.role === 'OWNER' && { canSeeFinancials: validatedData.canSeeFinancials }),
         updatedAt: new Date(),
       },
       select: {
@@ -224,6 +233,7 @@ export async function PUT(
         phoneNumber: true,
         smsNotificationsEnabled: true,
         canSeeBilling: true,
+        canSeeFinancials: true,
         createdAt: true,
         updatedAt: true,
         _count: {

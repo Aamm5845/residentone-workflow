@@ -28,7 +28,8 @@ function EditMemberDialog({ member, isOpen, onClose, onSave, currentUserRole }: 
     image: member.image || null,
     phoneNumber: member.phoneNumber || '',
     smsNotificationsEnabled: member.smsNotificationsEnabled || false,
-    canSeeBilling: member.canSeeBilling || false
+    canSeeBilling: member.canSeeBilling || false,
+    canSeeFinancials: member.canSeeFinancials || false
   })
   const [isLoading, setIsLoading] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
@@ -262,6 +263,23 @@ function EditMemberDialog({ member, isOpen, onClose, onSave, currentUserRole }: 
               <label htmlFor="canSeeBilling" className="text-sm font-medium text-gray-700 flex items-center gap-2">
                 <DollarSign className="w-4 h-4 text-emerald-600" />
                 Can view Billing (Proposals & Invoices)
+              </label>
+            </div>
+          )}
+
+          {/* Financials Permission Toggle - Only visible to OWNER */}
+          {currentUserRole === 'OWNER' && (
+            <div className="flex items-center space-x-2 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+              <input
+                type="checkbox"
+                id="canSeeFinancials"
+                checked={formData.canSeeFinancials}
+                onChange={(e) => setFormData(prev => ({ ...prev, canSeeFinancials: e.target.checked }))}
+                className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded"
+              />
+              <label htmlFor="canSeeFinancials" className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-emerald-600" />
+                Can view Financials (Procurement Profit & Reconciliation)
               </label>
             </div>
           )}
