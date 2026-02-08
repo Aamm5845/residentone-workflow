@@ -576,6 +576,16 @@ export function MyTimesheet({ userId }: MyTimesheetProps) {
                                       Manual
                                     </span>
                                   )}
+                                  {entry.isBillable && entry.status === 'STOPPED' && entry.billedStatus === 'BILLED' && (
+                                    <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                                      Billed
+                                    </span>
+                                  )}
+                                  {entry.isBillable && entry.status === 'STOPPED' && entry.billedStatus === 'UNBILLED' && (
+                                    <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                                      Unbilled
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
                                   {entry.project && (

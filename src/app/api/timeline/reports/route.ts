@@ -85,6 +85,14 @@ export async function GET(request: NextRequest) {
     const totalMinutes = entries.reduce((sum, e) => sum + (e.duration || 0), 0)
     const totalEntries = entries.length
 
+    // Calculate billed/unbilled hours
+    const billedMinutes = entries
+      .filter(e => e.isBillable && e.billedStatus === 'BILLED')
+      .reduce((sum, e) => sum + (e.duration || 0), 0)
+    const unbilledMinutes = entries
+      .filter(e => e.isBillable && e.billedStatus === 'UNBILLED')
+      .reduce((sum, e) => sum + (e.duration || 0), 0)
+
     // Group data based on groupBy parameter
     let grouped: any = {}
 
@@ -109,6 +117,8 @@ export async function GET(request: NextRequest) {
         totalMinutes,
         totalHours: Math.round((totalMinutes / 60) * 100) / 100,
         totalEntries,
+        billedHours: Math.round((billedMinutes / 60) * 100) / 100,
+        unbilledHours: Math.round((unbilledMinutes / 60) * 100) / 100,
         startDate,
         endDate
       },

@@ -69,6 +69,14 @@ export async function GET(
     const totalMinutes = timeEntries.reduce((sum, entry) => sum + entry.duration, 0)
     const totalHours = Math.round((totalMinutes / 60) * 100) / 100
 
+    // Calculate billed/unbilled hours
+    const billedMinutes = timeEntries
+      .filter(e => e.isBillable && e.billedStatus === 'BILLED')
+      .reduce((sum, e) => sum + (e.duration || 0), 0)
+    const unbilledMinutes = timeEntries
+      .filter(e => e.isBillable && e.billedStatus === 'UNBILLED')
+      .reduce((sum, e) => sum + (e.duration || 0), 0)
+
     // Calculate hours by team member
     const hoursByMember: Record<string, {
       userId: string
@@ -202,6 +210,10 @@ export async function GET(
         totalHours,
         entryCount: timeEntries.length,
         avgHoursPerWeek,
+        billing: {
+          billedHours: Math.round((billedMinutes / 60) * 100) / 100,
+          unbilledHours: Math.round((unbilledMinutes / 60) * 100) / 100,
+        },
         projectDuration: {
           days: durationDays,
           weeks: durationWeeks,

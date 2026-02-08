@@ -233,6 +233,26 @@ export async function PUT(
 
     // Update line items if provided
     if (validatedData.lineItems) {
+      // Unbill old linked time entries before deleting line items
+      const oldLineItems = await prisma.billingInvoiceLineItem.findMany({
+        where: { billingInvoiceId: id },
+      })
+      for (const oldItem of oldLineItems) {
+        if (oldItem.type === 'HOURLY' && oldItem.timeEntryIds.length > 0) {
+          await prisma.timeEntry.updateMany({
+            where: {
+              id: { in: oldItem.timeEntryIds },
+              billedStatus: 'BILLED',
+            },
+            data: {
+              billedStatus: 'UNBILLED',
+              billedInvoiceLineItemId: null,
+              billedAt: null,
+            },
+          })
+        }
+      }
+
       // Delete existing line items
       await prisma.billingInvoiceLineItem.deleteMany({
         where: { billingInvoiceId: id },
@@ -255,6 +275,48 @@ export async function PUT(
           order: item.order || index,
         })),
       })
+
+      // Bill new linked time entries
+      const newLineItems = await prisma.billingInvoiceLineItem.findMany({
+        where: { billingInvoiceId: id },
+      })
+      for (const newItem of newLineItems) {
+        if (newItem.type === 'HOURLY' && newItem.timeEntryIds.length > 0) {
+          await prisma.timeEntry.updateMany({
+            where: {
+              id: { in: newItem.timeEntryIds },
+              billedStatus: 'UNBILLED',
+            },
+            data: {
+              billedStatus: 'BILLED',
+              billedInvoiceLineItemId: newItem.id,
+              billedAt: new Date(),
+            },
+          })
+        }
+      }
+    }
+
+    // Handle status change to VOID or CANCELLED — unbill all entries
+    if (validatedData.status && ['VOID', 'CANCELLED'].includes(validatedData.status) && !['VOID', 'CANCELLED'].includes(existingInvoice.status)) {
+      const lineItems = await prisma.billingInvoiceLineItem.findMany({
+        where: { billingInvoiceId: id },
+      })
+      for (const item of lineItems) {
+        if (item.type === 'HOURLY' && item.timeEntryIds.length > 0) {
+          await prisma.timeEntry.updateMany({
+            where: {
+              id: { in: item.timeEntryIds },
+              billedStatus: 'BILLED',
+            },
+            data: {
+              billedStatus: 'UNBILLED',
+              billedInvoiceLineItemId: null,
+              billedAt: null,
+            },
+          })
+        }
+      }
     }
 
     // Log activity if status changed
@@ -330,6 +392,26 @@ export async function DELETE(
       return NextResponse.json({
         error: 'Cannot delete a paid invoice. Mark it as void instead.'
       }, { status: 400 })
+    }
+
+    // Unbill all linked time entries before deletion
+    const lineItems = await prisma.billingInvoiceLineItem.findMany({
+      where: { billingInvoiceId: id },
+    })
+    for (const item of lineItems) {
+      if (item.type === 'HOURLY' && item.timeEntryIds.length > 0) {
+        await prisma.timeEntry.updateMany({
+          where: {
+            id: { in: item.timeEntryIds },
+            billedStatus: 'BILLED',
+          },
+          data: {
+            billedStatus: 'UNBILLED',
+            billedInvoiceLineItemId: null,
+            billedAt: null,
+          },
+        })
+      }
     }
 
     await prisma.billingInvoice.delete({

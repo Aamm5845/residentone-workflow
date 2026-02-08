@@ -269,6 +269,23 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // Mark linked time entries as billed
+    for (const lineItem of invoice.lineItems) {
+      if (lineItem.type === 'HOURLY' && lineItem.timeEntryIds.length > 0) {
+        await prisma.timeEntry.updateMany({
+          where: {
+            id: { in: lineItem.timeEntryIds },
+            billedStatus: 'UNBILLED',
+          },
+          data: {
+            billedStatus: 'BILLED',
+            billedInvoiceLineItemId: lineItem.id,
+            billedAt: new Date(),
+          },
+        })
+      }
+    }
+
     // Create activity log
     await prisma.billingInvoiceActivity.create({
       data: {

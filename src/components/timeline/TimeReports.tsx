@@ -14,15 +14,16 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { formatDuration } from '@/contexts/TimerContext'
-import { 
-  BarChart3, 
-  Download, 
+import {
+  BarChart3,
+  Download,
   Calendar,
   Users,
   FolderOpen,
   Clock,
   Loader2,
-  TrendingUp
+  TrendingUp,
+  DollarSign
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -201,7 +202,7 @@ export function TimeReports() {
       ) : (
         <>
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
@@ -243,9 +244,44 @@ export function TimeReports() {
                   <div>
                     <p className="text-sm text-gray-500">Avg Daily</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {grouped.length > 0 
-                        ? (summary.totalMinutes / grouped.length / 60).toFixed(1) 
+                      {grouped.length > 0
+                        ? (summary.totalMinutes / grouped.length / 60).toFixed(1)
                         : '0'}h
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Billing Breakdown + Export */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-emerald-100 rounded-lg">
+                    <DollarSign className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Billed Hours</p>
+                    <p className="text-2xl font-bold text-emerald-600">
+                      {(summary.billedHours || 0).toFixed(1)}h
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-amber-100 rounded-lg">
+                    <Clock className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Unbilled Hours</p>
+                    <p className="text-2xl font-bold text-amber-600">
+                      {(summary.unbilledHours || 0).toFixed(1)}h
                     </p>
                   </div>
                 </div>
@@ -263,8 +299,8 @@ export function TimeReports() {
                     <p className="text-sm font-medium text-gray-700">Download CSV</p>
                   </div>
                 </div>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   onClick={handleExportCSV}
                   disabled={!data?.entries?.length}

@@ -2868,6 +2868,11 @@ enum TimeEntryStatus {
   STOPPED
 }
 
+enum BilledStatus {
+  UNBILLED
+  BILLED
+}
+
 // ============================================
 // RFQ SYSTEM ENUMS
 // ============================================
@@ -2977,6 +2982,9 @@ model TimeEntry {
   status      TimeEntryStatus @default(RUNNING)
   isManual    Boolean         @default(false)
   isBillable  Boolean         @default(true)
+  billedStatus BilledStatus   @default(UNBILLED)
+  billedInvoiceLineItemId String?
+  billedAt    DateTime?
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
@@ -2984,6 +2992,7 @@ model TimeEntry {
   project Project?        @relation("ProjectTimeEntries", fields: [projectId], references: [id], onDelete: SetNull)
   room    Room?           @relation("RoomTimeEntries", fields: [roomId], references: [id], onDelete: SetNull)
   stage   Stage?          @relation("StageTimeEntries", fields: [stageId], references: [id], onDelete: SetNull)
+  billedInvoiceLineItem BillingInvoiceLineItem? @relation("LinkedTimeEntries", fields: [billedInvoiceLineItemId], references: [id], onDelete: SetNull)
   pauses  TimePause[]
   edits   TimeEntryEdit[]
 
@@ -2992,6 +3001,8 @@ model TimeEntry {
   @@index([userId, startTime])
   @@index([projectId])
   @@index([startTime])
+  @@index([projectId, billedStatus])
+  @@index([billedInvoiceLineItemId])
 }
 
 model TimePause {
@@ -4501,6 +4512,7 @@ model BillingInvoiceLineItem {
   updatedAt DateTime @updatedAt
 
   billingInvoice BillingInvoice @relation(fields: [billingInvoiceId], references: [id], onDelete: Cascade)
+  linkedTimeEntries TimeEntry[] @relation("LinkedTimeEntries")
 
   @@index([billingInvoiceId])
   @@index([order])

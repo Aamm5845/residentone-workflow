@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Save, Send, Loader2, Plus, Trash2, Calculator, User, Clock, DollarSign, CreditCard, Building2, Banknote, FileText } from 'lucide-react'
+import { ArrowLeft, Save, Send, Loader2, Plus, Trash2, Calculator, User, Clock, DollarSign, CreditCard, Building2, Banknote, FileText, Timer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import Link from 'next/link'
+import TimeEntrySelector from './TimeEntrySelector'
 
 interface Client {
   id: string
@@ -31,6 +32,7 @@ interface LineItem {
   unitPrice: number
   hours?: number
   hourlyRate?: number
+  timeEntryIds?: string[]
   milestoneTitle?: string
   milestonePercent?: number
   amount: number
@@ -163,6 +165,10 @@ export default function InvoiceForm({
   // Selected milestone for quick-create
   const [selectedMilestone, setSelectedMilestone] = useState<string>('')
 
+  // Time entry selector state
+  const [timeEntrySelectorOpen, setTimeEntrySelectorOpen] = useState(false)
+  const [timeEntrySelectorIndex, setTimeEntrySelectorIndex] = useState<number | null>(null)
+
   // UI state
   const [saving, setSaving] = useState(false)
   const [sending, setSending] = useState(false)
@@ -221,6 +227,40 @@ export default function InvoiceForm({
       }
     ])
   }
+
+  const addTimelineHoursItem = () => {
+    const hourlyRate = fromProposal?.hourlyRate || 200
+    const newItem: LineItem = {
+      type: 'HOURLY',
+      description: 'Design Hours',
+      quantity: 1,
+      unitPrice: hourlyRate,
+      hours: 0,
+      hourlyRate,
+      timeEntryIds: [],
+      amount: 0,
+      order: lineItems.length,
+    }
+    const newIndex = lineItems.length
+    setLineItems([...lineItems, newItem])
+    setTimeEntrySelectorIndex(newIndex)
+    setTimeEntrySelectorOpen(true)
+  }
+
+  const handleTimeEntrySelect = (selectedIds: string[], totalHours: number) => {
+    if (timeEntrySelectorIndex === null) return
+    const newItems = [...lineItems]
+    const item = { ...newItems[timeEntrySelectorIndex] }
+    item.timeEntryIds = selectedIds
+    item.hours = totalHours
+    item.amount = totalHours * (item.hourlyRate || 0)
+    newItems[timeEntrySelectorIndex] = item
+    setLineItems(newItems)
+    setTimeEntrySelectorIndex(null)
+  }
+
+  // Collect all already-linked time entry IDs to prevent double-selection
+  const allLinkedEntryIds = lineItems.flatMap(item => item.timeEntryIds || [])
 
   const removeLineItem = (index: number) => {
     if (lineItems.length > 1) {
@@ -461,6 +501,15 @@ export default function InvoiceForm({
                       Add Hours
                     </Button>
                   )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                    onClick={addTimelineHoursItem}
+                  >
+                    <Timer className="w-4 h-4 mr-1" />
+                    Add Hours from Timeline
+                  </Button>
                 </div>
               </div>
               <table className="w-full">
@@ -493,6 +542,11 @@ export default function InvoiceForm({
                             placeholder="Item description"
                             className="flex-1"
                           />
+                          {item.type === 'HOURLY' && item.timeEntryIds && item.timeEntryIds.length > 0 && (
+                            <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-xs whitespace-nowrap">
+                              {item.timeEntryIds.length} entries ({item.hours} hrs)
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="py-2 px-1">
@@ -708,6 +762,18 @@ export default function InvoiceForm({
           </div>
         </div>
       </div>
+
+      {/* Time Entry Selector Modal */}
+      <TimeEntrySelector
+        open={timeEntrySelectorOpen}
+        onOpenChange={(open) => {
+          setTimeEntrySelectorOpen(open)
+          if (!open) setTimeEntrySelectorIndex(null)
+        }}
+        projectId={projectId}
+        excludeEntryIds={allLinkedEntryIds}
+        onSelect={handleTimeEntrySelect}
+      />
     </div>
   )
 }

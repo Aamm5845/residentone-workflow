@@ -145,6 +145,11 @@ export default function BillingPageClient({
   const [proposals, setProposals] = useState<Proposal[]>([])
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [loading, setLoading] = useState(true)
+  const [unbilledSummary, setUnbilledSummary] = useState<{
+    totalUnbilledHours: number
+    entryCount: number
+    estimatedAmount: number | null
+  } | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [sendingProposal, setSendingProposal] = useState<string | null>(null)
   const [deletingProposal, setDeletingProposal] = useState<string | null>(null)
@@ -165,9 +170,10 @@ export default function BillingPageClient({
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [proposalsRes, invoicesRes] = await Promise.all([
+        const [proposalsRes, invoicesRes, unbilledRes] = await Promise.all([
           fetch(`/api/billing/proposals?projectId=${projectId}`),
           fetch(`/api/billing/invoices?projectId=${projectId}`),
+          fetch(`/api/billing/unbilled-hours?projectId=${projectId}`),
         ])
 
         if (proposalsRes.ok) {
@@ -178,6 +184,11 @@ export default function BillingPageClient({
         if (invoicesRes.ok) {
           const data = await invoicesRes.json()
           setInvoices(data)
+        }
+
+        if (unbilledRes.ok) {
+          const data = await unbilledRes.json()
+          setUnbilledSummary(data.summary)
         }
       } catch (error) {
         console.error('Error fetching billing data:', error)
@@ -421,6 +432,33 @@ export default function BillingPageClient({
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-6 py-6">
+        {/* Unbilled Hours Card */}
+        {activeTab === 'invoices' && unbilledSummary && unbilledSummary.totalUnbilledHours > 0 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                <Clock className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-slate-900">{unbilledSummary.totalUnbilledHours} hrs</p>
+                <p className="text-sm text-slate-500">
+                  {unbilledSummary.entryCount} unbilled {unbilledSummary.entryCount === 1 ? 'entry' : 'entries'}
+                  {unbilledSummary.estimatedAmount && (
+                    <span className="text-blue-600 ml-1">({formatCurrencyFull(unbilledSummary.estimatedAmount)})</span>
+                  )}
+                </p>
+              </div>
+            </div>
+            <Button
+              className="bg-blue-600 hover:bg-blue-700"
+              onClick={() => router.push(`/projects/${projectId}/billing/invoices/new`)}
+            >
+              <Receipt className="w-4 h-4 mr-2" />
+              Invoice Now
+            </Button>
+          </div>
+        )}
+
         {/* Quick Stats - Simplified */}
         {activeTab === 'invoices' && invoices.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
