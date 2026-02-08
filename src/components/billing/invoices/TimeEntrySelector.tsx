@@ -19,7 +19,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { formatDuration } from '@/contexts/TimerContext'
-import { Clock, Loader2, CheckSquare, Square, Calendar, ChevronDown, ChevronRight, CheckCircle2, Home } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Clock, Loader2, CheckSquare, Square, Calendar, ChevronDown, ChevronRight, CheckCircle2, Home, DollarSign } from 'lucide-react'
 import { getStageName } from '@/constants/workflow'
 
 interface TimeEntry {
@@ -61,6 +62,7 @@ const PHASE_COLORS: Record<string, { bg: string; text: string; border: string }>
   DRAWINGS: { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200' },
   FFE: { bg: 'bg-pink-50', text: 'text-pink-700', border: 'border-pink-200' },
   CLIENT_APPROVAL: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200' },
+  FLOORPLAN: { bg: 'bg-sky-50', text: 'text-sky-700', border: 'border-sky-200' },
   _NONE: { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200' },
 }
 
@@ -100,6 +102,8 @@ export default function TimeEntrySelector({
   const [userFilter, setUserFilter] = useState<string>('all')
   const [collapsedPhases, setCollapsedPhases] = useState<Set<string>>(new Set())
   const [markingBilled, setMarkingBilled] = useState(false)
+  const [showBilledAmountInput, setShowBilledAmountInput] = useState(false)
+  const [customBilledAmount, setCustomBilledAmount] = useState('')
 
   // Fetch unbilled entries when dialog opens
   useEffect(() => {
@@ -293,15 +297,21 @@ export default function TimeEntrySelector({
     if (selectedCount === 0) return
     setMarkingBilled(true)
     try {
+      const amount = customBilledAmount ? parseFloat(customBilledAmount) : undefined
       const res = await fetch('/api/billing/mark-billed', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entryIds: Array.from(selectedIds) }),
+        body: JSON.stringify({
+          entryIds: Array.from(selectedIds),
+          customAmount: amount && amount > 0 ? amount : undefined,
+        }),
       })
       if (res.ok) {
         // Remove billed entries from the list
         setEntries(prev => prev.filter(e => !selectedIds.has(e.id)))
         setSelectedIds(new Set())
+        setShowBilledAmountInput(false)
+        setCustomBilledAmount('')
       }
     } catch (error) {
       console.error('Error marking as billed:', error)
@@ -514,28 +524,30 @@ export default function TimeEntrySelector({
 
         {/* Footer */}
         <DialogFooter className="border-t pt-3">
-          <div className="flex items-center justify-between w-full">
-            <div className="text-sm text-gray-600">
-              {selectedCount > 0 ? (
-                <span>
-                  <span className="font-semibold text-blue-600">{selectedCount}</span> entries
-                  {' '}({selectedHours} hrs)
-                  {summary?.hourlyRate && (
-                    <span className="text-gray-400 ml-1">
-                      ~ ${(selectedHours * summary.hourlyRate).toLocaleString()}
-                    </span>
-                  )}
+          <div className="w-full space-y-2">
+            {/* Custom amount input row */}
+            {showBilledAmountInput && selectedCount > 0 && (
+              <div className="flex items-center gap-2 p-2 bg-emerald-50 rounded-lg border border-emerald-200">
+                <DollarSign className="w-4 h-4 text-emerald-600" />
+                <span className="text-sm text-emerald-700">Total billed amount:</span>
+                <div className="relative w-32">
+                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={customBilledAmount}
+                    onChange={(e) => setCustomBilledAmount(e.target.value)}
+                    className="pl-6 h-8 text-sm"
+                  />
+                </div>
+                <span className="text-xs text-emerald-600">
+                  for {selectedCount} entries ({selectedHours} hrs)
                 </span>
-              ) : (
-                <span className="text-gray-400">No entries selected</span>
-              )}
-            </div>
-            <div className="flex gap-2">
-              {selectedCount > 0 && (
                 <Button
-                  variant="outline"
                   size="sm"
-                  className="text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+                  className="ml-auto bg-emerald-600 hover:bg-emerald-700 text-white h-8"
                   onClick={handleMarkAsBilled}
                   disabled={markingBilled}
                 >
@@ -544,19 +556,59 @@ export default function TimeEntrySelector({
                   ) : (
                     <CheckCircle2 className="w-4 h-4 mr-1" />
                   )}
-                  Mark as Already Billed
+                  Confirm
                 </Button>
-              )}
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button
-                className="bg-blue-600 hover:bg-blue-700"
-                onClick={handleConfirm}
-                disabled={selectedCount === 0}
-              >
-                Add to Invoice ({selectedHours} hrs)
-              </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-gray-500"
+                  onClick={() => { setShowBilledAmountInput(false); setCustomBilledAmount('') }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-600">
+                {selectedCount > 0 ? (
+                  <span>
+                    <span className="font-semibold text-blue-600">{selectedCount}</span> entries
+                    {' '}({selectedHours} hrs)
+                    {summary?.hourlyRate && (
+                      <span className="text-gray-400 ml-1">
+                        ~ ${(selectedHours * summary.hourlyRate).toLocaleString()}
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="text-gray-400">No entries selected</span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                {selectedCount > 0 && !showBilledAmountInput && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+                    onClick={() => setShowBilledAmountInput(true)}
+                    disabled={markingBilled}
+                  >
+                    <CheckCircle2 className="w-4 h-4 mr-1" />
+                    Mark as Already Billed
+                  </Button>
+                )}
+                <Button variant="outline" onClick={() => onOpenChange(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  className="bg-blue-600 hover:bg-blue-700"
+                  onClick={handleConfirm}
+                  disabled={selectedCount === 0}
+                >
+                  Add to Invoice ({selectedHours} hrs)
+                </Button>
+              </div>
             </div>
           </div>
         </DialogFooter>

@@ -337,6 +337,7 @@ model Project {
   hasFloorplanApproval      Boolean                    @default(true)
   hasSpecBook               Boolean                    @default(true)
   hasProjectUpdates         Boolean                    @default(true)
+  phasePricing              Json?
   shareSettings             Json?
   approvals                 Approval[]
   assets                    Asset[]                    @relation("ProjectAssets")
@@ -2986,6 +2987,7 @@ model TimeEntry {
   billedStatus BilledStatus   @default(UNBILLED)
   billedInvoiceLineItemId String?
   billedAt    DateTime?
+  billedAmount Decimal?       @db.Decimal(10, 2)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 

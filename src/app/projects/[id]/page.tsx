@@ -126,7 +126,7 @@ export default async function ProjectDetail({ params }: Props) {
 
   // Calculate overall project progress (excluding NOT_APPLICABLE phases)
   // Use the same 5-phase logic as room calculations for consistency
-  const phaseIds = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE', 'FLOORPLAN']
+  const phaseIds = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE']
   
   let totalApplicablePhases = 0
   let completedPhases = 0
@@ -186,7 +186,7 @@ export default async function ProjectDetail({ params }: Props) {
       'FFE': 'FFE'
     }
     
-    const phaseIds = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE', 'FLOORPLAN']
+    const phaseIds = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE']
     
     // Count only COMPLETED phases for progress (matching room phase board logic)
     let completedPhases = 0
@@ -271,7 +271,7 @@ export default async function ProjectDetail({ params }: Props) {
       'FFE': 'FFE'
     }
     
-    const phaseIds = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE', 'FLOORPLAN']
+    const phaseIds = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE']
     const phaseNames: Record<string, string> = {
       'DESIGN_CONCEPT': 'Design Concept',
       'THREE_D': '3D Rendering',
@@ -627,7 +627,7 @@ export default async function ProjectDetail({ params }: Props) {
                 'FFE': 'FFE'
               }
               
-              const phaseIds = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE', 'FLOORPLAN']
+              const phaseIds = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE']
               
               let completedCount = 0
               let totalApplicablePhases = 0
@@ -746,7 +746,7 @@ export default async function ProjectDetail({ params }: Props) {
                             'FFE': 'FFE'
                           }
                           
-                          const phaseIds = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE', 'FLOORPLAN']
+                          const phaseIds = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE']
                           
                           // Phase names for labels
                           const phaseLabels: Record<string, string> = {
@@ -846,7 +846,7 @@ export default async function ProjectDetail({ params }: Props) {
                       {/* Stage Summary */}
                       <div className="flex justify-between text-xs text-gray-600">
                         {(() => {
-                          const phaseIds = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE', 'FLOORPLAN']
+                          const phaseIds = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE']
                           
                           let completed = 0
                           let active = 0

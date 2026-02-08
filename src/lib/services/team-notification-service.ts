@@ -286,7 +286,7 @@ export class TeamNotificationService {
    * Determine which phases should be notified based on completed phase
    */
   private determineNextPhases(completedPhaseType: string, allStages: any[]): NextPhaseInfo[] {
-    const phaseSequence = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE', 'FLOORPLAN']
+    const phaseSequence = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE']
     
     if (completedPhaseType === 'CLIENT_APPROVAL') {
       // Special case: Client approval enables both DRAWINGS and FFE

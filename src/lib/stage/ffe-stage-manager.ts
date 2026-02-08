@@ -334,7 +334,7 @@ async function updateRoomProgress(roomId: string): Promise<void> {
     if (!room) return
 
     // Calculate progress based on workflow stages
-    const workflowStages = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE', 'FLOORPLAN']
+    const workflowStages = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE']
     const applicableStages = room.stages.filter(stage => 
       workflowStages.includes(stage.type) && stage.status !== 'NOT_APPLICABLE'
     )
@@ -407,7 +407,7 @@ async function checkRoomCompletion(roomId: string, userId: string): Promise<void
     if (!room) return
 
     // Check if this room is now complete
-    const workflowStages = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE', 'FLOORPLAN']
+    const workflowStages = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE']
     const roomApplicableStages = room.stages.filter(stage => 
       workflowStages.includes(stage.type) && stage.status !== 'NOT_APPLICABLE'
     )

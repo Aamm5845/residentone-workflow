@@ -172,6 +172,18 @@ export default function InvoiceForm({
   const [timeEntrySelectorIndex, setTimeEntrySelectorIndex] = useState<number | null>(null)
   const [autoOpenDone, setAutoOpenDone] = useState(false)
 
+  // Phase pricing
+  const [phasePricing, setPhasePricing] = useState<Record<string, number>>({})
+
+  useEffect(() => {
+    fetch(`/api/projects/${projectId}/phase-pricing`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.phasePricing) setPhasePricing(data.phasePricing)
+      })
+      .catch(() => {})
+  }, [projectId])
+
   // Auto-open timeline selector when coming from "Invoice Now"
   useEffect(() => {
     if (autoOpenTimeSelector && !autoOpenDone && !isEditing) {
@@ -250,6 +262,29 @@ export default function InvoiceForm({
         amount: milestone.amount,
         order: lineItems.length,
       }
+    ])
+  }
+
+  const PHASE_LABELS: Record<string, string> = {
+    DESIGN_CONCEPT: 'Design Concept',
+    THREE_D: '3D Rendering',
+    CLIENT_APPROVAL: 'Client Approval',
+    DRAWINGS: 'Drawings',
+    FFE: 'FFE',
+    FLOORPLAN: 'Floorplan',
+  }
+
+  const addPhaseLineItem = (phaseKey: string, price: number) => {
+    setLineItems(prev => [
+      ...prev,
+      {
+        type: 'FIXED' as const,
+        description: PHASE_LABELS[phaseKey] || phaseKey,
+        quantity: 1,
+        unitPrice: price,
+        amount: price,
+        order: prev.length,
+      },
     ])
   }
 
@@ -537,6 +572,23 @@ export default function InvoiceForm({
                   </Button>
                 </div>
               </div>
+              {/* Phase Pricing Presets */}
+              {Object.keys(phasePricing).length > 0 && (
+                <div className="flex items-center gap-2 mb-4 flex-wrap">
+                  <span className="text-xs text-gray-500 font-medium">Phase prices:</span>
+                  {Object.entries(phasePricing).map(([key, price]) => (
+                    <Button
+                      key={key}
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-7"
+                      onClick={() => addPhaseLineItem(key, price)}
+                    >
+                      {PHASE_LABELS[key] || key} (${price.toLocaleString()})
+                    </Button>
+                  ))}
+                </div>
+              )}
               <table className="w-full">
                 <thead>
                   <tr className="text-xs text-gray-500 uppercase tracking-wider border-b">

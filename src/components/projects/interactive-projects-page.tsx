@@ -125,7 +125,7 @@ export default function InteractiveProjectsPage({
   // Helper function to calculate project progress using the 5-phase display system
   // This matches the room progress calculation in the project detail page
   const calculateProjectProgress = (project: Project) => {
-    const phaseIds = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE', 'FLOORPLAN']
+    const phaseIds = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE']
     
     let totalApplicablePhases = 0
     let completedPhases = 0

@@ -9,8 +9,7 @@ export const WORKFLOW_STAGES = [
   'THREE_D',
   'CLIENT_APPROVAL',
   'DRAWINGS',
-  'FFE',
-  'FLOORPLAN'
+  'FFE'
 ] as const
 
 export type WorkflowStageType = typeof WORKFLOW_STAGES[number]

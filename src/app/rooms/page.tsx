@@ -93,7 +93,7 @@ export default async function Rooms({ searchParams }: { searchParams: Promise<{ 
 
   // Calculate stats for each room and group by project
   // Use 5-phase logic for consistency with room detail pages
-  const phaseIds = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE', 'FLOORPLAN']
+  const phaseIds = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE']
   
   const roomsWithStats = rooms.map(room => {
     let completedCount = 0

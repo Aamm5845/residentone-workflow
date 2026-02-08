@@ -27,6 +27,8 @@ import {
   Calendar,
   ChevronRight,
   Bell,
+  Settings,
+  Save,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -167,13 +169,20 @@ export default function BillingPageClient({
   // Sending receipt state
   const [sendingReceipt, setSendingReceipt] = useState<string | null>(null)
 
+  // Phase pricing state
+  const [showPhasePricing, setShowPhasePricing] = useState(false)
+  const [phasePricing, setPhasePricing] = useState<Record<string, number>>({})
+  const [phasePricingDraft, setPhasePricingDraft] = useState<Record<string, string>>({})
+  const [savingPricing, setSavingPricing] = useState(false)
+
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [proposalsRes, invoicesRes, unbilledRes] = await Promise.all([
+        const [proposalsRes, invoicesRes, unbilledRes, pricingRes] = await Promise.all([
           fetch(`/api/billing/proposals?projectId=${projectId}`),
           fetch(`/api/billing/invoices?projectId=${projectId}`),
           fetch(`/api/billing/unbilled-hours?projectId=${projectId}`),
+          fetch(`/api/projects/${projectId}/phase-pricing`),
         ])
 
         if (proposalsRes.ok) {
@@ -189,6 +198,18 @@ export default function BillingPageClient({
         if (unbilledRes.ok) {
           const data = await unbilledRes.json()
           setUnbilledSummary(data.summary)
+        }
+
+        if (pricingRes.ok) {
+          const data = await pricingRes.json()
+          const pricing = data.phasePricing || {}
+          setPhasePricing(pricing)
+          // Initialize draft with string values for input fields
+          const draft: Record<string, string> = {}
+          Object.entries(pricing).forEach(([key, val]) => {
+            draft[key] = String(val)
+          })
+          setPhasePricingDraft(draft)
         }
       } catch (error) {
         console.error('Error fetching billing data:', error)
@@ -253,6 +274,44 @@ export default function BillingPageClient({
       VOID: { bg: 'bg-slate-100', text: 'text-slate-500', icon: AlertCircle, label: 'Void' },
     }
     return configs[status] || configs.DRAFT
+  }
+
+  const PHASE_OPTIONS = [
+    { key: 'DESIGN_CONCEPT', label: 'Design Concept', color: 'bg-purple-100 text-purple-700' },
+    { key: 'THREE_D', label: '3D Rendering', color: 'bg-orange-100 text-orange-700' },
+    { key: 'CLIENT_APPROVAL', label: 'Client Approval', color: 'bg-teal-100 text-teal-700' },
+    { key: 'DRAWINGS', label: 'Drawings', color: 'bg-indigo-100 text-indigo-700' },
+    { key: 'FFE', label: 'FFE', color: 'bg-pink-100 text-pink-700' },
+    { key: 'FLOORPLAN', label: 'Floorplan', color: 'bg-sky-100 text-sky-700' },
+  ]
+
+  const savePhasePricing = async () => {
+    setSavingPricing(true)
+    try {
+      const pricing: Record<string, number> = {}
+      Object.entries(phasePricingDraft).forEach(([key, val]) => {
+        const num = parseFloat(val)
+        if (!isNaN(num) && num > 0) {
+          pricing[key] = num
+        }
+      })
+
+      const res = await fetch(`/api/projects/${projectId}/phase-pricing`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phasePricing: pricing }),
+      })
+
+      if (res.ok) {
+        setPhasePricing(pricing)
+        toast.success('Phase pricing saved')
+      }
+    } catch (error) {
+      console.error('Error saving phase pricing:', error)
+      toast.error('Failed to save')
+    } finally {
+      setSavingPricing(false)
+    }
   }
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
@@ -456,6 +515,72 @@ export default function BillingPageClient({
               <Receipt className="w-4 h-4 mr-2" />
               Invoice Now
             </Button>
+          </div>
+        )}
+
+        {/* Phase Pricing */}
+        {activeTab === 'invoices' && (
+          <div className="mb-6">
+            <button
+              onClick={() => setShowPhasePricing(!showPhasePricing)}
+              className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 mb-2"
+            >
+              <Settings className="w-4 h-4" />
+              <span>Fixed Phase Pricing</span>
+              <ChevronRight className={`w-4 h-4 transition-transform ${showPhasePricing ? 'rotate-90' : ''}`} />
+              {Object.keys(phasePricing).length > 0 && (
+                <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+                  {Object.keys(phasePricing).length} set
+                </span>
+              )}
+            </button>
+
+            {showPhasePricing && (
+              <div className="bg-white rounded-xl border p-5">
+                <p className="text-sm text-slate-500 mb-4">
+                  Set fixed prices per phase for this project. These will be available as presets when creating invoices.
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {PHASE_OPTIONS.map(phase => (
+                    <div key={phase.key} className="flex items-center gap-2">
+                      <span className={`text-xs font-medium px-2 py-1 rounded-full ${phase.color} whitespace-nowrap`}>
+                        {phase.label}
+                      </span>
+                      <div className="relative flex-1">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm text-slate-400">$</span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="0"
+                          value={phasePricingDraft[phase.key] || ''}
+                          onChange={(e) => setPhasePricingDraft(prev => ({
+                            ...prev,
+                            [phase.key]: e.target.value,
+                          }))}
+                          className="pl-6 h-8 text-sm"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 flex justify-end">
+                  <Button
+                    size="sm"
+                    onClick={savePhasePricing}
+                    disabled={savingPricing}
+                    className="bg-slate-800 hover:bg-slate-900"
+                  >
+                    {savingPricing ? (
+                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4 mr-1" />
+                    )}
+                    Save Pricing
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
