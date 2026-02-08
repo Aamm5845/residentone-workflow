@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Input } from '@/components/ui/input'
@@ -82,11 +82,21 @@ export default function PhaseCard({
   const isComplete = phase.status === 'COMPLETE'
   const isNotApplicable = phase.status === 'NOT_APPLICABLE'
   
-  // Due date logic
-  const isOverdue = phase.dueDate && new Date() > new Date(phase.dueDate) && !isComplete
-  const isDueSoon = phase.dueDate && 
-    new Date() < new Date(phase.dueDate) && 
-    (new Date(phase.dueDate).getTime() - new Date().getTime()) <= (3 * 24 * 60 * 60 * 1000) // 3 days
+  // Due date logic — computed client-side only to avoid hydration mismatch
+  const [isOverdue, setIsOverdue] = useState(false)
+  const [isDueSoon, setIsDueSoon] = useState(false)
+
+  useEffect(() => {
+    if (phase.dueDate && !isComplete) {
+      const now = new Date()
+      const due = new Date(phase.dueDate)
+      setIsOverdue(now > due)
+      setIsDueSoon(now < due && (due.getTime() - now.getTime()) <= 3 * 24 * 60 * 60 * 1000)
+    } else {
+      setIsOverdue(false)
+      setIsDueSoon(false)
+    }
+  }, [phase.dueDate, isComplete])
   
   const [showStartDateInput, setShowStartDateInput] = useState(false)
   const [tempStartDate, setTempStartDate] = useState(
@@ -366,7 +376,7 @@ export default function PhaseCard({
                   {phase.startDate ? (
                     <div className="flex items-center space-x-1">
                       <span className="text-xs font-medium text-blue-700">
-                        {new Date(phase.startDate).toLocaleDateString()}
+                        {new Date(phase.startDate).toLocaleDateString('en-US')}
                       </span>
                       <Button
                         variant="ghost"
@@ -401,7 +411,7 @@ export default function PhaseCard({
                         isDueSoon ? "text-yellow-700" :
                         "text-purple-700"
                       )}>
-                        {new Date(phase.dueDate).toLocaleDateString()}
+                        {new Date(phase.dueDate).toLocaleDateString('en-US')}
                       </span>
                       {isOverdue && <AlertTriangle className="w-3 h-3 text-red-600" />}
                       {isDueSoon && !isOverdue && <Clock className="w-3 h-3 text-yellow-600" />}
@@ -488,7 +498,7 @@ export default function PhaseCard({
               </div>
               {phase.completedAt && (
                 <p className="text-xs text-gray-500 mb-3">
-                  {new Date(phase.completedAt).toLocaleDateString()}
+                  {new Date(phase.completedAt).toLocaleDateString('en-US')}
                 </p>
               )}
               <div className="space-y-2">
