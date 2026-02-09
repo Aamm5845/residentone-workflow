@@ -44,7 +44,8 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowLeft,
-  Keyboard
+  Keyboard,
+  Eye
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -131,6 +132,7 @@ export default function FFEUnifiedWorkspace({
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [showHiddenItems, setShowHiddenItems] = useState(false)
   const [renderingImages, setRenderingImages] = useState<Array<{id: string, url: string, filename: string}>>([])
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
   const [showImageModal, setShowImageModal] = useState(false)
@@ -434,10 +436,12 @@ export default function FFEUnifiedWorkspace({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [sections, router])
 
-  const loadFFEData = async () => {
+  const loadFFEData = async (forceIncludeHidden?: boolean) => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/ffe/v2/rooms/${roomId}?includeHidden=true`)
+      const includeHidden = forceIncludeHidden ?? showHiddenItems
+      const queryParam = includeHidden ? 'includeHidden=true' : 'onlyVisible=true'
+      const response = await fetch(`/api/ffe/v2/rooms/${roomId}?${queryParam}`)
       if (!response.ok) throw new Error('Failed to fetch FFE data')
 
       const result = await response.json()
@@ -449,6 +453,15 @@ export default function FFEUnifiedWorkspace({
           // Filter out spec items - only show requirements
           items: (s.items || []).filter((item: any) => !item.isSpecItem)
         }))
+
+        // If showing only visible items but none exist, fall back to showing all
+        // (this handles brand new rooms where all items start as HIDDEN)
+        const totalVisibleItems = sectionsWithExpanded.reduce((sum: number, s: any) => sum + s.items.length, 0)
+        if (!includeHidden && totalVisibleItems === 0) {
+          setShowHiddenItems(true)
+          return loadFFEData(true)
+        }
+
         setSections(sectionsWithExpanded)
         calculateStats(sectionsWithExpanded)
       } else {
@@ -1818,6 +1831,28 @@ export default function FFEUnifiedWorkspace({
             </div>
 
             <div className="flex items-center gap-2">
+              <Button
+                variant={showHiddenItems ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  const next = !showHiddenItems
+                  setShowHiddenItems(next)
+                  loadFFEData(next)
+                }}
+                className={showHiddenItems ? 'bg-amber-500 hover:bg-amber-600 text-white' : ''}
+              >
+                {showHiddenItems ? (
+                  <>
+                    <Eye className="w-4 h-4 mr-2" />
+                    Showing All Items
+                  </>
+                ) : (
+                  <>
+                    <Eye className="w-4 h-4 mr-2" />
+                    Active Items Only
+                  </>
+                )}
+              </Button>
               <Button variant="outline" size="sm" onClick={() => setShowImportDialog(true)} disabled={disabled}>
                 <Import className="w-4 h-4 mr-2" />
                 Import Template
