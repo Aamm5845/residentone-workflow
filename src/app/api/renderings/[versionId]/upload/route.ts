@@ -260,10 +260,46 @@ export async function POST(
       }
     }
 
-    return NextResponse.json({ 
-      success: true, 
+    // Auto-set project cover image if none exists
+    // Use the first uploaded RENDER image as the default cover
+    const project = renderingVersion.room.project
+    const currentCoverImages = project.coverImages as string[] | null
+    if (!currentCoverImages || (Array.isArray(currentCoverImages) && currentCoverImages.length === 0)) {
+      const firstRenderAsset = uploadedAssets.find(
+        (a: any) => a.type === 'RENDER' && a.provider === 'blob' && a.url
+      )
+      if (firstRenderAsset) {
+        try {
+          // Upload a copy to a dedicated cover-images path in blob
+          const coverBlobPath = generateFilePath(
+            project.orgId,
+            project.id,
+            undefined,
+            undefined,
+            `cover-${firstRenderAsset.filename}`
+          )
+          const response = await fetch(firstRenderAsset.url)
+          const coverBuffer = Buffer.from(await response.arrayBuffer())
+          const coverResult = await uploadFile(coverBuffer, coverBlobPath, {
+            contentType: firstRenderAsset.mimeType || 'image/jpeg'
+          })
+
+          await prisma.project.update({
+            where: { id: project.id },
+            data: { coverImages: [coverResult.url] }
+          })
+          console.log(`✅ Auto-set project cover image from 3D rendering: ${coverResult.url}`)
+        } catch (coverError) {
+          // Non-critical - don't fail the upload if cover image auto-set fails
+          console.warn('⚠️ Failed to auto-set cover image from rendering:', coverError)
+        }
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
       uploadedAssets,
-      message: `Successfully uploaded ${uploadedAssets.length} file(s)` 
+      message: `Successfully uploaded ${uploadedAssets.length} file(s)`
     }, { status: 201 })
 
   } catch (error) {
