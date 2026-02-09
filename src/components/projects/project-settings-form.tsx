@@ -9,9 +9,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { 
-  Upload, Calendar, DollarSign, Trash2, Building, Camera, Folder, Edit, X, User, Users, Plus, 
-  Settings as SettingsIcon, BookOpen, ClipboardList, Home, Search, FolderPlus, Link2, FolderX, 
-  Shield, Layers, Check, Mail, Phone, MapPin, Briefcase, FileText
+  Upload, Calendar, DollarSign, Trash2, Building, Camera, Folder, Edit, X, User, Users, Plus,
+  Settings as SettingsIcon, BookOpen, ClipboardList, Home, Search, FolderPlus, Link2, FolderX,
+  Shield, Layers, Check, Mail, Phone, MapPin, Briefcase, FileText, ShoppingCart
 } from 'lucide-react'
 import Image from 'next/image'
 import ClientAccessManagement from './ClientAccessManagement'
@@ -35,6 +35,7 @@ const projectSettingsSchema = z.object({
   hasFloorplanApproval: z.boolean().optional(),
   hasSpecBook: z.boolean().optional(),
   hasProjectUpdates: z.boolean().optional(),
+  hasBillingProcurement: z.boolean().optional(),
 })
 
 type ProjectSettingsFormData = z.infer<typeof projectSettingsSchema>
@@ -1038,11 +1039,13 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
             hasFloorplanApproval: data.hasFloorplanApproval || false,
             hasSpecBook: data.hasSpecBook || false,
             hasProjectUpdates: data.hasProjectUpdates || false,
+            hasBillingProcurement: data.hasBillingProcurement || false,
           })
         })} className="space-y-3">
           <FeatureToggle icon={Folder} title="Floorplan" color="blue" register={register('hasFloorplanApproval')} />
           <FeatureToggle icon={BookOpen} title="Spec Book" color="green" register={register('hasSpecBook')} />
           <FeatureToggle icon={ClipboardList} title="Project Updates" color="purple" register={register('hasProjectUpdates')} />
+          <FeatureToggle icon={ShoppingCart} title="Billing & Procurement" color="amber" register={register('hasBillingProcurement')} />
           <div className="flex gap-2 pt-4">
             <Button type="submit" size="sm" disabled={isLoading} className="bg-[#a657f0] hover:bg-[#a657f0]/90">Save</Button>
             <Button type="button" variant="ghost" size="sm" onClick={() => setEditingField(null)}>Cancel</Button>
@@ -1053,6 +1056,7 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
           <FeatureStatus title="Floorplan" enabled={project.hasFloorplanApproval} icon={Folder} color="blue" />
           <FeatureStatus title="Spec Book" enabled={project.hasSpecBook} icon={BookOpen} color="green" />
           <FeatureStatus title="Project Updates" enabled={project.hasProjectUpdates} icon={ClipboardList} color="purple" />
+          <FeatureStatus title="Billing & Procurement" enabled={project.hasBillingProcurement} icon={ShoppingCart} color="amber" />
         </div>
       )}
     </div>
@@ -1284,8 +1288,8 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
 
 // Helper Components
 function FeatureToggle({ icon: Icon, title, color, register }: { icon: any; title: string; color: string; register: any }) {
-  const bg = color === 'blue' ? 'bg-blue-100' : color === 'green' ? 'bg-green-100' : 'bg-purple-100'
-  const ic = color === 'blue' ? 'text-blue-600' : color === 'green' ? 'text-green-600' : 'text-purple-600'
+  const bg = color === 'blue' ? 'bg-blue-100' : color === 'green' ? 'bg-green-100' : color === 'amber' ? 'bg-amber-100' : 'bg-purple-100'
+  const ic = color === 'blue' ? 'text-blue-600' : color === 'green' ? 'text-green-600' : color === 'amber' ? 'text-amber-600' : 'text-purple-600'
   return (
     <label className="flex items-center justify-between p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
       <div className="flex items-center gap-3">
@@ -1298,8 +1302,8 @@ function FeatureToggle({ icon: Icon, title, color, register }: { icon: any; titl
 }
 
 function FeatureStatus({ title, enabled, icon: Icon, color }: { title: string; enabled: boolean; icon: any; color: string }) {
-  const bg = color === 'blue' ? 'bg-blue-100' : color === 'green' ? 'bg-green-100' : 'bg-purple-100'
-  const ic = color === 'blue' ? 'text-blue-600' : color === 'green' ? 'text-green-600' : 'text-purple-600'
+  const bg = color === 'blue' ? 'bg-blue-100' : color === 'green' ? 'bg-green-100' : color === 'amber' ? 'bg-amber-100' : 'bg-purple-100'
+  const ic = color === 'blue' ? 'text-blue-600' : color === 'green' ? 'text-green-600' : color === 'amber' ? 'text-amber-600' : 'text-purple-600'
   return (
     <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
       <div className="flex items-center gap-3">

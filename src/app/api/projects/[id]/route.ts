@@ -34,6 +34,7 @@ const updateProjectSchema = z.object({
   hasFloorplanApproval: z.boolean().optional(),
   hasSpecBook: z.boolean().optional(),
   hasProjectUpdates: z.boolean().optional(),
+  hasBillingProcurement: z.boolean().optional(),
   contractors: z.array(contractorSchema).optional(), // Contractors array
 })
 
@@ -232,6 +233,9 @@ export async function PUT(
     }
     if (validatedData.hasProjectUpdates !== undefined) {
       updateData.hasProjectUpdates = validatedData.hasProjectUpdates
+    }
+    if (validatedData.hasBillingProcurement !== undefined) {
+      updateData.hasBillingProcurement = validatedData.hasBillingProcurement
     }
 
     const updatedProject = await prisma.project.update({

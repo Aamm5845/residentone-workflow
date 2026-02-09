@@ -191,6 +191,7 @@ export async function POST(request: NextRequest) {
       hasFloorplanApproval: true,
       hasSpecBook: true,
       hasProjectUpdates: true,
+      hasBillingProcurement: true,
       orgId: sharedOrg.id,
       createdById: session.user.id
     }

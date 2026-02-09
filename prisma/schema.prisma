@@ -341,6 +341,7 @@ model Project {
   hasFloorplanApproval      Boolean                    @default(true)
   hasSpecBook               Boolean                    @default(true)
   hasProjectUpdates         Boolean                    @default(true)
+  hasBillingProcurement     Boolean                    @default(true)
   phasePricing              Json?
   shareSettings             Json?
   approvals                 Approval[]

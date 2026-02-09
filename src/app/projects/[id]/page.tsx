@@ -52,6 +52,7 @@ export default async function ProjectDetail({ params }: Props) {
         hasFloorplanApproval: true,
         hasSpecBook: true,
         hasProjectUpdates: true,
+        hasBillingProcurement: true,
         client: {
           select: {
             id: true,
@@ -411,63 +412,70 @@ export default async function ProjectDetail({ params }: Props) {
 
         {/* Project Features Section - Always show since Project Files is always available */}
         {(true || project.hasFloorplanApproval || project.hasSpecBook || project.hasProjectUpdates) && (
-          <div className="bg-white shadow-sm border-b border-gray-200">
-            <div className="max-w-7xl mx-auto px-6 py-6">
-              <div className="flex items-center justify-between">
+          <div className="border-b border-gray-100">
+            <div className="max-w-7xl mx-auto px-6 py-8">
+              <div className="flex items-center justify-between mb-6">
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">Project Features</h2>
-                  <p className="text-gray-600 text-sm mt-1">Manage project-level workflows and approvals</p>
+                  <p className="text-gray-500 text-sm mt-0.5">Manage project-level workflows and approvals</p>
                 </div>
               </div>
-              
-              <div className="mt-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                   {/* Floorplan Card */}
                   {project.hasFloorplanApproval && (
                     <Link
                       href={`/projects/${project.id}/floorplan`}
                       className="group block"
                     >
-                      <div className="bg-gradient-to-br from-blue-50 to-indigo-100 border border-blue-200 hover:border-blue-300 rounded-xl p-6 hover:shadow-lg transition-all duration-200 group-hover:scale-[1.02]">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center shadow-sm">
-                              <FileText className="w-6 h-6 text-white" />
+                      <div className="relative bg-white border border-gray-200/80 rounded-2xl p-5 transition-all duration-300 hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:border-blue-200 group-hover:-translate-y-0.5 overflow-hidden">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 via-indigo-500 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        <div className="flex items-start gap-4">
+                          <div className="relative">
+                            <div className="w-11 h-11 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20 group-hover:shadow-blue-500/30 transition-shadow duration-300">
+                              <FileText className="w-5 h-5 text-white" />
                             </div>
-                            <div>
-                              <h3 className="font-semibold text-blue-800 group-hover:text-blue-900 transition-colors">
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <h3 className="font-semibold text-gray-900 text-sm group-hover:text-blue-700 transition-colors duration-200">
                                 Floorplan
                               </h3>
-                              <p className="text-xs text-blue-600 mt-1">
-                                Manage floorplan drawings and client approvals
-                              </p>
+                              <svg className="w-4 h-4 text-gray-300 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
                             </div>
+                            <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                              Manage floorplan drawings and client approvals
+                            </p>
                           </div>
                         </div>
                       </div>
                     </Link>
                   )}
-                  
-                  {/* Specs Card - Goes directly to All Specs */}
+
+                  {/* Specs Card */}
                   {project.hasSpecBook && (
                     <Link
                       href={`/projects/${project.id}/specs/all`}
                       className="group block"
                     >
-                      <div className="bg-gradient-to-br from-green-50 to-emerald-100 border border-green-200 hover:border-green-300 rounded-xl p-6 hover:shadow-lg transition-all duration-200 group-hover:scale-[1.02]">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center shadow-sm">
-                              <BookOpen className="w-6 h-6 text-white" />
+                      <div className="relative bg-white border border-gray-200/80 rounded-2xl p-5 transition-all duration-300 hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:border-emerald-200 group-hover:-translate-y-0.5 overflow-hidden">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 via-green-500 to-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        <div className="flex items-start gap-4">
+                          <div className="relative">
+                            <div className="w-11 h-11 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20 group-hover:shadow-emerald-500/30 transition-shadow duration-300">
+                              <BookOpen className="w-5 h-5 text-white" />
                             </div>
-                            <div>
-                              <h3 className="font-semibold text-green-800 group-hover:text-green-900 transition-colors">
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <h3 className="font-semibold text-gray-900 text-sm group-hover:text-emerald-700 transition-colors duration-200">
                                 All Specs
                               </h3>
-                              <p className="text-xs text-green-600 mt-1">
-                                View and manage all product specs
-                              </p>
+                              <svg className="w-4 h-4 text-gray-300 group-hover:text-emerald-500 group-hover:translate-x-0.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
                             </div>
+                            <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                              View and manage all product specs
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -475,25 +483,29 @@ export default async function ProjectDetail({ params }: Props) {
                   )}
 
                   {/* Procurement Card */}
-                  {project.hasSpecBook && (
+                  {project.hasBillingProcurement && (
                     <Link
                       href={`/projects/${project.id}/procurement`}
                       className="group block"
                     >
-                      <div className="bg-gradient-to-br from-amber-50 to-orange-100 border border-amber-200 hover:border-amber-300 rounded-xl p-6 hover:shadow-lg transition-all duration-200 group-hover:scale-[1.02]">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-12 h-12 bg-amber-500 rounded-lg flex items-center justify-center shadow-sm">
-                              <ShoppingCart className="w-6 h-6 text-white" />
+                      <div className="relative bg-white border border-gray-200/80 rounded-2xl p-5 transition-all duration-300 hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:border-amber-200 group-hover:-translate-y-0.5 overflow-hidden">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-400 via-orange-500 to-amber-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        <div className="flex items-start gap-4">
+                          <div className="relative">
+                            <div className="w-11 h-11 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/20 group-hover:shadow-amber-500/30 transition-shadow duration-300">
+                              <ShoppingCart className="w-5 h-5 text-white" />
                             </div>
-                            <div>
-                              <h3 className="font-semibold text-amber-800 group-hover:text-amber-900 transition-colors">
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <h3 className="font-semibold text-gray-900 text-sm group-hover:text-amber-700 transition-colors duration-200">
                                 Procurement
                               </h3>
-                              <p className="text-xs text-amber-600 mt-1">
-                                Quotes, orders, and deliveries
-                              </p>
+                              <svg className="w-4 h-4 text-gray-300 group-hover:text-amber-500 group-hover:translate-x-0.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
                             </div>
+                            <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                              Quotes, orders, and deliveries
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -505,20 +517,24 @@ export default async function ProjectDetail({ params }: Props) {
                     href={`/projects/${project.id}/floorplan/sources`}
                     className="group block"
                   >
-                    <div className="bg-gradient-to-br from-cyan-50 to-teal-100 border border-cyan-200 hover:border-cyan-300 rounded-xl p-6 hover:shadow-lg transition-all duration-200 group-hover:scale-[1.02]">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-12 h-12 bg-cyan-500 rounded-lg flex items-center justify-center shadow-sm">
-                            <FolderOpen className="w-6 h-6 text-white" />
+                    <div className="relative bg-white border border-gray-200/80 rounded-2xl p-5 transition-all duration-300 hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:border-cyan-200 group-hover:-translate-y-0.5 overflow-hidden">
+                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-400 via-teal-500 to-cyan-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      <div className="flex items-start gap-4">
+                        <div className="relative">
+                          <div className="w-11 h-11 bg-gradient-to-br from-cyan-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/20 group-hover:shadow-cyan-500/30 transition-shadow duration-300">
+                            <FolderOpen className="w-5 h-5 text-white" />
                           </div>
-                          <div>
-                            <h3 className="font-semibold text-cyan-800 group-hover:text-cyan-900 transition-colors">
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <h3 className="font-semibold text-gray-900 text-sm group-hover:text-cyan-700 transition-colors duration-200">
                               Project Files
                             </h3>
-                            <p className="text-xs text-cyan-600 mt-1">
-                              Documents, plans, and reference files
-                            </p>
+                            <svg className="w-4 h-4 text-gray-300 group-hover:text-cyan-500 group-hover:translate-x-0.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
                           </div>
+                          <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                            Documents, plans, and reference files
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -530,53 +546,60 @@ export default async function ProjectDetail({ params }: Props) {
                       href={`/projects/${project.id}/project-updates`}
                       className="group block"
                     >
-                      <div className="bg-gradient-to-br from-purple-50 to-violet-100 border border-purple-200 hover:border-purple-300 rounded-xl p-6 hover:shadow-lg transition-all duration-200 group-hover:scale-[1.02]">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-12 h-12 bg-purple-500 rounded-lg flex items-center justify-center shadow-sm">
-                              <ClipboardList className="w-6 h-6 text-white" />
+                      <div className="relative bg-white border border-gray-200/80 rounded-2xl p-5 transition-all duration-300 hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:border-purple-200 group-hover:-translate-y-0.5 overflow-hidden">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-400 via-violet-500 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        <div className="flex items-start gap-4">
+                          <div className="relative">
+                            <div className="w-11 h-11 bg-gradient-to-br from-purple-500 to-violet-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/20 group-hover:shadow-purple-500/30 transition-shadow duration-300">
+                              <ClipboardList className="w-5 h-5 text-white" />
                             </div>
-                            <div>
-                              <h3 className="font-semibold text-purple-800 group-hover:text-purple-900 transition-colors">
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <h3 className="font-semibold text-gray-900 text-sm group-hover:text-purple-700 transition-colors duration-200">
                                 Project Updates
                               </h3>
-                              <p className="text-xs text-purple-600 mt-1">
-                                Manage onsite visits and revisions
-                              </p>
+                              <svg className="w-4 h-4 text-gray-300 group-hover:text-purple-500 group-hover:translate-x-0.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
                             </div>
+                            <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                              Manage onsite visits and revisions
+                            </p>
                           </div>
                         </div>
                       </div>
                     </Link>
                   )}
 
-                  {/* Billing Card - Only visible to users with billing permission */}
-                  {canSeeBilling && (
+                  {/* Billing Card */}
+                  {canSeeBilling && project.hasBillingProcurement && (
                     <Link
                       href={`/projects/${project.id}/billing`}
                       className="group block"
                     >
-                      <div className="bg-gradient-to-br from-emerald-50 to-teal-100 border border-emerald-200 hover:border-emerald-300 rounded-xl p-6 hover:shadow-lg transition-all duration-200 group-hover:scale-[1.02]">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-12 h-12 bg-emerald-500 rounded-lg flex items-center justify-center shadow-sm">
-                              <DollarSign className="w-6 h-6 text-white" />
+                      <div className="relative bg-white border border-gray-200/80 rounded-2xl p-5 transition-all duration-300 hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:border-teal-200 group-hover:-translate-y-0.5 overflow-hidden">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-teal-400 via-emerald-500 to-teal-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        <div className="flex items-start gap-4">
+                          <div className="relative">
+                            <div className="w-11 h-11 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-teal-500/20 group-hover:shadow-teal-500/30 transition-shadow duration-300">
+                              <DollarSign className="w-5 h-5 text-white" />
                             </div>
-                            <div>
-                              <h3 className="font-semibold text-emerald-800 group-hover:text-emerald-900 transition-colors">
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <h3 className="font-semibold text-gray-900 text-sm group-hover:text-teal-700 transition-colors duration-200">
                                 Billing
                               </h3>
-                              <p className="text-xs text-emerald-600 mt-1">
-                                Proposals & Invoices
-                              </p>
+                              <svg className="w-4 h-4 text-gray-300 group-hover:text-teal-500 group-hover:translate-x-0.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
                             </div>
+                            <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                              Proposals & Invoices
+                            </p>
                           </div>
                         </div>
                       </div>
                     </Link>
                   )}
                 </div>
-              </div>
             </div>
           </div>
         )}
