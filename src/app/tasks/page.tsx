@@ -328,7 +328,12 @@ export default async function Tasks({ searchParams }: { searchParams: { status?:
             <div className="space-y-4">
               {userTasks.map((task) => (
                 <Link key={`${task.type}-${task.id}`} href={getTaskHref(task)}>
-                  <div className="bg-white rounded-lg shadow-sm border-l-4 border-l-red-500 p-6 hover:shadow-md transition-shadow cursor-pointer">
+                  <div className={`bg-white rounded-lg shadow-sm border-l-4 p-6 hover:shadow-md transition-shadow cursor-pointer ${
+                    task.overdueBy !== null && task.overdueBy > 0 ? 'border-l-red-500' :
+                    task.overdueBy === 0 ? 'border-l-yellow-500' :
+                    task.status === 'NEEDS_ATTENTION' ? 'border-l-red-500' :
+                    'border-l-purple-500'
+                  }`}>
                   <div className="flex items-start justify-between">
                     <div className="flex items-start space-x-4 flex-1">
                       {/* Icon */}

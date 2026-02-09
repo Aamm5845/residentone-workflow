@@ -274,9 +274,28 @@ export default function InteractiveDashboard({ user }: { user: any }) {
               <p className="text-sm text-gray-500 mt-1">Great job staying on top of your work!</p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {tasksData.tasks.map((task) => (
-                <TaskItem key={task.id} task={task} />
+            <div className="space-y-5">
+              {Object.entries(
+                tasksData.tasks.reduce((groups: Record<string, { projectName: string, clientName: string, tasks: Task[] }>, task) => {
+                  if (!groups[task.projectId]) {
+                    groups[task.projectId] = { projectName: task.project, clientName: task.client, tasks: [] }
+                  }
+                  groups[task.projectId].tasks.push(task)
+                  return groups
+                }, {})
+              ).map(([projectId, group]) => (
+                <div key={projectId}>
+                  <div className="flex items-center gap-2 mb-2 px-1">
+                    <div className="w-2 h-2 rounded-full bg-[#a657f0]" />
+                    <h3 className="text-sm font-semibold text-gray-900">{group.projectName}</h3>
+                    <span className="text-xs text-gray-500">{group.clientName}</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {group.tasks.map((task) => (
+                      <TaskItem key={task.id} task={task} />
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           )}
@@ -357,24 +376,6 @@ function TaskItem({ task }: { task: Task }) {
   const isDueSoon = task.dueDate && !isOverdue && 
     (new Date(task.dueDate).getTime() - new Date().getTime()) <= (3 * 24 * 60 * 60 * 1000) // 3 days
   
-  const priorityConfig = {
-    high: {
-      badge: 'bg-gradient-to-r from-red-500 to-red-600 text-white',
-      icon: '🔴',
-      label: 'High Priority'
-    },
-    medium: {
-      badge: 'bg-gradient-to-r from-amber-500 to-orange-500 text-white',
-      icon: '🟡',
-      label: 'Medium Priority'
-    },
-    low: {
-      badge: 'bg-green-500 text-white',
-      icon: '',
-      label: 'Low Priority'
-    }
-  }
-
   const handleTaskClick = () => {
     // Navigate to the specific stage/task
     window.location.href = `/stages/${task.id}`
@@ -389,7 +390,6 @@ function TaskItem({ task }: { task: Task }) {
   }
 
   const { phase, room } = formatTaskTitle(task.title, task.stageType, task.roomType)
-  const priorityInfo = priorityConfig[task.priority]
 
   return (
     <div 
@@ -407,23 +407,17 @@ function TaskItem({ task }: { task: Task }) {
         <div className="flex items-center gap-3">
           {/* Main content - takes most space */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2">
               <h3 className={`font-semibold text-sm truncate ${
                 isOverdue ? 'text-red-900' : isDueSoon ? 'text-amber-900' : 'text-gray-900'
               }`}>{phase}</h3>
               <span className="text-xs text-gray-500">•</span>
               <span className="text-xs text-gray-600 truncate">{room}</span>
-            </div>
-            
-            <div className="flex items-center gap-2 text-xs text-gray-600">
-              <span className="font-medium truncate">{task.project}</span>
-              <span className="text-gray-400">•</span>
-              <span className="truncate">{task.client}</span>
               {task.dueDate && (
                 <>
-                  <span className="text-gray-400">•</span>
-                  <span className={`font-medium ${
-                    isOverdue ? 'text-red-600' : isDueSoon ? 'text-amber-600' : 'text-gray-600'
+                  <span className="text-xs text-gray-400">•</span>
+                  <span className={`text-xs font-medium ${
+                    isOverdue ? 'text-red-600' : isDueSoon ? 'text-amber-600' : 'text-gray-500'
                   }`}>{formatDueDate(task.dueDate)}</span>
                 </>
               )}
@@ -442,11 +436,7 @@ function TaskItem({ task }: { task: Task }) {
                 DUE SOON
               </span>
             )}
-            
-            <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded ${priorityInfo.badge}`}>
-              <span className="text-xs">{priorityInfo.icon}</span>
-            </span>
-            
+
             <ChevronDown className="w-4 h-4 text-gray-400 rotate-[-90deg] opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
         </div>

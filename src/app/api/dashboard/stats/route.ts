@@ -80,16 +80,22 @@ export async function GET() {
           status: 'IN_PROGRESS'
         }
       }),
-      // Count stages and client approvals that are overdue
+      // Count stages and client approvals that are overdue (for current user)
       Promise.all([
         prisma.stage.count({
           where: {
+            assignedTo: session.user.id,
             status: { in: ['IN_PROGRESS', 'NEEDS_ATTENTION'] },
             dueDate: { lt: new Date() }
           }
         }),
         prisma.clientApprovalVersion.count({
           where: {
+            stage: {
+              room: {
+                project: { orgId: (session.user as any).orgId }
+              }
+            },
             status: 'SENT_TO_CLIENT',
             clientDecision: 'PENDING',
             sentToClientAt: { lt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } // More than 7 days ago
