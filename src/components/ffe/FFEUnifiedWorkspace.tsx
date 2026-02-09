@@ -1195,6 +1195,11 @@ export default function FFEUnifiedWorkspace({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ templateId: selectedTemplateId })
       })
+      if (response.status === 409) {
+        toast.error('This room already has FFE data. Cannot re-import a template.')
+        setShowImportDialog(false)
+        return
+      }
       if (!response.ok) throw new Error('Failed to import template')
       await loadFFEData()
       setShowImportDialog(false)

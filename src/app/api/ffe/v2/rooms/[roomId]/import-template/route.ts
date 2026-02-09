@@ -91,6 +91,19 @@ export async function POST(
       }
     })
 
+    // If instance already has sections/items, prevent duplicate import
+    if (roomInstance && roomInstance.sections.length > 0) {
+      const totalExistingItems = roomInstance.sections.reduce((sum, s) => sum + s.items.length, 0)
+      return NextResponse.json(
+        {
+          error: 'This room already has FFE data. Importing a template again would create duplicates.',
+          existingSections: roomInstance.sections.length,
+          existingItems: totalExistingItems
+        },
+        { status: 409 }
+      )
+    }
+
     // Create room instance if it doesn't exist
     if (!roomInstance) {
       roomInstance = await prisma.roomFFEInstance.create({
