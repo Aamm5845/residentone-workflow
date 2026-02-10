@@ -454,7 +454,7 @@ export function FloorplanChat({ projectId, phaseName, className }: FloorplanChat
             </div>
           ) : (
             messages.map((message) => (
-              <div key={message.id} className="group flex gap-2.5 hover:bg-gray-50 -mx-3 px-3 py-2 rounded-md transition-colors">
+              <div key={message.id} className="group relative flex gap-2.5 hover:bg-gray-50 -mx-3 px-3 py-2 rounded-md transition-colors">
                 {/* Avatar */}
                 <Avatar className="w-7 h-7 flex-shrink-0 mt-0.5">
                   {message.author.image ? (
@@ -650,60 +650,55 @@ export function FloorplanChat({ projectId, phaseName, className }: FloorplanChat
                   )}
                 </div>
 
-                {/* Message Actions */}
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 flex items-start gap-1">
-                  {/* Reply Button */}
-                  {editingMessageId !== message.id && (
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-7 w-7 p-0"
-                      onClick={() => setReplyingTo(message)}
-                      title="Reply"
-                    >
-                      <Reply className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                  
-                  {/* Add Reaction Button */}
-                  {editingMessageId !== message.id && (
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-7 w-7 p-0"
-                      onClick={() => setShowEmojiPicker(showEmojiPicker === message.id ? null : message.id)}
-                      title="Add reaction"
-                    >
-                      <Smile className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                  
-                  {/* Edit/Delete Menu */}
-                  {canModifyMessage(message) && editingMessageId !== message.id && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                          <MoreHorizontal className="h-3.5 w-3.5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {message.author.id === session?.user.id && (
-                          <DropdownMenuItem onClick={() => startEditing(message)}>
-                            <Edit className="h-4 w-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem 
-                          onClick={() => deleteMessage(message.id)}
-                          className="text-red-600"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
-                </div>
+                {/* Message Actions - absolute overlay so it doesn't get cropped in narrow sidebar */}
+                {editingMessageId !== message.id && (
+                  <div className="absolute top-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                    <div className="flex items-center gap-0.5 bg-white border border-gray-200 rounded-lg shadow-sm px-1 py-0.5">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        onClick={() => setReplyingTo(message)}
+                        title="Reply"
+                      >
+                        <Reply className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        onClick={() => setShowEmojiPicker(showEmojiPicker === message.id ? null : message.id)}
+                        title="Add reaction"
+                      >
+                        <Smile className="h-3.5 w-3.5" />
+                      </Button>
+                      {canModifyMessage(message) && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                              <MoreHorizontal className="h-3.5 w-3.5" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {message.author.id === session?.user.id && (
+                              <DropdownMenuItem onClick={() => startEditing(message)}>
+                                <Edit className="h-4 w-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem
+                              onClick={() => deleteMessage(message.id)}
+                              className="text-red-600"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             ))
           )}
