@@ -327,6 +327,7 @@ model Project {
   dueDate                   DateTime?
   budget                    Float?
   dropboxFolder             String?
+  linkedDropboxFolders      Json?
   orgId                     String
   createdById               String
   updatedById               String?

@@ -293,6 +293,22 @@ class DropboxServiceV2 {
   }
 
   /**
+   * Delete a file from Dropbox
+   */
+  async deleteFile(path: string, memberId?: string): Promise<boolean> {
+    try {
+      const client = this.getClient(memberId)
+      console.log(`[DropboxService] Deleting file: "${path}" for member: ${memberId || 'default'}`)
+      await client.filesDeleteV2({ path })
+      console.log(`[DropboxService] Successfully deleted: "${path}"`)
+      return true
+    } catch (error: any) {
+      console.error('[DropboxService] Error deleting file:', error)
+      throw new Error(`Failed to delete file from Dropbox: ${error.message || 'Unknown error'}`)
+    }
+  }
+
+  /**
    * Check if a file has been updated (revision changed)
    */
   async checkFileUpdated(path: string, lastKnownRevision: string, memberId?: string): Promise<boolean> {

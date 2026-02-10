@@ -47,6 +47,8 @@ export default async function ProjectUpdatesPage({ params }: Props) {
         name: true,
         hasProjectUpdates: true,
         status: true,
+        dropboxFolder: true,
+        linkedDropboxFolders: true,
         client: {
           select: {
             id: true,
@@ -252,6 +254,8 @@ export default async function ProjectUpdatesPage({ params }: Props) {
             availableUsers={availableUsers}
             availableContractors={availableContractors}
             openIssuesCount={openIssuesCount}
+            linkedDropboxFolders={project.linkedDropboxFolders as any[] | null}
+            dropboxFolder={project.dropboxFolder}
           />
         </div>
       </div>

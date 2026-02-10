@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 // import Image from 'next/image'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Calendar, Clock, FileImage, CheckSquare, MessageCircle, Activity, Plus, Eye, Edit, Tag, Trash2, Loader2, X, Megaphone, AlertTriangle, FileText, Milestone, ClipboardCheck, Users, MoreHorizontal, Pencil, Home, Play, Video } from 'lucide-react'
+import { Calendar, Clock, FileImage, CheckSquare, MessageCircle, Activity, Plus, Eye, Edit, Tag, Trash2, Loader2, X, Megaphone, AlertTriangle, FileText, Milestone, ClipboardCheck, Users, MoreHorizontal, Pencil, Home, Play, Video, FolderPlus, Link2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
@@ -19,8 +19,15 @@ import Timeline from './timeline'
 import EmptyState from './empty-state'
 import CreateUpdateDialog from './create-update-dialog'
 import SiteSurveyDialog from './site-survey/SiteSurveyDialog'
+import { DropboxFolderBrowser } from '@/components/projects/DropboxFolderBrowser'
 import { useTasks } from '@/hooks/useTasks'
 import { useToast, ToastContainer } from '@/components/ui/toast'
+
+interface LinkedFolder {
+  path: string
+  name: string
+  addedAt: string
+}
 
 interface ProjectUpdatesTabsProps {
   projectId: string
@@ -31,6 +38,8 @@ interface ProjectUpdatesTabsProps {
   availableUsers: any[]
   availableContractors: any[]
   openIssuesCount: number
+  linkedDropboxFolders?: LinkedFolder[] | null
+  dropboxFolder?: string | null
 }
 
 export default function ProjectUpdatesTabs({
@@ -41,7 +50,9 @@ export default function ProjectUpdatesTabs({
   tasks: initialTasks,
   availableUsers,
   availableContractors,
-  openIssuesCount
+  openIssuesCount,
+  linkedDropboxFolders: initialLinkedFolders,
+  dropboxFolder
 }: ProjectUpdatesTabsProps) {
   const { toasts, success, error: showError, dismissToast } = useToast()
   const { tasks, isLoading: tasksLoading, error: tasksError, createTask, updateTask, deleteTask } = useTasks(projectId)
@@ -51,6 +62,133 @@ export default function ProjectUpdatesTabs({
   const [viewUpdateDialogOpen, setViewUpdateDialogOpen] = useState(false)
   const [selectedUpdate, setSelectedUpdate] = useState<any>(null)
   const [surveyDialogOpen, setSurveyDialogOpen] = useState(false)
+
+  // Dropbox folder linking state
+  const [linkFolderDialogOpen, setLinkFolderDialogOpen] = useState(false)
+  const [selectedDropboxPath, setSelectedDropboxPath] = useState('')
+  const [isLinkingFolder, setIsLinkingFolder] = useState(false)
+  const [linkedFolders, setLinkedFolders] = useState<LinkedFolder[]>(initialLinkedFolders || [])
+  const [dropboxPhotos, setDropboxPhotos] = useState<any[]>([])
+  const [isLoadingDropboxPhotos, setIsLoadingDropboxPhotos] = useState(false)
+
+  // Fetch Dropbox photos when linked folders change
+  React.useEffect(() => {
+    if (linkedFolders.length === 0) {
+      setDropboxPhotos([])
+      return
+    }
+
+    const fetchDropboxPhotos = async () => {
+      setIsLoadingDropboxPhotos(true)
+      try {
+        const response = await fetch(`/api/projects/${projectId}/dropbox-photos`)
+        if (response.ok) {
+          const data = await response.json()
+          setDropboxPhotos(data.photos || [])
+          // Sync linked folders from server
+          if (data.linkedFolders) {
+            setLinkedFolders(data.linkedFolders)
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching Dropbox photos:', err)
+      } finally {
+        setIsLoadingDropboxPhotos(false)
+      }
+    }
+
+    fetchDropboxPhotos()
+  }, [linkedFolders.length, projectId])
+
+  // Link a Dropbox folder
+  const handleLinkFolder = async () => {
+    if (!selectedDropboxPath) return
+
+    setIsLinkingFolder(true)
+    try {
+      const folderName = selectedDropboxPath.split('/').filter(Boolean).pop() || 'Root'
+      const response = await fetch(`/api/projects/${projectId}/dropbox-photos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: selectedDropboxPath, name: folderName })
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to link folder')
+      }
+
+      const data = await response.json()
+      setLinkedFolders(data.linkedFolders)
+      setLinkFolderDialogOpen(false)
+      setSelectedDropboxPath('')
+      success('Folder Linked', `"${folderName}" has been linked to this project`)
+    } catch (err) {
+      showError('Link Failed', err instanceof Error ? err.message : 'Failed to link folder')
+    } finally {
+      setIsLinkingFolder(false)
+    }
+  }
+
+  // Unlink a Dropbox folder
+  const handleUnlinkFolder = async (folderPath: string) => {
+    try {
+      const response = await fetch(
+        `/api/projects/${projectId}/dropbox-photos?path=${encodeURIComponent(folderPath)}`,
+        { method: 'DELETE' }
+      )
+
+      if (!response.ok) {
+        throw new Error('Failed to unlink folder')
+      }
+
+      const data = await response.json()
+      setLinkedFolders(data.linkedFolders)
+      success('Folder Unlinked', 'The folder has been removed from this project')
+    } catch (err) {
+      showError('Unlink Failed', err instanceof Error ? err.message : 'Failed to unlink folder')
+    }
+  }
+
+  // Merge blob photos with Dropbox photos
+  const mergedPhotos = React.useMemo(() => {
+    if (dropboxPhotos.length === 0) return photos
+
+    // Map Dropbox photos to the Photo interface
+    const mappedDropboxPhotos = dropboxPhotos.map((dp: any) => ({
+      id: dp.id,
+      updateId: 'dropbox',
+      asset: {
+        id: dp.id,
+        title: dp.filename,
+        filename: dp.filename,
+        url: dp.url,
+        type: 'IMAGE',
+        size: dp.size || 0,
+        mimeType: `image/${dp.filename.split('.').pop()?.toLowerCase() || 'jpeg'}`,
+        metadata: null,
+        uploader: { id: 'dropbox', name: 'Dropbox', email: '' },
+        createdAt: dp.lastModified
+      },
+      caption: dp.folderName,
+      tags: [],
+      isBeforePhoto: false,
+      isAfterPhoto: false,
+      takenAt: dp.lastModified,
+      createdAt: dp.lastModified,
+      updatedAt: dp.lastModified,
+      source: 'dropbox' as const,
+      dropboxPath: dp.path
+    }))
+
+    // Deduplicate: if a blob photo has the same filename as a Dropbox photo, keep the blob one
+    const blobFilenames = new Set(photos.map((p: any) => p.asset?.filename?.toLowerCase()).filter(Boolean))
+    const uniqueDropboxPhotos = mappedDropboxPhotos.filter(
+      (dp: any) => !blobFilenames.has(dp.asset.filename.toLowerCase())
+    )
+
+    return [...photos, ...uniqueDropboxPhotos]
+  }, [photos, dropboxPhotos])
 
   // Helper to get icon based on type
   const getTypeIcon = (type: string) => {
@@ -319,26 +457,44 @@ export default function ProjectUpdatesTabs({
   }
 
   const handlePhotoDelete = async (photoId: string) => {
-    // Find the photo to get its updateId
-    const photo = photos.find((p: any) => p.id === photoId)
+    // Check if this is a Dropbox photo
+    const allPhotos = mergedPhotos
+    const photo = allPhotos.find((p: any) => p.id === photoId)
     if (!photo) {
       showError('Delete Failed', 'Photo not found')
       return
     }
 
     try {
-      const response = await fetch(`/api/projects/${projectId}/updates/${photo.updateId}/photos/${photoId}`, {
-        method: 'DELETE'
-      })
+      if (photo.source === 'dropbox' && photo.dropboxPath) {
+        // Delete from Dropbox via our API
+        const response = await fetch(
+          `/api/projects/${projectId}/dropbox-photos?type=photo&filePath=${encodeURIComponent(photo.dropboxPath)}`,
+          { method: 'DELETE' }
+        )
 
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Failed to delete photo')
+        if (!response.ok) {
+          const data = await response.json()
+          throw new Error(data.error || 'Failed to delete Dropbox photo')
+        }
+
+        // Remove from local state so UI updates immediately
+        setDropboxPhotos(prev => prev.filter((dp: any) => dp.path !== photo.dropboxPath))
+        success('Photo Deleted', 'Photo has been deleted from Dropbox')
+      } else {
+        // Delete blob photo via existing endpoint
+        const response = await fetch(`/api/projects/${projectId}/updates/${photo.updateId}/photos/${photoId}`, {
+          method: 'DELETE'
+        })
+
+        if (!response.ok) {
+          const data = await response.json()
+          throw new Error(data.error || 'Failed to delete photo')
+        }
+
+        success('Photo Deleted', 'Photo has been removed successfully')
+        router.refresh()
       }
-
-      success('Photo Deleted', 'Photo has been removed successfully')
-      // Refresh the page to reflect the deletion
-      router.refresh()
     } catch (error) {
       console.error('Error deleting photo:', error)
       showError('Delete Failed', error instanceof Error ? error.message : 'Failed to delete photo')
@@ -415,7 +571,7 @@ export default function ProjectUpdatesTabs({
     <Tabs defaultValue="overview" className="w-full">
       <TabsList className="grid w-full grid-cols-5 mb-8">
         <TabsTrigger value="overview">Overview</TabsTrigger>
-        <TabsTrigger value="photos">Media ({photos.length})</TabsTrigger>
+        <TabsTrigger value="photos">Media ({mergedPhotos.length}{isLoadingDropboxPhotos ? '...' : ''})</TabsTrigger>
         <TabsTrigger value="tasks">Tasks ({tasks.length})</TabsTrigger>
         <TabsTrigger value="messages">Messages ({messages.length})</TabsTrigger>
         <TabsTrigger value="timeline">Timeline</TabsTrigger>
@@ -549,7 +705,7 @@ export default function ProjectUpdatesTabs({
                     </div>
                     <span className="text-gray-600">Media</span>
                   </div>
-                  <span className="text-lg font-semibold text-gray-900">{photos.length}</span>
+                  <span className="text-lg font-semibold text-gray-900">{mergedPhotos.length}</span>
                 </div>
                 <div className="flex items-center justify-between py-2 border-b border-gray-100">
                   <div className="flex items-center gap-2.5">
@@ -657,11 +813,46 @@ export default function ProjectUpdatesTabs({
       </TabsContent>
 
       <TabsContent value="photos">
-        {photos.length === 0 ? (
+        {/* Linked Dropbox Folders bar */}
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setLinkFolderDialogOpen(true)}
+            className="gap-1.5"
+          >
+            <FolderPlus className="w-4 h-4" />
+            Link Dropbox Folder
+          </Button>
+          {linkedFolders.map((folder) => (
+            <div
+              key={folder.path}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium border border-blue-200"
+            >
+              <Link2 className="w-3 h-3" />
+              <span className="max-w-[150px] truncate">{folder.name}</span>
+              <button
+                onClick={() => handleUnlinkFolder(folder.path)}
+                className="ml-0.5 hover:bg-blue-200 rounded-full p-0.5 transition-colors"
+                title="Unlink folder"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
+          {isLoadingDropboxPhotos && (
+            <span className="flex items-center gap-1 text-xs text-gray-500">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              Loading Dropbox photos...
+            </span>
+          )}
+        </div>
+
+        {mergedPhotos.length === 0 ? (
           <EmptyState
             icon={FileImage}
             title="No photos yet"
-            description="Start a site survey to capture and organize photos from the job site."
+            description="Start a site survey to capture and organize photos from the job site, or link a Dropbox folder."
             actionLabel="Start Survey"
             onAction={() => setSurveyDialogOpen(true)}
           />
@@ -669,7 +860,7 @@ export default function ProjectUpdatesTabs({
           <PhotoGallery
             projectId={projectId}
             updateId={projectUpdates[0]?.id || ''}
-            photos={photos}
+            photos={mergedPhotos}
             onPhotoSelect={handlePhotoSelect}
             onPhotoUpdate={handlePhotoUpdate}
             onPhotoDelete={handlePhotoDelete}
@@ -959,6 +1150,48 @@ export default function ProjectUpdatesTabs({
       </DialogContent>
     </Dialog>
     
+    {/* Link Dropbox Folder Dialog */}
+    <Dialog open={linkFolderDialogOpen} onOpenChange={setLinkFolderDialogOpen}>
+      <DialogContent className="sm:max-w-[600px]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <FolderPlus className="w-5 h-5" />
+            Link Dropbox Folder
+          </DialogTitle>
+          <DialogDescription>
+            Browse and select a Dropbox folder to link. Images from the folder will appear in the Media gallery.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="py-4">
+          <DropboxFolderBrowser
+            onSelect={(path) => setSelectedDropboxPath(path)}
+            currentPath={dropboxFolder || ''}
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setLinkFolderDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleLinkFolder}
+            disabled={!selectedDropboxPath || isLinkingFolder}
+          >
+            {isLinkingFolder ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Linking...
+              </>
+            ) : (
+              <>
+                <Link2 className="w-4 h-4 mr-2" />
+                Link Folder
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
     <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </>
   )

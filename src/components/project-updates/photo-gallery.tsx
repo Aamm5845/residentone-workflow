@@ -101,6 +101,8 @@ interface Photo {
   pairedPhoto?: Photo
   createdAt: string
   updatedAt: string
+  source?: 'dropbox' | 'blob'
+  dropboxPath?: string
 }
 
 interface PhotoGalleryProps {
@@ -495,6 +497,15 @@ export default function PhotoGallery({
             </div>
           )}
 
+          {/* Dropbox source indicator */}
+          {photo.source === 'dropbox' && (
+            <div className="absolute top-2 right-2">
+              <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 border-blue-200">
+                Dropbox
+              </Badge>
+            </div>
+          )}
+
           {/* GPS indicator */}
           {photo.gpsCoordinates && (
             <div className="absolute bottom-2 right-2">
@@ -514,49 +525,52 @@ export default function PhotoGallery({
                 <TooltipContent>View full size</TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            
-            {canEdit && (
-              <>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button 
-                        size="sm" 
-                        variant="secondary" 
-                        className="h-8 w-8 p-0"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleOpenSingleEdit(photo)
-                        }}
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Edit photo</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
 
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button 
-                        size="sm" 
-                        variant="destructive" 
-                        className="h-8 w-8 p-0"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          if (onPhotoDelete && confirm('Are you sure you want to delete this photo?')) {
-                            onPhotoDelete(photo.id)
-                          }
-                        }}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Delete photo</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </>
+            {canEdit && photo.source !== 'dropbox' && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="h-8 w-8 p-0"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleOpenSingleEdit(photo)
+                      }}
+                    >
+                      <Edit3 className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Edit photo</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+
+            {canEdit && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="h-8 w-8 p-0"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        const msg = photo.source === 'dropbox'
+                          ? 'Are you sure you want to delete this photo from Dropbox? This cannot be undone.'
+                          : 'Are you sure you want to delete this photo?'
+                        if (onPhotoDelete && confirm(msg)) {
+                          onPhotoDelete(photo.id)
+                        }
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{photo.source === 'dropbox' ? 'Delete from Dropbox' : 'Delete photo'}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
           </div>
         </div>

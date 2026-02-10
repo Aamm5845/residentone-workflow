@@ -26,9 +26,14 @@ import {
   DollarSign,
   Calendar,
   ChevronRight,
+  ChevronDown,
   Bell,
   Settings,
   Save,
+  Undo2,
+  Pencil,
+  X,
+  Check,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -121,6 +126,31 @@ interface Organization {
   etransferEmail?: string
 }
 
+interface BilledEntry {
+  id: string
+  userId: string
+  userName: string
+  userImage: string | null
+  description: string | null
+  startTime: string
+  endTime: string | null
+  duration: number
+  durationHours: number
+  billedAmount: number | null
+  billedAt: string | null
+  room: { id: string; name: string; type: string } | null
+  stage: { id: string; type: string } | null
+  category: 'FIXED_PRICE' | 'MANUAL_BILLED'
+}
+
+interface BilledSummary {
+  totalHours: number
+  entryCount: number
+  fixedPriceCount: number
+  fixedPriceTotal: number
+  manualBilledCount: number
+}
+
 interface BillingPageClientProps {
   projectId: string
   projectName: string
@@ -169,6 +199,16 @@ export default function BillingPageClient({
   // Sending receipt state
   const [sendingReceipt, setSendingReceipt] = useState<string | null>(null)
 
+  // Billed history state
+  const [billedSummary, setBilledSummary] = useState<BilledSummary | null>(null)
+  const [billedEntries, setBilledEntries] = useState<BilledEntry[]>([])
+  const [showBilledHistory, setShowBilledHistory] = useState(false)
+  const [billedFilter, setBilledFilter] = useState<'all' | 'FIXED_PRICE' | 'MANUAL_BILLED'>('all')
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null)
+  const [editAmount, setEditAmount] = useState('')
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [unbillingId, setUnbillingId] = useState<string | null>(null)
+
   // Phase pricing state
   const [showPhasePricing, setShowPhasePricing] = useState(false)
   const [phasePricing, setPhasePricing] = useState<Record<string, number>>({})
@@ -178,11 +218,12 @@ export default function BillingPageClient({
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [proposalsRes, invoicesRes, unbilledRes, pricingRes] = await Promise.all([
+        const [proposalsRes, invoicesRes, unbilledRes, pricingRes, billedRes] = await Promise.all([
           fetch(`/api/billing/proposals?projectId=${projectId}`),
           fetch(`/api/billing/invoices?projectId=${projectId}`),
           fetch(`/api/billing/unbilled-hours?projectId=${projectId}`),
           fetch(`/api/projects/${projectId}/phase-pricing`),
+          fetch(`/api/billing/billed-hours?projectId=${projectId}`),
         ])
 
         if (proposalsRes.ok) {
@@ -210,6 +251,12 @@ export default function BillingPageClient({
             draft[key] = String(val)
           })
           setPhasePricingDraft(draft)
+        }
+
+        if (billedRes.ok) {
+          const data = await billedRes.json()
+          setBilledSummary(data.summary)
+          setBilledEntries(data.entries)
         }
       } catch (error) {
         console.error('Error fetching billing data:', error)
@@ -313,6 +360,95 @@ export default function BillingPageClient({
       setSavingPricing(false)
     }
   }
+
+  const refreshBilledData = async () => {
+    try {
+      const [billedRes, unbilledRes] = await Promise.all([
+        fetch(`/api/billing/billed-hours?projectId=${projectId}`),
+        fetch(`/api/billing/unbilled-hours?projectId=${projectId}`),
+      ])
+      if (billedRes.ok) {
+        const data = await billedRes.json()
+        setBilledSummary(data.summary)
+        setBilledEntries(data.entries)
+      }
+      if (unbilledRes.ok) {
+        const data = await unbilledRes.json()
+        setUnbilledSummary(data.summary)
+      }
+    } catch (error) {
+      console.error('Error refreshing billed data:', error)
+    }
+  }
+
+  const handleEditAmount = async (entryId: string) => {
+    const amount = parseFloat(editAmount)
+    if (isNaN(amount) || amount < 0) return
+    setSavingEdit(true)
+    try {
+      const res = await fetch('/api/billing/billed-hours', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          entryIds: [entryId],
+          action: 'UPDATE_AMOUNT',
+          billedAmount: amount,
+        }),
+      })
+      if (res.ok) {
+        setEditingEntryId(null)
+        setEditAmount('')
+        toast.success('Amount updated')
+        await refreshBilledData()
+      } else {
+        toast.error('Failed to update amount')
+      }
+    } catch (error) {
+      console.error('Error updating amount:', error)
+      toast.error('Failed to update amount')
+    } finally {
+      setSavingEdit(false)
+    }
+  }
+
+  const handleUnbill = async (entryId: string) => {
+    if (!confirm('Move this entry back to unbilled?')) return
+    setUnbillingId(entryId)
+    try {
+      const res = await fetch('/api/billing/billed-hours', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          entryIds: [entryId],
+          action: 'UNBILL',
+        }),
+      })
+      if (res.ok) {
+        toast.success('Entry moved back to unbilled')
+        await refreshBilledData()
+      } else {
+        toast.error('Failed to unbill entry')
+      }
+    } catch (error) {
+      console.error('Error unbilling entry:', error)
+      toast.error('Failed to unbill entry')
+    } finally {
+      setUnbillingId(null)
+    }
+  }
+
+  const filteredBilledEntries = billedEntries.filter(e => {
+    if (billedFilter === 'all') return true
+    return e.category === billedFilter
+  })
+
+  // Group billed entries by phase
+  const billedByPhase = filteredBilledEntries.reduce<Record<string, BilledEntry[]>>((acc, entry) => {
+    const phase = entry.stage?.type || 'General'
+    if (!acc[phase]) acc[phase] = []
+    acc[phase].push(entry)
+    return acc
+  }, {})
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
 
@@ -515,6 +651,215 @@ export default function BillingPageClient({
               <Receipt className="w-4 h-4 mr-2" />
               Invoice Now
             </Button>
+          </div>
+        )}
+
+        {/* Billed History Cards */}
+        {activeTab === 'invoices' && billedSummary && billedSummary.entryCount > 0 && (
+          <div className="mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+              {/* Fixed Price Card */}
+              {billedSummary.fixedPriceCount > 0 && (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
+                      <DollarSign className="w-6 h-6 text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-slate-900">{formatCurrencyFull(billedSummary.fixedPriceTotal)}</p>
+                      <p className="text-sm text-slate-500">
+                        {billedSummary.fixedPriceCount} fixed price {billedSummary.fixedPriceCount === 1 ? 'entry' : 'entries'}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-emerald-300 text-emerald-700 hover:bg-emerald-100"
+                    onClick={() => { setShowBilledHistory(true); setBilledFilter('FIXED_PRICE') }}
+                  >
+                    <Eye className="w-4 h-4 mr-1" />
+                    View
+                  </Button>
+                </div>
+              )}
+
+              {/* Already Billed Card */}
+              {billedSummary.manualBilledCount > 0 && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center">
+                      <CheckCircle className="w-6 h-6 text-slate-500" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-slate-900">
+                        {billedSummary.totalHours} hrs
+                      </p>
+                      <p className="text-sm text-slate-500">
+                        {billedSummary.manualBilledCount} already billed (no amount)
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setShowBilledHistory(true); setBilledFilter('MANUAL_BILLED') }}
+                  >
+                    <Eye className="w-4 h-4 mr-1" />
+                    View
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {/* Expandable Billed History */}
+            {showBilledHistory && (
+              <div className="bg-white rounded-xl border overflow-hidden">
+                <div className="px-5 py-4 border-b flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <h3 className="font-semibold text-slate-900">Billed History</h3>
+                    <div className="flex gap-1 bg-slate-100 p-0.5 rounded-md">
+                      {(['all', 'FIXED_PRICE', 'MANUAL_BILLED'] as const).map(f => (
+                        <button
+                          key={f}
+                          onClick={() => setBilledFilter(f)}
+                          className={`px-3 py-1 rounded text-xs font-medium transition-all ${
+                            billedFilter === f
+                              ? 'bg-white text-slate-900 shadow-sm'
+                              : 'text-slate-500 hover:text-slate-700'
+                          }`}
+                        >
+                          {f === 'all' ? 'All' : f === 'FIXED_PRICE' ? 'Fixed Price' : 'No Amount'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowBilledHistory(false)}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                <div className="divide-y max-h-[500px] overflow-y-auto">
+                  {Object.entries(billedByPhase).map(([phase, phaseEntries]) => (
+                    <div key={phase}>
+                      <div className="px-5 py-2 bg-slate-50 border-b">
+                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                          {phase.replace(/_/g, ' ')}
+                        </span>
+                        <span className="text-xs text-slate-400 ml-2">
+                          {phaseEntries.length} {phaseEntries.length === 1 ? 'entry' : 'entries'}
+                        </span>
+                      </div>
+                      {phaseEntries.map(entry => (
+                        <div
+                          key={entry.id}
+                          className="px-5 py-3 hover:bg-slate-50 transition-colors flex items-center gap-4"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 text-sm">
+                              <span className="text-slate-500 text-xs">
+                                {formatDate(entry.startTime)}
+                              </span>
+                              <span className="text-slate-900 text-sm truncate">
+                                {entry.description || 'No description'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+                              <span>{entry.userName}</span>
+                              {entry.room && (
+                                <span>&middot; {entry.room.name}</span>
+                              )}
+                              <span>&middot; {entry.durationHours} hrs</span>
+                            </div>
+                          </div>
+
+                          {/* Amount display/edit */}
+                          <div className="flex items-center gap-2">
+                            {editingEntryId === entry.id ? (
+                              <div className="flex items-center gap-1">
+                                <div className="relative w-24">
+                                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">$</span>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={editAmount}
+                                    onChange={(e) => setEditAmount(e.target.value)}
+                                    className="pl-5 h-7 text-xs"
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') handleEditAmount(entry.id)
+                                      if (e.key === 'Escape') { setEditingEntryId(null); setEditAmount('') }
+                                    }}
+                                  />
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 text-emerald-600 hover:text-emerald-700"
+                                  onClick={() => handleEditAmount(entry.id)}
+                                  disabled={savingEdit}
+                                >
+                                  {savingEdit ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 text-slate-400"
+                                  onClick={() => { setEditingEntryId(null); setEditAmount('') }}
+                                >
+                                  <X className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <>
+                                <span className={`text-sm font-medium ${entry.billedAmount != null ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                  {entry.billedAmount != null ? formatCurrencyFull(entry.billedAmount) : 'No amount'}
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 text-slate-400 hover:text-slate-600"
+                                  onClick={() => {
+                                    setEditingEntryId(entry.id)
+                                    setEditAmount(entry.billedAmount != null ? String(entry.billedAmount) : '')
+                                  }}
+                                >
+                                  <Pencil className="w-3 h-3" />
+                                </Button>
+                              </>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-slate-400 hover:text-amber-600"
+                              onClick={() => handleUnbill(entry.id)}
+                              disabled={unbillingId === entry.id}
+                            >
+                              {unbillingId === entry.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <Undo2 className="w-3 h-3" />
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+
+                  {filteredBilledEntries.length === 0 && (
+                    <div className="text-center py-8 text-slate-400">
+                      <p className="text-sm">No entries in this category</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

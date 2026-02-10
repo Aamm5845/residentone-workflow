@@ -104,6 +104,7 @@ export default function TimeEntrySelector({
   const [markingBilled, setMarkingBilled] = useState(false)
   const [showBilledAmountInput, setShowBilledAmountInput] = useState(false)
   const [customBilledAmount, setCustomBilledAmount] = useState('')
+  const [addToInvoice, setAddToInvoice] = useState(false)
 
   // Fetch unbilled entries when dialog opens
   useEffect(() => {
@@ -304,6 +305,7 @@ export default function TimeEntrySelector({
         body: JSON.stringify({
           entryIds: Array.from(selectedIds),
           customAmount: amount && amount > 0 ? amount : undefined,
+          createInvoiceLineItem: addToInvoice && amount && amount > 0 ? true : undefined,
         }),
       })
       if (res.ok) {
@@ -312,6 +314,7 @@ export default function TimeEntrySelector({
         setSelectedIds(new Set())
         setShowBilledAmountInput(false)
         setCustomBilledAmount('')
+        setAddToInvoice(false)
       }
     } catch (error) {
       console.error('Error marking as billed:', error)
@@ -527,45 +530,56 @@ export default function TimeEntrySelector({
           <div className="w-full space-y-2">
             {/* Custom amount input row */}
             {showBilledAmountInput && selectedCount > 0 && (
-              <div className="flex items-center gap-2 p-2 bg-emerald-50 rounded-lg border border-emerald-200">
-                <DollarSign className="w-4 h-4 text-emerald-600" />
-                <span className="text-sm text-emerald-700">Total billed amount:</span>
-                <div className="relative w-32">
-                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                    value={customBilledAmount}
-                    onChange={(e) => setCustomBilledAmount(e.target.value)}
-                    className="pl-6 h-8 text-sm"
-                  />
+              <div className="space-y-2 p-2 bg-emerald-50 rounded-lg border border-emerald-200">
+                <div className="flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-emerald-600" />
+                  <span className="text-sm text-emerald-700">Total billed amount:</span>
+                  <div className="relative w-32">
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={customBilledAmount}
+                      onChange={(e) => setCustomBilledAmount(e.target.value)}
+                      className="pl-6 h-8 text-sm"
+                    />
+                  </div>
+                  <span className="text-xs text-emerald-600">
+                    for {selectedCount} entries ({selectedHours} hrs)
+                  </span>
+                  <Button
+                    size="sm"
+                    className="ml-auto bg-emerald-600 hover:bg-emerald-700 text-white h-8"
+                    onClick={handleMarkAsBilled}
+                    disabled={markingBilled}
+                  >
+                    {markingBilled ? (
+                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="w-4 h-4 mr-1" />
+                    )}
+                    Confirm
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-gray-500"
+                    onClick={() => { setShowBilledAmountInput(false); setCustomBilledAmount(''); setAddToInvoice(false) }}
+                  >
+                    Cancel
+                  </Button>
                 </div>
-                <span className="text-xs text-emerald-600">
-                  for {selectedCount} entries ({selectedHours} hrs)
-                </span>
-                <Button
-                  size="sm"
-                  className="ml-auto bg-emerald-600 hover:bg-emerald-700 text-white h-8"
-                  onClick={handleMarkAsBilled}
-                  disabled={markingBilled}
-                >
-                  {markingBilled ? (
-                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                  ) : (
-                    <CheckCircle2 className="w-4 h-4 mr-1" />
-                  )}
-                  Confirm
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 text-gray-500"
-                  onClick={() => { setShowBilledAmountInput(false); setCustomBilledAmount('') }}
-                >
-                  Cancel
-                </Button>
+                {customBilledAmount && parseFloat(customBilledAmount) > 0 && (
+                  <label className="flex items-center gap-2 pl-6 cursor-pointer">
+                    <Checkbox
+                      checked={addToInvoice}
+                      onCheckedChange={(checked) => setAddToInvoice(checked === true)}
+                    />
+                    <span className="text-xs text-emerald-700">Also add as invoice line item (draft invoice)</span>
+                  </label>
+                )}
               </div>
             )}
 
