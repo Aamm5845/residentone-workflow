@@ -164,6 +164,10 @@ export default function CreatePODialog({
   const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(false)
   const [groupCurrency, setGroupCurrency] = useState('CAD')
 
+  // Item selection state
+  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set())
+  const [selectedComponentIds, setSelectedComponentIds] = useState<Set<string>>(new Set())
+
   // Form state - shipping address as structured data
   const [shippingAddress, setShippingAddress] = useState({
     street: '',
@@ -189,7 +193,9 @@ export default function CreatePODialog({
   const [customTaxLabel, setCustomTaxLabel] = useState('Custom Tax')
 
   // Deposit
+  const [depositMode, setDepositMode] = useState<'percent' | 'fixed'>('percent')
   const [depositPercent, setDepositPercent] = useState<string>('')
+  const [depositFixed, setDepositFixed] = useState<string>('')
 
   // File uploads
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
@@ -228,6 +234,18 @@ export default function CreatePODialog({
             components: item.components || []
           }))
           setItems(fetchedItems)
+
+          // Select all items and components by default
+          const allItemIds = new Set<string>()
+          const allCompIds = new Set<string>()
+          fetchedItems.forEach((item: POItem) => {
+            allItemIds.add(item.id)
+            if (item.components) {
+              item.components.forEach((comp: ItemComponent) => allCompIds.add(comp.id))
+            }
+          })
+          setSelectedItemIds(allItemIds)
+          setSelectedComponentIds(allCompIds)
 
           // Auto-add shipping from quote if exists
           const quoteShipping = fetchedItems.find((i: POItem) => i.quoteShippingCost && i.quoteShippingCost > 0)
@@ -302,16 +320,18 @@ export default function CreatePODialog({
       setUseCustomTax(false)
       setCustomTaxPercent('')
       setCustomTaxLabel('Custom Tax')
+      setDepositMode('percent')
       setDepositPercent('')
+      setDepositFixed('')
       setUploadedFiles([])
     }
   }, [open, fetchItems, fetchPaymentMethods, project?.defaultShippingAddress])
 
   // Flatten items and components into single list
   // Always use spec trade price for PO items
-  const flatItems: FlatItem[] = []
+  const allFlatItems: FlatItem[] = []
   items.forEach(item => {
-    flatItems.push({
+    allFlatItems.push({
       id: item.id,
       name: item.name,
       roomName: item.roomName,
@@ -326,7 +346,7 @@ export default function CreatePODialog({
     // Add components as regular line items
     if (item.components && item.components.length > 0) {
       item.components.forEach(comp => {
-        flatItems.push({
+        allFlatItems.push({
           id: comp.id,
           name: comp.name,
           roomName: item.roomName,
@@ -342,6 +362,85 @@ export default function CreatePODialog({
       })
     }
   })
+
+  // Filtered flat items based on selection
+  const flatItems = allFlatItems.filter(item =>
+    item.isComponent
+      ? selectedComponentIds.has(item.id)
+      : selectedItemIds.has(item.id)
+  )
+
+  // Selection helpers
+  const allSelected = items.length > 0 && items.every(item => selectedItemIds.has(item.id)) &&
+    items.every(item => !item.components?.length || item.components.every(c => selectedComponentIds.has(c.id)))
+  const noneSelected = selectedItemIds.size === 0 && selectedComponentIds.size === 0
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedItemIds(new Set())
+      setSelectedComponentIds(new Set())
+    } else {
+      const allIds = new Set<string>()
+      const allCompIds = new Set<string>()
+      items.forEach(item => {
+        allIds.add(item.id)
+        item.components?.forEach(c => allCompIds.add(c.id))
+      })
+      setSelectedItemIds(allIds)
+      setSelectedComponentIds(allCompIds)
+    }
+  }
+
+  const toggleItem = (itemId: string) => {
+    setSelectedItemIds(prev => {
+      const next = new Set(prev)
+      if (next.has(itemId)) {
+        next.delete(itemId)
+      } else {
+        next.add(itemId)
+      }
+      return next
+    })
+  }
+
+  const toggleComponent = (compId: string) => {
+    setSelectedComponentIds(prev => {
+      const next = new Set(prev)
+      if (next.has(compId)) {
+        next.delete(compId)
+      } else {
+        next.add(compId)
+      }
+      return next
+    })
+  }
+
+  const toggleItemWithComponents = (item: POItem) => {
+    const isSelected = selectedItemIds.has(item.id)
+    setSelectedItemIds(prev => {
+      const next = new Set(prev)
+      if (isSelected) {
+        next.delete(item.id)
+      } else {
+        next.add(item.id)
+      }
+      return next
+    })
+    // Also toggle all components of this item
+    if (item.components?.length) {
+      setSelectedComponentIds(prev => {
+        const next = new Set(prev)
+        item.components.forEach(c => {
+          if (isSelected) {
+            next.delete(c.id)
+          } else {
+            next.add(c.id)
+          }
+        })
+        return next
+      })
+    }
+  }
 
   // Calculate totals
   const calculateTotals = () => {
@@ -361,8 +460,13 @@ export default function CreatePODialog({
     const total = subtotalBeforeTax + totalTax
 
     // Calculate deposit
-    const depositPercentNum = parseFloat(depositPercent) || 0
-    const depositAmount = depositPercentNum > 0 ? (total * depositPercentNum / 100) : 0
+    let depositAmount = 0
+    if (depositMode === 'percent') {
+      const depositPercentNum = parseFloat(depositPercent) || 0
+      depositAmount = depositPercentNum > 0 ? (total * depositPercentNum / 100) : 0
+    } else {
+      depositAmount = parseFloat(depositFixed) || 0
+    }
     const balanceDue = total - depositAmount
 
     return {
@@ -511,7 +615,7 @@ export default function CreatePODialog({
 
   const handleCreate = async () => {
     if (flatItems.length === 0) {
-      toast.error('No items to order')
+      toast.error('No items selected')
       return
     }
 
@@ -523,11 +627,25 @@ export default function CreatePODialog({
 
     setCreating(true)
     try {
-      const mainItems = items.map(item => ({
-        roomFFEItemId: item.id,
-        unitPrice: item.quoteUnitPrice || item.tradePrice || 0,
-        quantity: item.quantity
-      }))
+      // Only include selected items, with component inclusion based on selection
+      const mainItems = items
+        .filter(item => {
+          // Include if the item itself is selected, or if any of its components are selected
+          const itemSelected = selectedItemIds.has(item.id)
+          const hasSelectedComponents = item.components?.some(c => selectedComponentIds.has(c.id))
+          return itemSelected || hasSelectedComponents
+        })
+        .map(item => {
+          const itemSelected = selectedItemIds.has(item.id)
+          const hasSelectedComponents = item.components?.some(c => selectedComponentIds.has(c.id))
+          return {
+            roomFFEItemId: item.id,
+            // If only components selected (not the parent), set parent price to 0
+            unitPrice: itemSelected ? (item.quoteUnitPrice || item.tradePrice || 0) : 0,
+            quantity: item.quantity,
+            includeComponents: hasSelectedComponents ?? false
+          }
+        })
 
       const formattedAddress = formatShippingAddress()
 
@@ -552,7 +670,7 @@ export default function CreatePODialog({
           customTaxLabel: useCustomTax ? customTaxLabel : undefined,
           taxAmount: totals.totalTax > 0 ? totals.totalTax : undefined,
           // Deposit
-          depositPercent: depositPercent ? parseFloat(depositPercent) : undefined,
+          depositPercent: depositMode === 'percent' && depositPercent ? parseFloat(depositPercent) : undefined,
           depositRequired: totals.depositAmount > 0 ? totals.depositAmount : undefined
         })
       })
@@ -692,48 +810,70 @@ export default function CreatePODialog({
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-gray-900">
-                  Items ({flatItems.length})
+                  Items ({flatItems.length} of {allFlatItems.length} selected)
                 </h3>
-                {groupCurrency === 'USD' && (
-                  <Badge variant="outline" className="text-blue-700 border-blue-200 bg-blue-50">
-                    USD
-                  </Badge>
-                )}
+                <div className="flex items-center gap-2">
+                  {groupCurrency === 'USD' && (
+                    <Badge variant="outline" className="text-blue-700 border-blue-200 bg-blue-50">
+                      USD
+                    </Badge>
+                  )}
+                  {items.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs h-7"
+                      onClick={toggleSelectAll}
+                    >
+                      {allSelected ? 'Deselect All' : 'Select All'}
+                    </Button>
+                  )}
+                </div>
               </div>
 
               {loading ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
                 </div>
-              ) : flatItems.length === 0 ? (
+              ) : items.length === 0 ? (
                 <div className="text-center py-8 text-gray-500 border border-dashed rounded-lg">
                   <Package className="w-8 h-8 mx-auto mb-2 text-gray-300" />
                   <p>No items ready to order for this supplier</p>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {flatItems.map((item, idx) => {
-                    const totalPrice = (item.unitPrice || 0) * item.quantity
+                  {items.map((item) => {
+                    const itemSelected = selectedItemIds.has(item.id)
+                    const itemPrice = item.tradePrice || 0
+                    const totalPrice = itemPrice * item.quantity
+                    const hasComponents = item.components && item.components.length > 0
 
                     return (
-                      <div
-                        key={`${item.id}-${idx}`}
-                        className="flex items-center justify-between p-3 bg-white border rounded-lg"
-                      >
-                        <div className="flex items-center gap-3">
+                      <div key={item.id} className="border rounded-lg overflow-hidden">
+                        {/* Parent item row */}
+                        <div
+                          className={`flex items-center gap-3 p-3 bg-white transition-colors ${
+                            !itemSelected ? 'opacity-50' : ''
+                          }`}
+                        >
+                          <Checkbox
+                            checked={itemSelected}
+                            onCheckedChange={() => toggleItemWithComponents(item)}
+                            className="flex-shrink-0"
+                          />
                           {item.imageUrl ? (
                             <img
                               src={ensureHttps(item.imageUrl) || ''}
                               alt={item.name}
-                              className="w-10 h-10 object-cover rounded border"
+                              className="w-10 h-10 object-cover rounded border flex-shrink-0"
                             />
                           ) : (
-                            <div className="w-10 h-10 bg-gray-100 rounded border flex items-center justify-center">
+                            <div className="w-10 h-10 bg-gray-100 rounded border flex items-center justify-center flex-shrink-0">
                               <Package className="w-5 h-5 text-gray-400" />
                             </div>
                           )}
-                          <div>
-                            <p className="font-medium text-gray-900">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 truncate">
                               {item.name}
                               {item.hasQuote && (
                                 <span className="ml-2 text-xs text-green-600 bg-green-50 px-1.5 py-0.5 rounded">
@@ -743,32 +883,95 @@ export default function CreatePODialog({
                             </p>
                             <div className="flex items-center gap-2 text-xs text-gray-500">
                               {item.roomName && <span>{item.roomName}</span>}
-                              {item.roomName && <span>•</span>}
+                              {item.roomName && <span>·</span>}
                               <span>Qty: {item.quantity}</span>
+                              {hasComponents && (
+                                <>
+                                  <span>·</span>
+                                  <span>{item.components.length} component{item.components.length !== 1 ? 's' : ''}</span>
+                                </>
+                              )}
                             </div>
                           </div>
-                        </div>
-                        <div className="text-right">
-                          {item.unitPrice ? (
-                            <>
-                              <p className="font-medium text-gray-900">
-                                {formatCurrency(totalPrice)}{groupCurrency === 'USD' ? ' USD' : ''}
-                              </p>
-                              {item.quantity > 1 && (
-                                <p className="text-xs text-gray-500">
-                                  {formatCurrency(item.unitPrice)} × {item.quantity}
+                          <div className="text-right flex-shrink-0">
+                            {itemPrice ? (
+                              <>
+                                <p className="font-medium text-gray-900">
+                                  {formatCurrency(totalPrice)}{groupCurrency === 'USD' ? ' USD' : ''}
                                 </p>
-                              )}
-                            </>
-                          ) : (
-                            <Badge variant="destructive" className="text-xs">
-                              No price
-                            </Badge>
-                          )}
+                                {item.quantity > 1 && (
+                                  <p className="text-xs text-gray-500">
+                                    {formatCurrency(itemPrice)} × {item.quantity}
+                                  </p>
+                                )}
+                              </>
+                            ) : (
+                              <Badge variant="destructive" className="text-xs">
+                                No price
+                              </Badge>
+                            )}
+                          </div>
                         </div>
+
+                        {/* Components */}
+                        {hasComponents && (
+                          <div className="border-t bg-gray-50/50">
+                            {item.components.map((comp) => {
+                              const compSelected = selectedComponentIds.has(comp.id)
+                              const compPrice = comp.price || 0
+                              const compTotal = compPrice * (comp.quantity || 1)
+
+                              return (
+                                <div
+                                  key={comp.id}
+                                  className={`flex items-center gap-3 px-3 py-2 pl-10 transition-colors ${
+                                    !compSelected ? 'opacity-50' : ''
+                                  }`}
+                                >
+                                  <Checkbox
+                                    checked={compSelected}
+                                    onCheckedChange={() => toggleComponent(comp.id)}
+                                    className="flex-shrink-0"
+                                  />
+                                  {comp.imageUrl ? (
+                                    <img
+                                      src={ensureHttps(comp.imageUrl) || ''}
+                                      alt={comp.name}
+                                      className="w-8 h-8 object-cover rounded border flex-shrink-0"
+                                    />
+                                  ) : (
+                                    <div className="w-8 h-8 bg-gray-100 rounded border flex items-center justify-center flex-shrink-0">
+                                      <Package className="w-4 h-4 text-gray-300" />
+                                    </div>
+                                  )}
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm text-gray-700 truncate">{comp.name}</p>
+                                    <p className="text-xs text-gray-400">Component · Qty: {comp.quantity || 1}</p>
+                                  </div>
+                                  <div className="text-right flex-shrink-0">
+                                    {compPrice ? (
+                                      <p className="text-sm font-medium text-gray-700">
+                                        {formatCurrency(compTotal)}{groupCurrency === 'USD' ? ' USD' : ''}
+                                      </p>
+                                    ) : (
+                                      <span className="text-xs text-gray-400">No price</span>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
                       </div>
                     )
                   })}
+                </div>
+              )}
+
+              {noneSelected && items.length > 0 && (
+                <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-sm">
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                  No items selected. Select at least one item or component to create a PO.
                 </div>
               )}
             </div>
@@ -903,27 +1106,63 @@ export default function CreatePODialog({
 
             {/* Deposit */}
             <div className="space-y-2">
-              <Label>Deposit Required (%)</Label>
-              <div className="flex items-center gap-3">
-                <Input
-                  type="number"
-                  value={depositPercent}
-                  onChange={(e) => setDepositPercent(e.target.value)}
-                  placeholder="e.g. 50"
-                  className="w-24"
-                  min="0"
-                  max="100"
-                  step="1"
-                />
-                <span className="text-sm text-gray-500">%</span>
-                {totals.depositAmount > 0 && (
-                  <span className="text-sm font-medium text-blue-600">
-                    = {formatCurrency(totals.depositAmount)}{groupCurrency === 'USD' ? ' USD' : ''}
-                  </span>
-                )}
+              <Label>Deposit Required</Label>
+              <div className="flex items-center gap-2 mb-2">
+                <Button
+                  type="button"
+                  variant={depositMode === 'percent' ? 'default' : 'outline'}
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => { setDepositMode('percent'); setDepositFixed('') }}
+                >
+                  Percentage
+                </Button>
+                <Button
+                  type="button"
+                  variant={depositMode === 'fixed' ? 'default' : 'outline'}
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => { setDepositMode('fixed'); setDepositPercent('') }}
+                >
+                  Fixed Amount
+                </Button>
               </div>
+              {depositMode === 'percent' ? (
+                <div className="flex items-center gap-3">
+                  <Input
+                    type="number"
+                    value={depositPercent}
+                    onChange={(e) => setDepositPercent(e.target.value)}
+                    placeholder="e.g. 50"
+                    className="w-24"
+                    min="0"
+                    max="100"
+                    step="1"
+                  />
+                  <span className="text-sm text-gray-500">%</span>
+                  {totals.depositAmount > 0 && (
+                    <span className="text-sm font-medium text-blue-600">
+                      = {formatCurrency(totals.depositAmount)}{groupCurrency === 'USD' ? ' USD' : ''}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-gray-500">$</span>
+                  <Input
+                    type="number"
+                    value={depositFixed}
+                    onChange={(e) => setDepositFixed(e.target.value)}
+                    placeholder="e.g. 500.00"
+                    className="w-32"
+                    min="0"
+                    step="0.01"
+                  />
+                  <span className="text-sm text-gray-500">{groupCurrency}</span>
+                </div>
+              )}
               <p className="text-xs text-gray-500">
-                Enter deposit percentage if supplier requires upfront payment
+                Enter deposit if supplier requires upfront payment
               </p>
             </div>
 
@@ -1145,7 +1384,9 @@ export default function CreatePODialog({
                 {totals.depositAmount > 0 && (
                   <>
                     <div className="flex items-center justify-between pt-2 border-t border-emerald-200 mt-2">
-                      <p className="text-sm text-blue-700 font-medium">Deposit Required ({depositPercent}%)</p>
+                      <p className="text-sm text-blue-700 font-medium">
+                        Deposit Required{depositMode === 'percent' && depositPercent ? ` (${depositPercent}%)` : ''}
+                      </p>
                       <p className="font-bold text-blue-700">
                         {formatCurrency(totals.depositAmount)}{groupCurrency === 'USD' ? ' USD' : ''}
                       </p>
@@ -1169,7 +1410,7 @@ export default function CreatePODialog({
           </Button>
           <Button
             onClick={handleCreate}
-            disabled={creating || flatItems.length === 0}
+            disabled={creating || flatItems.length === 0 || noneSelected}
             className="bg-blue-600 hover:bg-blue-700"
           >
             {creating ? (
