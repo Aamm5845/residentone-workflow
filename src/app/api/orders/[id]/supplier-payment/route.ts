@@ -215,6 +215,226 @@ export async function POST(
   }
 }
 
+// DELETE - Delete a specific payment record (activity) and recalculate totals
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession()
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const orgId = (session.user as any).orgId
+    const userId = session.user.id
+    const { id: orderId } = await params
+    const { searchParams } = new URL(request.url)
+    const activityId = searchParams.get('activityId')
+
+    if (!activityId) {
+      return NextResponse.json({ error: 'Activity ID is required' }, { status: 400 })
+    }
+
+    const order = await prisma.order.findFirst({
+      where: { id: orderId, orgId }
+    })
+
+    if (!order) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+    }
+
+    // Find the activity to delete
+    const activity = await prisma.orderActivity.findFirst({
+      where: {
+        id: activityId,
+        orderId,
+        type: { in: ['PAYMENT_MADE', 'PAYMENT_RECORDED'] }
+      }
+    })
+
+    if (!activity) {
+      return NextResponse.json({ error: 'Payment activity not found' }, { status: 404 })
+    }
+
+    const metadata = activity.metadata as any
+    const paymentAmount = metadata?.amount || 0
+    const isDeposit = metadata?.isDeposit || metadata?.paymentType === 'DEPOSIT'
+
+    // Delete the activity
+    await prisma.orderActivity.delete({
+      where: { id: activityId }
+    })
+
+    // Recalculate totals from remaining payment activities
+    const remainingActivities = await prisma.orderActivity.findMany({
+      where: {
+        orderId,
+        type: { in: ['PAYMENT_MADE', 'PAYMENT_RECORDED'] }
+      }
+    })
+
+    let newTotalPaid = 0
+    let newDepositPaid = 0
+    for (const act of remainingActivities) {
+      const meta = act.metadata as any
+      const amt = meta?.amount || 0
+      newTotalPaid += amt
+      if (meta?.isDeposit || meta?.paymentType === 'DEPOSIT') {
+        newDepositPaid += amt
+      }
+    }
+
+    const totalAmount = Number(order.totalAmount) || 0
+    const depositRequired = Number(order.depositRequired) || 0
+
+    // Update order with recalculated amounts
+    await prisma.order.update({
+      where: { id: orderId },
+      data: {
+        supplierPaymentAmount: newTotalPaid,
+        depositPaid: Math.min(newDepositPaid, depositRequired),
+        balanceDue: totalAmount - Math.min(newDepositPaid, depositRequired),
+        supplierPaidAt: newTotalPaid > 0 ? order.supplierPaidAt : null,
+        balancePaidAt: newTotalPaid >= totalAmount ? order.balancePaidAt : null,
+        updatedById: userId
+      }
+    })
+
+    // Log the deletion
+    await prisma.orderActivity.create({
+      data: {
+        orderId,
+        type: 'PAYMENT_DELETED',
+        message: `Payment of $${paymentAmount.toFixed(2)} was deleted (New total: $${newTotalPaid.toFixed(2)})`,
+        userId,
+        metadata: {
+          deletedAmount: paymentAmount,
+          deletedActivityId: activityId,
+          newTotalPaid
+        }
+      }
+    })
+
+    return NextResponse.json({
+      success: true,
+      newTotalPaid,
+      newDepositPaid: Math.min(newDepositPaid, depositRequired)
+    })
+  } catch (error) {
+    console.error('Error deleting payment:', error)
+    return NextResponse.json({ error: 'Failed to delete payment' }, { status: 500 })
+  }
+}
+
+// PATCH - Update a specific payment activity and recalculate totals
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession()
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const orgId = (session.user as any).orgId
+    const userId = session.user.id
+    const { id: orderId } = await params
+    const body = await request.json()
+    const { activityId, amount, method, reference, notes } = body
+
+    if (!activityId) {
+      return NextResponse.json({ error: 'Activity ID is required' }, { status: 400 })
+    }
+
+    const order = await prisma.order.findFirst({
+      where: { id: orderId, orgId }
+    })
+
+    if (!order) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+    }
+
+    // Find the activity to update
+    const activity = await prisma.orderActivity.findFirst({
+      where: {
+        id: activityId,
+        orderId,
+        type: { in: ['PAYMENT_MADE', 'PAYMENT_RECORDED'] }
+      }
+    })
+
+    if (!activity) {
+      return NextResponse.json({ error: 'Payment activity not found' }, { status: 404 })
+    }
+
+    const oldMetadata = activity.metadata as any
+    const newAmount = amount !== undefined ? amount : oldMetadata?.amount || 0
+    const newMethod = method || oldMetadata?.method || ''
+    const isDeposit = oldMetadata?.isDeposit || oldMetadata?.paymentType === 'DEPOSIT'
+
+    // Update the activity
+    await prisma.orderActivity.update({
+      where: { id: activityId },
+      data: {
+        message: `${isDeposit ? 'Deposit ' : ''}Payment of $${newAmount.toFixed(2)} via ${newMethod}${reference ? ` (Ref: ${reference})` : ''}`,
+        metadata: {
+          ...oldMetadata,
+          amount: newAmount,
+          method: newMethod,
+          reference: reference !== undefined ? reference : oldMetadata?.reference,
+          notes: notes !== undefined ? notes : oldMetadata?.notes,
+          editedAt: new Date().toISOString(),
+          editedBy: userId
+        }
+      }
+    })
+
+    // Recalculate totals from all payment activities
+    const allActivities = await prisma.orderActivity.findMany({
+      where: {
+        orderId,
+        type: { in: ['PAYMENT_MADE', 'PAYMENT_RECORDED'] }
+      }
+    })
+
+    let newTotalPaid = 0
+    let newDepositPaid = 0
+    for (const act of allActivities) {
+      const meta = act.metadata as any
+      const amt = meta?.amount || 0
+      newTotalPaid += amt
+      if (meta?.isDeposit || meta?.paymentType === 'DEPOSIT') {
+        newDepositPaid += amt
+      }
+    }
+
+    const totalAmount = Number(order.totalAmount) || 0
+    const depositRequired = Number(order.depositRequired) || 0
+
+    // Update order with recalculated amounts
+    await prisma.order.update({
+      where: { id: orderId },
+      data: {
+        supplierPaymentAmount: newTotalPaid,
+        depositPaid: Math.min(newDepositPaid, depositRequired),
+        balanceDue: totalAmount - Math.min(newDepositPaid, depositRequired),
+        updatedById: userId
+      }
+    })
+
+    return NextResponse.json({
+      success: true,
+      newTotalPaid,
+      newDepositPaid: Math.min(newDepositPaid, depositRequired)
+    })
+  } catch (error) {
+    console.error('Error updating payment:', error)
+    return NextResponse.json({ error: 'Failed to update payment' }, { status: 500 })
+  }
+}
+
 // PUT - Update deposit requirements
 export async function PUT(
   request: NextRequest,

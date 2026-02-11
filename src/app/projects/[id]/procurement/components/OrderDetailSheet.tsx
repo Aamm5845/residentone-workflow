@@ -163,6 +163,7 @@ interface Order {
     id: string
     type: string
     message: string
+    metadata: any
     createdAt: string
     user: { name: string } | null
   }[]
@@ -212,11 +213,17 @@ export default function OrderDetailSheet({
   const [recordingPayment, setRecordingPayment] = useState(false)
   const [paymentForm, setPaymentForm] = useState({
     amount: '',
+    paymentType: 'DEPOSIT' as 'DEPOSIT' | 'BALANCE' | 'FULL',
     method: 'CHECK',
     reference: '',
     notes: '',
     paidAt: new Date().toISOString().split('T')[0]
   })
+  // Payment management
+  const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null)
+  const [editPaymentForm, setEditPaymentForm] = useState({ amount: '', method: '', reference: '', notes: '' })
+  const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null)
+  const [processingPaymentAction, setProcessingPaymentAction] = useState(false)
 
   const [editForm, setEditForm] = useState({
     shippingAddress: '',
@@ -305,15 +312,16 @@ export default function OrderDetailSheet({
 
     setRecordingPayment(true)
     try {
-      const res = await fetch(`/api/orders/${order.id}`, {
-        method: 'PATCH',
+      const res = await fetch(`/api/orders/${order.id}/supplier-payment`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          supplierPaidAt: paymentForm.paidAt ? new Date(paymentForm.paidAt).toISOString() : new Date().toISOString(),
-          supplierPaymentMethod: paymentForm.method,
-          supplierPaymentAmount: amount,
-          supplierPaymentRef: paymentForm.reference || null,
-          supplierPaymentNotes: paymentForm.notes || null
+          amount,
+          paymentType: paymentForm.paymentType,
+          method: paymentForm.method,
+          reference: paymentForm.reference || null,
+          notes: paymentForm.notes || null,
+          paidAt: paymentForm.paidAt ? new Date(paymentForm.paidAt).toISOString() : new Date().toISOString()
         })
       })
 
@@ -322,6 +330,7 @@ export default function OrderDetailSheet({
         setShowPaymentDialog(false)
         setPaymentForm({
           amount: '',
+          paymentType: 'DEPOSIT',
           method: 'CHECK',
           reference: '',
           notes: '',
@@ -337,6 +346,70 @@ export default function OrderDetailSheet({
       toast.error('Failed to record payment')
     } finally {
       setRecordingPayment(false)
+    }
+  }
+
+  const handleDeletePayment = async (activityId: string) => {
+    if (!order) return
+
+    setProcessingPaymentAction(true)
+    try {
+      const res = await fetch(`/api/orders/${order.id}/supplier-payment?activityId=${activityId}`, {
+        method: 'DELETE'
+      })
+
+      if (res.ok) {
+        toast.success('Payment deleted')
+        setDeletingPaymentId(null)
+        await fetchOrder()
+        onUpdate()
+      } else {
+        const data = await res.json()
+        toast.error(data.error || 'Failed to delete payment')
+      }
+    } catch (error) {
+      toast.error('Failed to delete payment')
+    } finally {
+      setProcessingPaymentAction(false)
+    }
+  }
+
+  const handleEditPayment = async () => {
+    if (!order || !editingPaymentId) return
+
+    const amount = parseFloat(editPaymentForm.amount)
+    if (!amount || amount <= 0) {
+      toast.error('Please enter a valid amount')
+      return
+    }
+
+    setProcessingPaymentAction(true)
+    try {
+      const res = await fetch(`/api/orders/${order.id}/supplier-payment`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          activityId: editingPaymentId,
+          amount,
+          method: editPaymentForm.method,
+          reference: editPaymentForm.reference,
+          notes: editPaymentForm.notes
+        })
+      })
+
+      if (res.ok) {
+        toast.success('Payment updated')
+        setEditingPaymentId(null)
+        await fetchOrder()
+        onUpdate()
+      } else {
+        const data = await res.json()
+        toast.error(data.error || 'Failed to update payment')
+      }
+    } catch (error) {
+      toast.error('Failed to update payment')
+    } finally {
+      setProcessingPaymentAction(false)
     }
   }
 
@@ -487,7 +560,7 @@ export default function OrderDetailSheet({
   const depositPercent = parseFloat(order.depositPercent || '0')
   const depositPaid = parseFloat(order.depositPaid || '0')
   const supplierPaid = parseFloat(order.supplierPaymentAmount || '0')
-  const balanceDue = totalAmount - depositRequired
+  const balanceDue = parseFloat(order.balanceDue || '0') || (totalAmount - supplierPaid)
 
   return (
     <>
@@ -865,70 +938,152 @@ export default function OrderDetailSheet({
                   <>
                     <div className="flex items-center justify-between pt-2 border-t border-emerald-200 mt-2">
                       <p className="text-sm text-blue-700 font-medium">
-                        Deposit Required ({depositPercent}%)
+                        Deposit Required {depositPercent > 0 ? `(${depositPercent}%)` : ''}
                       </p>
                       <p className="font-bold text-blue-700">
                         {formatCurrency(depositRequired, order.currency)}
                       </p>
                     </div>
                     <div className="flex items-center justify-between">
+                      <p className="text-sm text-gray-600">Deposit Paid</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className={`font-medium ${depositPaid >= depositRequired ? 'text-emerald-600' : 'text-amber-600'}`}>
+                          {formatCurrency(depositPaid, order.currency)}
+                        </p>
+                        {depositPaid >= depositRequired ? (
+                          <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 text-emerald-600 border-emerald-300 bg-emerald-50">
+                            Paid
+                          </Badge>
+                        ) : depositPaid > 0 ? (
+                          <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 text-amber-600 border-amber-300 bg-amber-50">
+                            Remaining: {formatCurrency(depositRequired - depositPaid, order.currency)}
+                          </Badge>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
                       <p className="text-sm text-gray-600">Balance Due</p>
                       <p className="font-medium text-gray-700">
-                        {formatCurrency(balanceDue, order.currency)}
+                        {formatCurrency(totalAmount - supplierPaid, order.currency)}
                       </p>
                     </div>
                   </>
                 )}
-                {/* Payment Status */}
-                {(depositPaid > 0 || supplierPaid > 0) && (
-                  <div className="pt-2 border-t border-emerald-200 mt-2 space-y-1">
-                    {depositPaid > 0 && (
-                      <div className="flex items-center justify-between text-green-600">
-                        <span className="text-sm flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" />
-                          Deposit Paid
-                        </span>
-                        <span className="font-medium">{formatCurrency(depositPaid, order.currency)}</span>
-                      </div>
-                    )}
-                    {supplierPaid > 0 && (
-                      <div className="flex items-center justify-between text-green-600">
-                        <span className="text-sm flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" />
-                          Paid to Supplier
-                        </span>
-                        <span className="font-medium">{formatCurrency(supplierPaid, order.currency)}</span>
-                      </div>
-                    )}
-                    {order.supplierPaidAt && (
-                      <div className="text-xs text-gray-500 mt-1">
-                        {order.supplierPaymentMethod && <span>{order.supplierPaymentMethod} • </span>}
-                        {formatDate(order.supplierPaidAt)}
-                      </div>
-                    )}
-                  </div>
-                )}
+                {/* Payment History */}
+                {(() => {
+                  const paymentActivities = (order.activities || []).filter(
+                    a => a.type === 'PAYMENT_MADE' || a.type === 'PAYMENT_RECORDED'
+                  )
 
-                {/* Record Payment Button */}
-                {!order.supplierPaidAt && (
-                  <div className="pt-2 border-t border-emerald-200 mt-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => {
-                        setPaymentForm(prev => ({
-                          ...prev,
-                          amount: totalAmount.toString()
-                        }))
-                        setShowPaymentDialog(true)
-                      }}
-                    >
-                      <CreditCard className="w-4 h-4 mr-1.5" />
-                      Record Payment to Supplier
-                    </Button>
-                  </div>
-                )}
+                  return (
+                    <div className="pt-2 border-t border-emerald-200 mt-2 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-emerald-800">Payments Recorded</p>
+                        {supplierPaid > 0 && (
+                          <span className="text-sm font-semibold text-emerald-700">
+                            Total: {formatCurrency(supplierPaid, order.currency)}
+                          </span>
+                        )}
+                      </div>
+
+                      {paymentActivities.length > 0 ? (
+                        <div className="space-y-1.5">
+                          {paymentActivities.map((activity) => {
+                            const meta = activity.metadata || {}
+                            const amt = meta.amount || 0
+                            const method = meta.method || ''
+                            const ref = meta.reference || ''
+                            const isDeposit = meta.isDeposit || meta.paymentType === 'DEPOSIT'
+
+                            return (
+                              <div
+                                key={activity.id}
+                                className="flex items-center justify-between p-2 bg-white rounded border text-sm"
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <CheckCircle2 className="w-3 h-3 text-green-500 flex-shrink-0" />
+                                    <span className="font-medium text-gray-800">
+                                      {formatCurrency(amt, order.currency)}
+                                    </span>
+                                    {isDeposit && (
+                                      <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 text-blue-600 border-blue-200">
+                                        Deposit
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="text-xs text-gray-500 mt-0.5">
+                                    {method && <span>{method}</span>}
+                                    {ref && <span> · Ref: {ref}</span>}
+                                    {' · '}{formatDate(activity.createdAt)}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 w-6 p-0 text-gray-400 hover:text-blue-500"
+                                    onClick={() => {
+                                      setEditingPaymentId(activity.id)
+                                      setEditPaymentForm({
+                                        amount: amt.toString(),
+                                        method: method,
+                                        reference: ref,
+                                        notes: meta.notes || ''
+                                      })
+                                    }}
+                                  >
+                                    <Edit className="w-3 h-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 w-6 p-0 text-gray-400 hover:text-red-500"
+                                    onClick={() => setDeletingPaymentId(activity.id)}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-500 italic">No payments recorded yet</p>
+                      )}
+
+                      {/* Record Payment Button - always show if balance remaining */}
+                      {totalAmount - supplierPaid > 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => {
+                            const depositRemaining = depositRequired > 0 ? depositRequired - depositPaid : 0
+                            const hasUnpaidDeposit = depositRemaining > 0
+                            const remaining = hasUnpaidDeposit ? depositRemaining : (totalAmount - supplierPaid)
+                            setPaymentForm(prev => ({
+                              ...prev,
+                              amount: remaining.toFixed(2),
+                              paymentType: hasUnpaidDeposit ? 'DEPOSIT' : 'BALANCE'
+                            }))
+                            setShowPaymentDialog(true)
+                          }}
+                        >
+                          <CreditCard className="w-4 h-4 mr-1.5" />
+                          Record Payment to Supplier
+                        </Button>
+                      )}
+
+                      {supplierPaid > 0 && totalAmount - supplierPaid <= 0 && (
+                        <div className="flex items-center gap-1.5 justify-center text-sm text-emerald-600 font-medium">
+                          <CheckCircle2 className="w-4 h-4" />
+                          Paid in Full
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
               </div>
 
               {/* Quick Links */}
@@ -1074,6 +1229,22 @@ export default function OrderDetailSheet({
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
+              <Label>Payment Type</Label>
+              <Select
+                value={paymentForm.paymentType}
+                onValueChange={(v) => setPaymentForm(prev => ({ ...prev, paymentType: v as 'DEPOSIT' | 'BALANCE' | 'FULL' }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="DEPOSIT">Deposit Payment</SelectItem>
+                  <SelectItem value="BALANCE">Balance Payment</SelectItem>
+                  <SelectItem value="FULL">Full Payment</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="paymentAmount">Amount Paid *</Label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
@@ -1150,6 +1321,103 @@ export default function OrderDetailSheet({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Payment Dialog */}
+      <Dialog open={!!editingPaymentId} onOpenChange={(open) => !open && setEditingPaymentId(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Payment</DialogTitle>
+            <DialogDescription>
+              Update this payment record. The order totals will be recalculated.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Amount *</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={editPaymentForm.amount}
+                  onChange={(e) => setEditPaymentForm(prev => ({ ...prev, amount: e.target.value }))}
+                  className="pl-7"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Payment Method</Label>
+              <Select
+                value={editPaymentForm.method || 'OTHER'}
+                onValueChange={(v) => setEditPaymentForm(prev => ({ ...prev, method: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CHECK">Check</SelectItem>
+                  <SelectItem value="WIRE">Wire Transfer</SelectItem>
+                  <SelectItem value="ACH">ACH</SelectItem>
+                  <SelectItem value="CARD">Credit/Debit Card</SelectItem>
+                  <SelectItem value="CASH">Cash</SelectItem>
+                  <SelectItem value="OTHER">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Reference (optional)</Label>
+              <Input
+                value={editPaymentForm.reference}
+                onChange={(e) => setEditPaymentForm(prev => ({ ...prev, reference: e.target.value }))}
+                placeholder="Check number, wire ref, etc."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Notes (optional)</Label>
+              <Textarea
+                value={editPaymentForm.notes}
+                onChange={(e) => setEditPaymentForm(prev => ({ ...prev, notes: e.target.value }))}
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingPaymentId(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleEditPayment}
+              disabled={processingPaymentAction || !editPaymentForm.amount || parseFloat(editPaymentForm.amount) <= 0}
+            >
+              {processingPaymentAction && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Payment Confirmation */}
+      <AlertDialog open={!!deletingPaymentId} onOpenChange={(open) => !open && setDeletingPaymentId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Payment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove the payment record and recalculate the order totals. The activity log entry visible to the supplier will also be removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletingPaymentId && handleDeletePayment(deletingPaymentId)}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={processingPaymentAction}
+            >
+              {processingPaymentAction && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Delete Payment
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

@@ -150,6 +150,7 @@ export async function GET(
             id: true,
             type: true,
             message: true,
+            metadata: true,
             createdAt: true,
             user: {
               select: { id: true, name: true }

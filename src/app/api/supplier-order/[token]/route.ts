@@ -127,9 +127,9 @@ export async function GET(
         },
         activities: {
           where: {
-            // Filter out internal activities like SUPPLIER_VIEWED
+            // Filter out internal activities and deleted payment logs
             NOT: {
-              type: { in: ['SUPPLIER_VIEWED'] }
+              type: { in: ['SUPPLIER_VIEWED', 'PAYMENT_DELETED'] }
             }
           },
           orderBy: { createdAt: 'desc' },
@@ -726,7 +726,7 @@ export async function POST(
 
       case 'record_payment': {
         // Supplier records that they've charged the card or received payment
-        const { amount, method, reference, notes: paymentNotes, chargedBy } = body
+        const { amount, method, reference, notes: paymentNotes, chargedBy, paymentType } = body
 
         if (!amount || amount <= 0) {
           return NextResponse.json({ error: 'Payment amount is required' }, { status: 400 })
@@ -739,8 +739,17 @@ export async function POST(
         const existingPayment = order.supplierPaymentAmount ? Number(order.supplierPaymentAmount) : 0
         const newTotalPayment = Math.round((existingPayment + paymentAmountRounded) * 100) / 100
 
+        // Deposit tracking
+        const depositRequired = order.depositRequired ? Number(order.depositRequired) : 0
+        const currentDepositPaid = order.depositPaid ? Number(order.depositPaid) : 0
+        const hasUnpaidDeposit = depositRequired > 0 && currentDepositPaid < depositRequired
+
+        // Auto-detect if this is a deposit payment
+        const isDepositPayment = paymentType === 'DEPOSIT' || (hasUnpaidDeposit && !paymentType)
+
         // Update order with payment info
         const isShippedOrDelivered = order.status === 'SHIPPED' || order.status === 'DELIVERED'
+        const totalAmount = order.totalAmount ? Number(order.totalAmount) : 0
 
         // Build update data
         const updateData: any = {
@@ -751,6 +760,20 @@ export async function POST(
           notes: paymentNotes
             ? `${order.notes || ''}\n\nPayment Note (${new Date().toLocaleDateString()}): ${paymentNotes}`.trim()
             : order.notes
+        }
+
+        // Update deposit tracking if this is a deposit payment
+        if (isDepositPayment && depositRequired > 0) {
+          const newDepositPaid = Math.min(currentDepositPaid + paymentAmountRounded, depositRequired)
+          updateData.depositPaid = newDepositPaid
+          updateData.depositPaidAt = new Date()
+          updateData.balanceDue = totalAmount - newDepositPaid
+        }
+
+        // Update balance tracking if fully paid
+        if (newTotalPayment >= totalAmount) {
+          updateData.balanceDue = 0
+          updateData.balancePaidAt = new Date()
         }
 
         // Set to CONFIRMED when payment is recorded (unless already shipped/delivered)
@@ -794,8 +817,8 @@ export async function POST(
           data: {
             orderId: order.id,
             type: 'PAYMENT_RECORDED',
-            message: `Supplier recorded payment: $${paymentAmountRounded.toFixed(2)} via ${method || 'card'}${reference ? ` (Ref: ${reference})` : ''} (Total paid: $${newTotalPayment.toFixed(2)})`,
-            metadata: { amount: paymentAmountRounded, totalPaid: newTotalPayment, method, reference, chargedBy, notes: paymentNotes }
+            message: `Supplier recorded ${isDepositPayment ? 'deposit ' : ''}payment: $${paymentAmountRounded.toFixed(2)} via ${method || 'card'}${reference ? ` (Ref: ${reference})` : ''} (Total paid: $${newTotalPayment.toFixed(2)})`,
+            metadata: { amount: paymentAmountRounded, totalPaid: newTotalPayment, method, reference, chargedBy, notes: paymentNotes, isDeposit: isDepositPayment }
           }
         })
 

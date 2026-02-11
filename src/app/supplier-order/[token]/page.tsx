@@ -220,6 +220,9 @@ export default function SupplierOrderPortal() {
   const [uploadType, setUploadType] = useState('RECEIPT')
   const [submitting, setSubmitting] = useState(false)
   const [showFullCardDetails, setShowFullCardDetails] = useState(false)
+  const [showChargeConfirm, setShowChargeConfirm] = useState(false)
+  const [pendingChargeAmount, setPendingChargeAmount] = useState(0)
+  const [pendingChargeIsDeposit, setPendingChargeIsDeposit] = useState(false)
 
   // Tracking info state
   const [trackingInfo, setTrackingInfo] = useState<{
@@ -827,11 +830,11 @@ export default function SupplierOrderPortal() {
                             return (
                               <Button
                                 size="sm"
-                                onClick={() => handleAction('record_payment', {
-                                  amount: amountToCharge,
-                                  method: 'CARD',
-                                  notes: hasUnpaidDeposit ? 'Deposit charged to card on file' : 'Charged to card on file'
-                                })}
+                                onClick={() => {
+                                  setPendingChargeAmount(amountToCharge)
+                                  setPendingChargeIsDeposit(!!hasUnpaidDeposit)
+                                  setShowChargeConfirm(true)
+                                }}
                                 disabled={submitting}
                                 className="bg-emerald-600 hover:bg-emerald-700"
                               >
@@ -1051,10 +1054,19 @@ export default function SupplierOrderPortal() {
                           <span className="font-medium">Deposit Required</span>
                           <span className="font-semibold">{formatCurrency(order.depositRequired, order.currency)}</span>
                         </div>
-                        {order.depositPaid && order.depositPaid > 0 && (
-                          <div className="flex justify-between text-emerald-600">
-                            <span>Deposit Paid</span>
-                            <span>-{formatCurrency(order.depositPaid, order.currency)}</span>
+                        <div className="flex justify-between text-emerald-600">
+                          <span>Deposit Paid</span>
+                          <div className="flex items-center gap-1.5">
+                            <span>{order.depositPaid && order.depositPaid > 0 ? formatCurrency(order.depositPaid, order.currency) : '$0.00'}</span>
+                            {order.depositPaid && order.depositPaid >= order.depositRequired && (
+                              <Badge className="bg-emerald-100 text-emerald-700 text-[10px] px-1 py-0 h-4">Paid</Badge>
+                            )}
+                          </div>
+                        </div>
+                        {order.depositPaid && order.depositRequired && order.depositPaid < order.depositRequired && (
+                          <div className="flex justify-between text-amber-600 text-sm">
+                            <span>Deposit Remaining</span>
+                            <span className="font-medium">{formatCurrency(order.depositRequired - order.depositPaid, order.currency)}</span>
                           </div>
                         )}
                         {order.balanceDue && order.balanceDue > 0 && (
@@ -1882,6 +1894,55 @@ export default function SupplierOrderPortal() {
             <Button onClick={handleUpload} disabled={!uploadFile || submitting}>
               {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Upload className="w-4 h-4 mr-2" />}
               Upload
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm Charge Dialog */}
+      <Dialog open={showChargeConfirm} onOpenChange={setShowChargeConfirm}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Confirm {pendingChargeIsDeposit ? 'Deposit ' : ''}Charge</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to charge {formatCurrency(pendingChargeAmount, order.currency)} to the card on file?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="bg-gray-50 border rounded-lg p-4 text-sm space-y-2">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Amount</span>
+                <span className="font-semibold">{formatCurrency(pendingChargeAmount, order.currency)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Type</span>
+                <span className="font-medium">{pendingChargeIsDeposit ? 'Deposit' : 'Payment'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Method</span>
+                <span>Card on file ({order.paymentCardBrand || 'Card'} ****{order.paymentCardLastFour || '****'})</span>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowChargeConfirm(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                setShowChargeConfirm(false)
+                handleAction('record_payment', {
+                  amount: pendingChargeAmount,
+                  method: 'CARD',
+                  paymentType: pendingChargeIsDeposit ? 'DEPOSIT' : 'BALANCE',
+                  notes: pendingChargeIsDeposit ? 'Deposit charged to card on file' : 'Charged to card on file'
+                })
+              }}
+              disabled={submitting}
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
+              Confirm Charge
             </Button>
           </DialogFooter>
         </DialogContent>
