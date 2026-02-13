@@ -185,8 +185,6 @@ export default function PhotoGallery({
   const [showAnnotations, setShowAnnotations] = useState(true)
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'quality' | 'size'>('date')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  const [zoom, setZoom] = useState(100)
-  const [rotation, setRotation] = useState(0)
   const [editingPhoto, setEditingPhoto] = useState<Photo | null>(null)
   const [singleEditDialogOpen, setSingleEditDialogOpen] = useState(false)
   const [singleEditCaption, setSingleEditCaption] = useState('')
@@ -210,40 +208,42 @@ export default function PhotoGallery({
   const allTradeCategories = Array.from(new Set(photos.map(p => p.tradeCategory).filter(Boolean)))
   const allRoomAreas = Array.from(new Set(photos.map(p => p.roomArea).filter(Boolean)))
 
-  // Filter and sort photos
-  const filteredPhotos = photos.filter(photo => {
-    if (searchQuery && !photo.caption?.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        !photo.asset.title.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return false
-    }
-    if (selectedTags.length > 0 && !selectedTags.some(tag => photo.tags.includes(tag))) {
-      return false
-    }
-    if (selectedTradeCategory && selectedTradeCategory !== 'all' && photo.tradeCategory !== selectedTradeCategory) {
-      return false
-    }
-    if (selectedRoomArea && selectedRoomArea !== 'all' && photo.roomArea !== selectedRoomArea) {
-      return false
-    }
-    return true
-  }).sort((a, b) => {
-    let comparison = 0
-    switch (sortBy) {
-      case 'date':
-        comparison = new Date(a.takenAt || a.createdAt).getTime() - new Date(b.takenAt || b.createdAt).getTime()
-        break
-      case 'name':
-        comparison = a.asset.title.localeCompare(b.asset.title)
-        break
-      case 'quality':
-        comparison = (a.aiAnalysis?.qualityScore || 0) - (b.aiAnalysis?.qualityScore || 0)
-        break
-      case 'size':
-        comparison = a.asset.size - b.asset.size
-        break
-    }
-    return sortOrder === 'desc' ? -comparison : comparison
-  })
+  // Filter and sort photos (memoized to avoid recalculating on unrelated state changes)
+  const filteredPhotos = useMemo(() => {
+    return photos.filter(photo => {
+      if (searchQuery && !photo.caption?.toLowerCase().includes(searchQuery.toLowerCase()) &&
+          !photo.asset.title.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false
+      }
+      if (selectedTags.length > 0 && !selectedTags.some(tag => photo.tags.includes(tag))) {
+        return false
+      }
+      if (selectedTradeCategory && selectedTradeCategory !== 'all' && photo.tradeCategory !== selectedTradeCategory) {
+        return false
+      }
+      if (selectedRoomArea && selectedRoomArea !== 'all' && photo.roomArea !== selectedRoomArea) {
+        return false
+      }
+      return true
+    }).sort((a, b) => {
+      let comparison = 0
+      switch (sortBy) {
+        case 'date':
+          comparison = new Date(a.takenAt || a.createdAt).getTime() - new Date(b.takenAt || b.createdAt).getTime()
+          break
+        case 'name':
+          comparison = a.asset.title.localeCompare(b.asset.title)
+          break
+        case 'quality':
+          comparison = (a.aiAnalysis?.qualityScore || 0) - (b.aiAnalysis?.qualityScore || 0)
+          break
+        case 'size':
+          comparison = a.asset.size - b.asset.size
+          break
+      }
+      return sortOrder === 'desc' ? -comparison : comparison
+    })
+  }, [photos, searchQuery, selectedTags, selectedTradeCategory, selectedRoomArea, sortBy, sortOrder])
 
   // Before/After pairs
   const beforeAfterPairs = photos.filter(p => p.isBeforePhoto && p.pairedPhoto).map(before => ({
@@ -1383,156 +1383,176 @@ export default function PhotoGallery({
       </Dialog>
 
       {/* Lightbox for full-size viewing */}
-      <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
-        <DialogContent className="max-w-7xl w-full h-[90vh]">
-          {selectedPhoto && (
-            <div className="flex flex-col h-full">
-              <DialogHeader className="flex-shrink-0">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <DialogTitle>{selectedPhoto.asset.title}</DialogTitle>
-                    <DialogDescription>
-                      {selectedPhoto.caption && (
-                        <span>{selectedPhoto.caption} • </span>
-                      )}
-                      Taken {new Date(selectedPhoto.takenAt || selectedPhoto.createdAt).toLocaleString()}
-                    </DialogDescription>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {!selectedPhoto.asset?.mimeType?.startsWith('video/') && (
-                      <>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setZoom(Math.max(25, zoom - 25))}
-                        >
-                          <ZoomOut className="w-4 h-4" />
-                        </Button>
-                        <span className="text-sm min-w-12 text-center">{zoom}%</span>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setZoom(Math.min(400, zoom + 25))}
-                        >
-                          <ZoomIn className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setRotation((rotation + 90) % 360)}
-                        >
-                          <RotateCcw className="w-4 h-4" />
-                        </Button>
-                      </>
-                    )}
-                    <Button size="sm" variant="outline" asChild>
-                      <a href={selectedPhoto.asset.url} download={selectedPhoto.asset.filename}>
-                        <Download className="w-4 h-4" />
-                      </a>
-                    </Button>
-                  </div>
-                </div>
-              </DialogHeader>
-              
-              <div className="flex-1 relative overflow-hidden">
-                {selectedPhoto.asset?.mimeType?.startsWith('video/') ? (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <video
-                      src={selectedPhoto.asset.url}
-                      className="max-w-full max-h-full"
-                      controls
-                      playsInline
-                    />
-                  </div>
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center overflow-auto">
-                    <img
-                      src={selectedPhoto.asset.url}
-                      alt={selectedPhoto.asset.title}
-                      className="max-w-full max-h-full object-contain"
-                      style={{
-                        transform: `scale(${zoom / 100}) rotate(${rotation}deg)`,
-                        transformOrigin: 'center center'
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
+      {lightboxOpen && selectedPhoto && (
+        <PhotoLightbox
+          photo={selectedPhoto}
+          open={lightboxOpen}
+          onOpenChange={setLightboxOpen}
+        />
+      )}
+    </div>
+  )
+}
 
-              {/* Photo metadata */}
-              <div className="flex-shrink-0 border-t pt-4 space-y-3">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <span className="font-medium">Uploaded by: </span>
-                    {selectedPhoto.asset.uploader?.name || 'Unknown'}
-                  </div>
-                  <div>
-                    <span className="font-medium">Size: </span>
-                    {(selectedPhoto.asset.size / 1024 / 1024).toFixed(1)} MB
-                  </div>
-                  <div>
-                    <span className="font-medium">Uploaded: </span>
-                    {new Date(selectedPhoto.asset.createdAt).toLocaleDateString()} at {new Date(selectedPhoto.asset.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </div>
-                  {selectedPhoto.gpsCoordinates && (
-                    <div>
-                      <span className="font-medium">Location: </span>
-                      {selectedPhoto.gpsCoordinates.lat.toFixed(6)}, {selectedPhoto.gpsCoordinates.lng.toFixed(6)}
-                    </div>
+// Separate component for lightbox - zoom/rotation state stays here
+// and does NOT trigger re-renders of the entire photo gallery
+function PhotoLightbox({ photo, open, onOpenChange }: { photo: Photo; open: boolean; onOpenChange: (open: boolean) => void }) {
+  const [zoom, setZoom] = useState(100)
+  const [rotation, setRotation] = useState(0)
+
+  // Reset zoom/rotation when photo changes
+  useEffect(() => {
+    setZoom(100)
+    setRotation(0)
+  }, [photo.id])
+
+  const parsedMetadata = useMemo(() => {
+    if (!photo.asset.metadata) return null
+    try {
+      return typeof photo.asset.metadata === 'string'
+        ? JSON.parse(photo.asset.metadata)
+        : photo.asset.metadata
+    } catch {
+      return null
+    }
+  }, [photo.asset.metadata])
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-7xl w-full h-[90vh]">
+        <div className="flex flex-col h-full">
+          <DialogHeader className="flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle>{photo.asset.title}</DialogTitle>
+                <DialogDescription>
+                  {photo.caption && (
+                    <span>{photo.caption} • </span>
                   )}
-                </div>
-
-                {selectedPhoto.roomArea && (
-                  <div>
-                    <span className="font-medium text-sm">Room: </span>
-                    <Badge variant="outline" className="text-xs">{selectedPhoto.roomArea}</Badge>
-                  </div>
+                  Taken {new Date(photo.takenAt || photo.createdAt).toLocaleString()}
+                </DialogDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                {!photo.asset?.mimeType?.startsWith('video/') && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setZoom(Math.max(25, zoom - 25))}
+                    >
+                      <ZoomOut className="w-4 h-4" />
+                    </Button>
+                    <span className="text-sm min-w-12 text-center">{zoom}%</span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setZoom(Math.min(400, zoom + 25))}
+                    >
+                      <ZoomIn className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setRotation((rotation + 90) % 360)}
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                    </Button>
+                  </>
                 )}
-
-                {selectedPhoto.tradeCategory && (
-                  <div>
-                    <span className="font-medium text-sm">Trade Category: </span>
-                    <Badge variant="outline" className="text-xs">{selectedPhoto.tradeCategory}</Badge>
-                  </div>
-                )}
-                
-                {selectedPhoto.tags.length > 0 && (
-                  <div>
-                    <span className="font-medium text-sm">Tags: </span>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {selectedPhoto.tags.map(tag => (
-                        <Badge key={tag} variant="secondary" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Display notes from metadata */}
-                {selectedPhoto.asset.metadata && (() => {
-                  try {
-                    const metadata = typeof selectedPhoto.asset.metadata === 'string' 
-                      ? JSON.parse(selectedPhoto.asset.metadata) 
-                      : selectedPhoto.asset.metadata
-                    if (metadata?.notes) {
-                      return (
-                        <div className="pt-2 border-t">
-                          <span className="font-medium text-sm">Notes: </span>
-                          <p className="text-sm text-gray-600 mt-1 whitespace-pre-wrap">{metadata.notes}</p>
-                        </div>
-                      )
-                    }
-                  } catch (e) {
-                    // Ignore JSON parse errors
-                  }
-                  return null
-                })()}
+                <Button size="sm" variant="outline" asChild>
+                  <a href={photo.asset.url} download={photo.asset.filename}>
+                    <Download className="w-4 h-4" />
+                  </a>
+                </Button>
               </div>
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
+          </DialogHeader>
+
+          <div className="flex-1 relative overflow-hidden">
+            {photo.asset?.mimeType?.startsWith('video/') ? (
+              <div className="w-full h-full flex items-center justify-center">
+                <video
+                  src={photo.asset.url}
+                  className="max-w-full max-h-full"
+                  controls
+                  playsInline
+                />
+              </div>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center overflow-auto">
+                <img
+                  src={photo.asset.url}
+                  alt={photo.asset.title}
+                  className="max-w-full max-h-full object-contain transition-transform duration-150"
+                  style={{
+                    transform: `scale(${zoom / 100}) rotate(${rotation}deg)`,
+                    transformOrigin: 'center center',
+                    willChange: 'transform'
+                  }}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Photo metadata */}
+          <div className="flex-shrink-0 border-t pt-4 space-y-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <span className="font-medium">Uploaded by: </span>
+                {photo.asset.uploader?.name || 'Unknown'}
+              </div>
+              <div>
+                <span className="font-medium">Size: </span>
+                {(photo.asset.size / 1024 / 1024).toFixed(1)} MB
+              </div>
+              <div>
+                <span className="font-medium">Uploaded: </span>
+                {new Date(photo.asset.createdAt).toLocaleDateString()} at {new Date(photo.asset.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </div>
+              {photo.gpsCoordinates && (
+                <div>
+                  <span className="font-medium">Location: </span>
+                  {photo.gpsCoordinates.lat.toFixed(6)}, {photo.gpsCoordinates.lng.toFixed(6)}
+                </div>
+              )}
+            </div>
+
+            {photo.roomArea && (
+              <div>
+                <span className="font-medium text-sm">Room: </span>
+                <Badge variant="outline" className="text-xs">{photo.roomArea}</Badge>
+              </div>
+            )}
+
+            {photo.tradeCategory && (
+              <div>
+                <span className="font-medium text-sm">Trade Category: </span>
+                <Badge variant="outline" className="text-xs">{photo.tradeCategory}</Badge>
+              </div>
+            )}
+
+            {photo.tags.length > 0 && (
+              <div>
+                <span className="font-medium text-sm">Tags: </span>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {photo.tags.map(tag => (
+                    <Badge key={tag} variant="secondary" className="text-xs">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {parsedMetadata?.notes && (
+              <div className="pt-2 border-t">
+                <span className="font-medium text-sm">Notes: </span>
+                <p className="text-sm text-gray-600 mt-1 whitespace-pre-wrap">{parsedMetadata.notes}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
