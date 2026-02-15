@@ -60,7 +60,7 @@ export default function TaskKanbanView({
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
-      <div className="flex gap-4 overflow-x-auto pb-4 min-h-[400px]">
+      <div className="grid grid-cols-4 gap-4 pb-4 min-h-[400px]">
         {kanbanColumns.map((status) => {
           const config = statusConfig[status]
           const columnTasks = columns.get(status) || []
@@ -68,7 +68,7 @@ export default function TaskKanbanView({
           return (
             <div
               key={status}
-              className="flex flex-col shrink-0 w-[280px] min-w-[280px]"
+              className="flex flex-col min-w-0"
             >
               {/* Column header */}
               <div className="flex items-center gap-2 px-3 py-2.5 mb-2">
