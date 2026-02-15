@@ -11,14 +11,14 @@
   ],
   "gmail": {
     "name": "StudioFlow Task Creator",
-    "logoUrl": "https://www.gstatic.com/images/branding/product/1x/apps_script_48dp.png",
+    "logoUrl": "https://app.meisnerinteriors.com/meisnerinteriorlogo.png",
     "contextualTriggers": [
       {
         "unconditional": {},
         "onTriggerFunction": "onGmailMessageOpen"
       }
     ],
-    "primaryColor": "#4F46E5",
-    "secondaryColor": "#818CF8"
+    "primaryColor": "#a657f0",
+    "secondaryColor": "#6366ea"
   }
 }
