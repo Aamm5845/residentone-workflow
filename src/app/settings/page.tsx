@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Download, Chrome, CheckCircle, ExternalLink, RefreshCw, FolderOpen, Settings, Loader2, Building2, FileSpreadsheet, CreditCard } from 'lucide-react'
+import { Download, Chrome, CheckCircle, ExternalLink, RefreshCw, FolderOpen, Settings, Loader2, Building2, FileSpreadsheet, CreditCard, KeyRound, Copy, Trash2, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
 
 export default function SettingsPage() {
@@ -11,10 +11,21 @@ export default function SettingsPage() {
   const [downloadSuccess, setDownloadSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Extension API Key state
+  const [keyLoading, setKeyLoading] = useState(true)
+  const [hasKey, setHasKey] = useState(false)
+  const [maskedKey, setMaskedKey] = useState<string | null>(null)
+  const [keyCreatedAt, setKeyCreatedAt] = useState<string | null>(null)
+  const [fullKey, setFullKey] = useState<string | null>(null)
+  const [generating, setGenerating] = useState(false)
+  const [revoking, setRevoking] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [keyError, setKeyError] = useState<string | null>(null)
+
   const handleDownload = () => {
     setDownloading(true)
     setError(null)
-    
+
     // Direct download from public folder
     const link = document.createElement('a')
     link.href = '/downloads/meisner-ffe-clipper.zip'
@@ -22,9 +33,91 @@ export default function SettingsPage() {
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-    
+
     setDownloadSuccess(true)
     setDownloading(false)
+  }
+
+  // Fetch key status on mount
+  useEffect(() => {
+    fetchKeyStatus()
+  }, [])
+
+  const fetchKeyStatus = async () => {
+    setKeyLoading(true)
+    try {
+      const res = await fetch('/api/extension/auth/key-status')
+      if (res.ok) {
+        const data = await res.json()
+        setHasKey(data.hasKey)
+        setMaskedKey(data.maskedKey || null)
+        setKeyCreatedAt(data.createdAt || null)
+      }
+    } catch {
+      // Silently fail — just show generate button
+    } finally {
+      setKeyLoading(false)
+    }
+  }
+
+  const handleGenerateKey = async () => {
+    setGenerating(true)
+    setKeyError(null)
+    try {
+      const res = await fetch('/api/extension/auth', { method: 'POST' })
+      const data = await res.json()
+      if (res.ok && data.apiKey) {
+        setFullKey(data.apiKey)
+        setHasKey(true)
+        setMaskedKey(null) // We have the full key, no need for masked
+      } else {
+        setKeyError(data.error || 'Failed to generate key')
+      }
+    } catch {
+      setKeyError('Network error. Please try again.')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  const handleRevokeKey = async () => {
+    setRevoking(true)
+    setKeyError(null)
+    try {
+      const res = await fetch('/api/extension/auth', { method: 'DELETE' })
+      if (res.ok) {
+        setHasKey(false)
+        setMaskedKey(null)
+        setFullKey(null)
+        setKeyCreatedAt(null)
+      } else {
+        const data = await res.json()
+        setKeyError(data.error || 'Failed to revoke key')
+      }
+    } catch {
+      setKeyError('Network error. Please try again.')
+    } finally {
+      setRevoking(false)
+    }
+  }
+
+  const handleCopyKey = async () => {
+    if (!fullKey) return
+    try {
+      await navigator.clipboard.writeText(fullKey)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea')
+      textArea.value = fullKey
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
   }
 
   return (
@@ -86,8 +179,8 @@ export default function SettingsPage() {
                       </div>
                     )}
                   </div>
-                  <Button 
-                    onClick={handleDownload} 
+                  <Button
+                    onClick={handleDownload}
                     disabled={downloading}
                     className="bg-blue-600 hover:bg-blue-700"
                   >
@@ -150,7 +243,7 @@ export default function SettingsPage() {
                   <div>
                     <h4 className="font-medium text-amber-900">Updating the Extension</h4>
                     <p className="text-sm text-amber-700 mt-1">
-                      When a new version is released, download the new ZIP, extract it over your existing folder, 
+                      When a new version is released, download the new ZIP, extract it over your existing folder,
                       then go to <code className="bg-amber-100 px-1 py-0.5 rounded">chrome://extensions</code> and click the refresh icon on the extension.
                     </p>
                   </div>
@@ -187,6 +280,176 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Integrations / Extension API Key Section */}
+        <Card className="mb-6">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                <KeyRound className="w-6 h-6 text-purple-600" />
+              </div>
+              <div>
+                <CardTitle>Extension API Key</CardTitle>
+                <CardDescription>
+                  Generate an API key for external integrations like the Gmail Add-on and Chrome Extension. Each team member generates their own key.
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {keyLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Checking key status...
+                </div>
+              ) : fullKey ? (
+                /* Just generated — show the full key */
+                <div className="space-y-3">
+                  <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl p-4 border border-purple-200">
+                    <div className="flex items-center justify-between gap-3">
+                      <code className="text-sm font-mono text-purple-900 break-all flex-1 select-all">
+                        {fullKey}
+                      </code>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCopyKey}
+                        className="shrink-0"
+                      >
+                        {copied ? (
+                          <>
+                            <CheckCircle className="w-4 h-4 mr-1.5 text-green-600" />
+                            Copied!
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-4 h-4 mr-1.5" />
+                            Copy
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2 bg-amber-50 rounded-lg p-3 border border-amber-200">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                    <p className="text-sm text-amber-800">
+                      Save this key now — you won&apos;t be able to see it again after you leave this page.
+                      Paste it into the Gmail Add-on or any integration that requires it.
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-end">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleRevokeKey}
+                      disabled={revoking}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      {revoking ? (
+                        <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4 mr-1.5" />
+                      )}
+                      Revoke Key
+                    </Button>
+                  </div>
+                </div>
+              ) : hasKey ? (
+                /* Has an existing key (revisiting page) — show masked */
+                <div className="space-y-3">
+                  <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <code className="text-sm font-mono text-gray-600">
+                          {maskedKey}
+                        </code>
+                        {keyCreatedAt && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Created {new Date(keyCreatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-medium">
+                          <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                          Active
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    For security, the full key is only shown once when generated. To get a new key, revoke this one and generate a new one.
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setHasKey(false)
+                        setMaskedKey(null)
+                        handleRevokeKey().then(() => handleGenerateKey())
+                      }}
+                      disabled={revoking || generating}
+                    >
+                      {(revoking || generating) ? (
+                        <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                      ) : (
+                        <RefreshCw className="w-4 h-4 mr-1.5" />
+                      )}
+                      Regenerate Key
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleRevokeKey}
+                      disabled={revoking}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      {revoking ? (
+                        <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4 mr-1.5" />
+                      )}
+                      Revoke Key
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                /* No key — show generate button */
+                <div className="space-y-3">
+                  <p className="text-sm text-gray-600">
+                    You don&apos;t have an API key yet. Generate one to use with the Gmail Add-on or other integrations.
+                  </p>
+                  <Button
+                    onClick={handleGenerateKey}
+                    disabled={generating}
+                    className="bg-purple-600 hover:bg-purple-700"
+                  >
+                    {generating ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <KeyRound className="w-4 h-4 mr-2" />
+                        Generate API Key
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+
+              {keyError && (
+                <div className="flex items-center gap-2 text-red-600 text-sm">
+                  <span>⚠️</span>
+                  {keyError}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -255,4 +518,3 @@ export default function SettingsPage() {
     </div>
   )
 }
-
