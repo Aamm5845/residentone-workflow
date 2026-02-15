@@ -23,41 +23,65 @@ export default async function CalendarPage() {
 
   // Fetch all projects with stages that have due dates
   let projects: any[] = []
-  
+  let tasks: any[] = []
+
   try {
-    projects = await prisma.project.findMany({
-      where: {
-        status: { not: 'COMPLETED' }
-      },
-      include: {
-        client: true,
-        rooms: {
-          include: {
-            stages: {
-              include: {
-                assignedUser: {
-                  select: {
-                    id: true,
-                    name: true,
-                    email: true
+    [projects, tasks] = await Promise.all([
+      prisma.project.findMany({
+        where: {
+          status: { not: 'COMPLETED' }
+        },
+        include: {
+          client: true,
+          rooms: {
+            include: {
+              stages: {
+                include: {
+                  assignedUser: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true
+                    }
                   }
                 }
               }
             }
           }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    })
+        },
+        orderBy: { createdAt: 'desc' }
+      }),
+      // Also fetch tasks that have dates
+      prisma.task.findMany({
+        where: {
+          status: { notIn: ['DONE', 'CANCELLED'] },
+          OR: [
+            { startDate: { not: null } },
+            { dueDate: { not: null } }
+          ]
+        },
+        include: {
+          project: { select: { id: true, name: true } },
+          assignedTo: { select: { id: true, name: true, email: true } }
+        },
+        orderBy: { dueDate: 'asc' }
+      })
+    ])
   } catch (error) {
-    console.error('Error fetching projects:', error)
+    console.error('Error fetching calendar data:', error)
     projects = []
+    tasks = []
   }
 
   return (
     <DashboardLayout session={session}>
-      <CalendarPageClient 
+      <CalendarPageClient
         projects={projects}
+        tasks={tasks.map(t => ({
+          ...t,
+          startDate: t.startDate?.toISOString() || null,
+          dueDate: t.dueDate?.toISOString() || null,
+        }))}
         currentUser={{
           id: session.user.id,
           name: session.user.name || 'Unknown User',

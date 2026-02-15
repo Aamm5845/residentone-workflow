@@ -157,15 +157,28 @@ export function TaskRow({
         {task.title}
       </span>
 
+      {/* Status label */}
+      <div className="hidden sm:block shrink-0 w-[90px]">
+        <span
+          className={cn(
+            'inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full',
+            config.color
+          )}
+        >
+          <span className={cn('h-1.5 w-1.5 rounded-full', config.dotColor)} />
+          {config.label}
+        </span>
+      </div>
+
       {/* Project name */}
       {showProject && (
-        <span className="hidden sm:inline-flex shrink-0 text-xs text-gray-500 bg-gray-100 rounded px-2 py-0.5 max-w-[120px] truncate">
+        <span className="hidden sm:inline-flex shrink-0 text-xs text-gray-500 bg-gray-100 rounded px-2 py-0.5 w-[120px] truncate">
           {task.project.name}
         </span>
       )}
 
       {/* Assignee */}
-      <div className="hidden sm:flex items-center gap-1.5 shrink-0 min-w-[100px]">
+      <div className="hidden sm:flex items-center gap-1.5 shrink-0 w-[100px]">
         {task.assignedTo ? (
           <>
             <Avatar className="h-5 w-5">
@@ -179,7 +192,7 @@ export function TaskRow({
                 {getInitials(task.assignedTo.name, task.assignedTo.email)}
               </AvatarFallback>
             </Avatar>
-            <span className="text-xs text-gray-600 truncate max-w-[80px]">
+            <span className="text-xs text-gray-600 truncate max-w-[70px]">
               {task.assignedTo.name || task.assignedTo.email}
             </span>
           </>
@@ -189,7 +202,7 @@ export function TaskRow({
       </div>
 
       {/* Due date */}
-      <div className="hidden md:flex items-center gap-1 shrink-0 min-w-[80px]">
+      <div className="hidden md:flex items-center gap-1 shrink-0 w-[90px]">
         {dueDateInfo ? (
           <span
             className={cn(
@@ -206,12 +219,12 @@ export function TaskRow({
       </div>
 
       {/* Priority */}
-      <div className="hidden md:block shrink-0">
+      <div className="hidden md:block shrink-0 w-[80px]">
         <TaskPriorityBadge priority={task.priority} size="sm" />
       </div>
 
       {/* Subtask progress */}
-      <div className="hidden lg:flex items-center gap-1 shrink-0 min-w-[44px]">
+      <div className="hidden lg:flex items-center gap-1 shrink-0 w-[44px]">
         {subtaskTotal > 0 ? (
           <span className="flex items-center gap-1 text-xs text-gray-500">
             <CheckSquare className="h-3 w-3" />
@@ -221,7 +234,7 @@ export function TaskRow({
       </div>
 
       {/* Comment count */}
-      <div className="hidden lg:flex items-center shrink-0 min-w-[32px]">
+      <div className="hidden lg:flex items-center shrink-0 w-[32px]">
         {task._count.comments > 0 && (
           <span className="flex items-center gap-0.5 text-xs text-gray-400">
             <MessageSquare className="h-3 w-3" />

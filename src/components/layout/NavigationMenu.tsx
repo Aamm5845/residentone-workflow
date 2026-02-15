@@ -178,7 +178,9 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
         <div className="space-y-1">
           {mainNavigation.map((item) => {
             const Icon = item.icon
-            const showBadge = 'badgeCount' in item && item.badgeCount && item.badgeCount > 0
+            const badge = 'badgeCount' in item ? (item as { badgeCount?: number; badgeColor?: string }).badgeCount : undefined
+            const badgeColor = 'badgeColor' in item ? (item as { badgeColor?: string }).badgeColor : undefined
+            const showBadge = badge && badge > 0
 
             return (
               <Link
@@ -196,9 +198,9 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
                 {showBadge && (
                   <span className={cn(
                     "absolute -top-1 -right-1 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center",
-                    'badgeColor' in item && item.badgeColor ? item.badgeColor : "bg-red-500"
+                    badgeColor || "bg-red-500"
                   )}>
-                    {item.badgeCount! > 99 ? '99+' : item.badgeCount}
+                    {badge > 99 ? '99+' : badge}
                   </span>
                 )}
               </Link>
@@ -250,6 +252,9 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
         <nav className="space-y-1">
           {mainNavigationBefore.map((item) => {
             const Icon = item.icon
+            const badge = 'badgeCount' in item ? (item as { badgeCount?: number; badgeColor?: string }).badgeCount : undefined
+            const badgeColor = 'badgeColor' in item ? (item as { badgeColor?: string }).badgeColor : undefined
+            const showBadge = badge && badge > 0
             return (
               <Link
                 key={item.name}
@@ -265,6 +270,14 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
                   <Icon className={cn('flex-shrink-0 h-5 w-5 mr-3', item.color)} />
                   {item.name}
                 </div>
+                {showBadge && (
+                  <span className={cn(
+                    'text-white text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center',
+                    badgeColor || 'bg-red-500'
+                  )}>
+                    {badge > 99 ? '99+' : badge}
+                  </span>
+                )}
               </Link>
             )
           })}

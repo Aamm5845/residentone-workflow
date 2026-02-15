@@ -2,17 +2,18 @@
 
 import { useState, useMemo } from 'react'
 import { 
-  Calendar, 
-  ChevronLeft, 
-  ChevronRight, 
-  Clock, 
-  Users, 
-  User, 
-  Palette, 
-  Box, 
-  CheckCircle, 
-  FileText, 
-  Package, 
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Users,
+  User,
+  Palette,
+  Box,
+  CheckCircle,
+  CheckSquare,
+  FileText,
+  Package,
   Star,
   CalendarDays,
   Filter,
@@ -65,8 +66,20 @@ interface Project {
   }[]
 }
 
+interface TaskItem {
+  id: string
+  title: string
+  status: string
+  priority: string
+  startDate: string | null
+  dueDate: string | null
+  project: { id: string; name: string }
+  assignedTo?: { id: string; name: string; email: string } | null
+}
+
 interface CalendarPageClientProps {
   projects: Project[]
+  tasks?: TaskItem[]
   currentUser: {
     id: string
     name: string
@@ -74,14 +87,15 @@ interface CalendarPageClientProps {
   }
 }
 
-export default function CalendarPageClient({ 
-  projects, 
-  currentUser 
+export default function CalendarPageClient({
+  projects,
+  tasks: taskItems = [],
+  currentUser
 }: CalendarPageClientProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [viewMode, setViewMode] = useState<'all' | 'mine'>('all')
   const [showHolidays, setShowHolidays] = useState(true)
-  const [selectedPhases, setSelectedPhases] = useState<string[]>(['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE'])
+  const [selectedPhases, setSelectedPhases] = useState<string[]>(['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE', 'TASK'])
 
   // Transform projects into calendar tasks
   const allTasks = useMemo(() => {
@@ -158,8 +172,42 @@ export default function CalendarPageClient({
       })
     })
     
+    // Add user tasks with dates
+    taskItems.forEach(task => {
+      if (task.startDate) {
+        tasks.push({
+          id: `task-${task.id}-start`,
+          title: `Task Start: ${task.title}`,
+          projectName: task.project.name,
+          dueDate: task.startDate,
+          status: task.status,
+          type: 'task' as const,
+          stageType: 'TASK',
+          assignedUser: task.assignedTo ? {
+            id: task.assignedTo.id,
+            name: task.assignedTo.name || 'Unknown'
+          } : undefined
+        })
+      }
+      if (task.dueDate) {
+        tasks.push({
+          id: `task-${task.id}-due`,
+          title: `Task Due: ${task.title}`,
+          projectName: task.project.name,
+          dueDate: task.dueDate,
+          status: task.status,
+          type: 'task' as const,
+          stageType: 'TASK',
+          assignedUser: task.assignedTo ? {
+            id: task.assignedTo.id,
+            name: task.assignedTo.name || 'Unknown'
+          } : undefined
+        })
+      }
+    })
+
     return tasks
-  }, [projects])
+  }, [projects, taskItems])
 
   // Filter tasks based on view mode and selected phases
   const filteredTasks = useMemo(() => {
@@ -304,7 +352,8 @@ export default function CalendarPageClient({
     'DRAWINGS': { color: 'bg-orange-500', bgColor: 'bg-orange-50', icon: FileText, label: 'Drawings' },
     'FFE': { color: 'bg-pink-500', bgColor: 'bg-pink-50', icon: Package, label: 'FFE' },
     'ROOM_START': { color: 'bg-teal-400', bgColor: 'bg-teal-50', icon: Calendar, label: 'Room Start' },
-    'ROOM_DUE': { color: 'bg-indigo-500', bgColor: 'bg-indigo-50', icon: Calendar, label: 'Room Due' }
+    'ROOM_DUE': { color: 'bg-indigo-500', bgColor: 'bg-indigo-50', icon: Calendar, label: 'Room Due' },
+    'TASK': { color: 'bg-rose-500', bgColor: 'bg-rose-50', icon: CheckSquare, label: 'Tasks' }
   }
 
   const getTaskColor = (task: CalendarTask) => {

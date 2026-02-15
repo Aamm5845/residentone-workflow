@@ -22,7 +22,7 @@ import {
 import { useToast } from '@/components/ui/toast'
 import { ToastContainer } from '@/components/ui/toast'
 import { toSafeSelectValue, fromSafeSelectValue, NONE_UNASSIGNED } from '@/lib/selectSafe'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Plus, X, ListChecks } from 'lucide-react'
 import type { TaskData, TaskUser, TaskStatus, TaskPriority } from './types'
 import { statusConfig, priorityConfig } from './types'
 
@@ -59,10 +59,12 @@ export default function CreateTaskDialog({
   const [selectedStageId, setSelectedStageId] = useState('')
   const [assignedToId, setAssignedToId] = useState('')
   const [priority, setPriority] = useState<TaskPriority>('MEDIUM')
-  const [startDate, setStartDate] = useState('')
+  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0])
   const [dueDate, setDueDate] = useState('')
   const [status, setStatus] = useState<TaskStatus>('TODO')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [subtasks, setSubtasks] = useState<string[]>([])
+  const [newSubtask, setNewSubtask] = useState('')
 
   // Dynamic room & stage fetching state
   const [fetchedRooms, setFetchedRooms] = useState<{ id: string; name: string | null; type: string }[]>([])
@@ -154,9 +156,10 @@ export default function CreateTaskDialog({
     setSelectedStageId('')
     setAssignedToId('')
     setPriority('MEDIUM')
-    setStartDate('')
+    setStartDate(new Date().toISOString().split('T')[0])
     setDueDate('')
     setStatus('TODO')
+    setSubtasks([])
   }, [propProjectId])
 
   // Reset form when dialog closes
@@ -220,6 +223,20 @@ export default function CreateTaskDialog({
       }
 
       const data = await response.json()
+
+      // Create subtasks if any were added
+      if (subtasks.length > 0) {
+        await Promise.all(
+          subtasks.map((title, index) =>
+            fetch(`/api/tasks/${data.task.id}/subtasks`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ title, order: index }),
+            })
+          )
+        )
+      }
+
       success('Task created', `"${data.task.title}" has been created successfully.`)
       onTaskCreated(data.task)
       onOpenChange(false)
@@ -450,6 +467,61 @@ export default function CreateTaskDialog({
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+
+            {/* Subtasks */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <ListChecks className="h-4 w-4" />
+                Subtasks
+              </Label>
+              {subtasks.length > 0 && (
+                <div className="space-y-1">
+                  {subtasks.map((st, idx) => (
+                    <div key={idx} className="flex items-center gap-2 group">
+                      <div className="h-4 w-4 rounded-full border-2 border-gray-300 shrink-0" />
+                      <span className="text-sm text-gray-700 flex-1">{st}</span>
+                      <button
+                        type="button"
+                        onClick={() => setSubtasks(prev => prev.filter((_, i) => i !== idx))}
+                        className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="Add a subtask..."
+                  value={newSubtask}
+                  onChange={(e) => setNewSubtask(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newSubtask.trim()) {
+                      e.preventDefault()
+                      setSubtasks(prev => [...prev, newSubtask.trim()])
+                      setNewSubtask('')
+                    }
+                  }}
+                  className="h-8 text-sm"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 shrink-0"
+                  onClick={() => {
+                    if (newSubtask.trim()) {
+                      setSubtasks(prev => [...prev, newSubtask.trim()])
+                      setNewSubtask('')
+                    }
+                  }}
+                  disabled={!newSubtask.trim()}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
               </div>
             </div>
 
