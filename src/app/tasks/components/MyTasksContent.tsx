@@ -8,7 +8,6 @@ import { useToast } from '@/components/ui/toast'
 import TaskListView from '@/components/tasks/TaskListView'
 import TaskKanbanView from '@/components/tasks/TaskKanbanView'
 import TaskFilters from '@/components/tasks/TaskFilters'
-import TaskDetailSheet from '@/components/tasks/TaskDetailSheet'
 import CreateTaskDialog from '@/components/tasks/CreateTaskDialog'
 import QuickTaskInput from '@/components/tasks/QuickTaskInput'
 import type { TaskData, TaskUser, TaskStatus, TaskPriority } from '@/components/tasks/types'
@@ -38,8 +37,6 @@ export default function MyTasksContent({
   const [activeTab, setActiveTab] = useState(initialTab)
   const [tasks, setTasks] = useState<TaskData[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedTask, setSelectedTask] = useState<TaskData | null>(null)
-  const [detailOpen, setDetailOpen] = useState(false)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
 
   // Filters
@@ -95,9 +92,6 @@ export default function MyTasksContent({
       if (res.ok) {
         const { task: updated } = await res.json()
         setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updated } : t))
-        if (selectedTask?.id === taskId) {
-          setSelectedTask(prev => prev ? { ...prev, ...updated } : null)
-        }
       }
     } catch (err) {
       showError('Failed to update task status')
@@ -121,25 +115,12 @@ export default function MyTasksContent({
   }
 
   const handleTaskClick = (task: TaskData) => {
-    setSelectedTask(task)
-    setDetailOpen(true)
+    router.push(`/tasks/${task.id}`)
   }
 
   const handleTaskCreated = (task: TaskData) => {
     setTasks(prev => [task, ...prev])
     success('Task created')
-  }
-
-  const handleTaskUpdate = (updated: TaskData) => {
-    setTasks(prev => prev.map(t => t.id === updated.id ? updated : t))
-    setSelectedTask(updated)
-  }
-
-  const handleTaskDelete = (taskId: string) => {
-    setTasks(prev => prev.filter(t => t.id !== taskId))
-    setDetailOpen(false)
-    setSelectedTask(null)
-    success('Task deleted')
   }
 
   const handleQuickCreate = async (title: string) => {
@@ -291,17 +272,6 @@ export default function MyTasksContent({
           />
         )}
       </div>
-
-      {/* Task Detail Sheet */}
-      <TaskDetailSheet
-        task={selectedTask}
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-        onTaskUpdate={handleTaskUpdate}
-        onTaskDelete={handleTaskDelete}
-        availableUsers={users}
-        currentUserId={currentUserId}
-      />
 
       {/* Create Task Dialog */}
       <CreateTaskDialog

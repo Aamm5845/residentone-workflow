@@ -22,7 +22,7 @@ import {
 import { useToast } from '@/components/ui/toast'
 import { ToastContainer } from '@/components/ui/toast'
 import { toSafeSelectValue, fromSafeSelectValue, NONE_UNASSIGNED } from '@/lib/selectSafe'
-import { Loader2, Plus, X, ListChecks } from 'lucide-react'
+import { Loader2, Plus, X, ListChecks, MessageSquare } from 'lucide-react'
 import type { TaskData, TaskUser, TaskStatus, TaskPriority } from './types'
 import { statusConfig, priorityConfig } from './types'
 
@@ -65,6 +65,7 @@ export default function CreateTaskDialog({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [subtasks, setSubtasks] = useState<string[]>([])
   const [newSubtask, setNewSubtask] = useState('')
+  const [initialComment, setInitialComment] = useState('')
 
   // Dynamic room & stage fetching state
   const [fetchedRooms, setFetchedRooms] = useState<{ id: string; name: string | null; type: string }[]>([])
@@ -160,6 +161,7 @@ export default function CreateTaskDialog({
     setDueDate('')
     setStatus('TODO')
     setSubtasks([])
+    setInitialComment('')
   }, [propProjectId])
 
   // Reset form when dialog closes
@@ -235,6 +237,15 @@ export default function CreateTaskDialog({
             })
           )
         )
+      }
+
+      // Post initial comment if provided
+      if (initialComment.trim()) {
+        await fetch(`/api/tasks/${data.task.id}/comments`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: initialComment.trim() }),
+        })
       }
 
       success('Task created', `"${data.task.title}" has been created successfully.`)
@@ -523,6 +534,22 @@ export default function CreateTaskDialog({
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
+            </div>
+
+            {/* Initial Note */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <MessageSquare className="h-4 w-4" />
+                Initial Note
+                <span className="text-xs text-muted-foreground font-normal">(optional)</span>
+              </Label>
+              <Textarea
+                placeholder="Add an initial note or comment..."
+                value={initialComment}
+                onChange={(e) => setInitialComment(e.target.value)}
+                rows={2}
+                className="text-sm"
+              />
             </div>
 
             <DialogFooter>

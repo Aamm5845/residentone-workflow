@@ -106,7 +106,7 @@ function ListHeader({ showProject }: { showProject?: boolean }) {
       <div className="hidden sm:block shrink-0 w-[100px]">Assignee</div>
       <div className="hidden md:block shrink-0 w-[90px]">Due Date</div>
       <div className="hidden md:block shrink-0 w-[80px]">Priority</div>
-      <div className="hidden lg:block shrink-0 w-[44px]">Progress</div>
+      <div className="hidden lg:block shrink-0 w-[44px]">Subtasks</div>
       <div className="hidden lg:block shrink-0 w-[32px]" /> {/* Comments */}
     </div>
   )
