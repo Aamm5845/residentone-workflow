@@ -35,6 +35,7 @@ interface CreateTaskDialogProps {
   availableProjects?: { id: string; name: string }[]
   availableRooms?: { id: string; name: string | null; type: string }[]
   availableStages?: { id: string; type: string; roomId: string }[]
+  requireAssignee?: boolean
 }
 
 export default function CreateTaskDialog({
@@ -44,8 +45,9 @@ export default function CreateTaskDialog({
   projectId: propProjectId,
   availableUsers,
   availableProjects,
-  availableRooms,
+  availableRooms: propAvailableRooms,
   availableStages,
+  requireAssignee = true,
 }: CreateTaskDialogProps) {
   const { toasts, dismissToast, success, error: showError } = useToast()
 
@@ -57,28 +59,65 @@ export default function CreateTaskDialog({
   const [selectedStageId, setSelectedStageId] = useState('')
   const [assignedToId, setAssignedToId] = useState('')
   const [priority, setPriority] = useState<TaskPriority>('MEDIUM')
+  const [startDate, setStartDate] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [status, setStatus] = useState<TaskStatus>('TODO')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // Dynamic room fetching state
+  const [fetchedRooms, setFetchedRooms] = useState<{ id: string; name: string | null; type: string }[]>([])
+  const [loadingRooms, setLoadingRooms] = useState(false)
+
   // Derived: the effective project ID
   const effectiveProjectId = propProjectId || selectedProjectId
 
-  // Filtered rooms based on selected project
-  const filteredRooms = availableRooms?.filter(
-    (room) => !effectiveProjectId || room // Show all rooms; project filtering done server-side if needed
-  ) || []
+  // Use fetched rooms if no static rooms were provided, or use static rooms
+  const filteredRooms = propAvailableRooms && propAvailableRooms.length > 0
+    ? propAvailableRooms
+    : fetchedRooms
 
   // Filtered stages based on selected room
   const filteredStages = availableStages?.filter(
     (stage) => stage.roomId === selectedRoomId
   ) || []
 
-  // Reset dependent selects when parent changes
+  // Dynamically fetch rooms when project changes (only if no static rooms provided)
   useEffect(() => {
     setSelectedRoomId('')
     setSelectedStageId('')
-  }, [effectiveProjectId])
+
+    if (!effectiveProjectId) {
+      setFetchedRooms([])
+      return
+    }
+
+    // Only fetch dynamically if no static rooms were provided
+    if (propAvailableRooms && propAvailableRooms.length > 0) return
+
+    const fetchRooms = async () => {
+      setLoadingRooms(true)
+      try {
+        const res = await fetch(`/api/extension/rooms?projectId=${effectiveProjectId}`)
+        if (res.ok) {
+          const data = await res.json()
+          const rooms = (data.rooms || []).map((r: { id: string; name: string | null; displayName?: string; type: string }) => ({
+            id: r.id,
+            name: r.displayName || r.name,
+            type: r.type
+          }))
+          setFetchedRooms(rooms)
+        } else {
+          setFetchedRooms([])
+        }
+      } catch {
+        setFetchedRooms([])
+      } finally {
+        setLoadingRooms(false)
+      }
+    }
+
+    fetchRooms()
+  }, [effectiveProjectId, propAvailableRooms])
 
   useEffect(() => {
     setSelectedStageId('')
@@ -92,6 +131,7 @@ export default function CreateTaskDialog({
     setSelectedStageId('')
     setAssignedToId('')
     setPriority('MEDIUM')
+    setStartDate('')
     setDueDate('')
     setStatus('TODO')
   }, [propProjectId])
@@ -114,6 +154,11 @@ export default function CreateTaskDialog({
       return
     }
 
+    if (requireAssignee && !fromSafeSelectValue(assignedToId)) {
+      showError('Error', 'Please assign this task to a team member')
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
@@ -125,6 +170,7 @@ export default function CreateTaskDialog({
         assignedToId: fromSafeSelectValue(assignedToId) || undefined,
         roomId: fromSafeSelectValue(selectedRoomId) || undefined,
         stageId: fromSafeSelectValue(selectedStageId) || undefined,
+        startDate: startDate || undefined,
         dueDate: dueDate || undefined,
       }
 
@@ -230,9 +276,15 @@ export default function CreateTaskDialog({
                 <Select
                   value={toSafeSelectValue(selectedRoomId)}
                   onValueChange={(val) => setSelectedRoomId(fromSafeSelectValue(val) || '')}
+                  disabled={!effectiveProjectId || loadingRooms}
                 >
                   <SelectTrigger id="task-room">
-                    <SelectValue placeholder="Select room" />
+                    <SelectValue placeholder={
+                      loadingRooms ? 'Loading rooms...' :
+                      !effectiveProjectId ? 'Select a project first' :
+                      filteredRooms.length === 0 ? 'No rooms available' :
+                      'Select room'
+                    } />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={NONE_UNASSIGNED}>None</SelectItem>
@@ -272,16 +324,20 @@ export default function CreateTaskDialog({
             <div className="grid grid-cols-2 gap-4">
               {/* Assignee select */}
               <div className="space-y-2">
-                <Label htmlFor="task-assignee">Assignee</Label>
+                <Label htmlFor="task-assignee">
+                  Assignee {requireAssignee && <span className="text-red-500">*</span>}
+                </Label>
                 <Select
                   value={toSafeSelectValue(assignedToId)}
                   onValueChange={(val) => setAssignedToId(fromSafeSelectValue(val) || '')}
                 >
                   <SelectTrigger id="task-assignee">
-                    <SelectValue placeholder="Unassigned" />
+                    <SelectValue placeholder={requireAssignee ? "Select assignee" : "Unassigned"} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NONE_UNASSIGNED}>Unassigned</SelectItem>
+                    {!requireAssignee && (
+                      <SelectItem value={NONE_UNASSIGNED}>Unassigned</SelectItem>
+                    )}
                     {availableUsers.map((user) => (
                       <SelectItem key={user.id} value={user.id}>
                         {user.name || user.email}
@@ -317,8 +373,19 @@ export default function CreateTaskDialog({
               </div>
             </div>
 
-            {/* Two-column layout for Due date and Status */}
+            {/* Two-column layout for Start date and Due date */}
             <div className="grid grid-cols-2 gap-4">
+              {/* Start date */}
+              <div className="space-y-2">
+                <Label htmlFor="task-start-date">Start Date</Label>
+                <Input
+                  id="task-start-date"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+              </div>
+
               {/* Due date */}
               <div className="space-y-2">
                 <Label htmlFor="task-due-date">Due Date</Label>
@@ -329,7 +396,10 @@ export default function CreateTaskDialog({
                   onChange={(e) => setDueDate(e.target.value)}
                 />
               </div>
+            </div>
 
+            {/* Status */}
+            <div className="grid grid-cols-2 gap-4">
               {/* Status select */}
               <div className="space-y-2">
                 <Label htmlFor="task-status">Status</Label>
@@ -365,7 +435,7 @@ export default function CreateTaskDialog({
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting || !title.trim()}>
+              <Button type="submit" disabled={isSubmitting || !title.trim() || (requireAssignee && !fromSafeSelectValue(assignedToId))}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create Task
               </Button>

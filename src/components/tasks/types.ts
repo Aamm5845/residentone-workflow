@@ -17,6 +17,7 @@ export interface TaskData {
   stageId: string | null
   assignedToId: string | null
   createdById: string
+  startDate: string | null
   dueDate: string | null
   completedAt: string | null
   order: number

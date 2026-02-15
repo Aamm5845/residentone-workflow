@@ -235,6 +235,12 @@ export default function TaskDetailSheet({
     patchTask({ assignedToId: resolvedId })
   }
 
+  const handleStartDateChange = (value: string) => {
+    if (!task) return
+    setTaskDetail((prev) => (prev ? { ...prev, startDate: value || null } : null))
+    patchTask({ startDate: value || null })
+  }
+
   const handleDueDateChange = (value: string) => {
     if (!task) return
     setTaskDetail((prev) => (prev ? { ...prev, dueDate: value || null } : null))
@@ -463,6 +469,20 @@ export default function TaskDetailSheet({
                           ))}
                         </SelectContent>
                       </Select>
+                    </div>
+
+                    {/* Start date */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-[120px]">
+                        <Calendar className="h-4 w-4" />
+                        <span>Start date</span>
+                      </div>
+                      <Input
+                        type="date"
+                        value={task.startDate ? task.startDate.split('T')[0] : ''}
+                        onChange={(e) => handleStartDateChange(e.target.value)}
+                        className="h-8 w-[200px] text-sm border-none shadow-none hover:bg-slate-100 transition-colors cursor-pointer"
+                      />
                     </div>
 
                     {/* Due date */}

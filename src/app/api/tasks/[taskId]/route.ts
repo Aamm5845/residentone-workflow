@@ -104,6 +104,7 @@ export async function PATCH(
     if (body.assignedToId !== undefined) updateData.assignedToId = body.assignedToId || null
     if (body.roomId !== undefined) updateData.roomId = body.roomId || null
     if (body.stageId !== undefined) updateData.stageId = body.stageId || null
+    if (body.startDate !== undefined) updateData.startDate = body.startDate ? new Date(body.startDate) : null
     if (body.dueDate !== undefined) updateData.dueDate = body.dueDate ? new Date(body.dueDate) : null
     if (body.order !== undefined) updateData.order = body.order
 

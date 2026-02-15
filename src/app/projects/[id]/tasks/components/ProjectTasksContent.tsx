@@ -148,7 +148,7 @@ export default function ProjectTasksContent({
       const res = await fetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, projectId: project.id })
+        body: JSON.stringify({ title, projectId: project.id, assignedToId: currentUserId })
       })
       if (res.ok) {
         const { task } = await res.json()

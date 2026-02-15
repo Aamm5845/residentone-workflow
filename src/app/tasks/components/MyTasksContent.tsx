@@ -154,7 +154,7 @@ export default function MyTasksContent({
         body: JSON.stringify({
           title,
           projectId: projects[0].id,
-          assignedToId: activeTab === 'assigned_to_me' ? currentUserId : undefined
+          assignedToId: currentUserId
         })
       })
       if (res.ok) {

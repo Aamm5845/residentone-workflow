@@ -1055,6 +1055,7 @@ model Task {
   stageId      String?
   assignedToId String?
   createdById  String
+  startDate    DateTime?
   dueDate      DateTime?
   completedAt  DateTime?
   order        Int              @default(0)

@@ -136,13 +136,16 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, description, status, priority, projectId, roomId, stageId, assignedToId, dueDate } = body
+    const { title, description, status, priority, projectId, roomId, stageId, assignedToId, startDate, dueDate } = body
 
     if (!title?.trim()) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 })
     }
     if (!projectId) {
       return NextResponse.json({ error: 'Project is required' }, { status: 400 })
+    }
+    if (!assignedToId) {
+      return NextResponse.json({ error: 'Assignee is required' }, { status: 400 })
     }
 
     // Verify project access
@@ -167,6 +170,7 @@ export async function POST(request: NextRequest) {
         stageId: stageId || null,
         assignedToId: assignedToId || null,
         createdById: session.user.id,
+        startDate: startDate ? new Date(startDate) : null,
         dueDate: dueDate ? new Date(dueDate) : null
       },
       include: {
@@ -179,10 +183,19 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Notify assignee if assigned to someone else
+    // Notify assignee (in-app + email) if assigned to someone
     if (assignedToId) {
       await taskNotificationService.notifyTaskAssigned(
-        { id: task.id, title: task.title, projectId: task.projectId, projectName: task.project?.name },
+        {
+          id: task.id,
+          title: task.title,
+          projectId: task.projectId,
+          projectName: task.project?.name,
+          startDate: task.startDate?.toISOString() || null,
+          dueDate: task.dueDate?.toISOString() || null,
+          priority: task.priority,
+          description: task.description || undefined,
+        },
         assignedToId,
         { id: session.user.id, name: session.user.name || null, email: session.user.email || '' }
       )
