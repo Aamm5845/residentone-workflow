@@ -27,11 +27,11 @@ function onGmailMessageOpen(e) {
 
   var emailSubject = message.getSubject() || '(no subject)';
   var emailFrom = message.getFrom() || '';
-  var emailSnippet = '';
+  var emailBody = '';
   try {
-    var body = message.getPlainBody();
-    if (body) {
-      emailSnippet = body.substring(0, 300);
+    var plainBody = message.getPlainBody();
+    if (plainBody) {
+      emailBody = plainBody.substring(0, 1500);
     }
   } catch (err) {
     Logger.log('Could not read email body: ' + err);
@@ -41,7 +41,7 @@ function onGmailMessageOpen(e) {
   // Build Gmail URL
   var emailLink = 'https://mail.google.com/mail/u/0/#inbox/' + threadId;
 
-  return buildCreateTaskCard(emailSubject, emailFrom, emailSnippet, emailLink);
+  return buildCreateTaskCard(emailSubject, emailFrom, emailBody, emailLink);
 }
 
 // =============================================
@@ -185,10 +185,10 @@ function handleDisconnect() {
 // Create Task card
 // =============================================
 
-function buildCreateTaskCard(emailSubject, emailFrom, emailSnippet, emailLink) {
+function buildCreateTaskCard(emailSubject, emailFrom, emailBody, emailLink) {
   var apiKey = getApiKey();
 
-  // Fetch projects and members
+  // Fetch projects, members, and AI-generated task in parallel-ish (sequential in Apps Script)
   var projects = [];
   var members = [];
 
@@ -220,6 +220,38 @@ function buildCreateTaskCard(emailSubject, emailFrom, emailSnippet, emailLink) {
     Logger.log('Error fetching members: ' + err);
   }
 
+  // Use AI to generate a clean task title and description from the email
+  var taskTitle = emailSubject;
+  var taskDescription = emailBody ? emailBody.substring(0, 200) : '';
+  var aiGenerated = false;
+
+  try {
+    var aiPayload = {
+      emailSubject: emailSubject,
+      emailFrom: emailFrom,
+      emailBody: emailBody
+    };
+
+    var aiRes = UrlFetchApp.fetch(API_BASE_URL + '/api/extension/tasks/ai-extract', {
+      method: 'post',
+      contentType: 'application/json',
+      headers: { 'X-Extension-Key': apiKey },
+      payload: JSON.stringify(aiPayload),
+      muteHttpExceptions: true,
+    });
+
+    if (aiRes.getResponseCode() === 200) {
+      var aiData = JSON.parse(aiRes.getContentText());
+      if (aiData.ok && aiData.title) {
+        taskTitle = aiData.title;
+        taskDescription = aiData.description || '';
+        aiGenerated = aiData.aiGenerated || false;
+      }
+    }
+  } catch (err) {
+    Logger.log('AI extract failed (using raw email data): ' + err);
+  }
+
   // Build the card
   var card = CardService.newCardBuilder();
   card.setHeader(
@@ -230,20 +262,29 @@ function buildCreateTaskCard(emailSubject, emailFrom, emailSnippet, emailLink) {
 
   var section = CardService.newCardSection();
 
-  // Title (pre-filled with email subject)
+  // Show AI badge if AI-generated
+  if (aiGenerated) {
+    section.addWidget(
+      CardService.newTextParagraph().setText(
+        '<i>✨ AI-generated from email — edit as needed</i>'
+      )
+    );
+  }
+
+  // Title (pre-filled with AI-generated or raw subject)
   section.addWidget(
     CardService.newTextInput()
       .setFieldName('title')
       .setTitle('Task Title')
-      .setValue(emailSubject)
+      .setValue(taskTitle)
   );
 
-  // Description (pre-filled with email snippet)
+  // Description (pre-filled with AI-generated or raw snippet)
   section.addWidget(
     CardService.newTextInput()
       .setFieldName('description')
       .setTitle('Description')
-      .setValue(emailSnippet.substring(0, 200))
+      .setValue(taskDescription)
       .setMultiline(true)
   );
 
