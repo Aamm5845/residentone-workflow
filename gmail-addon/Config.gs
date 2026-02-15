@@ -6,7 +6,7 @@
  */
 
 // ---- CHANGE THIS to your Vercel deployment URL ----
-var API_BASE_URL = 'https://your-app.vercel.app';
+var API_BASE_URL = 'https://app.meisnerinteriors.com';
 
 /**
  * Get the saved API key for the current user

@@ -27,9 +27,15 @@ function onGmailMessageOpen(e) {
 
   var emailSubject = message.getSubject() || '(no subject)';
   var emailFrom = message.getFrom() || '';
-  var emailSnippet = thread.getFirstMessageSubject()
-    ? message.getPlainBody().substring(0, 300)
-    : '';
+  var emailSnippet = '';
+  try {
+    var body = message.getPlainBody();
+    if (body) {
+      emailSnippet = body.substring(0, 300);
+    }
+  } catch (err) {
+    Logger.log('Could not read email body: ' + err);
+  }
   var threadId = thread.getId();
 
   // Build Gmail URL
@@ -55,7 +61,7 @@ function buildSetupCard() {
     CardService.newTextParagraph().setText(
       'To create tasks from Gmail, you need to enter your StudioFlow Extension API key.\n\n' +
       'You can find your API key in StudioFlow under:\n' +
-      '<b>Settings > Integrations > Extension API Key</b>'
+      '<b>Settings > Extension API Key > Generate</b>'
     )
   );
 
@@ -63,7 +69,7 @@ function buildSetupCard() {
     CardService.newTextInput()
       .setFieldName('apiKey')
       .setTitle('Extension API Key')
-      .setHint('Paste your API key here')
+      .setHint('Paste your ext_... key here')
   );
 
   section.addWidget(
@@ -182,8 +188,7 @@ function handleDisconnect() {
 function buildCreateTaskCard(emailSubject, emailFrom, emailSnippet, emailLink) {
   var apiKey = getApiKey();
 
-  // Fetch projects and members in parallel is not possible in Apps Script,
-  // so we fetch sequentially
+  // Fetch projects and members
   var projects = [];
   var members = [];
 
@@ -283,37 +288,23 @@ function buildCreateTaskCard(emailSubject, emailFrom, emailSnippet, emailLink) {
     .addItem('Low', 'LOW', false);
   section.addWidget(priorityDropdown);
 
-  // Hidden fields: pass email metadata via form
-  section.addWidget(
-    CardService.newTextInput()
-      .setFieldName('emailLink')
-      .setTitle('Email Link')
-      .setValue(emailLink)
-  );
-  section.addWidget(
-    CardService.newTextInput()
-      .setFieldName('emailSubject')
-      .setTitle('Email Subject')
-      .setValue(emailSubject)
-  );
-  section.addWidget(
-    CardService.newTextInput()
-      .setFieldName('emailFrom')
-      .setTitle('Email From')
-      .setValue(emailFrom)
-  );
+  // Submit button — email metadata passed as action parameters (hidden from user)
+  var createAction = CardService.newAction()
+    .setFunctionName('createTask')
+    .setParameters({
+      emailLink: emailLink || '',
+      emailSubject: emailSubject || '',
+      emailFrom: emailFrom || ''
+    });
 
-  // Submit button
   section.addWidget(
     CardService.newTextButton()
       .setText('Create Task')
       .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
-      .setOnClickAction(
-        CardService.newAction().setFunctionName('createTask')
-      )
+      .setOnClickAction(createAction)
   );
 
-  // Settings link
+  // Disconnect link
   section.addWidget(
     CardService.newTextButton()
       .setText('Disconnect Account')
@@ -332,16 +323,19 @@ function buildCreateTaskCard(emailSubject, emailFrom, emailSnippet, emailLink) {
 
 function createTask(e) {
   var apiKey = getApiKey();
-  var formInput = e.formInput;
+  var formInput = e.formInput || {};
+  var params = e.parameters || {};
 
   var title = formInput.title;
   var description = formInput.description;
   var projectId = formInput.projectId;
   var assignedToId = formInput.assignedToId;
   var priority = formInput.priority || 'MEDIUM';
-  var emailLink = formInput.emailLink;
-  var emailSubject = formInput.emailSubject;
-  var emailFrom = formInput.emailFrom;
+
+  // Email metadata comes from action parameters (hidden from user)
+  var emailLink = params.emailLink || '';
+  var emailSubject = params.emailSubject || '';
+  var emailFrom = params.emailFrom || '';
 
   if (!title || title.trim().length === 0) {
     return CardService.newActionResponseBuilder()
