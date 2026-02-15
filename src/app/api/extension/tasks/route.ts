@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const {
       title, description, projectId, assignedToId, priority,
-      emailLink, emailSubject, emailFrom
+      dueDate, emailLink, emailSubject, emailFrom
     } = body
 
     if (!title?.trim()) {
@@ -100,6 +100,7 @@ export async function POST(request: NextRequest) {
         projectId,
         assignedToId,
         createdById: user.id,
+        dueDate: dueDate ? new Date(dueDate) : null,
         emailLink: emailLink || null,
         emailSubject: emailSubject || null,
         emailFrom: emailFrom || null,
@@ -120,7 +121,7 @@ export async function POST(request: NextRequest) {
             projectId: task.projectId,
             projectName: task.project?.name,
             startDate: null,
-            dueDate: null,
+            dueDate: task.dueDate,
             priority: task.priority,
             description: task.description || undefined,
           },

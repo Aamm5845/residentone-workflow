@@ -329,6 +329,13 @@ function buildCreateTaskCard(emailSubject, emailFrom, emailBody, emailLink) {
     .addItem('Low', 'LOW', false);
   section.addWidget(priorityDropdown);
 
+  // Due date picker
+  section.addWidget(
+    CardService.newDatePicker()
+      .setFieldName('dueDate')
+      .setTitle('Due Date')
+  );
+
   // Submit button — email metadata passed as action parameters (hidden from user)
   var createAction = CardService.newAction()
     .setFunctionName('createTask')
@@ -373,6 +380,20 @@ function createTask(e) {
   var assignedToId = formInput.assignedToId;
   var priority = formInput.priority || 'MEDIUM';
 
+  // Due date from date picker (comes as {msSinceEpoch: number} object)
+  var dueDate = null;
+  var dueDateInput = e.formInputs && e.formInputs.dueDate;
+  if (dueDateInput && dueDateInput.msSinceEpoch) {
+    dueDate = new Date(parseInt(dueDateInput.msSinceEpoch)).toISOString();
+  } else if (formInput.dueDate) {
+    // Fallback: try formInput directly
+    try {
+      dueDate = new Date(parseInt(formInput.dueDate)).toISOString();
+    } catch (err) {
+      Logger.log('Could not parse due date: ' + err);
+    }
+  }
+
   // Email metadata comes from action parameters (hidden from user)
   var emailLink = params.emailLink || '';
   var emailSubject = params.emailSubject || '';
@@ -409,6 +430,7 @@ function createTask(e) {
       projectId: projectId,
       assignedToId: assignedToId,
       priority: priority,
+      dueDate: dueDate || undefined,
       emailLink: emailLink || undefined,
       emailSubject: emailSubject || undefined,
       emailFrom: emailFrom || undefined,
