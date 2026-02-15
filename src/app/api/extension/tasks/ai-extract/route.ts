@@ -94,18 +94,17 @@ export async function POST(request: NextRequest) {
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
-      temperature: 0.3,
-      max_tokens: 300,
+      temperature: 0.2,
+      max_tokens: 150,
       response_format: { type: 'json_object' },
       messages: [
         {
           role: 'system',
           content:
-            'You are a task manager assistant for an interior design firm called Meisner Interiors. ' +
-            'Given an email, extract a clear actionable task title and a brief description. ' +
-            'The title should be concise (max 80 characters), action-oriented, and specific. ' +
-            'The description should be 2-3 sentences focusing on what needs to be done, key details, and any deadlines mentioned. ' +
-            'If the email is a general inquiry or doesn\'t clearly map to a task, still create a reasonable task from it. ' +
+            'You create short simple tasks from emails for an interior design firm. ' +
+            'Title: max 50 characters, plain language, like a to-do item (e.g. "Pay invoice from Moshe" not "Review and process the invoice received from Moshe Gross"). ' +
+            'Description: one short sentence with the key detail only. Leave empty string if the title says enough. ' +
+            'Keep it simple. No corporate speak. No fancy words. ' +
             'Return JSON: { "title": "...", "description": "..." }',
         },
         {
