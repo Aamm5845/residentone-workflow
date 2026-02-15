@@ -152,7 +152,7 @@ export default function ProjectTasksContent({
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Link
@@ -211,7 +211,7 @@ export default function ProjectTasksContent({
       </div>
 
       {/* Filters */}
-      <div className="max-w-7xl mx-auto px-6 py-3">
+      <div className="px-6 py-3">
         <TaskFilters
           filters={filters}
           onFiltersChange={setFilters}
@@ -221,7 +221,7 @@ export default function ProjectTasksContent({
       </div>
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-6 pb-6">
+      <div className="px-6 pb-6">
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rose-500" />

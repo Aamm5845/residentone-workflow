@@ -157,19 +157,6 @@ export function TaskRow({
         {task.title}
       </span>
 
-      {/* Status label */}
-      <div className="hidden sm:block shrink-0 w-[90px]">
-        <span
-          className={cn(
-            'inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full',
-            config.color
-          )}
-        >
-          <span className={cn('h-1.5 w-1.5 rounded-full', config.dotColor)} />
-          {config.label}
-        </span>
-      </div>
-
       {/* Project name */}
       {showProject && (
         <span className="hidden sm:inline-flex shrink-0 text-xs text-gray-500 bg-gray-100 rounded px-2 py-0.5 w-[120px] truncate">

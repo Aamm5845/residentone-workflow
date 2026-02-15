@@ -99,7 +99,6 @@ function ListHeader({ showProject }: { showProject?: boolean }) {
     <div className="flex items-center gap-3 px-4 py-2 border-b border-gray-200 bg-gray-50/80 text-xs font-medium text-gray-500 uppercase tracking-wider">
       <div className="w-5 shrink-0" /> {/* Status circle */}
       <div className="flex-1 min-w-0">Title</div>
-      <div className="hidden sm:block shrink-0 w-[90px]">Status</div>
       {showProject && (
         <div className="hidden sm:block shrink-0 w-[120px]">Project</div>
       )}

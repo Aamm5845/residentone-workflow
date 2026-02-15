@@ -295,7 +295,7 @@ export default function TaskDetailPage({
       <div className="min-h-screen">
         {/* Header bar */}
         <div className="border-b border-gray-200 bg-white">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+          <div className="px-6 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => router.back()}
@@ -332,7 +332,7 @@ export default function TaskDetailPage({
         </div>
 
         {/* Main content */}
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
+        <div className="px-6 py-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left column: Main content (2/3) */}
             <div className="lg:col-span-2 space-y-6">
