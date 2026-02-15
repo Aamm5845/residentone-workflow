@@ -23,6 +23,9 @@ export interface TaskData {
   order: number
   createdAt: string
   updatedAt: string
+  emailLink: string | null
+  emailSubject: string | null
+  emailFrom: string | null
   project: { id: string; name: string }
   room?: { id: string; name: string | null; type: string } | null
   stage?: { id: string; type: string } | null

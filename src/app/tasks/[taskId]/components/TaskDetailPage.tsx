@@ -41,6 +41,8 @@ import {
   Pencil,
   Check,
   X,
+  Mail,
+  ExternalLink,
 } from 'lucide-react'
 import type {
   TaskData,
@@ -687,6 +689,35 @@ export default function TaskDetailPage({
                       {task.stage.type}
                     </p>
                   </div>
+                )}
+
+                {/* Email Source (if present) */}
+                {task.emailLink && (
+                  <>
+                    <Separator />
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Mail className="h-3.5 w-3.5" />
+                        <span>Email Source</span>
+                      </div>
+                      <a
+                        href={task.emailLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">
+                          {task.emailSubject || 'View in Gmail'}
+                        </span>
+                      </a>
+                      {task.emailFrom && (
+                        <p className="text-xs text-muted-foreground truncate">
+                          From: {task.emailFrom}
+                        </p>
+                      )}
+                    </div>
+                  </>
                 )}
 
                 <Separator />

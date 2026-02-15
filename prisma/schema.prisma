@@ -1058,6 +1058,9 @@ model Task {
   startDate    DateTime?
   dueDate      DateTime?
   completedAt  DateTime?
+  emailLink    String?
+  emailSubject String?
+  emailFrom    String?
   order        Int              @default(0)
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt

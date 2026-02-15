@@ -22,7 +22,7 @@ import {
 import { useToast } from '@/components/ui/toast'
 import { ToastContainer } from '@/components/ui/toast'
 import { toSafeSelectValue, fromSafeSelectValue, NONE_UNASSIGNED } from '@/lib/selectSafe'
-import { Loader2, Plus, X, ListChecks, MessageSquare } from 'lucide-react'
+import { Loader2, Plus, X, ListChecks, MessageSquare, Mail } from 'lucide-react'
 import type { TaskData, TaskUser, TaskStatus, TaskPriority } from './types'
 import { statusConfig, priorityConfig } from './types'
 
@@ -66,6 +66,7 @@ export default function CreateTaskDialog({
   const [subtasks, setSubtasks] = useState<string[]>([])
   const [newSubtask, setNewSubtask] = useState('')
   const [initialComment, setInitialComment] = useState('')
+  const [emailLink, setEmailLink] = useState('')
 
   // Dynamic room & stage fetching state
   const [fetchedRooms, setFetchedRooms] = useState<{ id: string; name: string | null; type: string }[]>([])
@@ -162,6 +163,7 @@ export default function CreateTaskDialog({
     setStatus('TODO')
     setSubtasks([])
     setInitialComment('')
+    setEmailLink('')
   }, [propProjectId])
 
   // Reset form when dialog closes
@@ -200,6 +202,7 @@ export default function CreateTaskDialog({
         stageId: fromSafeSelectValue(selectedStageId) || undefined,
         startDate: startDate || undefined,
         dueDate: dueDate || undefined,
+        emailLink: emailLink.trim() || undefined,
       }
 
       // Decide which endpoint to use
@@ -548,6 +551,22 @@ export default function CreateTaskDialog({
                 value={initialComment}
                 onChange={(e) => setInitialComment(e.target.value)}
                 rows={2}
+                className="text-sm"
+              />
+            </div>
+
+            {/* Email Link */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <Mail className="h-4 w-4" />
+                Email Link
+                <span className="text-xs text-muted-foreground font-normal">(optional)</span>
+              </Label>
+              <Input
+                placeholder="Paste a Gmail or email link..."
+                value={emailLink}
+                onChange={(e) => setEmailLink(e.target.value)}
+                type="url"
                 className="text-sm"
               />
             </div>

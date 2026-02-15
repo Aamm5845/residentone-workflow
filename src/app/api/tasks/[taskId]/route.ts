@@ -107,6 +107,9 @@ export async function PATCH(
     if (body.startDate !== undefined) updateData.startDate = body.startDate ? new Date(body.startDate) : null
     if (body.dueDate !== undefined) updateData.dueDate = body.dueDate ? new Date(body.dueDate) : null
     if (body.order !== undefined) updateData.order = body.order
+    if (body.emailLink !== undefined) updateData.emailLink = body.emailLink || null
+    if (body.emailSubject !== undefined) updateData.emailSubject = body.emailSubject || null
+    if (body.emailFrom !== undefined) updateData.emailFrom = body.emailFrom || null
 
     const task = await prisma.task.update({
       where: { id: taskId },
