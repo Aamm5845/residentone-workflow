@@ -64,43 +64,58 @@ export default function CreateTaskDialog({
   const [status, setStatus] = useState<TaskStatus>('TODO')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Dynamic room fetching state
+  // Dynamic room & stage fetching state
   const [fetchedRooms, setFetchedRooms] = useState<{ id: string; name: string | null; type: string }[]>([])
+  const [fetchedStages, setFetchedStages] = useState<{ id: string; type: string; roomId: string }[]>([])
   const [loadingRooms, setLoadingRooms] = useState(false)
 
   // Derived: the effective project ID
   const effectiveProjectId = propProjectId || selectedProjectId
 
-  // Use fetched rooms if no static rooms were provided, or use static rooms
+  // Use fetched rooms/stages if no static ones were provided
   const filteredRooms = propAvailableRooms && propAvailableRooms.length > 0
     ? propAvailableRooms
     : fetchedRooms
 
-  // Filtered stages based on selected room
-  const filteredStages = availableStages?.filter(
-    (stage) => stage.roomId === selectedRoomId
-  ) || []
+  const allStages = availableStages && availableStages.length > 0
+    ? availableStages
+    : fetchedStages
 
-  // Dynamically fetch rooms when project changes (only if no static rooms provided)
+  // Filtered stages based on selected room
+  const filteredStages = allStages.filter(
+    (stage) => stage.roomId === selectedRoomId
+  )
+
+  // Helper to format stage type for display (e.g. THREE_D -> "Three D", DESIGN_CONCEPT -> "Design Concept")
+  const formatStageType = (type: string) =>
+    type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+
+  // Dynamically fetch rooms + stages when project changes
   useEffect(() => {
     setSelectedRoomId('')
     setSelectedStageId('')
 
     if (!effectiveProjectId) {
       setFetchedRooms([])
+      setFetchedStages([])
       return
     }
 
     // Only fetch dynamically if no static rooms were provided
     if (propAvailableRooms && propAvailableRooms.length > 0) return
 
-    const fetchRooms = async () => {
+    const fetchRoomsAndStages = async () => {
       setLoadingRooms(true)
       try {
-        const res = await fetch(`/api/extension/rooms?projectId=${effectiveProjectId}`)
-        if (res.ok) {
-          const data = await res.json()
-          const rooms = (data.rooms || []).map((r: { id: string; name: string | null; displayName?: string; type: string }) => ({
+        // Fetch rooms and stages in parallel
+        const [roomsRes, stagesRes] = await Promise.all([
+          fetch(`/api/extension/rooms?projectId=${effectiveProjectId}`),
+          fetch(`/api/tasks/project-stages?projectId=${effectiveProjectId}`)
+        ])
+
+        if (roomsRes.ok) {
+          const roomsData = await roomsRes.json()
+          const rooms = (roomsData.rooms || []).map((r: { id: string; name: string | null; displayName?: string; type: string }) => ({
             id: r.id,
             name: r.displayName || r.name,
             type: r.type
@@ -109,14 +124,22 @@ export default function CreateTaskDialog({
         } else {
           setFetchedRooms([])
         }
+
+        if (stagesRes.ok) {
+          const stagesData = await stagesRes.json()
+          setFetchedStages(stagesData.stages || [])
+        } else {
+          setFetchedStages([])
+        }
       } catch {
         setFetchedRooms([])
+        setFetchedStages([])
       } finally {
         setLoadingRooms(false)
       }
     }
 
-    fetchRooms()
+    fetchRoomsAndStages()
   }, [effectiveProjectId, propAvailableRooms])
 
   useEffect(() => {
@@ -306,13 +329,17 @@ export default function CreateTaskDialog({
                   disabled={!selectedRoomId || filteredStages.length === 0}
                 >
                   <SelectTrigger id="task-stage">
-                    <SelectValue placeholder="Select phase" />
+                    <SelectValue placeholder={
+                      !selectedRoomId ? 'Select a room first' :
+                      filteredStages.length === 0 ? 'No phases available' :
+                      'Select phase'
+                    } />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={NONE_UNASSIGNED}>None</SelectItem>
                     {filteredStages.map((stage) => (
                       <SelectItem key={stage.id} value={stage.id}>
-                        {stage.type}
+                        {formatStageType(stage.type)}
                       </SelectItem>
                     ))}
                   </SelectContent>
