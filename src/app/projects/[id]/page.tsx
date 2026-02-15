@@ -2,7 +2,7 @@ import { getSession } from '@/auth'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import DashboardLayout from '@/components/layout/dashboard-layout'
-import { ArrowLeft, Plus, Settings, MoreVertical, Users, Calendar, MapPin, Sofa, Bed, UtensilsCrossed, Bath, Briefcase, Gamepad2, DoorOpen, Home, Navigation, FileText, BookOpen, ClipboardList, ShoppingCart, FolderOpen, DollarSign } from 'lucide-react'
+import { ArrowLeft, Plus, Settings, MoreVertical, Users, Calendar, MapPin, Sofa, Bed, UtensilsCrossed, Bath, Briefcase, Gamepad2, DoorOpen, Home, Navigation, FileText, BookOpen, ClipboardList, ShoppingCart, FolderOpen, DollarSign, CheckSquare } from 'lucide-react'
 import { getStageIcon } from '@/constants/workflow'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
@@ -534,6 +534,34 @@ export default async function ProjectDetail({ params }: Props) {
                           </div>
                           <p className="text-xs text-gray-500 mt-1 leading-relaxed">
                             Documents, plans, and reference files
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+
+                  {/* Tasks Card */}
+                  <Link
+                    href={`/projects/${project.id}/tasks`}
+                    className="group block"
+                  >
+                    <div className="relative bg-white border border-gray-200/80 rounded-2xl p-5 transition-all duration-300 hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:border-rose-200 group-hover:-translate-y-0.5 overflow-hidden">
+                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-400 via-pink-500 to-rose-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      <div className="flex items-start gap-4">
+                        <div className="relative">
+                          <div className="w-11 h-11 bg-gradient-to-br from-rose-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg shadow-rose-500/20 group-hover:shadow-rose-500/30 transition-shadow duration-300">
+                            <CheckSquare className="w-5 h-5 text-white" />
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <h3 className="font-semibold text-gray-900 text-sm group-hover:text-rose-700 transition-colors duration-200">
+                              Tasks
+                            </h3>
+                            <svg className="w-4 h-4 text-gray-300 group-hover:text-rose-500 group-hover:translate-x-0.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                            Manage and assign team tasks
                           </p>
                         </div>
                       </div>

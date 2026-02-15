@@ -21,6 +21,7 @@ import {
   DollarSign,
   ChevronDown,
   ChevronRight,
+  CheckSquare,
 } from 'lucide-react'
 import { changelog, countUnseenUpdates } from '@/data/changelog'
 
@@ -108,6 +109,17 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
   const procurementCount = procurementData?.totalCount || 0
   const procurementProjects: { projectId: string; projectName: string; items: any[] }[] = procurementData?.projects || []
 
+  // Fetch task count for badge
+  const { data: taskCountData } = useSWR(
+    '/api/tasks/count',
+    fetcher,
+    {
+      refreshInterval: 30000,
+      revalidateOnFocus: true
+    }
+  )
+  const taskCount = taskCountData?.count || 0
+
   // Fetch user permissions for conditional nav items
   const { data: userPerms } = useSWR(
     '/api/user/permissions',
@@ -120,6 +132,7 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
     { name: 'Home', href: '/dashboard', icon: Home, color: 'text-purple-600' },
     { name: 'Projects', href: '/projects', icon: FolderOpen, color: 'text-blue-600' },
     { name: 'Products', href: '/products', icon: Package, color: 'text-emerald-600' },
+    { name: 'Tasks', href: '/tasks', icon: CheckSquare, color: 'text-rose-500', badgeCount: taskCount, badgeColor: 'bg-rose-500' },
   ]
 
   const mainNavigationAfter = [
@@ -136,6 +149,8 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
     { name: 'Procurement', href: '/procurement', icon: FileText, color: 'text-amber-600', badgeCount: procurementCount, badgeColor: 'bg-amber-500' },
     ...mainNavigationAfter,
   ]
+
+  const isTasksActive = pathname.startsWith('/tasks') || pathname.match(/^\/projects\/[^/]+\/tasks/)
 
   const isProcurementActive = pathname.startsWith('/procurement') || pathname.match(/^\/projects\/[^/]+\/procurement/)
 
