@@ -81,6 +81,19 @@
       <div class="spinner"></div>
       <div class="loading-text">Connecting...</div>
     </div>
+
+    <!-- Close confirm dialog -->
+    <div id="close-confirm" class="hidden">
+      <div class="confirm-box">
+        <div class="confirm-title">Timer is running</div>
+        <div class="confirm-msg">Do you want to stop the timer before closing?</div>
+        <div class="confirm-actions">
+          <button id="confirm-stop" class="btn btn-small btn-danger">Stop &amp; Close</button>
+          <button id="confirm-keep" class="btn btn-small btn-outline">Keep Running</button>
+          <button id="confirm-cancel" class="btn btn-small btn-outline">Cancel</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="renderer.js"></script>

@@ -13,7 +13,7 @@ import {
 import Link from 'next/link'
 
 // ─── Version Constants ───────────────────────────────────────
-const TIMER_VERSION = '2.0.0'
+const TIMER_VERSION = '2.5.1'
 const CLIPPER_VERSION = '1.2.0'
 
 // ─── Sidebar Nav Items ───────────────────────────────────────

@@ -10,6 +10,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateMiniBar: (text) => ipcRenderer.send('minibar:update', text),
   hideMiniBar: () => ipcRenderer.send('minibar:hide'),
 
+  // Tray icon state (red dot when timer active)
+  setTrayTimerActive: (isActive) => ipcRenderer.send('tray:timer-state', isActive),
+
   // Listen for minimize event from main
   onCheckMiniBar: (cb) => ipcRenderer.on('check-timer-for-minibar', cb),
 

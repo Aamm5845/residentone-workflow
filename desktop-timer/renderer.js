@@ -1,5 +1,5 @@
 // =============================================
-// StudioFlow Desktop Timer v2.2.0 — Renderer
+// StudioFlow Desktop Timer v2.5.2 — Renderer
 // =============================================
 
 const eAPI = window.electronAPI
@@ -16,6 +16,7 @@ let timerInterval = null
 let isPaused = false
 let isMinimized = false
 let projectOrder = [] // stored order of project IDs by last used
+let localActionUntil = 0 // timestamp — sync is paused until this time
 
 // =============================================
 // DOM Elements
@@ -55,11 +56,49 @@ const btnLogout = $('btn-logout')
 // Window Controls
 // =============================================
 btnMinimize.addEventListener('click', () => eAPI.minimize())
-btnClose.addEventListener('click', () => eAPI.close())
+
+// Close — if timer running, ask what to do
+const closeConfirm = $('close-confirm')
+const confirmStop = $('confirm-stop')
+const confirmKeep = $('confirm-keep')
+const confirmCancel = $('confirm-cancel')
+
+btnClose.addEventListener('click', () => {
+  if (activeTimer) {
+    closeConfirm.classList.remove('hidden')
+  } else {
+    eAPI.close()
+  }
+})
+
+confirmStop.addEventListener('click', async () => {
+  closeConfirm.classList.add('hidden')
+  if (activeTimer && activeTimer.id) {
+    try { await api('PATCH', `/api/timeline/entries/${activeTimer.id}`, { action: 'stop' }) } catch {}
+  }
+  activeTimer = null
+  isPaused = false
+  eAPI.close()
+})
+
+confirmKeep.addEventListener('click', () => {
+  closeConfirm.classList.add('hidden')
+  eAPI.close()
+})
+
+confirmCancel.addEventListener('click', () => {
+  closeConfirm.classList.add('hidden')
+})
 
 // =============================================
 // Helpers
 // =============================================
+
+// After a local action (start/stop/pause), block sync for N seconds
+// so the server has time to process and sync won't undo local state
+function blockSync(seconds) {
+  localActionUntil = Date.now() + seconds * 1000
+}
 
 function showLoading(text) {
   loading.querySelector('.loading-text').textContent = text || 'Loading...'
@@ -254,6 +293,7 @@ async function enterMainScreen() {
   showUserBar()
   await Promise.all([loadProjects(), checkActiveTimer()])
   hideLoading()
+  startPeriodicSync()
 }
 
 function showUserBar() {
@@ -350,6 +390,9 @@ function showTimerPanel() {
     btnPause.title = 'Pause'
   }
 
+  // Update tray icon — red dot when running, normal when paused
+  eAPI.setTrayTimerActive(!isPaused)
+
   startTickingDisplay()
 }
 
@@ -360,6 +403,7 @@ function hideTimerPanel() {
   timerDisplay.textContent = '00:00:00'
   eAPI.setTitle('SF Timer')
   eAPI.hideMiniBar()
+  eAPI.setTrayTimerActive(false) // remove red dot
 }
 
 function startTickingDisplay() {
@@ -406,6 +450,9 @@ async function startTimer(projectId) {
   if (!proj) return
   if (activeTimer && activeTimer.projectId === projectId && !isPaused) return
 
+  // Block sync for 10s so it doesn't undo our local state
+  blockSync(10)
+
   // Bump this project to top of recently used
   bumpProject(projectId)
 
@@ -440,17 +487,24 @@ async function startTimer(projectId) {
 
 async function stopCurrentTimer() {
   if (!activeTimer) return
-  if (activeTimer.id) {
-    try { await api('PATCH', `/api/timeline/entries/${activeTimer.id}`, { action: 'stop' }) } catch {}
-  }
+  // Block sync for 10s
+  blockSync(10)
+  const timerId = activeTimer.id
+  // Clear UI immediately — don't wait for API
   activeTimer = null
   isPaused = false
   hideTimerPanel()
   renderProjectList()
+  // Stop on server in background
+  if (timerId) {
+    api('PATCH', `/api/timeline/entries/${timerId}`, { action: 'stop' }).catch(() => {})
+  }
 }
 
 async function pauseResumeTimer() {
   if (!activeTimer || !activeTimer.id) return
+  // Block sync for 10s
+  blockSync(10)
   const action = isPaused ? 'resume' : 'pause'
   try {
     const res = await api('PATCH', `/api/timeline/entries/${activeTimer.id}`, { action })
@@ -524,6 +578,7 @@ btnRefresh.addEventListener('click', async () => {
 })
 
 btnLogout.addEventListener('click', async () => {
+  stopPeriodicSync()
   await eAPI.store.delete('authToken')
   authToken = null
   currentUser = null
@@ -538,6 +593,7 @@ btnLogout.addEventListener('click', async () => {
   inputPassword.value = ''
   loginError.textContent = ''
   eAPI.setTitle('SF Timer')
+  eAPI.setTrayTimerActive(false)
 })
 
 // =============================================
@@ -569,6 +625,95 @@ window.addEventListener('focus', () => {
   isMinimized = false
   eAPI.hideMiniBar()
 })
+
+// =============================================
+// Periodic Sync — keep desktop & web in sync
+// =============================================
+let syncInterval = null
+
+function startPeriodicSync() {
+  stopPeriodicSync()
+  syncInterval = setInterval(() => {
+    if (authToken) syncTimerFromServer()
+  }, 30000)
+}
+
+function stopPeriodicSync() {
+  if (syncInterval) {
+    clearInterval(syncInterval)
+    syncInterval = null
+  }
+}
+
+let isSyncing = false
+
+async function syncTimerFromServer() {
+  // Skip sync if a local action happened recently
+  if (Date.now() < localActionUntil) return
+  if (isSyncing) return
+  isSyncing = true
+  try {
+    const [runRes, pausedRes] = await Promise.all([
+      api('GET', '/api/timeline/entries?status=RUNNING&perPage=1'),
+      api('GET', '/api/timeline/entries?status=PAUSED&perPage=1'),
+    ])
+
+    // Re-check after await — a local action may have happened during the fetch
+    if (Date.now() < localActionUntil) return
+
+    let entry = null
+    if (runRes.ok && runRes.data.entries && runRes.data.entries.length > 0) {
+      entry = runRes.data.entries[0]
+    } else if (pausedRes.ok && pausedRes.data.entries && pausedRes.data.entries.length > 0) {
+      entry = pausedRes.data.entries[0]
+    }
+
+    if (entry) {
+      const serverTimerId = entry.id
+      const currentTimerId = activeTimer ? activeTimer.id : null
+      const serverPaused = entry.status === 'PAUSED'
+
+      // Only update if something actually changed
+      if (serverTimerId !== currentTimerId || serverPaused !== isPaused) {
+        const proj = projects.find(p => p.id === entry.projectId)
+        const completedPauseMs = (entry.pauses || []).reduce((acc, p) => {
+          if (p.resumedAt) {
+            return acc + (new Date(p.resumedAt).getTime() - new Date(p.pausedAt).getTime())
+          }
+          return acc
+        }, 0)
+
+        activeTimer = {
+          id: entry.id,
+          projectId: entry.projectId,
+          projectName: proj ? `${proj.name} (${proj.clientName})` : entry.project?.name || 'Unknown',
+          startedAt: new Date(entry.startTime),
+          status: entry.status,
+          completedPauseMs,
+          currentPauseStart: null,
+        }
+
+        const activePause = (entry.pauses || []).find(p => !p.resumedAt)
+        if (activePause) {
+          activeTimer.currentPauseStart = new Date(activePause.pausedAt)
+        }
+
+        isPaused = serverPaused
+        showTimerPanel()
+        renderProjectList()
+      }
+    } else if (activeTimer) {
+      activeTimer = null
+      isPaused = false
+      hideTimerPanel()
+      renderProjectList()
+    }
+  } catch {
+    // Silently fail
+  } finally {
+    isSyncing = false
+  }
+}
 
 // =============================================
 // Boot
