@@ -1,6 +1,6 @@
 {
   "name": "studioflow-timer",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Lightweight floating time tracker for StudioFlow",
   "author": "Meisner Interiors",
   "main": "main.js",
@@ -28,7 +28,9 @@
       "createStartMenuShortcut": true,
       "shortcutName": "StudioFlow Timer",
       "installerIcon": "icon.ico",
-      "uninstallerIcon": "icon.ico"
+      "uninstallerIcon": "icon.ico",
+      "guid": "studioflow-timer",
+      "uninstallDisplayName": "StudioFlow Timer"
     },
     "mac": {
       "target": "dmg",

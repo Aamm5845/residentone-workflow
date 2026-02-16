@@ -2,11 +2,46 @@
 
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Download, Chrome, CheckCircle, ExternalLink, RefreshCw, FolderOpen, Settings, Loader2, Building2, FileSpreadsheet, CreditCard, KeyRound, Copy, Trash2, AlertTriangle, Timer, Monitor } from 'lucide-react'
+import {
+  Download, Chrome, CheckCircle, ExternalLink, RefreshCw,
+  FolderOpen, Settings, Loader2, Building2, FileSpreadsheet,
+  CreditCard, KeyRound, Copy, Trash2, AlertTriangle, Timer,
+  Monitor, ChevronRight, Shield, Puzzle, Wrench, Package,
+  ArrowLeft, Clock, Zap, MousePointerClick, Eye, Globe,
+  Laptop, Mail, Info
+} from 'lucide-react'
 import Link from 'next/link'
 
+// ─── Version Constants ───────────────────────────────────────
+const TIMER_VERSION = '1.1.0'
+const CLIPPER_VERSION = '1.2.0'
+
+// ─── Sidebar Nav Items ───────────────────────────────────────
+const navSections = [
+  {
+    label: 'Tools & Downloads',
+    items: [
+      { id: 'timer', label: 'Desktop Timer', icon: Timer, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+      { id: 'clipper', label: 'FFE Clipper', icon: Chrome, color: 'text-blue-600', bg: 'bg-blue-50' },
+      { id: 'api-key', label: 'API Key', icon: KeyRound, color: 'text-violet-600', bg: 'bg-violet-50' },
+    ]
+  },
+  {
+    label: 'Configuration',
+    items: [
+      { id: 'business', label: 'Business Profile', icon: Building2, color: 'text-orange-600', bg: 'bg-orange-50', href: '/settings/business' },
+      { id: 'payment', label: 'Payment Methods', icon: CreditCard, color: 'text-pink-600', bg: 'bg-pink-50', href: '/settings/payment-methods' },
+      { id: 'library', label: 'Item Library', icon: FolderOpen, color: 'text-amber-600', bg: 'bg-amber-50', href: '/settings/item-library' },
+      { id: 'import', label: 'Programa Import', icon: FileSpreadsheet, color: 'text-teal-600', bg: 'bg-teal-50', href: '/settings/programa-import' },
+      { id: 'preferences', label: 'Preferences', icon: Settings, color: 'text-gray-600', bg: 'bg-gray-100', href: '/preferences' },
+    ]
+  },
+]
+
 export default function SettingsPage() {
+  const [activeSection, setActiveSection] = useState('timer')
+
+  // Chrome extension download
   const [downloading, setDownloading] = useState(false)
   const [downloadSuccess, setDownloadSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -22,23 +57,21 @@ export default function SettingsPage() {
   const [copied, setCopied] = useState(false)
   const [keyError, setKeyError] = useState<string | null>(null)
 
+  // ─── Handlers ──────────────────────────────────────────────
+
   const handleDownload = () => {
     setDownloading(true)
     setError(null)
-
-    // Direct download from public folder
     const link = document.createElement('a')
     link.href = '/downloads/meisner-ffe-clipper.zip'
     link.download = 'meisner-ffe-clipper.zip'
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-
     setDownloadSuccess(true)
     setDownloading(false)
   }
 
-  // Fetch key status on mount
   useEffect(() => {
     fetchKeyStatus()
   }, [])
@@ -54,7 +87,7 @@ export default function SettingsPage() {
         setKeyCreatedAt(data.createdAt || null)
       }
     } catch {
-      // Silently fail — just show generate button
+      // Silently fail
     } finally {
       setKeyLoading(false)
     }
@@ -69,7 +102,7 @@ export default function SettingsPage() {
       if (res.ok && data.apiKey) {
         setFullKey(data.apiKey)
         setHasKey(true)
-        setMaskedKey(null) // We have the full key, no need for masked
+        setMaskedKey(null)
       } else {
         setKeyError(data.error || 'Failed to generate key')
       }
@@ -108,7 +141,6 @@ export default function SettingsPage() {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      // Fallback for older browsers
       const textArea = document.createElement('textarea')
       textArea.value = fullKey
       document.body.appendChild(textArea)
@@ -120,519 +152,629 @@ export default function SettingsPage() {
     }
   }
 
+  // ─── Render ────────────────────────────────────────────────
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b">
-        <div className="max-w-4xl mx-auto px-6 py-4">
+    <div className="min-h-screen bg-gray-50/50">
+      {/* Top Header */}
+      <div className="bg-white border-b sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-6 py-3">
           <div className="flex items-center gap-4">
             <Link href="/dashboard">
-              <Button variant="ghost" size="sm">
-                ← Back
+              <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-900">
+                <ArrowLeft className="w-4 h-4 mr-1.5" />
+                Dashboard
               </Button>
             </Link>
+            <div className="h-5 w-px bg-gray-200" />
             <div>
-              <h1 className="text-xl font-semibold text-gray-900">Settings</h1>
-              <p className="text-sm text-gray-500">Extensions and tools</p>
+              <h1 className="text-lg font-semibold text-gray-900">Settings</h1>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="max-w-4xl mx-auto px-6 py-8">
-        {/* Chrome Extension Section */}
-        <Card className="mb-6">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                <Chrome className="w-6 h-6 text-blue-600" />
-              </div>
-              <div>
-                <CardTitle>FFE Clipper Extension</CardTitle>
-                <CardDescription>
-                  Clip products from any website directly to your FFE schedules
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              {/* Download Section */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h3 className="font-semibold text-gray-900 mb-1">Download Extension</h3>
-                    <p className="text-sm text-gray-600 mb-3">
-                      Version 1.2.0 • Works with Chrome, Edge, and Brave
-                    </p>
-                    {downloadSuccess && (
-                      <div className="flex items-center gap-2 text-green-600 text-sm mb-3">
-                        <CheckCircle className="w-4 h-4" />
-                        Download started! Check your downloads folder.
-                      </div>
-                    )}
-                    {error && (
-                      <div className="flex items-center gap-2 text-red-600 text-sm mb-3">
-                        <span>⚠️</span>
-                        {error}
-                      </div>
-                    )}
-                  </div>
-                  <Button
-                    onClick={handleDownload}
-                    disabled={downloading}
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    {downloading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Downloading...
-                      </>
-                    ) : (
-                      <>
-                        <Download className="w-4 h-4 mr-2" />
-                        Download ZIP
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Installation Instructions */}
-              <div>
-                <h4 className="font-medium text-gray-900 mb-3">Installation Steps</h4>
-                <ol className="space-y-3">
-                  <li className="flex items-start gap-3">
-                    <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium">1</span>
-                    <div>
-                      <p className="font-medium text-gray-900">Extract the ZIP</p>
-                      <p className="text-sm text-gray-500">Extract to a folder like <code className="bg-gray-100 px-1.5 py-0.5 rounded">C:\Extensions\meisner-ffe-clipper</code></p>
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium">2</span>
-                    <div>
-                      <p className="font-medium text-gray-900">Open Chrome Extensions</p>
-                      <p className="text-sm text-gray-500">
-                        Go to <code className="bg-gray-100 px-1.5 py-0.5 rounded">chrome://extensions</code> and enable <strong>Developer mode</strong>
-                      </p>
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium">3</span>
-                    <div>
-                      <p className="font-medium text-gray-900">Load Unpacked</p>
-                      <p className="text-sm text-gray-500">Click <strong>Load unpacked</strong> and select the extracted folder</p>
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="flex-shrink-0 w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-medium">✓</span>
-                    <div>
-                      <p className="font-medium text-gray-900">Done!</p>
-                      <p className="text-sm text-gray-500">Click the extension icon and log in with your StudioFlow account</p>
-                    </div>
-                  </li>
-                </ol>
-              </div>
-
-              {/* Update Instructions */}
-              <div className="bg-amber-50 rounded-xl p-4 border border-amber-100">
-                <div className="flex items-start gap-3">
-                  <RefreshCw className="w-5 h-5 text-amber-600 mt-0.5" />
-                  <div>
-                    <h4 className="font-medium text-amber-900">Updating the Extension</h4>
-                    <p className="text-sm text-amber-700 mt-1">
-                      When a new version is released, download the new ZIP, extract it over your existing folder,
-                      then go to <code className="bg-amber-100 px-1 py-0.5 rounded">chrome://extensions</code> and click the refresh icon on the extension.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Features */}
-              <div>
-                <h4 className="font-medium text-gray-900 mb-3">Features</h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <CheckCircle className="w-4 h-4 text-green-500" />
-                    AI-powered smart fill
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <CheckCircle className="w-4 h-4 text-green-500" />
-                    Right-click image clipping
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <CheckCircle className="w-4 h-4 text-green-500" />
-                    Link to FFE items
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <CheckCircle className="w-4 h-4 text-green-500" />
-                    Multi-room product linking
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <CheckCircle className="w-4 h-4 text-green-500" />
-                    PDF attachment detection
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <CheckCircle className="w-4 h-4 text-green-500" />
-                    Supplier integration
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Integrations / Extension API Key Section */}
-        <Card className="mb-6">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                <KeyRound className="w-6 h-6 text-purple-600" />
-              </div>
-              <div>
-                <CardTitle>Extension API Key</CardTitle>
-                <CardDescription>
-                  Generate an API key for external integrations like the Gmail Add-on and Chrome Extension. Each team member generates their own key.
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {keyLoading ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Checking key status...
-                </div>
-              ) : fullKey ? (
-                /* Just generated — show the full key */
-                <div className="space-y-3">
-                  <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl p-4 border border-purple-200">
-                    <div className="flex items-center justify-between gap-3">
-                      <code className="text-sm font-mono text-purple-900 break-all flex-1 select-all">
-                        {fullKey}
-                      </code>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleCopyKey}
-                        className="shrink-0"
-                      >
-                        {copied ? (
-                          <>
-                            <CheckCircle className="w-4 h-4 mr-1.5 text-green-600" />
-                            Copied!
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-4 h-4 mr-1.5" />
-                            Copy
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2 bg-amber-50 rounded-lg p-3 border border-amber-200">
-                    <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
-                    <p className="text-sm text-amber-800">
-                      Save this key now — you won&apos;t be able to see it again after you leave this page.
-                      Paste it into the Gmail Add-on or any integration that requires it.
-                    </p>
-                  </div>
-                  <div className="flex items-center justify-end">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleRevokeKey}
-                      disabled={revoking}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    >
-                      {revoking ? (
-                        <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-                      ) : (
-                        <Trash2 className="w-4 h-4 mr-1.5" />
-                      )}
-                      Revoke Key
-                    </Button>
-                  </div>
-                </div>
-              ) : hasKey ? (
-                /* Has an existing key (revisiting page) — show masked */
-                <div className="space-y-3">
-                  <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <code className="text-sm font-mono text-gray-600">
-                          {maskedKey}
-                        </code>
-                        {keyCreatedAt && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Created {new Date(keyCreatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-medium">
-                          <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                          Active
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    For security, the full key is only shown once when generated. To get a new key, revoke this one and generate a new one.
+      {/* Content: Sidebar + Main */}
+      <div className="max-w-7xl mx-auto px-6 py-6">
+        <div className="flex gap-6">
+          {/* Sidebar */}
+          <div className="w-64 flex-shrink-0">
+            <nav className="sticky top-20 space-y-6">
+              {navSections.map((section) => (
+                <div key={section.label}>
+                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-3 mb-1.5">
+                    {section.label}
                   </p>
-                  <div className="flex items-center justify-between">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setHasKey(false)
-                        setMaskedKey(null)
-                        handleRevokeKey().then(() => handleGenerateKey())
-                      }}
-                      disabled={revoking || generating}
-                    >
-                      {(revoking || generating) ? (
-                        <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-                      ) : (
-                        <RefreshCw className="w-4 h-4 mr-1.5" />
-                      )}
-                      Regenerate Key
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleRevokeKey}
-                      disabled={revoking}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    >
-                      {revoking ? (
-                        <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-                      ) : (
-                        <Trash2 className="w-4 h-4 mr-1.5" />
-                      )}
-                      Revoke Key
-                    </Button>
+                  <div className="space-y-0.5">
+                    {section.items.map((item) => {
+                      const Icon = item.icon
+                      const isLink = 'href' in item && item.href
+                      const isActive = !isLink && activeSection === item.id
+
+                      if (isLink) {
+                        return (
+                          <Link
+                            key={item.id}
+                            href={(item as any).href}
+                            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors group"
+                          >
+                            <Icon className={`w-4 h-4 ${item.color}`} />
+                            <span className="flex-1">{item.label}</span>
+                            <ChevronRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-400" />
+                          </Link>
+                        )
+                      }
+
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => setActiveSection(item.id)}
+                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                            isActive
+                              ? 'bg-white text-gray-900 shadow-sm border border-gray-200/60 font-medium'
+                              : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                          }`}
+                        >
+                          <Icon className={`w-4 h-4 ${isActive ? item.color : 'text-gray-400'}`} />
+                          <span>{item.label}</span>
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
+              ))}
+            </nav>
+          </div>
+
+          {/* Main Content Area */}
+          <div className="flex-1 min-w-0">
+            {activeSection === 'timer' && <TimerSection />}
+            {activeSection === 'clipper' && (
+              <ClipperSection
+                downloading={downloading}
+                downloadSuccess={downloadSuccess}
+                error={error}
+                handleDownload={handleDownload}
+              />
+            )}
+            {activeSection === 'api-key' && (
+              <ApiKeySection
+                keyLoading={keyLoading}
+                hasKey={hasKey}
+                maskedKey={maskedKey}
+                keyCreatedAt={keyCreatedAt}
+                fullKey={fullKey}
+                generating={generating}
+                revoking={revoking}
+                copied={copied}
+                keyError={keyError}
+                handleGenerateKey={handleGenerateKey}
+                handleRevokeKey={handleRevokeKey}
+                handleCopyKey={handleCopyKey}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// SECTION: Desktop Timer
+// ═══════════════════════════════════════════════════════════════
+
+function TimerSection() {
+  return (
+    <div className="space-y-6">
+      {/* Hero Header */}
+      <div className="bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 rounded-2xl p-8 text-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-40 h-40 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+        <div className="relative">
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                  <Timer className="w-5 h-5" />
+                </div>
+                <span className="text-sm font-medium text-emerald-100 bg-white/10 px-2.5 py-0.5 rounded-full">
+                  v{TIMER_VERSION}
+                </span>
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Desktop Time Tracker</h2>
+              <p className="text-emerald-100 max-w-md leading-relaxed">
+                A lightweight floating timer that sits on your desktop. Start, stop, and switch project timers with one click.
+              </p>
+            </div>
+            <a href="/downloads/StudioFlow-Timer-Setup.exe" download className="flex-shrink-0">
+              <Button className="bg-white text-emerald-700 hover:bg-emerald-50 shadow-lg shadow-emerald-900/20 font-semibold h-11 px-6">
+                <Download className="w-4 h-4 mr-2" />
+                Download v{TIMER_VERSION}
+              </Button>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Setup Steps */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <Zap className="w-4 h-4 text-amber-500" />
+          Quick Setup
+        </h3>
+        <div className="grid grid-cols-3 gap-4">
+          {[
+            { step: '1', title: 'Install', desc: 'Run the .exe installer. It creates a desktop shortcut automatically.', icon: Package },
+            { step: '2', title: 'Connect', desc: 'Paste your Extension API Key on first launch.', icon: KeyRound },
+            { step: '3', title: 'Track', desc: 'Click any project to start a timer. Entries sync to your Timeline.', icon: Clock },
+          ].map((s) => (
+            <div key={s.step} className="relative">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600 font-bold text-sm flex-shrink-0">
+                  {s.step}
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900 text-sm">{s.title}</p>
+                  <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{s.desc}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Features Grid */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h3 className="font-semibold text-gray-900 mb-4">Features</h3>
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { icon: Laptop, label: 'Always-on-top floating window', color: 'text-blue-500' },
+            { icon: MousePointerClick, label: 'One-click project switching', color: 'text-violet-500' },
+            { icon: Clock, label: 'Start / Stop / Pause timers', color: 'text-emerald-500' },
+            { icon: Zap, label: 'Auto-stop on project switch', color: 'text-amber-500' },
+            { icon: Eye, label: 'Minimize to system tray', color: 'text-pink-500' },
+            { icon: Globe, label: 'Syncs live with your Timeline', color: 'text-teal-500' },
+          ].map((f) => (
+            <div key={f.label} className="flex items-center gap-2.5 text-sm text-gray-700 py-1.5">
+              <f.icon className={`w-4 h-4 ${f.color} flex-shrink-0`} />
+              {f.label}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Info Bar */}
+      <div className="bg-emerald-50 rounded-xl border border-emerald-100 p-4 flex items-start gap-3">
+        <Info className="w-5 h-5 text-emerald-600 mt-0.5 flex-shrink-0" />
+        <div>
+          <p className="font-medium text-emerald-900 text-sm">Per-member tracking</p>
+          <p className="text-sm text-emerald-700 mt-0.5">
+            Each team member generates their own API Key (from the API Key section), pastes it into the timer once, and all their hours are tracked under their profile.
+          </p>
+        </div>
+      </div>
+
+      {/* Version History */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <Package className="w-4 h-4 text-gray-400" />
+          Version History
+        </h3>
+        <div className="space-y-4">
+          <div className="flex gap-4">
+            <div className="flex flex-col items-center">
+              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-50" />
+              <div className="w-px flex-1 bg-gray-200 mt-1" />
+            </div>
+            <div className="pb-4">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-medium text-gray-900 text-sm">v1.1.0</span>
+                <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full font-medium">Latest</span>
+              </div>
+              <ul className="text-xs text-gray-500 space-y-0.5 list-disc list-inside">
+                <li>Fixed close button (X) not quitting the app</li>
+                <li>Fixed Connect button not working with valid API keys</li>
+                <li>New branded SF icon (replaced purple circle)</li>
+                <li>User profile bar shows logged-in member name &amp; email</li>
+                <li>Performance: parallel API calls, faster transitions</li>
+              </ul>
+            </div>
+          </div>
+          <div className="flex gap-4">
+            <div className="flex flex-col items-center">
+              <div className="w-2.5 h-2.5 rounded-full bg-gray-300 ring-4 ring-gray-50" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-medium text-gray-900 text-sm">v1.0.0</span>
+                <span className="text-xs text-gray-500">Initial Release</span>
+              </div>
+              <ul className="text-xs text-gray-500 space-y-0.5 list-disc list-inside">
+                <li>Desktop timer with project list</li>
+                <li>Start, stop, pause functionality</li>
+                <li>System tray support</li>
+                <li>Windows installer (.exe)</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// SECTION: FFE Clipper Extension
+// ═══════════════════════════════════════════════════════════════
+
+function ClipperSection({
+  downloading,
+  downloadSuccess,
+  error,
+  handleDownload,
+}: {
+  downloading: boolean
+  downloadSuccess: boolean
+  error: string | null
+  handleDownload: () => void
+}) {
+  return (
+    <div className="space-y-6">
+      {/* Hero Header */}
+      <div className="bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-700 rounded-2xl p-8 text-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-40 h-40 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+        <div className="relative">
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                  <Chrome className="w-5 h-5" />
+                </div>
+                <span className="text-sm font-medium text-blue-100 bg-white/10 px-2.5 py-0.5 rounded-full">
+                  v{CLIPPER_VERSION}
+                </span>
+              </div>
+              <h2 className="text-2xl font-bold mb-2">FFE Clipper Extension</h2>
+              <p className="text-blue-100 max-w-md leading-relaxed">
+                Clip products from any website directly to your FFE schedules. Works with Chrome, Edge, and Brave.
+              </p>
+            </div>
+            <Button
+              onClick={handleDownload}
+              disabled={downloading}
+              className="bg-white text-blue-700 hover:bg-blue-50 shadow-lg shadow-blue-900/20 font-semibold h-11 px-6 flex-shrink-0"
+            >
+              {downloading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Downloading...
+                </>
               ) : (
-                /* No key — show generate button */
-                <div className="space-y-3">
-                  <p className="text-sm text-gray-600">
-                    You don&apos;t have an API key yet. Generate one to use with the Gmail Add-on or other integrations.
-                  </p>
-                  <Button
-                    onClick={handleGenerateKey}
-                    disabled={generating}
-                    className="bg-purple-600 hover:bg-purple-700"
-                  >
-                    {generating ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Generating...
-                      </>
-                    ) : (
-                      <>
-                        <KeyRound className="w-4 h-4 mr-2" />
-                        Generate API Key
-                      </>
-                    )}
-                  </Button>
-                </div>
+                <>
+                  <Download className="w-4 h-4 mr-2" />
+                  Download v{CLIPPER_VERSION}
+                </>
               )}
-
-              {keyError && (
-                <div className="flex items-center gap-2 text-red-600 text-sm">
-                  <span>⚠️</span>
-                  {keyError}
-                </div>
-              )}
+            </Button>
+          </div>
+          {downloadSuccess && (
+            <div className="mt-4 flex items-center gap-2 text-emerald-200 text-sm bg-white/10 rounded-lg px-3 py-2 w-fit">
+              <CheckCircle className="w-4 h-4" />
+              Download started! Check your downloads folder.
             </div>
-          </CardContent>
-        </Card>
+          )}
+          {error && (
+            <div className="mt-4 flex items-center gap-2 text-red-200 text-sm bg-white/10 rounded-lg px-3 py-2 w-fit">
+              <AlertTriangle className="w-4 h-4" />
+              {error}
+            </div>
+          )}
+        </div>
+      </div>
 
-        {/* Desktop Timer Section */}
-        <Card className="mb-6">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                <Timer className="w-6 h-6 text-green-600" />
+      {/* Installation Steps */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <Wrench className="w-4 h-4 text-gray-400" />
+          Installation Steps
+        </h3>
+        <div className="space-y-4">
+          {[
+            { step: '1', title: 'Extract the ZIP', desc: <>Unzip to a folder like <code className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded text-xs">C:\Extensions\meisner-ffe-clipper</code></> },
+            { step: '2', title: 'Open Chrome Extensions', desc: <>Go to <code className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded text-xs">chrome://extensions</code> and turn on <strong>Developer mode</strong></> },
+            { step: '3', title: 'Load Unpacked', desc: <>Click <strong>Load unpacked</strong> and select the extracted folder</> },
+            { step: '4', title: 'Done!', desc: <>Click the extension icon and log in with your StudioFlow account</> },
+          ].map((s) => (
+            <div key={s.step} className="flex items-start gap-3">
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${
+                s.step === '4' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'
+              }`}>
+                {s.step === '4' ? <CheckCircle className="w-4 h-4" /> : s.step}
               </div>
               <div>
-                <CardTitle>Desktop Time Tracker</CardTitle>
-                <CardDescription>
-                  A lightweight floating timer for your desktop — start, stop, and switch project timers with one click so you never forget to log hours.
-                </CardDescription>
+                <p className="font-medium text-gray-900 text-sm">{s.title}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{s.desc}</p>
               </div>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              {/* Download Section */}
-              <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h3 className="font-semibold text-gray-900 mb-1">Download Installer</h3>
-                    <p className="text-sm text-gray-600 mb-1">
-                      Version 1.0.0 • Windows
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      One-click installer — no setup required
-                    </p>
-                  </div>
-                  <a href="/downloads/StudioFlow-Timer-Setup.exe" download>
-                    <Button className="bg-green-600 hover:bg-green-700">
-                      <Download className="w-4 h-4 mr-2" />
-                      Download .exe
-                    </Button>
-                  </a>
-                </div>
-              </div>
+          ))}
+        </div>
+      </div>
 
-              {/* Installation Instructions */}
-              <div>
-                <h4 className="font-medium text-gray-900 mb-3">Setup Instructions</h4>
-                <ol className="space-y-3">
-                  <li className="flex items-start gap-3">
-                    <span className="flex-shrink-0 w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-medium">1</span>
-                    <div>
-                      <p className="font-medium text-gray-900">Run the installer</p>
-                      <p className="text-sm text-gray-500">
-                        Double-click <strong>StudioFlow-Timer-Setup.exe</strong> — it installs automatically and creates a desktop shortcut.
-                      </p>
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="flex-shrink-0 w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-medium">2</span>
-                    <div>
-                      <p className="font-medium text-gray-900">Paste your API Key</p>
-                      <p className="text-sm text-gray-500">
-                        On first launch, paste your <strong>Extension API Key</strong> (from the section above). The timer connects to StudioFlow automatically.
-                      </p>
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="flex-shrink-0 w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-medium">✓</span>
-                    <div>
-                      <p className="font-medium text-gray-900">Start tracking!</p>
-                      <p className="text-sm text-gray-500">
-                        Click any project to start a timer. Click another project to auto-switch. All entries appear in your Timeline.
-                      </p>
-                    </div>
-                  </li>
-                </ol>
-              </div>
+      {/* Features Grid */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h3 className="font-semibold text-gray-900 mb-4">Features</h3>
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { icon: Zap, label: 'AI-powered smart fill', color: 'text-amber-500' },
+            { icon: MousePointerClick, label: 'Right-click image clipping', color: 'text-violet-500' },
+            { icon: Puzzle, label: 'Link to FFE items', color: 'text-blue-500' },
+            { icon: FolderOpen, label: 'Multi-room product linking', color: 'text-emerald-500' },
+            { icon: FileSpreadsheet, label: 'PDF attachment detection', color: 'text-rose-500' },
+            { icon: Globe, label: 'Supplier integration', color: 'text-teal-500' },
+          ].map((f) => (
+            <div key={f.label} className="flex items-center gap-2.5 text-sm text-gray-700 py-1.5">
+              <f.icon className={`w-4 h-4 ${f.color} flex-shrink-0`} />
+              {f.label}
+            </div>
+          ))}
+        </div>
+      </div>
 
-              {/* Features */}
-              <div>
-                <h4 className="font-medium text-gray-900 mb-3">Features</h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <CheckCircle className="w-4 h-4 text-green-500" />
-                    Always-on-top floating window
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <CheckCircle className="w-4 h-4 text-green-500" />
-                    One-click project switching
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <CheckCircle className="w-4 h-4 text-green-500" />
-                    Start / Stop / Pause timers
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <CheckCircle className="w-4 h-4 text-green-500" />
-                    Auto-stop on project switch
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <CheckCircle className="w-4 h-4 text-green-500" />
-                    Minimize to system tray
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <CheckCircle className="w-4 h-4 text-green-500" />
-                    Syncs live with Timeline
-                  </div>
-                </div>
-              </div>
+      {/* Update Note */}
+      <div className="bg-amber-50 rounded-xl border border-amber-100 p-4 flex items-start gap-3">
+        <RefreshCw className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+        <div>
+          <p className="font-medium text-amber-900 text-sm">Updating the Extension</p>
+          <p className="text-sm text-amber-700 mt-0.5">
+            Download the new ZIP, extract it over your existing folder, then go to <code className="bg-amber-100 px-1 py-0.5 rounded text-xs">chrome://extensions</code> and click the refresh icon.
+          </p>
+        </div>
+      </div>
 
-              {/* Tip */}
-              <div className="bg-green-50 rounded-xl p-4 border border-green-100">
-                <div className="flex items-start gap-3">
-                  <Monitor className="w-5 h-5 text-green-600 mt-0.5" />
-                  <div>
-                    <h4 className="font-medium text-green-900">Quick Tip</h4>
-                    <p className="text-sm text-green-700 mt-1">
-                      Each team member needs their own Extension API Key. Generate one above, then paste it into the desktop timer on first launch. The key is saved locally — you only need to enter it once per computer.
-                    </p>
-                  </div>
-                </div>
+      {/* Version History */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <Package className="w-4 h-4 text-gray-400" />
+          Version History
+        </h3>
+        <div className="space-y-4">
+          <div className="flex gap-4">
+            <div className="flex flex-col items-center">
+              <div className="w-2.5 h-2.5 rounded-full bg-blue-500 ring-4 ring-blue-50" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-medium text-gray-900 text-sm">v{CLIPPER_VERSION}</span>
+                <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full font-medium">Latest</span>
+              </div>
+              <ul className="text-xs text-gray-500 space-y-0.5 list-disc list-inside">
+                <li>AI-powered smart fill for FFE items</li>
+                <li>Right-click image clipping</li>
+                <li>PDF attachment detection</li>
+                <li>Multi-room product linking</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// SECTION: API Key Management
+// ═══════════════════════════════════════════════════════════════
+
+function ApiKeySection({
+  keyLoading, hasKey, maskedKey, keyCreatedAt, fullKey,
+  generating, revoking, copied, keyError,
+  handleGenerateKey, handleRevokeKey, handleCopyKey,
+}: {
+  keyLoading: boolean
+  hasKey: boolean
+  maskedKey: string | null
+  keyCreatedAt: string | null
+  fullKey: string | null
+  generating: boolean
+  revoking: boolean
+  copied: boolean
+  keyError: string | null
+  handleGenerateKey: () => void
+  handleRevokeKey: () => void
+  handleCopyKey: () => void
+}) {
+  return (
+    <div className="space-y-6">
+      {/* Hero Header */}
+      <div className="bg-gradient-to-br from-violet-500 via-violet-600 to-purple-700 rounded-2xl p-8 text-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+        <div className="relative">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+              <KeyRound className="w-5 h-5" />
+            </div>
+          </div>
+          <h2 className="text-2xl font-bold mb-2">Extension API Key</h2>
+          <p className="text-violet-100 max-w-lg leading-relaxed">
+            Your personal API key connects the Desktop Timer, Chrome Extension, and Gmail Add-on to your StudioFlow account. Each team member needs their own key.
+          </p>
+        </div>
+      </div>
+
+      {/* Key Management Card */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <Shield className="w-4 h-4 text-violet-500" />
+          Your API Key
+        </h3>
+
+        {keyLoading ? (
+          <div className="flex items-center gap-2 text-sm text-gray-500 py-6 justify-center">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Checking key status...
+          </div>
+        ) : fullKey ? (
+          /* Just generated — show the full key */
+          <div className="space-y-4">
+            <div className="bg-violet-50 rounded-xl p-4 border border-violet-200">
+              <div className="flex items-center justify-between gap-3">
+                <code className="text-sm font-mono text-violet-900 break-all flex-1 select-all">
+                  {fullKey}
+                </code>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCopyKey}
+                  className="shrink-0"
+                >
+                  {copied ? (
+                    <>
+                      <CheckCircle className="w-4 h-4 mr-1.5 text-emerald-600" />
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4 mr-1.5" />
+                      Copy
+                    </>
+                  )}
+                </Button>
               </div>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Other Settings Links */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">More Settings</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-3">
-              <Link href="/settings/business" className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 border transition-colors">
-                <div className="flex items-center gap-3">
-                  <Building2 className="w-5 h-5 text-gray-400" />
-                  <div>
-                    <p className="font-medium text-gray-900">Business Profile</p>
-                    <p className="text-sm text-gray-500">Logo, tax numbers, and invoice settings</p>
-                  </div>
-                </div>
-                <ExternalLink className="w-4 h-4 text-gray-400" />
-              </Link>
-              <Link href="/settings/payment-methods" className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 border transition-colors">
-                <div className="flex items-center gap-3">
-                  <CreditCard className="w-5 h-5 text-gray-400" />
-                  <div>
-                    <p className="font-medium text-gray-900">Payment Methods</p>
-                    <p className="text-sm text-gray-500">Saved credit cards for supplier payments</p>
-                  </div>
-                </div>
-                <ExternalLink className="w-4 h-4 text-gray-400" />
-              </Link>
-              <Link href="/settings/item-library" className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 border transition-colors">
-                <div className="flex items-center gap-3">
-                  <FolderOpen className="w-5 h-5 text-gray-400" />
-                  <div>
-                    <p className="font-medium text-gray-900">Item Library</p>
-                    <p className="text-sm text-gray-500">Manage your product library</p>
-                  </div>
-                </div>
-                <ExternalLink className="w-4 h-4 text-gray-400" />
-              </Link>
-              <Link href="/settings/programa-import" className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 border transition-colors">
-                <div className="flex items-center gap-3">
-                  <FileSpreadsheet className="w-5 h-5 text-gray-400" />
-                  <div>
-                    <p className="font-medium text-gray-900">Programa Import</p>
-                    <p className="text-sm text-gray-500">Import items from Excel and link to FFE</p>
-                  </div>
-                </div>
-                <ExternalLink className="w-4 h-4 text-gray-400" />
-              </Link>
-              <Link href="/preferences" className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 border transition-colors">
-                <div className="flex items-center gap-3">
-                  <Settings className="w-5 h-5 text-gray-400" />
-                  <div>
-                    <p className="font-medium text-gray-900">Preferences</p>
-                    <p className="text-sm text-gray-500">Notification and display settings</p>
-                  </div>
-                </div>
-                <ExternalLink className="w-4 h-4 text-gray-400" />
-              </Link>
+            <div className="flex items-start gap-2.5 bg-amber-50 rounded-xl p-4 border border-amber-200">
+              <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+              <p className="text-sm text-amber-800">
+                <strong>Save this key now</strong> — you won&apos;t see it again after leaving this page. Paste it into the Desktop Timer, Gmail Add-on, or Chrome Extension.
+              </p>
             </div>
-          </CardContent>
-        </Card>
+            <div className="flex items-center justify-end">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleRevokeKey}
+                disabled={revoking}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                {revoking ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Trash2 className="w-4 h-4 mr-1.5" />}
+                Revoke Key
+              </Button>
+            </div>
+          </div>
+        ) : hasKey ? (
+          /* Has existing key — show masked */
+          <div className="space-y-4">
+            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <code className="text-sm font-mono text-gray-600">
+                    {maskedKey}
+                  </code>
+                  {keyCreatedAt && (
+                    <p className="text-xs text-gray-400 mt-1">
+                      Created {new Date(keyCreatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </p>
+                  )}
+                </div>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-medium border border-emerald-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  Active
+                </span>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500">
+              The full key is only shown once when first generated. To get a new one, revoke this key and generate a new one.
+            </p>
+            <div className="flex items-center justify-between">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  handleRevokeKey()
+                  setTimeout(() => handleGenerateKey(), 500)
+                }}
+                disabled={revoking || generating}
+              >
+                {(revoking || generating) ? (
+                  <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4 mr-1.5" />
+                )}
+                Regenerate Key
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleRevokeKey}
+                disabled={revoking}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                {revoking ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Trash2 className="w-4 h-4 mr-1.5" />}
+                Revoke
+              </Button>
+            </div>
+          </div>
+        ) : (
+          /* No key — generate */
+          <div className="space-y-4">
+            <div className="text-center py-6">
+              <div className="w-14 h-14 mx-auto mb-3 bg-violet-50 rounded-2xl flex items-center justify-center">
+                <KeyRound className="w-7 h-7 text-violet-400" />
+              </div>
+              <p className="text-sm text-gray-600 mb-4">
+                No API key yet. Generate one to connect external tools to your account.
+              </p>
+              <Button
+                onClick={handleGenerateKey}
+                disabled={generating}
+                className="bg-violet-600 hover:bg-violet-700"
+              >
+                {generating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <KeyRound className="w-4 h-4 mr-2" />
+                    Generate API Key
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {keyError && (
+          <div className="flex items-center gap-2 text-red-600 text-sm mt-4 bg-red-50 rounded-lg p-3 border border-red-100">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            {keyError}
+          </div>
+        )}
+      </div>
+
+      {/* What uses your API key */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h3 className="font-semibold text-gray-900 mb-4">Where is it used?</h3>
+        <div className="grid grid-cols-3 gap-4">
+          {[
+            { icon: Timer, label: 'Desktop Timer', desc: 'Track hours from your desktop', color: 'text-emerald-500', bg: 'bg-emerald-50' },
+            { icon: Chrome, label: 'FFE Clipper', desc: 'Clip products from websites', color: 'text-blue-500', bg: 'bg-blue-50' },
+            { icon: Mail, label: 'Gmail Add-on', desc: 'Match emails to projects', color: 'text-red-500', bg: 'bg-red-50' },
+          ].map((t) => (
+            <div key={t.label} className="p-4 rounded-xl border border-gray-100 bg-gray-50/50">
+              <div className={`w-9 h-9 ${t.bg} rounded-lg flex items-center justify-center mb-2`}>
+                <t.icon className={`w-4 h-4 ${t.color}`} />
+              </div>
+              <p className="font-medium text-gray-900 text-sm">{t.label}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{t.desc}</p>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )
