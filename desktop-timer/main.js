@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, screen } = require('electron');
 const nodePath = require('path');
 const https = require('https');
 const Store = require('electron-store');
@@ -6,13 +6,19 @@ const Store = require('electron-store');
 const store = new Store();
 
 let mainWindow = null;
+let miniBar = null;
 let tray = null;
 let isQuitting = false;
 
 function createWindow() {
+  const display = screen.getPrimaryDisplay();
+  const { width: screenW, height: screenH } = display.workAreaSize;
+
   mainWindow = new BrowserWindow({
     width: 300,
-    height: 420,
+    height: 380,
+    x: screenW - 310,
+    y: screenH - 390,
     resizable: false,
     alwaysOnTop: true,
     frame: false,
@@ -28,7 +34,6 @@ function createWindow() {
 
   mainWindow.loadFile('index.html');
 
-  // Open DevTools in development (not in packaged app)
   if (!app.isPackaged) {
     mainWindow.webContents.openDevTools({ mode: 'detach' });
   }
@@ -47,6 +52,55 @@ function createWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+
+  // When minimized, show mini bar if timer is running
+  mainWindow.on('minimize', () => {
+    mainWindow.webContents.send('check-timer-for-minibar');
+  });
+}
+
+// =============================================
+// Mini Bar — small overlay at bottom-right
+// =============================================
+
+function createMiniBar(timerText) {
+  if (miniBar && !miniBar.isDestroyed()) {
+    miniBar.webContents.send('update-timer', timerText);
+    return;
+  }
+
+  const display = screen.getPrimaryDisplay();
+  const { width: screenW, height: screenH } = display.workAreaSize;
+
+  miniBar = new BrowserWindow({
+    width: 220,
+    height: 36,
+    x: screenW - 230,
+    y: screenH - 46,
+    resizable: false,
+    alwaysOnTop: true,
+    frame: false,
+    transparent: true,
+    skipTaskbar: true,
+    focusable: false,
+    webPreferences: {
+      preload: nodePath.join(__dirname, 'preload-mini.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  miniBar.loadFile('minibar.html');
+  miniBar.setIgnoreMouseEvents(false);
+
+  miniBar.on('closed', () => { miniBar = null; });
+}
+
+function closeMiniBar() {
+  if (miniBar && !miniBar.isDestroyed()) {
+    miniBar.close();
+    miniBar = null;
+  }
 }
 
 function createTray() {
@@ -106,13 +160,37 @@ ipcMain.on('window:minimize', () => {
 
 ipcMain.on('window:close', () => {
   isQuitting = true;
+  closeMiniBar();
   if (mainWindow) mainWindow.destroy();
   app.quit();
 });
 
-// Update taskbar window title (shows timer in taskbar)
 ipcMain.on('window:title', (_, title) => {
   if (mainWindow) mainWindow.setTitle(title);
+});
+
+// Mini bar controls
+ipcMain.on('minibar:show', (_, timerText) => {
+  createMiniBar(timerText);
+});
+
+ipcMain.on('minibar:update', (_, timerText) => {
+  if (miniBar && !miniBar.isDestroyed()) {
+    miniBar.webContents.send('update-timer', timerText);
+  }
+});
+
+ipcMain.on('minibar:hide', () => {
+  closeMiniBar();
+});
+
+ipcMain.on('minibar:restore', () => {
+  closeMiniBar();
+  if (mainWindow) {
+    mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  }
 });
 
 ipcMain.handle('store:get', (_, key) => store.get(key));
@@ -126,7 +204,6 @@ ipcMain.handle('api:request', async (_, args) => {
     const url = `${baseUrl || ''}${urlPath || ''}`;
     const headers = { 'Content-Type': 'application/json' };
 
-    // Bearer token takes priority (login-based auth)
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     } else if (apiKey) {
@@ -143,8 +220,6 @@ ipcMain.handle('api:request', async (_, args) => {
         path: parsed.pathname + parsed.search,
         method: method || 'GET',
         headers,
-        // Skip strict SSL chain validation — Vercel's cert chain
-        // is incomplete on some Windows machines
         rejectUnauthorized: false,
       };
 

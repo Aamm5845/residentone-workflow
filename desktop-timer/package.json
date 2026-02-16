@@ -1,6 +1,6 @@
 {
   "name": "studioflow-timer",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Lightweight floating time tracker for StudioFlow",
   "author": "Meisner Interiors",
   "main": "main.js",
@@ -39,7 +39,9 @@
     "files": [
       "main.js",
       "preload.js",
+      "preload-mini.js",
       "index.html",
+      "minibar.html",
       "renderer.js",
       "styles.css",
       "icon.ico",

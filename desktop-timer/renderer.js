@@ -1,5 +1,5 @@
 // =============================================
-// StudioFlow Desktop Timer v2.1.0 — Renderer
+// StudioFlow Desktop Timer v2.2.0 — Renderer
 // =============================================
 
 const eAPI = window.electronAPI
@@ -14,6 +14,7 @@ let projects = []
 let activeTimer = null
 let timerInterval = null
 let isPaused = false
+let isMinimized = false
 let projectOrder = [] // stored order of project IDs by last used
 
 // =============================================
@@ -358,6 +359,7 @@ function hideTimerPanel() {
   stopTickingDisplay()
   timerDisplay.textContent = '00:00:00'
   eAPI.setTitle('SF Timer')
+  eAPI.hideMiniBar()
 }
 
 function startTickingDisplay() {
@@ -383,10 +385,16 @@ function updateTimerDisplay() {
   }
   let elapsedMs = totalMs - pauseMs
   if (elapsedMs < 0) elapsedMs = 0
-  timerDisplay.textContent = formatTime(Math.floor(elapsedMs / 1000))
+  const secs = Math.floor(elapsedMs / 1000)
+  timerDisplay.textContent = formatTime(secs)
 
   // Update taskbar title with timer
   updateTaskbarTitle()
+
+  // Update minibar if minimized
+  if (isMinimized && activeTimer && !isPaused) {
+    eAPI.updateMiniBar(getMiniBarText())
+  }
 }
 
 // =============================================
@@ -401,11 +409,10 @@ async function startTimer(projectId) {
   // Bump this project to top of recently used
   bumpProject(projectId)
 
-  // Stop existing timer if any
-  if (activeTimer) {
-    try { await api('PATCH', `/api/timeline/entries/${activeTimer.id}`, { action: 'stop' }) } catch {}
-    activeTimer = null
-    isPaused = false
+  // Stop existing timer in background (don't await)
+  const oldTimerId = activeTimer ? activeTimer.id : null
+  if (oldTimerId) {
+    api('PATCH', `/api/timeline/entries/${oldTimerId}`, { action: 'stop' }).catch(() => {})
   }
 
   // Start timer UI immediately — don't wait for API
@@ -423,17 +430,12 @@ async function startTimer(projectId) {
   renderProjectList()
 
   // Fire API call in background to create real entry
-  try {
-    const res = await api('POST', '/api/timeline/entries', { projectId, isManual: false })
+  api('POST', '/api/timeline/entries', { projectId, isManual: false }).then(res => {
     if (res.ok && res.data && res.data.entry) {
-      const entry = res.data.entry
-      activeTimer.id = entry.id
-      activeTimer.startedAt = new Date(entry.startTime)
+      activeTimer.id = res.data.entry.id
+      activeTimer.startedAt = new Date(res.data.entry.startTime)
     }
-  } catch (err) {
-    // Timer UI is already running — worst case the entry ID is null
-    // and stop will need a refresh
-  }
+  }).catch(() => {})
 }
 
 async function stopCurrentTimer() {
@@ -536,6 +538,36 @@ btnLogout.addEventListener('click', async () => {
   inputPassword.value = ''
   loginError.textContent = ''
   eAPI.setTitle('SF Timer')
+})
+
+// =============================================
+// Mini Bar Support
+// =============================================
+
+// When main window is minimized, main process asks us if timer is running
+eAPI.onCheckMiniBar(() => {
+  isMinimized = true
+  if (activeTimer && !isPaused) {
+    eAPI.showMiniBar(getMiniBarText())
+  }
+})
+
+function getMiniBarText() {
+  if (!activeTimer) return ''
+  const now = Date.now()
+  const totalMs = now - activeTimer.startedAt.getTime()
+  let pauseMs = activeTimer.completedPauseMs || 0
+  let elapsedMs = totalMs - pauseMs
+  if (elapsedMs < 0) elapsedMs = 0
+  const secs = Math.floor(elapsedMs / 1000)
+  const shortName = activeTimer.projectName.split('(')[0].trim()
+  return `${formatTimeShort(secs)} - ${shortName}`
+}
+
+// When window is restored/focused, hide minibar
+window.addEventListener('focus', () => {
+  isMinimized = false
+  eAPI.hideMiniBar()
 })
 
 // =============================================
