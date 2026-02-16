@@ -133,8 +133,8 @@ body {
   line-height: 1.5;
 }
 
-#input-apikey,
-#input-apiurl {
+#input-email,
+#input-password {
   width: 100%;
   padding: 10px 12px;
   background: #22223a;
@@ -146,14 +146,14 @@ body {
   transition: border-color 0.2s;
 }
 
-#input-apikey:focus,
-#input-apiurl:focus {
+#input-email:focus,
+#input-password:focus {
   border-color: #a657f0;
 }
 
-#input-apiurl {
-  font-size: 11px;
-  color: #8888aa;
+#input-email::placeholder,
+#input-password::placeholder {
+  color: #666680;
 }
 
 .error-text {

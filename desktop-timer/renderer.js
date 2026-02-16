@@ -1,5 +1,5 @@
 // =============================================
-// StudioFlow Desktop Timer — Renderer
+// StudioFlow Desktop Timer v1.3.0 — Renderer
 // Email/Password login with JWT Bearer token
 // =============================================
 
@@ -8,9 +8,9 @@ const { electronAPI } = window
 // =============================================
 // State
 // =============================================
-let authToken = null   // JWT Bearer token
+let authToken = null
 let apiUrl = 'https://app.meisnerinteriors.com'
-let currentUser = null // { id, name, email, role }
+let currentUser = null
 let projects = []
 let activeTimer = null
 let timerInterval = null
@@ -25,23 +25,19 @@ const screenLogin = $('screen-login')
 const screenMain = $('screen-main')
 const loading = $('loading')
 
-// Login
 const inputEmail = $('input-email')
 const inputPassword = $('input-password')
 const btnLogin = $('btn-login')
 const loginError = $('login-error')
 
-// Title bar
 const btnMinimize = $('btn-minimize')
 const btnClose = $('btn-close')
 
-// User
 const userBar = $('user-bar')
 const userName = $('user-name')
 const userEmail = $('user-email')
 const userAvatar = $('user-avatar')
 
-// Timer
 const timerPanel = $('timer-panel')
 const noTimer = $('no-timer')
 const timerDisplay = $('timer-display')
@@ -50,31 +46,15 @@ const timerLabel = $('timer-label')
 const btnPause = $('btn-pause')
 const btnStop = $('btn-stop')
 
-// Projects
 const projectList = $('project-list')
 const btnRefresh = $('btn-refresh')
 const btnLogout = $('btn-logout')
 
 // =============================================
-// Window Controls — wire immediately
+// Window Controls
 // =============================================
-if (btnMinimize) {
-  btnMinimize.addEventListener('click', () => {
-    console.log('[Timer] Minimize clicked')
-    electronAPI.minimize()
-  })
-} else {
-  console.error('[Timer] btn-minimize not found!')
-}
-
-if (btnClose) {
-  btnClose.addEventListener('click', () => {
-    console.log('[Timer] Close clicked')
-    electronAPI.close()
-  })
-} else {
-  console.error('[Timer] btn-close not found!')
-}
+btnMinimize.addEventListener('click', () => electronAPI.minimize())
+btnClose.addEventListener('click', () => electronAPI.close())
 
 // =============================================
 // Helpers
@@ -101,15 +81,8 @@ function formatTime(seconds) {
   return [h, m, s].map(v => String(v).padStart(2, '0')).join(':')
 }
 
-// All API calls go through this — automatically attaches Bearer token
 async function api(method, path, body) {
-  return electronAPI.apiRequest({
-    method,
-    path,
-    body,
-    token: authToken,
-    apiUrl,
-  })
+  return electronAPI.apiRequest({ method, path, body, token: authToken, apiUrl })
 }
 
 // =============================================
@@ -127,7 +100,6 @@ async function init() {
       currentUser = user
       await enterMainScreen()
     } else {
-      // Token expired or invalid — clear and show login
       authToken = null
       await electronAPI.store.delete('authToken')
       hideLoading()
@@ -168,7 +140,6 @@ async function loginWithCredentials(email, password) {
       return { token: res.data.token, user: res.data.user }
     }
 
-    // Return the specific error from the server
     return { error: res.data?.error || 'Login failed' }
   } catch (err) {
     return { error: 'Connection failed. Check your internet.' }
@@ -176,11 +147,8 @@ async function loginWithCredentials(email, password) {
 }
 
 btnLogin.addEventListener('click', async () => {
-  console.log('[Timer] Login button clicked')
   const email = inputEmail.value.trim().toLowerCase()
   const password = inputPassword.value
-
-  console.log('[Timer] Email:', email, 'Password length:', password ? password.length : 0)
 
   if (!email || !password) {
     loginError.textContent = 'Enter your email and password'
@@ -191,9 +159,7 @@ btnLogin.addEventListener('click', async () => {
   btnLogin.disabled = true
   btnLogin.textContent = 'Signing in...'
 
-  console.log('[Timer] Calling loginWithCredentials...')
   const result = await loginWithCredentials(email, password)
-  console.log('[Timer] Login result:', JSON.stringify(result, null, 2))
 
   if (result.token) {
     authToken = result.token
@@ -204,7 +170,6 @@ btnLogin.addEventListener('click', async () => {
     await enterMainScreen()
   } else {
     loginError.textContent = result.error || 'Invalid email or password'
-    console.log('[Timer] Login failed:', result.error)
   }
 
   btnLogin.disabled = false
@@ -247,7 +212,7 @@ async function loadProjects() {
       projects = res.data.projects
     }
   } catch (err) {
-    console.error('Failed to load projects:', err)
+    // Silently fail — project list will show empty
   }
   renderProjectList()
 }
@@ -298,7 +263,7 @@ async function checkActiveTimer() {
       hideTimerPanel()
     }
   } catch (err) {
-    console.error('Failed to check active timer:', err)
+    // Silently fail
   }
   renderProjectList()
 }
@@ -395,7 +360,7 @@ async function startTimer(projectId) {
       renderProjectList()
     }
   } catch (err) {
-    console.error('Error starting timer:', err)
+    // Failed to start
   }
 
   hideLoading()
@@ -431,7 +396,7 @@ async function pauseResumeTimer() {
       showTimerPanel()
     }
   } catch (err) {
-    console.error('Error pause/resume:', err)
+    // Failed to pause/resume
   }
 }
 

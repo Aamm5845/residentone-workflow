@@ -13,7 +13,7 @@ import {
 import Link from 'next/link'
 
 // ─── Version Constants ───────────────────────────────────────
-const TIMER_VERSION = '1.2.0'
+const TIMER_VERSION = '1.3.0'
 const CLIPPER_VERSION = '1.2.0'
 
 // ─── Sidebar Nav Items ───────────────────────────────────────
@@ -370,14 +370,28 @@ function TimerSection() {
             </div>
             <div className="pb-4">
               <div className="flex items-center gap-2 mb-1">
-                <span className="font-medium text-gray-900 text-sm">v1.2.0</span>
+                <span className="font-medium text-gray-900 text-sm">v1.3.0</span>
                 <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full font-medium">Latest</span>
               </div>
               <ul className="text-xs text-gray-500 space-y-0.5 list-disc list-inside">
-                <li>Email &amp; password login (no more API key needed!)</li>
-                <li>Sign in with the same account you use on the website</li>
-                <li>Session stays active for 7 days</li>
-                <li>Fixed close button (X) not quitting the app</li>
+                <li>Fixed login form styling (inputs were invisible)</li>
+                <li>Fixed close button (X) — now reliably quits</li>
+                <li>Cleaned up code for faster startup</li>
+              </ul>
+            </div>
+          </div>
+          <div className="flex gap-4">
+            <div className="flex flex-col items-center">
+              <div className="w-2.5 h-2.5 rounded-full bg-gray-300 ring-4 ring-gray-50" />
+              <div className="w-px flex-1 bg-gray-200 mt-1" />
+            </div>
+            <div className="pb-4">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-medium text-gray-900 text-sm">v1.2.0</span>
+              </div>
+              <ul className="text-xs text-gray-500 space-y-0.5 list-disc list-inside">
+                <li>Email &amp; password login (no more API key)</li>
+                <li>7-day session persistence</li>
               </ul>
             </div>
           </div>
