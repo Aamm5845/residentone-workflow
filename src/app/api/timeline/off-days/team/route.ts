@@ -5,7 +5,8 @@ import { prisma } from '@/lib/prisma'
 /**
  * GET /api/timeline/off-days/team
  *
- * Get all team members' off days for the organization. Admin/Owner only.
+ * Get all team members' off days for the organization.
+ * All authenticated users in the organization can view team off days.
  *
  * Query params:
  * - startDate: (optional) Start of date range
@@ -16,15 +17,6 @@ export async function GET(request: NextRequest) {
     const session = await getSession()
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Only admins/owners can view team off days
-    const isAdmin = ['OWNER', 'ADMIN'].includes(session.user.role)
-    if (!isAdmin) {
-      return NextResponse.json(
-        { error: 'Only admins can view team off days' },
-        { status: 403 }
-      )
     }
 
     const { searchParams } = new URL(request.url)

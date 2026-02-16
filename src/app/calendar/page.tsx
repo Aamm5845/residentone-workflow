@@ -24,9 +24,10 @@ export default async function CalendarPage() {
   // Fetch all projects with stages that have due dates
   let projects: any[] = []
   let tasks: any[] = []
+  let teamOffDays: any[] = []
 
   try {
-    [projects, tasks] = await Promise.all([
+    [projects, tasks, teamOffDays] = await Promise.all([
       prisma.project.findMany({
         where: {
           status: { not: 'COMPLETED' }
@@ -65,12 +66,29 @@ export default async function CalendarPage() {
           assignedTo: { select: { id: true, name: true, email: true } }
         },
         orderBy: { dueDate: 'asc' }
+      }),
+      // Fetch team off days (vacation, sick, etc.)
+      prisma.userOffDay.findMany({
+        where: {
+          user: { orgId: session.user.orgId }
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          }
+        },
+        orderBy: { date: 'asc' }
       })
     ])
   } catch (error) {
     console.error('Error fetching calendar data:', error)
     projects = []
     tasks = []
+    teamOffDays = []
   }
 
   return (
@@ -81,6 +99,14 @@ export default async function CalendarPage() {
           ...t,
           startDate: t.startDate?.toISOString() || null,
           dueDate: t.dueDate?.toISOString() || null,
+        }))}
+        teamOffDays={teamOffDays.map(od => ({
+          id: od.id,
+          userId: od.userId,
+          userName: od.user.name || 'Unknown',
+          date: od.date.toISOString().split('T')[0],
+          reason: od.reason,
+          notes: od.notes,
         }))}
         currentUser={{
           id: session.user.id,

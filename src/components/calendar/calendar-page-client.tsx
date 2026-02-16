@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { 
+import {
   Calendar,
   ChevronLeft,
   ChevronRight,
@@ -17,7 +17,8 @@ import {
   Star,
   CalendarDays,
   Filter,
-  Eye
+  Eye,
+  Umbrella
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatDate } from '@/lib/utils'
@@ -77,9 +78,19 @@ interface TaskItem {
   assignedTo?: { id: string; name: string; email: string } | null
 }
 
+interface TeamOffDay {
+  id: string
+  userId: string
+  userName: string
+  date: string
+  reason: string
+  notes?: string | null
+}
+
 interface CalendarPageClientProps {
   projects: Project[]
   tasks?: TaskItem[]
+  teamOffDays?: TeamOffDay[]
   currentUser: {
     id: string
     name: string
@@ -90,11 +101,13 @@ interface CalendarPageClientProps {
 export default function CalendarPageClient({
   projects,
   tasks: taskItems = [],
+  teamOffDays = [],
   currentUser
 }: CalendarPageClientProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [viewMode, setViewMode] = useState<'all' | 'mine'>('all')
   const [showHolidays, setShowHolidays] = useState(true)
+  const [showVacations, setShowVacations] = useState(true)
   const [selectedPhases, setSelectedPhases] = useState<string[]>(['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE', 'TASK'])
 
   // Transform projects into calendar tasks
@@ -261,6 +274,23 @@ export default function CalendarPageClient({
     return grouped
   }, [filteredTasks])
 
+  // Group team off days by date
+  const offDaysByDate = useMemo(() => {
+    if (!showVacations) return {}
+    const grouped: { [date: string]: TeamOffDay[] } = {}
+
+    teamOffDays.forEach(od => {
+      const d = new Date(od.date)
+      const dateKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+      if (!grouped[dateKey]) {
+        grouped[dateKey] = []
+      }
+      grouped[dateKey].push(od)
+    })
+
+    return grouped
+  }, [teamOffDays, showVacations])
+
   // Navigation functions
   const previousMonth = () => {
     setCurrentDate(new Date(currentYear, currentMonth - 1, 1))
@@ -299,6 +329,23 @@ export default function CalendarPageClient({
   const getHolidaysForDate = (day: number | null) => {
     if (!day || !showHolidays) return []
     return allHolidays.filter(holiday => holiday.date.getDate() === day)
+  }
+
+  const getOffDaysForDate = (day: number | null) => {
+    if (!day || !showVacations) return []
+    const dateKey = `${currentYear}-${currentMonth}-${day}`
+    return offDaysByDate[dateKey] || []
+  }
+
+  const getOffDayLabel = (reason: string) => {
+    const labels: Record<string, string> = {
+      VACATION: 'Vacation',
+      SICK: 'Sick',
+      PERSONAL: 'Personal',
+      HOLIDAY: 'Holiday',
+      OTHER: 'Off',
+    }
+    return labels[reason] || 'Off'
   }
 
   const getHolidayColor = (holiday: Holiday) => {
@@ -424,6 +471,17 @@ export default function CalendarPageClient({
               <Star className="w-4 h-4 mr-1.5" />
               Holidays
             </Button>
+
+            {/* Vacations Toggle */}
+            <Button
+              variant={showVacations ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowVacations(!showVacations)}
+              className={showVacations ? "bg-amber-500 hover:bg-amber-600" : ""}
+            >
+              <Umbrella className="w-4 h-4 mr-1.5" />
+              Vacations
+            </Button>
           </div>
 
           {/* Right: Month Navigation */}
@@ -489,11 +547,16 @@ export default function CalendarPageClient({
           {calendarDays.map((day, index) => {
             const tasksForDay = getTasksForDate(day)
             const holidaysForDay = getHolidaysForDate(day)
-            const isToday = day && new Date().getDate() === day && 
-                          new Date().getMonth() === currentMonth && 
+            const offDaysForDay = getOffDaysForDate(day)
+            const isToday = day && new Date().getDate() === day &&
+                          new Date().getMonth() === currentMonth &&
                           new Date().getFullYear() === currentYear
             const isWeekend = index % 7 === 0 || index % 7 === 6
-            
+
+            // Calculate how many slots are taken by holidays and off days
+            const fixedSlots = holidaysForDay.length + (offDaysForDay.length > 0 ? 1 : 0)
+            const maxTaskSlots = Math.max(0, 3 - fixedSlots)
+
             return (
               <div
                 key={index}
@@ -525,20 +588,41 @@ export default function CalendarPageClient({
                           </div>
                         </div>
                       ))}
-                      
+
+                      {/* Team Off Days / Vacations */}
+                      {offDaysForDay.length > 0 && (
+                        <div
+                          className="text-[10px] p-1 rounded bg-amber-100 text-amber-800 border border-amber-200"
+                          title={offDaysForDay.map(od => `${od.userName} - ${getOffDayLabel(od.reason)}${od.notes ? `: ${od.notes}` : ''}`).join('\n')}
+                        >
+                          <div className="truncate font-medium flex items-center space-x-0.5">
+                            <Umbrella className="w-2.5 h-2.5 flex-shrink-0" />
+                            {offDaysForDay.length === 1 ? (
+                              <span>{offDaysForDay[0].userName.split(' ')[0]} - {getOffDayLabel(offDaysForDay[0].reason)}</span>
+                            ) : (
+                              <span>{offDaysForDay.length} team off</span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Tasks */}
-                      {tasksForDay.slice(0, showHolidays && holidaysForDay.length > 0 ? 2 : 3).map((task) => {
+                      {tasksForDay.slice(0, maxTaskSlots).map((task) => {
                         // Build the correct link
                         let taskLink = `/stages/${task.id}`
                         if (task.id.includes('-room-start') || task.id.includes('-room-due')) {
                           taskLink = '#'
+                        } else if (task.type === 'task') {
+                          // Task items have IDs like "task-{actualId}-start" or "task-{actualId}-due"
+                          const actualId = task.id.replace(/^task-/, '').replace(/-(start|due)$/, '')
+                          taskLink = `/tasks/${actualId}`
                         } else if (task.id.includes('-start')) {
                           const stageId = task.id.replace('-start', '')
                           taskLink = `/stages/${stageId}`
                         }
-                        
+
                         const PhaseIcon = getPhaseIcon(task.stageType)
-                        
+
                         return (
                           <Link key={task.id} href={taskLink}>
                             <div
@@ -556,12 +640,12 @@ export default function CalendarPageClient({
                           </Link>
                         )
                       })}
-                      
+
                       {/* Show more indicator */}
-                      {tasksForDay.length > (showHolidays && holidaysForDay.length > 0 ? 2 : 3) && (
+                      {tasksForDay.length > maxTaskSlots && (
                         <div className="text-[10px] text-gray-500 p-0.5 flex items-center">
                           <Eye className="w-2.5 h-2.5 mr-0.5" />
-                          +{tasksForDay.length - (showHolidays && holidaysForDay.length > 0 ? 2 : 3)} more
+                          +{tasksForDay.length - maxTaskSlots} more
                         </div>
                       )}
                     </div>
