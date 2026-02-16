@@ -475,22 +475,18 @@ export default function SettingsPage() {
               <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h3 className="font-semibold text-gray-900 mb-1">Download Desktop Timer</h3>
+                    <h3 className="font-semibold text-gray-900 mb-1">Download Installer</h3>
                     <p className="text-sm text-gray-600 mb-1">
-                      Version 1.0.0 • Windows, Mac, Linux
+                      Version 1.0.0 • Windows
                     </p>
                     <p className="text-xs text-gray-500">
-                      Requires <a href="https://nodejs.org" target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline">Node.js</a> (LTS) installed on the computer
+                      One-click installer — no setup required
                     </p>
                   </div>
-                  <a
-                    href="https://github.com/Aamm5845/residentone-workflow/archive/refs/heads/main.zip"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
+                  <a href="/downloads/StudioFlow-Timer-Setup.exe" download>
                     <Button className="bg-green-600 hover:bg-green-700">
                       <Download className="w-4 h-4 mr-2" />
-                      Download ZIP
+                      Download .exe
                     </Button>
                   </a>
                 </div>
@@ -503,38 +499,16 @@ export default function SettingsPage() {
                   <li className="flex items-start gap-3">
                     <span className="flex-shrink-0 w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-medium">1</span>
                     <div>
-                      <p className="font-medium text-gray-900">Install Node.js</p>
+                      <p className="font-medium text-gray-900">Run the installer</p>
                       <p className="text-sm text-gray-500">
-                        Download and install from <a href="https://nodejs.org" target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline">nodejs.org</a> (LTS version). Skip if already installed.
+                        Double-click <strong>StudioFlow-Timer-Setup.exe</strong> — it installs automatically and creates a desktop shortcut.
                       </p>
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="flex-shrink-0 w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-medium">2</span>
                     <div>
-                      <p className="font-medium text-gray-900">Extract the ZIP</p>
-                      <p className="text-sm text-gray-500">
-                        Extract the downloaded ZIP. Navigate into the <code className="bg-gray-100 px-1.5 py-0.5 rounded">desktop-timer</code> folder.
-                      </p>
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="flex-shrink-0 w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-medium">3</span>
-                    <div>
-                      <p className="font-medium text-gray-900">Install &amp; Run</p>
-                      <p className="text-sm text-gray-500">
-                        Open a terminal in the <code className="bg-gray-100 px-1.5 py-0.5 rounded">desktop-timer</code> folder and run:
-                      </p>
-                      <div className="mt-2 bg-gray-900 text-gray-100 rounded-lg p-3 text-sm font-mono">
-                        <div>npm install</div>
-                        <div>npm start</div>
-                      </div>
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="flex-shrink-0 w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-medium">4</span>
-                    <div>
-                      <p className="font-medium text-gray-900">Connect with your API Key</p>
+                      <p className="font-medium text-gray-900">Paste your API Key</p>
                       <p className="text-sm text-gray-500">
                         On first launch, paste your <strong>Extension API Key</strong> (from the section above). The timer connects to StudioFlow automatically.
                       </p>

@@ -2,6 +2,7 @@
   "name": "studioflow-timer",
   "version": "1.0.0",
   "description": "Lightweight floating time tracker for StudioFlow",
+  "author": "Meisner Interiors",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -12,9 +13,22 @@
   "build": {
     "appId": "com.studioflow.timer",
     "productName": "StudioFlow Timer",
+    "directories": {
+      "output": "dist"
+    },
     "win": {
       "target": "nsis",
-      "icon": "icon.png"
+      "icon": "icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "StudioFlow Timer",
+      "installerIcon": "icon.ico",
+      "uninstallerIcon": "icon.ico"
     },
     "mac": {
       "target": "dmg",
@@ -26,8 +40,13 @@
       "index.html",
       "renderer.js",
       "styles.css",
-      "icon.png"
-    ]
+      "icon.ico",
+      "icon.png",
+      "node_modules/**/*"
+    ],
+    "extraMetadata": {
+      "main": "main.js"
+    }
   },
   "devDependencies": {
     "electron": "^33.0.0",
