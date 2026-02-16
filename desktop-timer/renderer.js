@@ -39,15 +39,16 @@ function dbgErr(msg) {
 // =============================================
 dbg('Renderer starting...')
 
-let electronAPI = null
+// NOTE: "electronAPI" is already a global from contextBridge.exposeInMainWorld
+// so we must NOT redeclare it with let/const. Just use the alias "eAPI".
+const eAPI = window.electronAPI
 
-if (window.electronAPI) {
-  electronAPI = window.electronAPI
+if (eAPI) {
   dbg('electronAPI found on window')
-  dbg(`  .minimize = ${typeof electronAPI.minimize}`)
-  dbg(`  .close = ${typeof electronAPI.close}`)
-  dbg(`  .store = ${typeof electronAPI.store}`)
-  dbg(`  .apiRequest = ${typeof electronAPI.apiRequest}`)
+  dbg(`  .minimize = ${typeof eAPI.minimize}`)
+  dbg(`  .close = ${typeof eAPI.close}`)
+  dbg(`  .store = ${typeof eAPI.store}`)
+  dbg(`  .apiRequest = ${typeof eAPI.apiRequest}`)
 } else {
   dbgErr('window.electronAPI is UNDEFINED — preload.js did not load!')
 }
@@ -108,12 +109,12 @@ dbg(`DOM: screenLogin=${!!screenLogin}, screenMain=${!!screenMain}`)
 if (btnMinimize) {
   btnMinimize.addEventListener('click', () => {
     dbg('MINIMIZE button clicked')
-    if (electronAPI && electronAPI.minimize) {
-      dbg('Calling electronAPI.minimize()...')
-      electronAPI.minimize()
-      dbg('electronAPI.minimize() called')
+    if (eAPI && eAPI.minimize) {
+      dbg('Calling eAPI.minimize()...')
+      eAPI.minimize()
+      dbg('eAPI.minimize() called')
     } else {
-      dbgErr('electronAPI.minimize is not available!')
+      dbgErr('eAPI.minimize is not available!')
     }
   })
   dbg('Minimize listener attached')
@@ -124,12 +125,12 @@ if (btnMinimize) {
 if (btnClose) {
   btnClose.addEventListener('click', () => {
     dbg('CLOSE button clicked')
-    if (electronAPI && electronAPI.close) {
-      dbg('Calling electronAPI.close()...')
-      electronAPI.close()
-      dbg('electronAPI.close() called')
+    if (eAPI && eAPI.close) {
+      dbg('Calling eAPI.close()...')
+      eAPI.close()
+      dbg('eAPI.close() called')
     } else {
-      dbgErr('electronAPI.close is not available!')
+      dbgErr('eAPI.close is not available!')
     }
   })
   dbg('Close listener attached')
@@ -164,7 +165,7 @@ function formatTime(seconds) {
 }
 
 async function api(method, path, body) {
-  return electronAPI.apiRequest({ method, path, body, token: authToken, apiUrl })
+  return eAPI.apiRequest({ method, path, body, token: authToken, apiUrl })
 }
 
 // =============================================
@@ -174,15 +175,15 @@ async function api(method, path, body) {
 async function init() {
   dbg('init() called')
 
-  if (!electronAPI) {
-    dbgErr('Cannot init — electronAPI missing!')
+  if (!eAPI) {
+    dbgErr('Cannot init — eAPI missing!')
     return
   }
 
   try {
-    authToken = await electronAPI.store.get('authToken')
+    authToken = await eAPI.store.get('authToken')
     dbg(`Stored authToken: ${authToken ? 'exists (' + authToken.substring(0, 20) + '...)' : 'none'}`)
-    apiUrl = await electronAPI.store.get('apiUrl') || 'https://app.meisnerinteriors.com'
+    apiUrl = await eAPI.store.get('apiUrl') || 'https://app.meisnerinteriors.com'
     dbg(`apiUrl: ${apiUrl}`)
   } catch (err) {
     dbgErr(`store.get failed: ${err.message}`)
@@ -198,7 +199,7 @@ async function init() {
     } else {
       dbg('Token invalid — clearing')
       authToken = null
-      await electronAPI.store.delete('authToken')
+      await eAPI.store.delete('authToken')
       hideLoading()
       showScreen('login')
     }
@@ -211,7 +212,7 @@ async function init() {
 async function verifyToken() {
   dbg('verifyToken() — calling /api/auth/me')
   try {
-    const res = await electronAPI.apiRequest({
+    const res = await eAPI.apiRequest({
       method: 'GET',
       path: '/api/auth/me',
       token: authToken,
@@ -233,7 +234,7 @@ async function loginWithCredentials(email, password) {
   dbg(`loginWithCredentials("${email}", "****")`)
   dbg(`POST ${apiUrl}/api/auth/mobile-login`)
   try {
-    const res = await electronAPI.apiRequest({
+    const res = await eAPI.apiRequest({
       method: 'POST',
       path: '/api/auth/mobile-login',
       body: { email, password },
@@ -283,8 +284,8 @@ if (btnLogin) {
       dbg('Storing token and entering main screen...')
       authToken = result.token
       currentUser = result.user
-      await electronAPI.store.set('authToken', authToken)
-      await electronAPI.store.set('apiUrl', apiUrl)
+      await eAPI.store.set('authToken', authToken)
+      await eAPI.store.set('apiUrl', apiUrl)
       showLoading('Loading projects...')
       await enterMainScreen()
     } else {
@@ -586,7 +587,7 @@ btnRefresh.addEventListener('click', async () => {
 
 btnLogout.addEventListener('click', async () => {
   dbg('Logout clicked')
-  await electronAPI.store.delete('authToken')
+  await eAPI.store.delete('authToken')
   authToken = null
   currentUser = null
   activeTimer = null
