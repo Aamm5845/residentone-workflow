@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { emailSubject, emailFrom, emailBody } = body
+    const { emailSubject, emailFrom, emailBody, projects } = body
 
     // If OpenAI is not configured, fall back to raw values
     if (!isOpenAIConfigured()) {
@@ -70,6 +70,7 @@ export async function POST(request: NextRequest) {
         ok: true,
         title: emailSubject || '(no subject)',
         description: emailBody ? emailBody.substring(0, 200) : '',
+        suggestedProjectId: null,
         aiGenerated: false,
       })
     }
@@ -86,16 +87,23 @@ export async function POST(request: NextRequest) {
         ok: true,
         title: '(no subject)',
         description: '',
+        suggestedProjectId: null,
         aiGenerated: false,
       })
     }
+
+    // Build project list context for AI matching
+    const projectListContext = Array.isArray(projects) && projects.length > 0
+      ? '\n\nAvailable projects (id | name | client):\n' +
+        projects.map((p: any) => `${p.id} | ${p.name} | ${p.clientName || 'No Client'}`).join('\n')
+      : ''
 
     const openai = getOpenAI()
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       temperature: 0.2,
-      max_tokens: 150,
+      max_tokens: 200,
       response_format: { type: 'json_object' },
       messages: [
         {
@@ -105,11 +113,16 @@ export async function POST(request: NextRequest) {
             'Title: max 50 characters, plain language, like a to-do item (e.g. "Pay invoice from Moshe" not "Review and process the invoice received from Moshe Gross"). ' +
             'Description: one short sentence with the key detail only. Leave empty string if the title says enough. ' +
             'Keep it simple. No corporate speak. No fancy words. ' +
-            'Return JSON: { "title": "...", "description": "..." }',
+            (projectListContext
+              ? 'Also pick the best matching project based on the email sender name, subject, or content. Match by client name, project name, or any mention in the email. If no clear match, set suggestedProjectId to null. '
+              : '') +
+            'Return JSON: { "title": "...", "description": "..."' +
+            (projectListContext ? ', "suggestedProjectId": "..." or null' : '') +
+            ' }',
         },
         {
           role: 'user',
-          content: emailContent,
+          content: emailContent + projectListContext,
         },
       ],
     })
@@ -122,6 +135,7 @@ export async function POST(request: NextRequest) {
         ok: true,
         title: parsed.title || emailSubject || '(no subject)',
         description: parsed.description || '',
+        suggestedProjectId: parsed.suggestedProjectId || null,
         aiGenerated: true,
       })
     } catch {
@@ -130,6 +144,7 @@ export async function POST(request: NextRequest) {
         ok: true,
         title: emailSubject || '(no subject)',
         description: emailBody ? emailBody.substring(0, 200) : '',
+        suggestedProjectId: null,
         aiGenerated: false,
       })
     }
@@ -142,6 +157,7 @@ export async function POST(request: NextRequest) {
         ok: true,
         title: body.emailSubject || '(no subject)',
         description: body.emailBody ? body.emailBody.substring(0, 200) : '',
+        suggestedProjectId: null,
         aiGenerated: false,
       })
     } catch {
@@ -149,6 +165,7 @@ export async function POST(request: NextRequest) {
         ok: true,
         title: '(no subject)',
         description: '',
+        suggestedProjectId: null,
         aiGenerated: false,
       })
     }

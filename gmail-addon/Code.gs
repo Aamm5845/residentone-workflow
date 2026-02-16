@@ -220,16 +220,18 @@ function buildCreateTaskCard(emailSubject, emailFrom, emailBody, emailLink) {
     Logger.log('Error fetching members: ' + err);
   }
 
-  // Use AI to generate a clean task title and description from the email
+  // Use AI to generate a clean task title, description, and suggested project from the email
   var taskTitle = emailSubject;
   var taskDescription = emailBody ? emailBody.substring(0, 200) : '';
   var aiGenerated = false;
+  var suggestedProjectId = null;
 
   try {
     var aiPayload = {
       emailSubject: emailSubject,
       emailFrom: emailFrom,
-      emailBody: emailBody
+      emailBody: emailBody,
+      projects: projects.map(function(p) { return { id: p.id, name: p.name, clientName: p.clientName }; })
     };
 
     var aiRes = UrlFetchApp.fetch(API_BASE_URL + '/api/extension/tasks/ai-extract', {
@@ -246,6 +248,7 @@ function buildCreateTaskCard(emailSubject, emailFrom, emailBody, emailLink) {
         taskTitle = aiData.title;
         taskDescription = aiData.description || '';
         aiGenerated = aiData.aiGenerated || false;
+        suggestedProjectId = aiData.suggestedProjectId || null;
       }
     }
   } catch (err) {
@@ -264,10 +267,11 @@ function buildCreateTaskCard(emailSubject, emailFrom, emailBody, emailLink) {
 
   // Show AI badge if AI-generated
   if (aiGenerated) {
+    var aiBadgeText = suggestedProjectId
+      ? '<i>✨ AI-generated from email (project auto-matched) — edit as needed</i>'
+      : '<i>✨ AI-generated from email — edit as needed</i>';
     section.addWidget(
-      CardService.newTextParagraph().setText(
-        '<i>✨ AI-generated from email — edit as needed</i>'
-      )
+      CardService.newTextParagraph().setText(aiBadgeText)
     );
   }
 
@@ -288,17 +292,33 @@ function buildCreateTaskCard(emailSubject, emailFrom, emailBody, emailLink) {
       .setMultiline(true)
   );
 
-  // Project dropdown
+  // Project dropdown (AI-suggested project is pre-selected if available)
   if (projects.length > 0) {
     var projectDropdown = CardService.newSelectionInput()
       .setType(CardService.SelectionInputType.DROPDOWN)
       .setFieldName('projectId')
       .setTitle('Project');
 
+    var hasSelected = false;
     for (var i = 0; i < projects.length; i++) {
       var p = projects[i];
       var label = p.name + (p.clientName ? ' (' + p.clientName + ')' : '');
-      projectDropdown.addItem(label, p.id, i === 0);
+      var isSelected = suggestedProjectId ? (p.id === suggestedProjectId) : (i === 0);
+      if (isSelected) hasSelected = true;
+      projectDropdown.addItem(label, p.id, isSelected);
+    }
+    // If AI suggested a project but it wasn't in the list, select the first one
+    if (!hasSelected && projects.length > 0) {
+      // Re-build with first selected (Apps Script doesn't allow re-setting, so this is a safety net)
+      projectDropdown = CardService.newSelectionInput()
+        .setType(CardService.SelectionInputType.DROPDOWN)
+        .setFieldName('projectId')
+        .setTitle('Project');
+      for (var k = 0; k < projects.length; k++) {
+        var pk = projects[k];
+        var lbl = pk.name + (pk.clientName ? ' (' + pk.clientName + ')' : '');
+        projectDropdown.addItem(lbl, pk.id, k === 0);
+      }
     }
     section.addWidget(projectDropdown);
   }
