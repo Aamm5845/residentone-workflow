@@ -2,21 +2,26 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { TimeEntryStatus } from '@prisma/client'
+import { getAuthenticatedUser } from '@/lib/extension-auth'
 
 /**
  * GET /api/timeline/entries
  * Fetch time entries with filters
+ * Supports both session auth and Extension API Key (X-Extension-Key header)
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSession()
-    
+    // Support both session and API key auth (for desktop timer app)
+    const user = await getAuthenticatedUser(request)
+    // Fallback to session for backward compat
+    const session = user ? { user } : await getSession()
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { searchParams } = new URL(request.url)
-    
+
     // Parse query parameters
     const userId = searchParams.get('userId') || session.user.id
     const startDate = searchParams.get('startDate')
@@ -152,8 +157,10 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSession()
-    
+    // Support both session and API key auth (for desktop timer app)
+    const user = await getAuthenticatedUser(request)
+    const session = user ? { user } : await getSession()
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

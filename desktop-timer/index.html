@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StudioFlow Timer</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Draggable title bar -->
+  <div id="titlebar">
+    <span class="titlebar-icon">&#9201;</span>
+    <span class="titlebar-title">StudioFlow Timer</span>
+    <div class="titlebar-buttons">
+      <button id="btn-minimize" class="tb-btn" title="Minimize to tray">&#8211;</button>
+      <button id="btn-close" class="tb-btn tb-close" title="Quit">&times;</button>
+    </div>
+  </div>
+
+  <div id="app">
+    <!-- ===== Setup Screen ===== -->
+    <div id="screen-setup" class="screen">
+      <div class="setup-container">
+        <div class="setup-icon">&#128273;</div>
+        <h2>Connect to StudioFlow</h2>
+        <p class="setup-hint">
+          Paste your Extension API Key from<br />
+          <strong>Settings &gt; Extension API Key</strong>
+        </p>
+        <input
+          type="text"
+          id="input-apikey"
+          placeholder="ext_..."
+          spellcheck="false"
+          autocomplete="off"
+        />
+        <input
+          type="text"
+          id="input-apiurl"
+          placeholder="https://app.meisnerinteriors.com"
+          value="https://app.meisnerinteriors.com"
+          spellcheck="false"
+          autocomplete="off"
+        />
+        <button id="btn-connect" class="btn btn-primary">Connect</button>
+        <p id="setup-error" class="error-text"></p>
+      </div>
+    </div>
+
+    <!-- ===== Main Screen ===== -->
+    <div id="screen-main" class="screen hidden">
+      <!-- Active timer panel -->
+      <div id="timer-panel" class="hidden">
+        <div id="timer-status" class="timer-status">
+          <span id="timer-indicator" class="pulse"></span>
+          <span id="timer-label">Running</span>
+        </div>
+        <div id="timer-display">00:00:00</div>
+        <div id="timer-project" class="timer-project"></div>
+        <div class="timer-actions">
+          <button id="btn-pause" class="btn btn-small btn-outline" title="Pause">&#10074;&#10074;</button>
+          <button id="btn-stop" class="btn btn-small btn-danger" title="Stop">&#9632; Stop</button>
+        </div>
+      </div>
+
+      <!-- No active timer message -->
+      <div id="no-timer" class="">
+        <div class="no-timer-text">No active timer</div>
+        <div class="no-timer-hint">Click a project below to start</div>
+      </div>
+
+      <!-- Project list -->
+      <div id="project-list-header">
+        <span>Projects</span>
+        <button id="btn-refresh" class="btn-icon" title="Refresh projects">&#8635;</button>
+      </div>
+      <div id="project-list"></div>
+
+      <!-- Footer -->
+      <div id="footer">
+        <button id="btn-disconnect" class="btn-link">Disconnect</button>
+      </div>
+    </div>
+
+    <!-- Loading overlay -->
+    <div id="loading" class="hidden">
+      <div class="spinner"></div>
+      <div class="loading-text">Connecting...</div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

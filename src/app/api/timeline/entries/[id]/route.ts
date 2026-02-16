@@ -1,18 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { getAuthenticatedUser } from '@/lib/extension-auth'
 
 /**
  * GET /api/timeline/entries/[id]
  * Get a single time entry
+ * Supports both session auth and Extension API Key (X-Extension-Key header)
  */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getSession()
-    
+    const authUser = await getAuthenticatedUser(request)
+    const session = authUser ? { user: authUser } : await getSession()
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -62,8 +65,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getSession()
-    
+    const authUser = await getAuthenticatedUser(request)
+    const session = authUser ? { user: authUser } : await getSession()
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -241,8 +245,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getSession()
-    
+    const authUser = await getAuthenticatedUser(request)
+    const session = authUser ? { user: authUser } : await getSession()
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
