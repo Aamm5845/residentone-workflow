@@ -1,11 +1,12 @@
 const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage } = require('electron');
-const path = require('path');
+const nodePath = require('path');
 const Store = require('electron-store');
 
 const store = new Store();
 
 let mainWindow = null;
 let tray = null;
+let isQuitting = false;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -18,7 +19,7 @@ function createWindow() {
     skipTaskbar: false,
     show: false,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: nodePath.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
     },
@@ -32,10 +33,14 @@ function createWindow() {
 
   // Close minimizes to tray, unless we're quitting
   mainWindow.on('close', (e) => {
-    if (!app.isQuitting) {
+    if (!isQuitting) {
       e.preventDefault();
       mainWindow.hide();
     }
+  });
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
   });
 }
 
@@ -43,8 +48,12 @@ function createTray() {
   // Use the packaged icon, or fallback to generated
   let icon;
   try {
-    const iconPath = path.join(__dirname, 'icon.png');
-    icon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
+    const iconPath = nodePath.join(__dirname, 'icon.png');
+    const loaded = nativeImage.createFromPath(iconPath);
+    if (loaded.isEmpty()) {
+      throw new Error('Empty icon');
+    }
+    icon = loaded.resize({ width: 16, height: 16 });
   } catch {
     icon = nativeImage.createFromBuffer(createTrayIcon());
   }
@@ -65,7 +74,7 @@ function createTray() {
     {
       label: 'Quit',
       click: () => {
-        app.isQuitting = true;
+        isQuitting = true;
         app.quit();
       },
     },
@@ -131,8 +140,10 @@ ipcMain.on('window:minimize', () => {
 });
 
 ipcMain.on('window:close', () => {
-  app.isQuitting = true;
-  if (mainWindow) mainWindow.close();
+  isQuitting = true;
+  if (mainWindow) {
+    mainWindow.destroy();
+  }
   app.quit();
 });
 
@@ -142,15 +153,22 @@ ipcMain.handle('store:set', (_, key, value) => store.set(key, value));
 ipcMain.handle('store:delete', (_, key) => store.delete(key));
 
 // API calls (proxied through main process to avoid CORS)
-ipcMain.handle('api:request', async (_, { method, path: urlPath, body, apiKey, apiUrl }) => {
+ipcMain.handle('api:request', async (_, args) => {
+  const { method, path: urlPath, body, apiKey: key, apiUrl: baseUrl } = args || {};
   try {
-    const url = `${apiUrl}${urlPath}`;
+    const url = `${baseUrl || ''}${urlPath || ''}`;
+    console.log(`[API] ${method || 'GET'} ${url}`);
+
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+    if (key) {
+      headers['X-Extension-Key'] = key;
+    }
+
     const options = {
       method: method || 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Extension-Key': apiKey || '',
-      },
+      headers,
     };
 
     if (body && method !== 'GET') {
@@ -167,8 +185,10 @@ ipcMain.handle('api:request', async (_, { method, path: urlPath, body, apiKey, a
       data = { error: 'Invalid response from server', raw: text.substring(0, 200) };
     }
 
+    console.log(`[API] ${response.status} ${response.ok ? 'OK' : 'FAIL'}`, typeof data === 'object' ? JSON.stringify(data).substring(0, 200) : '');
     return { ok: response.ok, status: response.status, data };
   } catch (error) {
+    console.error(`[API] ERROR: ${error.message}`);
     return { ok: false, status: 0, data: { error: error.message } };
   }
 });
@@ -176,6 +196,10 @@ ipcMain.handle('api:request', async (_, { method, path: urlPath, body, apiKey, a
 // =============================================
 // App lifecycle
 // =============================================
+
+app.on('before-quit', () => {
+  isQuitting = true;
+});
 
 app.whenReady().then(() => {
   createWindow();

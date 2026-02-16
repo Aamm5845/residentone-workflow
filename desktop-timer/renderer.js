@@ -118,18 +118,23 @@ async function init() {
 
 async function validateAndGetUser(key) {
   try {
+    console.log('[Auth] Validating key...', key ? key.substring(0, 8) + '...' : 'EMPTY')
+    console.log('[Auth] API URL:', apiUrl)
     const res = await electronAPI.apiRequest({
       method: 'GET',
       path: '/api/extension/auth',
       apiKey: key,
       apiUrl: apiUrl,
     })
-    if (res.ok && res.data && res.data.ok) {
+    console.log('[Auth] Response:', JSON.stringify(res))
+    if (res && res.ok && res.data && res.data.ok) {
+      console.log('[Auth] Valid! User:', res.data.user?.name || 'unknown')
       return res.data.user || null
     }
+    console.log('[Auth] Invalid. ok:', res?.ok, 'data.ok:', res?.data?.ok)
     return null
   } catch (err) {
-    console.error('Auth error:', err)
+    console.error('[Auth] Error:', err)
     return null
   }
 }
@@ -137,6 +142,8 @@ async function validateAndGetUser(key) {
 btnConnect.addEventListener('click', async () => {
   const key = inputApiKey.value.trim()
   const url = inputApiUrl.value.trim()
+
+  console.log('[Connect] Clicked. Key length:', key.length, 'URL:', url)
 
   if (!key) {
     setupError.textContent = 'Please enter an API key'
@@ -151,6 +158,7 @@ btnConnect.addEventListener('click', async () => {
 
   try {
     const user = await validateAndGetUser(key)
+    console.log('[Connect] validateAndGetUser returned:', user)
 
     if (user) {
       apiKey = key
@@ -162,9 +170,10 @@ btnConnect.addEventListener('click', async () => {
       showLoading('Loading projects...')
       await enterMainScreen()
     } else {
-      setupError.textContent = 'Invalid API key or server unreachable'
+      setupError.textContent = 'Invalid API key. Make sure you copied the full key from Settings > API Key.'
     }
   } catch (err) {
+    console.error('[Connect] Error:', err)
     setupError.textContent = 'Connection failed: ' + (err.message || 'Unknown error')
   }
 
