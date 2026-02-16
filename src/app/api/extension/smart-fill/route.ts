@@ -1,51 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 import { getOpenAI, isOpenAIConfigured } from '@/lib/server/openai'
+import { getAuthenticatedUser } from '@/lib/extension-auth'
 
 // Configure Next.js route
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 30
-
-// Helper to get authenticated user from extension API key
-async function getAuthenticatedUser(request: NextRequest) {
-  // Check for extension API key
-  const apiKey = request.headers.get('X-Extension-Key')
-  
-  if (apiKey) {
-    const token = await prisma.clientAccessToken.findFirst({
-      where: {
-        token: apiKey,
-        active: true
-      },
-      include: {
-        project: {
-          include: {
-            organization: true
-          }
-        }
-      }
-    })
-    
-    if (token) {
-      // Update last accessed
-      await prisma.clientAccessToken.update({
-        where: { id: token.id },
-        data: { 
-          lastAccessedAt: new Date(),
-          accessCount: { increment: 1 }
-        }
-      })
-      
-      return {
-        organizationId: token.project.organizationId,
-        userId: token.createdById
-      }
-    }
-  }
-  
-  return null
-}
 
 /**
  * POST /api/extension/smart-fill

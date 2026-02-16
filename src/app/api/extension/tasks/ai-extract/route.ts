@@ -1,57 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/auth'
-import { prisma } from '@/lib/prisma'
 import { getOpenAI, isOpenAIConfigured } from '@/lib/server/openai'
-
-// Helper to get user from API key or session
-async function getAuthenticatedUser(request: NextRequest) {
-  const apiKey = request.headers.get('X-Extension-Key')
-
-  if (apiKey) {
-    const token = await prisma.clientAccessToken.findFirst({
-      where: {
-        token: apiKey,
-        active: true,
-        OR: [
-          { expiresAt: null },
-          { expiresAt: { gt: new Date() } }
-        ]
-      },
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            orgId: true,
-            role: true
-          }
-        }
-      }
-    })
-
-    if (token?.createdBy) {
-      return token.createdBy
-    }
-  }
-
-  // Fall back to session
-  const session = await getSession()
-  if (!session?.user?.email) return null
-
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      orgId: true,
-      role: true
-    }
-  })
-
-  return user
-}
+import { getAuthenticatedUser } from '@/lib/extension-auth'
 
 // POST: Use AI to extract a clean task title and description from email content
 export async function POST(request: NextRequest) {
@@ -66,6 +15,7 @@ export async function POST(request: NextRequest) {
 
     // If OpenAI is not configured, fall back to raw values
     if (!isOpenAIConfigured()) {
+      console.warn('AI extract: OpenAI not configured (OPENAI_API_KEY missing), falling back to raw email data')
       return NextResponse.json({
         ok: true,
         title: emailSubject || '(no subject)',

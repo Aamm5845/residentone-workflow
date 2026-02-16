@@ -1,40 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-
-// Helper to get user from API key
-async function getAuthenticatedUser(request: NextRequest) {
-  const apiKey = request.headers.get('X-Extension-Key')
-  
-  if (apiKey) {
-    const token = await prisma.clientAccessToken.findFirst({
-      where: {
-        token: apiKey,
-        active: true,
-        OR: [
-          { expiresAt: null },
-          { expiresAt: { gt: new Date() } }
-        ]
-      },
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            orgId: true,
-            role: true
-          }
-        }
-      }
-    })
-    
-    if (token?.createdBy) {
-      return token.createdBy
-    }
-  }
-  
-  return null
-}
+import { getAuthenticatedUser } from '@/lib/extension-auth'
 
 /**
  * GET /api/extension/similar-items

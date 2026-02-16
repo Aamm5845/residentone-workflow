@@ -191,6 +191,8 @@ function buildCreateTaskCard(emailSubject, emailFrom, emailBody, emailLink) {
   // Fetch projects, members, and AI-generated task in parallel-ish (sequential in Apps Script)
   var projects = [];
   var members = [];
+  var projectsFetchError = false;
+  var membersFetchError = false;
 
   try {
     var projRes = UrlFetchApp.fetch(API_BASE_URL + '/api/extension/projects', {
@@ -198,12 +200,19 @@ function buildCreateTaskCard(emailSubject, emailFrom, emailBody, emailLink) {
       headers: { 'X-Extension-Key': apiKey },
       muteHttpExceptions: true,
     });
-    if (projRes.getResponseCode() === 200) {
+    var projCode = projRes.getResponseCode();
+    Logger.log('Projects fetch status: ' + projCode);
+    if (projCode === 200) {
       var projData = JSON.parse(projRes.getContentText());
       projects = projData.projects || [];
+      Logger.log('Projects loaded: ' + projects.length);
+    } else {
+      Logger.log('Projects fetch failed: HTTP ' + projCode + ' — ' + projRes.getContentText().substring(0, 200));
+      projectsFetchError = true;
     }
   } catch (err) {
     Logger.log('Error fetching projects: ' + err);
+    projectsFetchError = true;
   }
 
   try {
@@ -212,12 +221,19 @@ function buildCreateTaskCard(emailSubject, emailFrom, emailBody, emailLink) {
       headers: { 'X-Extension-Key': apiKey },
       muteHttpExceptions: true,
     });
-    if (memRes.getResponseCode() === 200) {
+    var memCode = memRes.getResponseCode();
+    Logger.log('Members fetch status: ' + memCode);
+    if (memCode === 200) {
       var memData = JSON.parse(memRes.getContentText());
       members = memData.members || [];
+      Logger.log('Members loaded: ' + members.length);
+    } else {
+      Logger.log('Members fetch failed: HTTP ' + memCode + ' — ' + memRes.getContentText().substring(0, 200));
+      membersFetchError = true;
     }
   } catch (err) {
     Logger.log('Error fetching members: ' + err);
+    membersFetchError = true;
   }
 
   // Use AI to generate a clean task title, description, and suggested project from the email
@@ -234,6 +250,8 @@ function buildCreateTaskCard(emailSubject, emailFrom, emailBody, emailLink) {
       projects: projects.map(function(p) { return { id: p.id, name: p.name, clientName: p.clientName, clientEmail: p.clientEmail || '' }; })
     };
 
+    Logger.log('Calling AI extract with subject: ' + emailSubject);
+
     var aiRes = UrlFetchApp.fetch(API_BASE_URL + '/api/extension/tasks/ai-extract', {
       method: 'post',
       contentType: 'application/json',
@@ -242,14 +260,20 @@ function buildCreateTaskCard(emailSubject, emailFrom, emailBody, emailLink) {
       muteHttpExceptions: true,
     });
 
-    if (aiRes.getResponseCode() === 200) {
+    var aiCode = aiRes.getResponseCode();
+    Logger.log('AI extract status: ' + aiCode);
+
+    if (aiCode === 200) {
       var aiData = JSON.parse(aiRes.getContentText());
+      Logger.log('AI result: aiGenerated=' + aiData.aiGenerated + ', title=' + (aiData.title || '(none)'));
       if (aiData.ok && aiData.title) {
         taskTitle = aiData.title;
         taskDescription = aiData.description || '';
         aiGenerated = aiData.aiGenerated || false;
         suggestedProjectId = aiData.suggestedProjectId || null;
       }
+    } else {
+      Logger.log('AI extract failed: HTTP ' + aiCode + ' — ' + aiRes.getContentText().substring(0, 200));
     }
   } catch (err) {
     Logger.log('AI extract failed (using raw email data): ' + err);
@@ -292,7 +316,7 @@ function buildCreateTaskCard(emailSubject, emailFrom, emailBody, emailLink) {
       .setMultiline(true)
   );
 
-  // Project dropdown (AI-suggested project is pre-selected if available)
+  // Project dropdown — always shown
   if (projects.length > 0) {
     var projectDropdown = CardService.newSelectionInput()
       .setType(CardService.SelectionInputType.DROPDOWN)
@@ -309,7 +333,6 @@ function buildCreateTaskCard(emailSubject, emailFrom, emailBody, emailLink) {
     }
     // If AI suggested a project but it wasn't in the list, select the first one
     if (!hasSelected && projects.length > 0) {
-      // Re-build with first selected (Apps Script doesn't allow re-setting, so this is a safety net)
       projectDropdown = CardService.newSelectionInput()
         .setType(CardService.SelectionInputType.DROPDOWN)
         .setFieldName('projectId')
@@ -321,9 +344,17 @@ function buildCreateTaskCard(emailSubject, emailFrom, emailBody, emailLink) {
       }
     }
     section.addWidget(projectDropdown);
+  } else {
+    // No projects loaded — show error message and retry hint
+    var errorMsg = projectsFetchError
+      ? '⚠️ Could not load projects. Check your API key or try reloading the email.'
+      : '⚠️ No projects found. Create a project in StudioFlow first.';
+    section.addWidget(
+      CardService.newTextParagraph().setText('<i>' + errorMsg + '</i>')
+    );
   }
 
-  // Assignee dropdown
+  // Assignee dropdown — always shown
   if (members.length > 0) {
     var memberDropdown = CardService.newSelectionInput()
       .setType(CardService.SelectionInputType.DROPDOWN)
@@ -333,9 +364,16 @@ function buildCreateTaskCard(emailSubject, emailFrom, emailBody, emailLink) {
     for (var j = 0; j < members.length; j++) {
       var m = members[j];
       var memberLabel = (m.name || m.email) + (m.name ? ' (' + m.email + ')' : '');
-      memberDropdown.addItem(memberLabel, m.id, false);
+      memberDropdown.addItem(memberLabel, m.id, j === 0);
     }
     section.addWidget(memberDropdown);
+  } else {
+    var memErrorMsg = membersFetchError
+      ? '⚠️ Could not load team members. Check your API key or try reloading.'
+      : '⚠️ No team members found.';
+    section.addWidget(
+      CardService.newTextParagraph().setText('<i>' + memErrorMsg + '</i>')
+    );
   }
 
   // Priority dropdown
