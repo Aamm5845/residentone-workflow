@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Download, Chrome, CheckCircle, ExternalLink, RefreshCw, FolderOpen, Settings, Loader2, Building2, FileSpreadsheet, CreditCard, KeyRound, Copy, Trash2, AlertTriangle } from 'lucide-react'
+import { Download, Chrome, CheckCircle, ExternalLink, RefreshCw, FolderOpen, Settings, Loader2, Building2, FileSpreadsheet, CreditCard, KeyRound, Copy, Trash2, AlertTriangle, Timer, Monitor } from 'lucide-react'
 import Link from 'next/link'
 
 export default function SettingsPage() {
@@ -450,6 +450,151 @@ export default function SettingsPage() {
                   {keyError}
                 </div>
               )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Desktop Timer Section */}
+        <Card className="mb-6">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                <Timer className="w-6 h-6 text-green-600" />
+              </div>
+              <div>
+                <CardTitle>Desktop Time Tracker</CardTitle>
+                <CardDescription>
+                  A lightweight floating timer for your desktop — start, stop, and switch project timers with one click so you never forget to log hours.
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              {/* Download Section */}
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-1">Download Desktop Timer</h3>
+                    <p className="text-sm text-gray-600 mb-1">
+                      Version 1.0.0 • Windows, Mac, Linux
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Requires <a href="https://nodejs.org" target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline">Node.js</a> (LTS) installed on the computer
+                    </p>
+                  </div>
+                  <a
+                    href="https://github.com/Aamm5845/residentone-workflow/archive/refs/heads/main.zip"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Button className="bg-green-600 hover:bg-green-700">
+                      <Download className="w-4 h-4 mr-2" />
+                      Download ZIP
+                    </Button>
+                  </a>
+                </div>
+              </div>
+
+              {/* Installation Instructions */}
+              <div>
+                <h4 className="font-medium text-gray-900 mb-3">Setup Instructions</h4>
+                <ol className="space-y-3">
+                  <li className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-medium">1</span>
+                    <div>
+                      <p className="font-medium text-gray-900">Install Node.js</p>
+                      <p className="text-sm text-gray-500">
+                        Download and install from <a href="https://nodejs.org" target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline">nodejs.org</a> (LTS version). Skip if already installed.
+                      </p>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-medium">2</span>
+                    <div>
+                      <p className="font-medium text-gray-900">Extract the ZIP</p>
+                      <p className="text-sm text-gray-500">
+                        Extract the downloaded ZIP. Navigate into the <code className="bg-gray-100 px-1.5 py-0.5 rounded">desktop-timer</code> folder.
+                      </p>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-medium">3</span>
+                    <div>
+                      <p className="font-medium text-gray-900">Install &amp; Run</p>
+                      <p className="text-sm text-gray-500">
+                        Open a terminal in the <code className="bg-gray-100 px-1.5 py-0.5 rounded">desktop-timer</code> folder and run:
+                      </p>
+                      <div className="mt-2 bg-gray-900 text-gray-100 rounded-lg p-3 text-sm font-mono">
+                        <div>npm install</div>
+                        <div>npm start</div>
+                      </div>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-medium">4</span>
+                    <div>
+                      <p className="font-medium text-gray-900">Connect with your API Key</p>
+                      <p className="text-sm text-gray-500">
+                        On first launch, paste your <strong>Extension API Key</strong> (from the section above). The timer connects to StudioFlow automatically.
+                      </p>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-medium">✓</span>
+                    <div>
+                      <p className="font-medium text-gray-900">Start tracking!</p>
+                      <p className="text-sm text-gray-500">
+                        Click any project to start a timer. Click another project to auto-switch. All entries appear in your Timeline.
+                      </p>
+                    </div>
+                  </li>
+                </ol>
+              </div>
+
+              {/* Features */}
+              <div>
+                <h4 className="font-medium text-gray-900 mb-3">Features</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    Always-on-top floating window
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    One-click project switching
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    Start / Stop / Pause timers
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    Auto-stop on project switch
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    Minimize to system tray
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    Syncs live with Timeline
+                  </div>
+                </div>
+              </div>
+
+              {/* Tip */}
+              <div className="bg-green-50 rounded-xl p-4 border border-green-100">
+                <div className="flex items-start gap-3">
+                  <Monitor className="w-5 h-5 text-green-600 mt-0.5" />
+                  <div>
+                    <h4 className="font-medium text-green-900">Quick Tip</h4>
+                    <p className="text-sm text-green-700 mt-1">
+                      Each team member needs their own Extension API Key. Generate one above, then paste it into the desktop timer on first launch. The key is saved locally — you only need to enter it once per computer.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
