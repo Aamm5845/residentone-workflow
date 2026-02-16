@@ -27,6 +27,11 @@ function createWindow() {
 
   mainWindow.loadFile('index.html');
 
+  // Open DevTools in development (not in packaged app)
+  if (!app.isPackaged) {
+    mainWindow.webContents.openDevTools({ mode: 'detach' });
+  }
+
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
   });
@@ -94,9 +99,13 @@ function createFallbackIcon() {
 // IPC Handlers
 // =============================================
 
-ipcMain.on('window:minimize', () => { if (mainWindow) mainWindow.hide(); });
+ipcMain.on('window:minimize', () => {
+  console.log('[Main] window:minimize received');
+  if (mainWindow) mainWindow.hide();
+});
 
 ipcMain.on('window:close', () => {
+  console.log('[Main] window:close received');
   isQuitting = true;
   if (mainWindow) mainWindow.destroy();
   app.quit();

@@ -58,8 +58,23 @@ const btnLogout = $('btn-logout')
 // =============================================
 // Window Controls — wire immediately
 // =============================================
-btnMinimize.addEventListener('click', () => electronAPI.minimize())
-btnClose.addEventListener('click', () => electronAPI.close())
+if (btnMinimize) {
+  btnMinimize.addEventListener('click', () => {
+    console.log('[Timer] Minimize clicked')
+    electronAPI.minimize()
+  })
+} else {
+  console.error('[Timer] btn-minimize not found!')
+}
+
+if (btnClose) {
+  btnClose.addEventListener('click', () => {
+    console.log('[Timer] Close clicked')
+    electronAPI.close()
+  })
+} else {
+  console.error('[Timer] btn-close not found!')
+}
 
 // =============================================
 // Helpers
@@ -161,8 +176,11 @@ async function loginWithCredentials(email, password) {
 }
 
 btnLogin.addEventListener('click', async () => {
+  console.log('[Timer] Login button clicked')
   const email = inputEmail.value.trim().toLowerCase()
   const password = inputPassword.value
+
+  console.log('[Timer] Email:', email, 'Password length:', password ? password.length : 0)
 
   if (!email || !password) {
     loginError.textContent = 'Enter your email and password'
@@ -173,7 +191,9 @@ btnLogin.addEventListener('click', async () => {
   btnLogin.disabled = true
   btnLogin.textContent = 'Signing in...'
 
+  console.log('[Timer] Calling loginWithCredentials...')
   const result = await loginWithCredentials(email, password)
+  console.log('[Timer] Login result:', JSON.stringify(result, null, 2))
 
   if (result.token) {
     authToken = result.token
@@ -184,6 +204,7 @@ btnLogin.addEventListener('click', async () => {
     await enterMainScreen()
   } else {
     loginError.textContent = result.error || 'Invalid email or password'
+    console.log('[Timer] Login failed:', result.error)
   }
 
   btnLogin.disabled = false
