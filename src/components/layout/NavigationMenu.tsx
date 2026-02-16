@@ -19,8 +19,6 @@ import {
   Package,
   FileText,
   DollarSign,
-  ChevronDown,
-  ChevronRight,
   CheckSquare,
 } from 'lucide-react'
 import { changelog, countUnseenUpdates } from '@/data/changelog'
@@ -39,7 +37,6 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
   const searchParams = useSearchParams()
   const { getNotificationsByType } = useNotifications({ limit: 50 })
   const [unseenUpdatesCount, setUnseenUpdatesCount] = useState(0)
-  const [procurementExpanded, setProcurementExpanded] = useState(false)
 
   // On mobile, always show expanded menu (sidebarCollapsed only applies to desktop)
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
@@ -107,7 +104,6 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
   )
 
   const procurementCount = procurementData?.totalCount || 0
-  const procurementProjects: { projectId: string; projectName: string; items: any[] }[] = procurementData?.projects || []
 
   // Fetch task count for badge
   const { data: taskCountData } = useSWR(
@@ -282,87 +278,26 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
             )
           })}
 
-          {/* Procurement — expandable with project sub-items */}
-          <div>
-            <button
-              onClick={() => setProcurementExpanded(prev => !prev)}
-              className={cn(
-                'w-full group flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors',
-                isProcurementActive
-                  ? 'bg-purple-50 text-purple-700 border-r-2 border-purple-700'
-                  : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-              )}
-            >
-              <div className="flex items-center">
-                <FileText className="flex-shrink-0 h-5 w-5 mr-3 text-amber-600" />
-                Procurement
-              </div>
-              <div className="flex items-center gap-1.5">
-                {procurementCount > 0 && (
-                  <span className="text-white text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center bg-amber-500">
-                    {procurementCount > 99 ? '99+' : procurementCount}
-                  </span>
-                )}
-                {procurementExpanded ? (
-                  <ChevronDown className="h-4 w-4 text-gray-400" />
-                ) : (
-                  <ChevronRight className="h-4 w-4 text-gray-400" />
-                )}
-              </div>
-            </button>
-
-            {procurementExpanded && (
-              <div className="ml-5 mt-1 space-y-0.5 border-l-2 border-gray-100 pl-3">
-                {/* All Items link */}
-                <Link
-                  href="/procurement"
-                  className={cn(
-                    'flex items-center justify-between px-2 py-1.5 text-sm rounded-md transition-colors',
-                    pathname === '/procurement'
-                      ? 'text-amber-700 bg-amber-50 font-medium'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                  )}
-                >
-                  All Items
-                  {procurementCount > 0 && (
-                    <span className="text-xs text-gray-400">{procurementCount}</span>
-                  )}
-                </Link>
-
-                {/* Per-project links */}
-                {procurementProjects.map(project => {
-                  const projectProcurementHref = `/projects/${project.projectId}/procurement`
-                  const isProjectActive = pathname === projectProcurementHref
-                  const urgentCount = project.items.filter((i: any) => i.priority === 'urgent').length
-
-                  return (
-                    <Link
-                      key={project.projectId}
-                      href={projectProcurementHref}
-                      className={cn(
-                        'flex items-center justify-between px-2 py-1.5 text-sm rounded-md transition-colors',
-                        isProjectActive
-                          ? 'text-amber-700 bg-amber-50 font-medium'
-                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                      )}
-                    >
-                      <span className="truncate">{project.projectName}</span>
-                      <span className={cn(
-                        'text-xs rounded-full px-1.5 py-0.5 min-w-[18px] text-center flex-shrink-0 ml-2',
-                        urgentCount > 0 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'
-                      )}>
-                        {project.items.length}
-                      </span>
-                    </Link>
-                  )
-                })}
-
-                {procurementProjects.length === 0 && (
-                  <span className="block px-2 py-1.5 text-xs text-gray-400">No active items</span>
-                )}
-              </div>
+          {/* Procurement */}
+          <Link
+            href="/procurement"
+            className={cn(
+              'group flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors',
+              isProcurementActive
+                ? 'bg-purple-50 text-purple-700 border-r-2 border-purple-700'
+                : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
             )}
-          </div>
+          >
+            <div className="flex items-center">
+              <FileText className="flex-shrink-0 h-5 w-5 mr-3 text-amber-600" />
+              Procurement
+            </div>
+            {procurementCount > 0 && (
+              <span className="text-white text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center bg-amber-500">
+                {procurementCount > 99 ? '99+' : procurementCount}
+              </span>
+            )}
+          </Link>
 
           {mainNavigationAfter.map((item) => {
             const Icon = item.icon
