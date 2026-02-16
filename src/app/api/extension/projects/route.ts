@@ -80,7 +80,8 @@ export async function GET(request: NextRequest) {
         status: true,
         client: {
           select: {
-            name: true
+            name: true,
+            email: true,
           }
         },
         _count: {
@@ -100,6 +101,7 @@ export async function GET(request: NextRequest) {
       id: p.id,
       name: p.name,
       clientName: p.client?.name || 'No Client',
+      clientEmail: p.client?.email || '',
       status: p.status,
       roomCount: p._count.rooms
     }))

@@ -94,8 +94,8 @@ export async function POST(request: NextRequest) {
 
     // Build project list context for AI matching
     const projectListContext = Array.isArray(projects) && projects.length > 0
-      ? '\n\nAvailable projects (id | name | client):\n' +
-        projects.map((p: any) => `${p.id} | ${p.name} | ${p.clientName || 'No Client'}`).join('\n')
+      ? '\n\nAvailable projects (id | name | client | client email):\n' +
+        projects.map((p: any) => `${p.id} | ${p.name} | ${p.clientName || 'No Client'} | ${p.clientEmail || ''}`).join('\n')
       : ''
 
     const openai = getOpenAI()
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
             'Description: one short sentence with the key detail only. Leave empty string if the title says enough. ' +
             'Keep it simple. No corporate speak. No fancy words. ' +
             (projectListContext
-              ? 'Also pick the best matching project based on the email sender name, subject, or content. Match by client name, project name, or any mention in the email. If no clear match, set suggestedProjectId to null. '
+              ? 'Also pick the best matching project based on the email sender address, sender name, subject, or content. Match by client email address (compare the From email domain/address against client emails), client name, project name, or any mention in the email. If no clear match, set suggestedProjectId to null. '
               : '') +
             'Return JSON: { "title": "...", "description": "..."' +
             (projectListContext ? ', "suggestedProjectId": "..." or null' : '') +

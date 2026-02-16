@@ -231,7 +231,7 @@ function buildCreateTaskCard(emailSubject, emailFrom, emailBody, emailLink) {
       emailSubject: emailSubject,
       emailFrom: emailFrom,
       emailBody: emailBody,
-      projects: projects.map(function(p) { return { id: p.id, name: p.name, clientName: p.clientName }; })
+      projects: projects.map(function(p) { return { id: p.id, name: p.name, clientName: p.clientName, clientEmail: p.clientEmail || '' }; })
     };
 
     var aiRes = UrlFetchApp.fetch(API_BASE_URL + '/api/extension/tasks/ai-extract', {
