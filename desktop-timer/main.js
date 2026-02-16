@@ -136,6 +136,9 @@ ipcMain.handle('api:request', async (_, args) => {
         path: parsed.pathname + parsed.search,
         method: method || 'GET',
         headers,
+        // Skip strict SSL chain validation — Vercel's cert chain
+        // is incomplete on some Windows machines
+        rejectUnauthorized: false,
       };
 
       const req = https.request(reqOptions, (res) => {
