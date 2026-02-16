@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, net } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage } = require('electron');
 const nodePath = require('path');
 const https = require('https');
 const Store = require('electron-store');
@@ -11,8 +11,8 @@ let isQuitting = false;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 340,
-    height: 540,
+    width: 300,
+    height: 420,
     resizable: false,
     alwaysOnTop: true,
     frame: false,
@@ -100,12 +100,19 @@ function createFallbackIcon() {
 // IPC Handlers
 // =============================================
 
-ipcMain.on('window:minimize', () => { if (mainWindow) mainWindow.hide(); });
+ipcMain.on('window:minimize', () => {
+  if (mainWindow) mainWindow.minimize();
+});
 
 ipcMain.on('window:close', () => {
   isQuitting = true;
   if (mainWindow) mainWindow.destroy();
   app.quit();
+});
+
+// Update taskbar window title (shows timer in taskbar)
+ipcMain.on('window:title', (_, title) => {
+  if (mainWindow) mainWindow.setTitle(title);
 });
 
 ipcMain.handle('store:get', (_, key) => store.get(key));

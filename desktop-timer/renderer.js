@@ -1,10 +1,7 @@
 // =============================================
-// StudioFlow Desktop Timer v2.0.0 — Renderer
-// Email/Password login with JWT Bearer token
+// StudioFlow Desktop Timer v2.1.0 — Renderer
 // =============================================
 
-// NOTE: "electronAPI" is a global from contextBridge.exposeInMainWorld
-// so we use "eAPI" alias to avoid redeclaration errors.
 const eAPI = window.electronAPI
 
 // =============================================
@@ -17,6 +14,7 @@ let projects = []
 let activeTimer = null
 let timerInterval = null
 let isPaused = false
+let projectOrder = [] // stored order of project IDs by last used
 
 // =============================================
 // DOM Elements
@@ -83,8 +81,67 @@ function formatTime(seconds) {
   return [h, m, s].map(v => String(v).padStart(2, '0')).join(':')
 }
 
+function formatTimeShort(seconds) {
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  const s = seconds % 60
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
 async function api(method, path, body) {
   return eAPI.apiRequest({ method, path, body, token: authToken, apiUrl })
+}
+
+// Update the taskbar title with running timer
+function updateTaskbarTitle() {
+  if (activeTimer && !isPaused) {
+    const now = Date.now()
+    const totalMs = now - activeTimer.startedAt.getTime()
+    let pauseMs = activeTimer.completedPauseMs || 0
+    let elapsedMs = totalMs - pauseMs
+    if (elapsedMs < 0) elapsedMs = 0
+    const secs = Math.floor(elapsedMs / 1000)
+    const shortName = activeTimer.projectName.split('(')[0].trim()
+    eAPI.setTitle(`${formatTimeShort(secs)} - ${shortName}`)
+  } else if (activeTimer && isPaused) {
+    eAPI.setTitle('SF Timer (Paused)')
+  } else {
+    eAPI.setTitle('SF Timer')
+  }
+}
+
+// =============================================
+// Project Sort Order (last used first)
+// =============================================
+
+async function loadProjectOrder() {
+  try {
+    const stored = await eAPI.store.get('projectOrder')
+    if (Array.isArray(stored)) projectOrder = stored
+  } catch {}
+}
+
+async function saveProjectOrder() {
+  try {
+    await eAPI.store.set('projectOrder', projectOrder)
+  } catch {}
+}
+
+function bumpProject(projectId) {
+  projectOrder = [projectId, ...projectOrder.filter(id => id !== projectId)]
+  saveProjectOrder()
+}
+
+function getSortedProjects() {
+  if (projectOrder.length === 0) return projects
+  const orderMap = {}
+  projectOrder.forEach((id, i) => { orderMap[id] = i })
+  return [...projects].sort((a, b) => {
+    const ai = orderMap[a.id] !== undefined ? orderMap[a.id] : 9999
+    const bi = orderMap[b.id] !== undefined ? orderMap[b.id] : 9999
+    return ai - bi
+  })
 }
 
 // =============================================
@@ -94,6 +151,7 @@ async function api(method, path, body) {
 async function init() {
   authToken = await eAPI.store.get('authToken')
   apiUrl = await eAPI.store.get('apiUrl') || 'https://app.meisnerinteriors.com'
+  await loadProjectOrder()
 
   if (authToken) {
     showLoading('Signing in...')
@@ -214,7 +272,7 @@ async function loadProjects() {
       projects = res.data.projects
     }
   } catch (err) {
-    // Silently fail — project list will show empty
+    // Silently fail
   }
   renderProjectList()
 }
@@ -299,6 +357,7 @@ function hideTimerPanel() {
   noTimer.classList.remove('hidden')
   stopTickingDisplay()
   timerDisplay.textContent = '00:00:00'
+  eAPI.setTitle('SF Timer')
 }
 
 function startTickingDisplay() {
@@ -325,6 +384,9 @@ function updateTimerDisplay() {
   let elapsedMs = totalMs - pauseMs
   if (elapsedMs < 0) elapsedMs = 0
   timerDisplay.textContent = formatTime(Math.floor(elapsedMs / 1000))
+
+  // Update taskbar title with timer
+  updateTaskbarTitle()
 }
 
 // =============================================
@@ -336,41 +398,49 @@ async function startTimer(projectId) {
   if (!proj) return
   if (activeTimer && activeTimer.projectId === projectId && !isPaused) return
 
-  showLoading('Starting timer...')
+  // Bump this project to top of recently used
+  bumpProject(projectId)
 
+  // Stop existing timer if any
   if (activeTimer) {
     try { await api('PATCH', `/api/timeline/entries/${activeTimer.id}`, { action: 'stop' }) } catch {}
     activeTimer = null
     isPaused = false
   }
 
+  // Start timer UI immediately — don't wait for API
+  activeTimer = {
+    id: null,
+    projectId,
+    projectName: `${proj.name} (${proj.clientName})`,
+    startedAt: new Date(),
+    status: 'RUNNING',
+    completedPauseMs: 0,
+    currentPauseStart: null,
+  }
+  isPaused = false
+  showTimerPanel()
+  renderProjectList()
+
+  // Fire API call in background to create real entry
   try {
     const res = await api('POST', '/api/timeline/entries', { projectId, isManual: false })
     if (res.ok && res.data && res.data.entry) {
       const entry = res.data.entry
-      activeTimer = {
-        id: entry.id,
-        projectId,
-        projectName: `${proj.name} (${proj.clientName})`,
-        startedAt: new Date(entry.startTime),
-        status: 'RUNNING',
-        completedPauseMs: 0,
-        currentPauseStart: null,
-      }
-      isPaused = false
-      showTimerPanel()
-      renderProjectList()
+      activeTimer.id = entry.id
+      activeTimer.startedAt = new Date(entry.startTime)
     }
   } catch (err) {
-    // Failed to start
+    // Timer UI is already running — worst case the entry ID is null
+    // and stop will need a refresh
   }
-
-  hideLoading()
 }
 
 async function stopCurrentTimer() {
   if (!activeTimer) return
-  try { await api('PATCH', `/api/timeline/entries/${activeTimer.id}`, { action: 'stop' }) } catch {}
+  if (activeTimer.id) {
+    try { await api('PATCH', `/api/timeline/entries/${activeTimer.id}`, { action: 'stop' }) } catch {}
+  }
   activeTimer = null
   isPaused = false
   hideTimerPanel()
@@ -378,7 +448,7 @@ async function stopCurrentTimer() {
 }
 
 async function pauseResumeTimer() {
-  if (!activeTimer) return
+  if (!activeTimer || !activeTimer.id) return
   const action = isPaused ? 'resume' : 'pause'
   try {
     const res = await api('PATCH', `/api/timeline/entries/${activeTimer.id}`, { action })
@@ -411,12 +481,14 @@ btnPause.addEventListener('click', () => pauseResumeTimer())
 
 function renderProjectList() {
   projectList.innerHTML = ''
-  if (projects.length === 0) {
-    projectList.innerHTML = '<div style="padding:20px;text-align:center;color:#666680;font-size:12px;">No projects found</div>'
+  const sorted = getSortedProjects()
+
+  if (sorted.length === 0) {
+    projectList.innerHTML = '<div style="padding:12px;text-align:center;color:#666680;font-size:11px;">No projects found</div>'
     return
   }
 
-  projects.forEach(proj => {
+  sorted.forEach(proj => {
     const isActive = activeTimer && activeTimer.projectId === proj.id
     const item = document.createElement('div')
     item.className = 'project-item' + (isActive ? ' active' : '')
@@ -463,6 +535,7 @@ btnLogout.addEventListener('click', async () => {
   inputEmail.value = ''
   inputPassword.value = ''
   loginError.textContent = ''
+  eAPI.setTitle('SF Timer')
 })
 
 // =============================================

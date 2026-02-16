@@ -24,7 +24,7 @@ body {
 #titlebar {
   display: flex;
   align-items: center;
-  height: 32px;
+  height: 28px;
   padding: 0 8px;
   background: #12122a;
   -webkit-app-region: drag;
@@ -32,7 +32,7 @@ body {
 }
 
 .titlebar-title {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   color: #a657f0;
   flex: 1;
@@ -41,19 +41,19 @@ body {
 
 .titlebar-buttons {
   display: flex;
-  gap: 2px;
+  gap: 1px;
   -webkit-app-region: no-drag;
 }
 
 .tb-btn {
-  width: 32px;
-  height: 28px;
+  width: 28px;
+  height: 24px;
   border: none;
   background: transparent;
   color: #a0a0c0;
-  font-size: 16px;
+  font-size: 14px;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 3px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -92,7 +92,7 @@ body {
 }
 
 /* ============================================= */
-/* Setup Screen                                   */
+/* Setup / Login Screen                           */
 /* ============================================= */
 .setup-container {
   flex: 1;
@@ -100,48 +100,49 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 24px;
-  gap: 12px;
+  padding: 16px 20px;
+  gap: 8px;
 }
 
 .setup-logo {
-  width: 64px;
-  height: 64px;
+  width: 48px;
+  height: 48px;
   background: linear-gradient(135deg, #a657f0 0%, #7c3aed 100%);
-  border-radius: 16px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 800;
   color: white;
   letter-spacing: 1px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   box-shadow: 0 4px 20px rgba(166, 87, 240, 0.3);
 }
 
 .setup-container h2 {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 700;
   color: #fff;
 }
 
 .setup-hint {
-  font-size: 12px;
+  font-size: 11px;
   color: #8888aa;
   text-align: center;
-  line-height: 1.5;
+  line-height: 1.4;
+  margin-bottom: 4px;
 }
 
 #input-email,
 #input-password {
   width: 100%;
-  padding: 10px 12px;
+  padding: 8px 10px;
   background: #22223a;
   border: 1px solid #333355;
-  border-radius: 8px;
+  border-radius: 6px;
   color: #e0e0e0;
-  font-size: 13px;
+  font-size: 12px;
   outline: none;
   transition: border-color 0.2s;
 }
@@ -158,8 +159,8 @@ body {
 
 .error-text {
   color: #e74c3c;
-  font-size: 12px;
-  min-height: 18px;
+  font-size: 11px;
+  min-height: 16px;
   text-align: center;
 }
 
@@ -169,22 +170,22 @@ body {
 #user-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
+  gap: 8px;
+  padding: 6px 12px;
   background: #16162e;
   border-bottom: 1px solid #2a2a44;
   flex-shrink: 0;
 }
 
 .user-avatar {
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
   background: linear-gradient(135deg, #a657f0 0%, #7c3aed 100%);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: 10px;
   font-weight: 700;
   color: white;
   flex-shrink: 0;
@@ -196,7 +197,7 @@ body {
 }
 
 .user-name {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
   color: #e0e0e0;
   white-space: nowrap;
@@ -205,7 +206,7 @@ body {
 }
 
 .user-email {
-  font-size: 10px;
+  font-size: 9px;
   color: #666680;
   white-space: nowrap;
   overflow: hidden;
@@ -216,10 +217,10 @@ body {
 /* Buttons                                        */
 /* ============================================= */
 .btn {
-  padding: 10px 20px;
+  padding: 8px 16px;
   border: none;
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: 6px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
@@ -241,9 +242,9 @@ body {
 }
 
 .btn-small {
-  padding: 6px 14px;
-  font-size: 12px;
-  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  border-radius: 5px;
 }
 
 .btn-outline {
@@ -270,9 +271,9 @@ body {
   background: none;
   border: none;
   color: #8888aa;
-  font-size: 11px;
+  font-size: 10px;
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 2px 6px;
 }
 
 .btn-link:hover {
@@ -283,10 +284,10 @@ body {
   background: none;
   border: none;
   color: #8888aa;
-  font-size: 16px;
+  font-size: 14px;
   cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 2px 4px;
+  border-radius: 3px;
   transition: all 0.15s;
 }
 
@@ -301,7 +302,7 @@ body {
 #timer-panel {
   background: linear-gradient(135deg, #1e3a2f 0%, #1a2e28 100%);
   border-bottom: 1px solid #2a4a3a;
-  padding: 16px;
+  padding: 10px 12px;
   text-align: center;
   flex-shrink: 0;
 }
@@ -315,13 +316,13 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  margin-bottom: 8px;
+  gap: 5px;
+  margin-bottom: 4px;
 }
 
 .pulse {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   background: #2ecc71;
   border-radius: 50%;
   animation: pulse 1.5s infinite;
@@ -338,7 +339,7 @@ body {
 }
 
 #timer-label {
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -350,18 +351,18 @@ body {
 }
 
 #timer-display {
-  font-size: 38px;
+  font-size: 28px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: #fff;
-  letter-spacing: 2px;
-  margin: 4px 0;
+  letter-spacing: 1px;
+  margin: 2px 0;
 }
 
 .timer-project {
-  font-size: 13px;
+  font-size: 11px;
   color: #8fbc8f;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -373,7 +374,7 @@ body {
 
 .timer-actions {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   justify-content: center;
 }
 
@@ -381,21 +382,21 @@ body {
 /* No Timer                                       */
 /* ============================================= */
 #no-timer {
-  padding: 16px;
+  padding: 10px;
   text-align: center;
   flex-shrink: 0;
 }
 
 .no-timer-text {
-  font-size: 14px;
+  font-size: 12px;
   color: #8888aa;
   font-weight: 600;
 }
 
 .no-timer-hint {
-  font-size: 11px;
+  font-size: 10px;
   color: #666680;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 /* ============================================= */
@@ -405,8 +406,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 16px;
-  font-size: 11px;
+  padding: 5px 12px;
+  font-size: 9px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -418,16 +419,16 @@ body {
 #project-list {
   flex: 1;
   overflow-y: auto;
-  padding: 0 8px 8px;
+  padding: 0 6px 4px;
 }
 
 .project-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  margin-bottom: 2px;
-  border-radius: 8px;
+  gap: 8px;
+  padding: 7px 8px;
+  margin-bottom: 1px;
+  border-radius: 6px;
   cursor: pointer;
   transition: background 0.1s;
   border: 1px solid transparent;
@@ -443,8 +444,8 @@ body {
 }
 
 .project-dot {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: #555577;
   flex-shrink: 0;
@@ -461,7 +462,7 @@ body {
 }
 
 .project-name {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
   color: #e0e0e0;
   white-space: nowrap;
@@ -470,7 +471,7 @@ body {
 }
 
 .project-client {
-  font-size: 11px;
+  font-size: 9px;
   color: #666680;
   white-space: nowrap;
   overflow: hidden;
@@ -478,7 +479,7 @@ body {
 }
 
 .project-play {
-  font-size: 14px;
+  font-size: 12px;
   color: #555577;
   flex-shrink: 0;
   transition: color 0.1s;
@@ -496,7 +497,7 @@ body {
 /* Scrollbar                                      */
 /* ============================================= */
 #project-list::-webkit-scrollbar {
-  width: 4px;
+  width: 3px;
 }
 
 #project-list::-webkit-scrollbar-track {
@@ -512,7 +513,7 @@ body {
 /* Footer                                         */
 /* ============================================= */
 #footer {
-  padding: 6px 16px;
+  padding: 4px 12px;
   text-align: center;
   border-top: 1px solid #2a2a44;
   flex-shrink: 0;
@@ -529,14 +530,14 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 8px;
   z-index: 100;
 }
 
 .spinner {
-  width: 28px;
-  height: 28px;
-  border: 3px solid #333355;
+  width: 22px;
+  height: 22px;
+  border: 2px solid #333355;
   border-top-color: #a657f0;
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
@@ -547,6 +548,6 @@ body {
 }
 
 .loading-text {
-  font-size: 12px;
+  font-size: 11px;
   color: #8888aa;
 }
