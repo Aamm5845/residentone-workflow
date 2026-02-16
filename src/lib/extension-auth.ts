@@ -1,15 +1,42 @@
 import { NextRequest } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { jwtVerify } from 'jose'
+
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || 'your-secret-key'
+)
 
 /**
- * Authenticate a request via Extension API Key or session.
+ * Authenticate a request via:
+ *   1. Bearer JWT token (from /api/auth/mobile-login — used by desktop timer)
+ *   2. Extension API Key (X-Extension-Key header — used by Chrome extension, Gmail add-on)
+ *   3. Session cookie (used by the web app)
+ *
  * Returns the user object or null if unauthenticated.
- * Used by both extension endpoints and timeline endpoints
- * so the desktop timer app can use the same X-Extension-Key auth.
  */
 export async function getAuthenticatedUser(request: NextRequest) {
-  // First try API key from header
+  // 1. Try Bearer token (JWT from mobile-login)
+  const authHeader = request.headers.get('authorization')
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const token = authHeader.substring(7)
+      const { payload } = await jwtVerify(token, JWT_SECRET)
+      const userId = payload.userId as string
+
+      if (userId) {
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { id: true, name: true, email: true, orgId: true, role: true }
+        })
+        if (user) return user
+      }
+    } catch {
+      // Token invalid/expired — fall through to other methods
+    }
+  }
+
+  // 2. Try API key from header
   const apiKey = request.headers.get('X-Extension-Key')
 
   if (apiKey) {
@@ -46,11 +73,10 @@ export async function getAuthenticatedUser(request: NextRequest) {
     }
   }
 
-  // Fall back to session auth
+  // 3. Fall back to session auth
   const session = await getSession() as any
 
   if (!session?.user?.id) {
-    // Try by email
     if (session?.user?.email) {
       const user = await prisma.user.findUnique({
         where: { email: session.user.email },

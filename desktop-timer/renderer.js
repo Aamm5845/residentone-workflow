@@ -1,5 +1,6 @@
 // =============================================
 // StudioFlow Desktop Timer — Renderer
+// Email/Password login with JWT Bearer token
 // =============================================
 
 const { electronAPI } = window
@@ -7,8 +8,8 @@ const { electronAPI } = window
 // =============================================
 // State
 // =============================================
-let apiKey = null
-let apiUrl = null
+let authToken = null   // JWT Bearer token
+let apiUrl = 'https://app.meisnerinteriors.com'
 let currentUser = null // { id, name, email, role }
 let projects = []
 let activeTimer = null
@@ -20,15 +21,15 @@ let isPaused = false
 // =============================================
 const $ = (id) => document.getElementById(id)
 
-const screenSetup = $('screen-setup')
+const screenLogin = $('screen-login')
 const screenMain = $('screen-main')
 const loading = $('loading')
 
-// Setup
-const inputApiKey = $('input-apikey')
-const inputApiUrl = $('input-apiurl')
-const btnConnect = $('btn-connect')
-const setupError = $('setup-error')
+// Login
+const inputEmail = $('input-email')
+const inputPassword = $('input-password')
+const btnLogin = $('btn-login')
+const loginError = $('login-error')
 
 // Title bar
 const btnMinimize = $('btn-minimize')
@@ -38,6 +39,7 @@ const btnClose = $('btn-close')
 const userBar = $('user-bar')
 const userName = $('user-name')
 const userEmail = $('user-email')
+const userAvatar = $('user-avatar')
 
 // Timer
 const timerPanel = $('timer-panel')
@@ -51,7 +53,7 @@ const btnStop = $('btn-stop')
 // Projects
 const projectList = $('project-list')
 const btnRefresh = $('btn-refresh')
-const btnDisconnect = $('btn-disconnect')
+const btnLogout = $('btn-logout')
 
 // =============================================
 // Window Controls — wire immediately
@@ -73,7 +75,7 @@ function hideLoading() {
 }
 
 function showScreen(name) {
-  screenSetup.classList.toggle('hidden', name !== 'setup')
+  screenLogin.classList.toggle('hidden', name !== 'login')
   screenMain.classList.toggle('hidden', name !== 'main')
 }
 
@@ -84,105 +86,116 @@ function formatTime(seconds) {
   return [h, m, s].map(v => String(v).padStart(2, '0')).join(':')
 }
 
+// All API calls go through this — automatically attaches Bearer token
 async function api(method, path, body) {
-  return electronAPI.apiRequest({ method, path, body, apiKey, apiUrl })
+  return electronAPI.apiRequest({
+    method,
+    path,
+    body,
+    token: authToken,
+    apiUrl,
+  })
 }
 
 // =============================================
-// Setup / Auth
+// Login
 // =============================================
 
 async function init() {
-  apiKey = await electronAPI.store.get('apiKey')
+  authToken = await electronAPI.store.get('authToken')
   apiUrl = await electronAPI.store.get('apiUrl') || 'https://app.meisnerinteriors.com'
-  inputApiUrl.value = apiUrl
 
-  if (apiKey) {
-    showLoading('Connecting...')
-    const user = await validateAndGetUser(apiKey)
+  if (authToken) {
+    showLoading('Signing in...')
+    const user = await verifyToken()
     if (user) {
       currentUser = user
-      await electronAPI.store.set('userName', user.name || '')
-      await electronAPI.store.set('userEmail', user.email || '')
       await enterMainScreen()
     } else {
-      apiKey = null
-      await electronAPI.store.delete('apiKey')
+      // Token expired or invalid — clear and show login
+      authToken = null
+      await electronAPI.store.delete('authToken')
       hideLoading()
-      showScreen('setup')
+      showScreen('login')
     }
   } else {
-    showScreen('setup')
+    showScreen('login')
   }
 }
 
-async function validateAndGetUser(key) {
+async function verifyToken() {
   try {
-    console.log('[Auth] Validating key...', key ? key.substring(0, 8) + '...' : 'EMPTY')
-    console.log('[Auth] API URL:', apiUrl)
     const res = await electronAPI.apiRequest({
       method: 'GET',
-      path: '/api/extension/auth',
-      apiKey: key,
-      apiUrl: apiUrl,
+      path: '/api/auth/me',
+      token: authToken,
+      apiUrl,
     })
-    console.log('[Auth] Response:', JSON.stringify(res))
-    if (res && res.ok && res.data && res.data.ok) {
-      console.log('[Auth] Valid! User:', res.data.user?.name || 'unknown')
-      return res.data.user || null
+    if (res.ok && res.data && res.data.user) {
+      return res.data.user
     }
-    console.log('[Auth] Invalid. ok:', res?.ok, 'data.ok:', res?.data?.ok)
     return null
-  } catch (err) {
-    console.error('[Auth] Error:', err)
+  } catch {
     return null
   }
 }
 
-btnConnect.addEventListener('click', async () => {
-  const key = inputApiKey.value.trim()
-  const url = inputApiUrl.value.trim()
+async function loginWithCredentials(email, password) {
+  try {
+    const res = await electronAPI.apiRequest({
+      method: 'POST',
+      path: '/api/auth/mobile-login',
+      body: { email, password },
+      apiUrl,
+    })
 
-  console.log('[Connect] Clicked. Key length:', key.length, 'URL:', url)
+    if (res.ok && res.data && res.data.token) {
+      return { token: res.data.token, user: res.data.user }
+    }
 
-  if (!key) {
-    setupError.textContent = 'Please enter an API key'
+    // Return the specific error from the server
+    return { error: res.data?.error || 'Login failed' }
+  } catch (err) {
+    return { error: 'Connection failed. Check your internet.' }
+  }
+}
+
+btnLogin.addEventListener('click', async () => {
+  const email = inputEmail.value.trim().toLowerCase()
+  const password = inputPassword.value
+
+  if (!email || !password) {
+    loginError.textContent = 'Enter your email and password'
     return
   }
 
-  setupError.textContent = ''
-  btnConnect.disabled = true
-  btnConnect.textContent = 'Connecting...'
+  loginError.textContent = ''
+  btnLogin.disabled = true
+  btnLogin.textContent = 'Signing in...'
 
-  apiUrl = url || 'https://app.meisnerinteriors.com'
+  const result = await loginWithCredentials(email, password)
 
-  try {
-    const user = await validateAndGetUser(key)
-    console.log('[Connect] validateAndGetUser returned:', user)
-
-    if (user) {
-      apiKey = key
-      currentUser = user
-      await electronAPI.store.set('apiKey', apiKey)
-      await electronAPI.store.set('apiUrl', apiUrl)
-      await electronAPI.store.set('userName', user.name || '')
-      await electronAPI.store.set('userEmail', user.email || '')
-      showLoading('Loading projects...')
-      await enterMainScreen()
-    } else {
-      setupError.textContent = 'Invalid API key. Make sure you copied the full key from Settings > API Key.'
-    }
-  } catch (err) {
-    console.error('[Connect] Error:', err)
-    setupError.textContent = 'Connection failed: ' + (err.message || 'Unknown error')
+  if (result.token) {
+    authToken = result.token
+    currentUser = result.user
+    await electronAPI.store.set('authToken', authToken)
+    await electronAPI.store.set('apiUrl', apiUrl)
+    showLoading('Loading projects...')
+    await enterMainScreen()
+  } else {
+    loginError.textContent = result.error || 'Invalid email or password'
   }
 
-  btnConnect.disabled = false
-  btnConnect.textContent = 'Connect'
+  btnLogin.disabled = false
+  btnLogin.textContent = 'Sign In'
 })
 
-inputApiKey.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') btnConnect.click()
+inputPassword.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') btnLogin.click()
+})
+
+inputEmail.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') inputPassword.focus()
 })
 
 // =============================================
@@ -192,8 +205,6 @@ inputApiKey.addEventListener('keydown', (e) => {
 async function enterMainScreen() {
   showScreen('main')
   showUserBar()
-
-  // Load projects and check timer in parallel for speed
   await Promise.all([loadProjects(), checkActiveTimer()])
   hideLoading()
 }
@@ -202,6 +213,8 @@ function showUserBar() {
   if (currentUser) {
     userName.textContent = currentUser.name || 'Team Member'
     userEmail.textContent = currentUser.email || ''
+    const initials = (currentUser.name || '?').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
+    userAvatar.textContent = initials
     userBar.classList.remove('hidden')
   }
 }
@@ -220,7 +233,6 @@ async function loadProjects() {
 
 async function checkActiveTimer() {
   try {
-    // Check running and paused in parallel for speed
     const [runRes, pausedRes] = await Promise.all([
       api('GET', '/api/timeline/entries?status=RUNNING&perPage=1'),
       api('GET', '/api/timeline/entries?status=PAUSED&perPage=1'),
@@ -316,18 +328,14 @@ function stopTickingDisplay() {
 
 function updateTimerDisplay() {
   if (!activeTimer) return
-
   const now = Date.now()
   const totalMs = now - activeTimer.startedAt.getTime()
   let pauseMs = activeTimer.completedPauseMs || 0
-
   if (isPaused && activeTimer.currentPauseStart) {
     pauseMs += now - activeTimer.currentPauseStart.getTime()
   }
-
   let elapsedMs = totalMs - pauseMs
   if (elapsedMs < 0) elapsedMs = 0
-
   timerDisplay.textContent = formatTime(Math.floor(elapsedMs / 1000))
 }
 
@@ -338,36 +346,23 @@ function updateTimerDisplay() {
 async function startTimer(projectId) {
   const proj = projects.find(p => p.id === projectId)
   if (!proj) return
-
-  // If same project already running, ignore
-  if (activeTimer && activeTimer.projectId === projectId && !isPaused) {
-    return
-  }
+  if (activeTimer && activeTimer.projectId === projectId && !isPaused) return
 
   showLoading('Starting timer...')
 
-  // Stop existing timer first if different project
   if (activeTimer) {
-    try {
-      await api('PATCH', `/api/timeline/entries/${activeTimer.id}`, { action: 'stop' })
-    } catch (err) {
-      console.error('Error stopping previous timer:', err)
-    }
+    try { await api('PATCH', `/api/timeline/entries/${activeTimer.id}`, { action: 'stop' }) } catch {}
     activeTimer = null
     isPaused = false
   }
 
   try {
-    const res = await api('POST', '/api/timeline/entries', {
-      projectId: projectId,
-      isManual: false,
-    })
-
+    const res = await api('POST', '/api/timeline/entries', { projectId, isManual: false })
     if (res.ok && res.data && res.data.entry) {
       const entry = res.data.entry
       activeTimer = {
         id: entry.id,
-        projectId: projectId,
+        projectId,
         projectName: `${proj.name} (${proj.clientName})`,
         startedAt: new Date(entry.startTime),
         status: 'RUNNING',
@@ -377,9 +372,6 @@ async function startTimer(projectId) {
       isPaused = false
       showTimerPanel()
       renderProjectList()
-    } else {
-      const errMsg = res.data?.error || 'Failed to start timer'
-      console.error('Start timer error:', errMsg)
     }
   } catch (err) {
     console.error('Error starting timer:', err)
@@ -390,13 +382,7 @@ async function startTimer(projectId) {
 
 async function stopCurrentTimer() {
   if (!activeTimer) return
-
-  try {
-    await api('PATCH', `/api/timeline/entries/${activeTimer.id}`, { action: 'stop' })
-  } catch (err) {
-    console.error('Error stopping timer:', err)
-  }
-
+  try { await api('PATCH', `/api/timeline/entries/${activeTimer.id}`, { action: 'stop' }) } catch {}
   activeTimer = null
   isPaused = false
   hideTimerPanel()
@@ -405,12 +391,9 @@ async function stopCurrentTimer() {
 
 async function pauseResumeTimer() {
   if (!activeTimer) return
-
   const action = isPaused ? 'resume' : 'pause'
-
   try {
     const res = await api('PATCH', `/api/timeline/entries/${activeTimer.id}`, { action })
-
     if (res.ok) {
       if (action === 'pause') {
         isPaused = true
@@ -440,7 +423,6 @@ btnPause.addEventListener('click', () => pauseResumeTimer())
 
 function renderProjectList() {
   projectList.innerHTML = ''
-
   if (projects.length === 0) {
     projectList.innerHTML = '<div style="padding:20px;text-align:center;color:#666680;font-size:12px;">No projects found</div>'
     return
@@ -458,7 +440,6 @@ function renderProjectList() {
       </div>
       <div class="project-play">${isActive ? (isPaused ? '&#9654;' : '&#9646;&#9646;') : '&#9654;'}</div>
     `
-
     item.addEventListener('click', () => startTimer(proj.id))
     projectList.appendChild(item)
   })
@@ -471,7 +452,7 @@ function escapeHtml(text) {
 }
 
 // =============================================
-// Refresh & Disconnect
+// Refresh & Logout
 // =============================================
 
 btnRefresh.addEventListener('click', async () => {
@@ -480,11 +461,9 @@ btnRefresh.addEventListener('click', async () => {
   hideLoading()
 })
 
-btnDisconnect.addEventListener('click', async () => {
-  await electronAPI.store.delete('apiKey')
-  await electronAPI.store.delete('userName')
-  await electronAPI.store.delete('userEmail')
-  apiKey = null
+btnLogout.addEventListener('click', async () => {
+  await electronAPI.store.delete('authToken')
+  authToken = null
   currentUser = null
   activeTimer = null
   isPaused = false
@@ -492,9 +471,10 @@ btnDisconnect.addEventListener('click', async () => {
   stopTickingDisplay()
   projects = []
   userBar.classList.add('hidden')
-  showScreen('setup')
-  inputApiKey.value = ''
-  setupError.textContent = ''
+  showScreen('login')
+  inputEmail.value = ''
+  inputPassword.value = ''
+  loginError.textContent = ''
 })
 
 // =============================================

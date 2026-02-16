@@ -17,32 +17,18 @@
   </div>
 
   <div id="app">
-    <!-- ===== Setup Screen ===== -->
-    <div id="screen-setup" class="screen">
+    <!-- ===== Login Screen ===== -->
+    <div id="screen-login" class="screen">
       <div class="setup-container">
         <div class="setup-logo">SF</div>
         <h2>StudioFlow Timer</h2>
-        <p class="setup-hint">
-          Paste your Extension API Key from<br />
-          <strong>Settings &gt; Extension API Key</strong>
-        </p>
-        <input
-          type="text"
-          id="input-apikey"
-          placeholder="ext_..."
-          spellcheck="false"
-          autocomplete="off"
-        />
-        <input
-          type="text"
-          id="input-apiurl"
-          placeholder="https://app.meisnerinteriors.com"
-          value="https://app.meisnerinteriors.com"
-          spellcheck="false"
-          autocomplete="off"
-        />
-        <button id="btn-connect" class="btn btn-primary">Connect</button>
-        <p id="setup-error" class="error-text"></p>
+        <p class="setup-hint">Sign in with your StudioFlow account</p>
+
+        <input type="email" id="input-email" placeholder="Email" spellcheck="false" autocomplete="email" />
+        <input type="password" id="input-password" placeholder="Password" autocomplete="current-password" />
+
+        <button id="btn-login" class="btn btn-primary">Sign In</button>
+        <p id="login-error" class="error-text"></p>
       </div>
     </div>
 
@@ -86,7 +72,7 @@
 
       <!-- Footer -->
       <div id="footer">
-        <button id="btn-disconnect" class="btn-link">Disconnect &amp; Logout</button>
+        <button id="btn-logout" class="btn-link">Sign Out</button>
       </div>
     </div>
 

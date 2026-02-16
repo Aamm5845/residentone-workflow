@@ -13,7 +13,7 @@ import {
 import Link from 'next/link'
 
 // ─── Version Constants ───────────────────────────────────────
-const TIMER_VERSION = '1.1.0'
+const TIMER_VERSION = '1.2.0'
 const CLIPPER_VERSION = '1.2.0'
 
 // ─── Sidebar Nav Items ───────────────────────────────────────
@@ -307,7 +307,7 @@ function TimerSection() {
         <div className="grid grid-cols-3 gap-4">
           {[
             { step: '1', title: 'Install', desc: 'Run the .exe installer. It creates a desktop shortcut automatically.', icon: Package },
-            { step: '2', title: 'Connect', desc: 'Paste your Extension API Key on first launch.', icon: KeyRound },
+            { step: '2', title: 'Sign In', desc: 'Log in with your StudioFlow email and password.', icon: KeyRound },
             { step: '3', title: 'Track', desc: 'Click any project to start a timer. Entries sync to your Timeline.', icon: Clock },
           ].map((s) => (
             <div key={s.step} className="relative">
@@ -351,7 +351,7 @@ function TimerSection() {
         <div>
           <p className="font-medium text-emerald-900 text-sm">Per-member tracking</p>
           <p className="text-sm text-emerald-700 mt-0.5">
-            Each team member generates their own API Key (from the API Key section), pastes it into the timer once, and all their hours are tracked under their profile.
+            Each team member signs in with their own StudioFlow email and password. All hours are automatically tracked under their profile.
           </p>
         </div>
       </div>
@@ -370,15 +370,28 @@ function TimerSection() {
             </div>
             <div className="pb-4">
               <div className="flex items-center gap-2 mb-1">
-                <span className="font-medium text-gray-900 text-sm">v1.1.0</span>
+                <span className="font-medium text-gray-900 text-sm">v1.2.0</span>
                 <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full font-medium">Latest</span>
               </div>
               <ul className="text-xs text-gray-500 space-y-0.5 list-disc list-inside">
+                <li>Email &amp; password login (no more API key needed!)</li>
+                <li>Sign in with the same account you use on the website</li>
+                <li>Session stays active for 7 days</li>
                 <li>Fixed close button (X) not quitting the app</li>
-                <li>Fixed Connect button not working with valid API keys</li>
-                <li>New branded SF icon (replaced purple circle)</li>
-                <li>User profile bar shows logged-in member name &amp; email</li>
-                <li>Performance: parallel API calls, faster transitions</li>
+              </ul>
+            </div>
+          </div>
+          <div className="flex gap-4">
+            <div className="flex flex-col items-center">
+              <div className="w-2.5 h-2.5 rounded-full bg-gray-300 ring-4 ring-gray-50" />
+              <div className="w-px flex-1 bg-gray-200 mt-1" />
+            </div>
+            <div className="pb-4">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-medium text-gray-900 text-sm">v1.1.0</span>
+              </div>
+              <ul className="text-xs text-gray-500 space-y-0.5 list-disc list-inside">
+                <li>User profile bar, SF icon, performance improvements</li>
               </ul>
             </div>
           </div>
