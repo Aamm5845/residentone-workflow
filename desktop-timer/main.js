@@ -99,9 +99,13 @@ function createFallbackIcon() {
 // IPC Handlers
 // =============================================
 
-ipcMain.on('window:minimize', () => { if (mainWindow) mainWindow.hide(); });
+ipcMain.on('window:minimize', () => {
+  console.log('[MAIN] IPC: window:minimize received');
+  if (mainWindow) mainWindow.hide();
+});
 
 ipcMain.on('window:close', () => {
+  console.log('[MAIN] IPC: window:close received');
   isQuitting = true;
   if (mainWindow) mainWindow.destroy();
   app.quit();
