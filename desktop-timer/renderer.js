@@ -1,5 +1,5 @@
 // =============================================
-// StudioFlow Desktop Timer v1.3.1 — Renderer
+// StudioFlow Desktop Timer v1.3.2 — Renderer
 // Email/Password login with JWT Bearer token
 // DEBUG BUILD — visible debug panel
 // =============================================
