@@ -1,5 +1,5 @@
 // =============================================
-// StudioFlow Desktop Timer v2.5.2 — Renderer
+// StudioFlow Desktop Timer v2.5.3 — Renderer
 // =============================================
 
 const eAPI = window.electronAPI
@@ -450,19 +450,13 @@ async function startTimer(projectId) {
   if (!proj) return
   if (activeTimer && activeTimer.projectId === projectId && !isPaused) return
 
-  // Block sync for 10s so it doesn't undo our local state
-  blockSync(10)
+  // Block sync so it doesn't fight us
+  blockSync(15)
 
   // Bump this project to top of recently used
   bumpProject(projectId)
 
-  // Stop existing timer in background (don't await)
-  const oldTimerId = activeTimer ? activeTimer.id : null
-  if (oldTimerId) {
-    api('PATCH', `/api/timeline/entries/${oldTimerId}`, { action: 'stop' }).catch(() => {})
-  }
-
-  // Start timer UI immediately — don't wait for API
+  // Show UI immediately
   activeTimer = {
     id: null,
     projectId,
@@ -476,13 +470,49 @@ async function startTimer(projectId) {
   showTimerPanel()
   renderProjectList()
 
-  // Fire API call in background to create real entry
-  api('POST', '/api/timeline/entries', { projectId, isManual: false }).then(res => {
+  // Background: stop any existing server timer, then create new one
+  // The API rejects POST if a timer is already running, so we must stop first
+  try {
+    // Check server for any running/paused entry
+    const [runRes, pausedRes] = await Promise.all([
+      api('GET', '/api/timeline/entries?status=RUNNING&perPage=1'),
+      api('GET', '/api/timeline/entries?status=PAUSED&perPage=1'),
+    ])
+
+    let existingEntry = null
+    if (runRes.ok && runRes.data.entries && runRes.data.entries.length > 0) {
+      existingEntry = runRes.data.entries[0]
+    } else if (pausedRes.ok && pausedRes.data.entries && pausedRes.data.entries.length > 0) {
+      existingEntry = pausedRes.data.entries[0]
+    }
+
+    // If server has a running timer for the SAME project, just adopt it
+    if (existingEntry && existingEntry.projectId === projectId && existingEntry.status === 'RUNNING') {
+      const completedPauseMs = (existingEntry.pauses || []).reduce((acc, p) => {
+        if (p.resumedAt) return acc + (new Date(p.resumedAt).getTime() - new Date(p.pausedAt).getTime())
+        return acc
+      }, 0)
+      activeTimer.id = existingEntry.id
+      activeTimer.startedAt = new Date(existingEntry.startTime)
+      activeTimer.completedPauseMs = completedPauseMs
+      showTimerPanel()
+      return
+    }
+
+    // Stop existing server timer if it's a different project
+    if (existingEntry) {
+      await api('PATCH', `/api/timeline/entries/${existingEntry.id}`, { action: 'stop' })
+    }
+
+    // Now create the new entry
+    const res = await api('POST', '/api/timeline/entries', { projectId, isManual: false })
     if (res.ok && res.data && res.data.entry) {
       activeTimer.id = res.data.entry.id
       activeTimer.startedAt = new Date(res.data.entry.startTime)
     }
-  }).catch(() => {})
+  } catch {
+    // API failed — UI timer still runs locally, will sync later
+  }
 }
 
 async function stopCurrentTimer() {
