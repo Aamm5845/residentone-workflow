@@ -9,8 +9,7 @@
 <body>
   <!-- Draggable title bar -->
   <div id="titlebar">
-    <span class="titlebar-icon">&#9201;</span>
-    <span class="titlebar-title">StudioFlow Timer</span>
+    <span class="titlebar-title">SF Timer</span>
     <div class="titlebar-buttons">
       <button id="btn-minimize" class="tb-btn" title="Minimize to tray">&#8211;</button>
       <button id="btn-close" class="tb-btn tb-close" title="Quit">&times;</button>
@@ -21,8 +20,8 @@
     <!-- ===== Setup Screen ===== -->
     <div id="screen-setup" class="screen">
       <div class="setup-container">
-        <div class="setup-icon">&#128273;</div>
-        <h2>Connect to StudioFlow</h2>
+        <div class="setup-logo">SF</div>
+        <h2>StudioFlow Timer</h2>
         <p class="setup-hint">
           Paste your Extension API Key from<br />
           <strong>Settings &gt; Extension API Key</strong>
@@ -49,6 +48,15 @@
 
     <!-- ===== Main Screen ===== -->
     <div id="screen-main" class="screen hidden">
+      <!-- User profile bar -->
+      <div id="user-bar" class="hidden">
+        <div class="user-avatar" id="user-avatar">?</div>
+        <div class="user-info">
+          <div id="user-name" class="user-name">Team Member</div>
+          <div id="user-email" class="user-email"></div>
+        </div>
+      </div>
+
       <!-- Active timer panel -->
       <div id="timer-panel" class="hidden">
         <div id="timer-status" class="timer-status">
@@ -64,7 +72,7 @@
       </div>
 
       <!-- No active timer message -->
-      <div id="no-timer" class="">
+      <div id="no-timer">
         <div class="no-timer-text">No active timer</div>
         <div class="no-timer-hint">Click a project below to start</div>
       </div>
@@ -78,7 +86,7 @@
 
       <!-- Footer -->
       <div id="footer">
-        <button id="btn-disconnect" class="btn-link">Disconnect</button>
+        <button id="btn-disconnect" class="btn-link">Disconnect &amp; Logout</button>
       </div>
     </div>
 

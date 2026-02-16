@@ -9,8 +9,9 @@ const { electronAPI } = window
 // =============================================
 let apiKey = null
 let apiUrl = null
+let currentUser = null // { id, name, email, role }
 let projects = []
-let activeTimer = null   // { id, projectId, projectName, startedAt, status }
+let activeTimer = null
 let timerInterval = null
 let isPaused = false
 
@@ -33,6 +34,11 @@ const setupError = $('setup-error')
 const btnMinimize = $('btn-minimize')
 const btnClose = $('btn-close')
 
+// User
+const userBar = $('user-bar')
+const userName = $('user-name')
+const userEmail = $('user-email')
+
 // Timer
 const timerPanel = $('timer-panel')
 const noTimer = $('no-timer')
@@ -46,6 +52,12 @@ const btnStop = $('btn-stop')
 const projectList = $('project-list')
 const btnRefresh = $('btn-refresh')
 const btnDisconnect = $('btn-disconnect')
+
+// =============================================
+// Window Controls — wire immediately
+// =============================================
+btnMinimize.addEventListener('click', () => electronAPI.minimize())
+btnClose.addEventListener('click', () => electronAPI.close())
 
 // =============================================
 // Helpers
@@ -81,18 +93,19 @@ async function api(method, path, body) {
 // =============================================
 
 async function init() {
-  // Load saved credentials
   apiKey = await electronAPI.store.get('apiKey')
   apiUrl = await electronAPI.store.get('apiUrl') || 'https://app.meisnerinteriors.com'
   inputApiUrl.value = apiUrl
 
   if (apiKey) {
     showLoading('Connecting...')
-    const valid = await validateKey(apiKey)
-    if (valid) {
+    const user = await validateAndGetUser(apiKey)
+    if (user) {
+      currentUser = user
+      await electronAPI.store.set('userName', user.name || '')
+      await electronAPI.store.set('userEmail', user.email || '')
       await enterMainScreen()
     } else {
-      // Key expired or invalid
       apiKey = null
       await electronAPI.store.delete('apiKey')
       hideLoading()
@@ -103,7 +116,7 @@ async function init() {
   }
 }
 
-async function validateKey(key) {
+async function validateAndGetUser(key) {
   try {
     const res = await electronAPI.apiRequest({
       method: 'GET',
@@ -111,9 +124,13 @@ async function validateKey(key) {
       apiKey: key,
       apiUrl: apiUrl,
     })
-    return res.ok
-  } catch {
-    return false
+    if (res.ok && res.data && res.data.ok) {
+      return res.data.user || null
+    }
+    return null
+  } catch (err) {
+    console.error('Auth error:', err)
+    return null
   }
 }
 
@@ -132,23 +149,29 @@ btnConnect.addEventListener('click', async () => {
 
   apiUrl = url || 'https://app.meisnerinteriors.com'
 
-  const valid = await validateKey(key)
+  try {
+    const user = await validateAndGetUser(key)
 
-  if (valid) {
-    apiKey = key
-    await electronAPI.store.set('apiKey', apiKey)
-    await electronAPI.store.set('apiUrl', apiUrl)
-    showLoading('Loading projects...')
-    await enterMainScreen()
-  } else {
-    setupError.textContent = 'Invalid API key or cannot reach server'
+    if (user) {
+      apiKey = key
+      currentUser = user
+      await electronAPI.store.set('apiKey', apiKey)
+      await electronAPI.store.set('apiUrl', apiUrl)
+      await electronAPI.store.set('userName', user.name || '')
+      await electronAPI.store.set('userEmail', user.email || '')
+      showLoading('Loading projects...')
+      await enterMainScreen()
+    } else {
+      setupError.textContent = 'Invalid API key or server unreachable'
+    }
+  } catch (err) {
+    setupError.textContent = 'Connection failed: ' + (err.message || 'Unknown error')
   }
 
   btnConnect.disabled = false
   btnConnect.textContent = 'Connect'
 })
 
-// Allow Enter key in API key field
 inputApiKey.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') btnConnect.click()
 })
@@ -159,15 +182,25 @@ inputApiKey.addEventListener('keydown', (e) => {
 
 async function enterMainScreen() {
   showScreen('main')
-  await loadProjects()
-  await checkActiveTimer()
+  showUserBar()
+
+  // Load projects and check timer in parallel for speed
+  await Promise.all([loadProjects(), checkActiveTimer()])
   hideLoading()
+}
+
+function showUserBar() {
+  if (currentUser) {
+    userName.textContent = currentUser.name || 'Team Member'
+    userEmail.textContent = currentUser.email || ''
+    userBar.classList.remove('hidden')
+  }
 }
 
 async function loadProjects() {
   try {
     const res = await api('GET', '/api/extension/projects')
-    if (res.ok && res.data.projects) {
+    if (res.ok && res.data && res.data.projects) {
       projects = res.data.projects
     }
   } catch (err) {
@@ -178,21 +211,21 @@ async function loadProjects() {
 
 async function checkActiveTimer() {
   try {
-    // Check for running timer first, then paused
+    // Check running and paused in parallel for speed
+    const [runRes, pausedRes] = await Promise.all([
+      api('GET', '/api/timeline/entries?status=RUNNING&perPage=1'),
+      api('GET', '/api/timeline/entries?status=PAUSED&perPage=1'),
+    ])
+
     let entry = null
-    const res = await api('GET', '/api/timeline/entries?status=RUNNING&perPage=1')
-    if (res.ok && res.data.entries && res.data.entries.length > 0) {
-      entry = res.data.entries[0]
-    } else {
-      const pausedRes = await api('GET', '/api/timeline/entries?status=PAUSED&perPage=1')
-      if (pausedRes.ok && pausedRes.data.entries && pausedRes.data.entries.length > 0) {
-        entry = pausedRes.data.entries[0]
-      }
+    if (runRes.ok && runRes.data.entries && runRes.data.entries.length > 0) {
+      entry = runRes.data.entries[0]
+    } else if (pausedRes.ok && pausedRes.data.entries && pausedRes.data.entries.length > 0) {
+      entry = pausedRes.data.entries[0]
     }
 
     if (entry) {
       const proj = projects.find(p => p.id === entry.projectId)
-      // Calculate total completed pause time (in ms) from the pauses array
       const completedPauseMs = (entry.pauses || []).reduce((acc, p) => {
         if (p.resumedAt) {
           return acc + (new Date(p.resumedAt).getTime() - new Date(p.pausedAt).getTime())
@@ -206,12 +239,10 @@ async function checkActiveTimer() {
         projectName: proj ? `${proj.name} (${proj.clientName})` : entry.project?.name || 'Unknown',
         startedAt: new Date(entry.startTime),
         status: entry.status,
-        completedPauseMs: completedPauseMs,
-        // If currently paused, track when the current pause started
+        completedPauseMs,
         currentPauseStart: null,
       }
 
-      // Find the active (unended) pause if paused
       const activePause = (entry.pauses || []).find(p => !p.resumedAt)
       if (activePause) {
         activeTimer.currentPauseStart = new Date(activePause.pausedAt)
@@ -237,18 +268,17 @@ async function checkActiveTimer() {
 function showTimerPanel() {
   timerPanel.classList.remove('hidden')
   noTimer.classList.add('hidden')
-
   timerProject.textContent = activeTimer.projectName
 
   if (isPaused) {
     timerPanel.classList.add('paused')
     timerLabel.textContent = 'Paused'
-    btnPause.innerHTML = '&#9654;' // play
+    btnPause.innerHTML = '&#9654;'
     btnPause.title = 'Resume'
   } else {
     timerPanel.classList.remove('paused')
     timerLabel.textContent = 'Running'
-    btnPause.innerHTML = '&#10074;&#10074;' // pause
+    btnPause.innerHTML = '&#10074;&#10074;'
     btnPause.title = 'Pause'
   }
 
@@ -278,22 +308,18 @@ function stopTickingDisplay() {
 function updateTimerDisplay() {
   if (!activeTimer) return
 
-  const now = new Date()
-  const totalMs = now.getTime() - activeTimer.startedAt.getTime()
-
-  // Subtract completed pauses
+  const now = Date.now()
+  const totalMs = now - activeTimer.startedAt.getTime()
   let pauseMs = activeTimer.completedPauseMs || 0
 
-  // If currently paused, add the duration of the current pause
   if (isPaused && activeTimer.currentPauseStart) {
-    pauseMs += now.getTime() - activeTimer.currentPauseStart.getTime()
+    pauseMs += now - activeTimer.currentPauseStart.getTime()
   }
 
   let elapsedMs = totalMs - pauseMs
   if (elapsedMs < 0) elapsedMs = 0
 
-  const elapsed = Math.floor(elapsedMs / 1000)
-  timerDisplay.textContent = formatTime(elapsed)
+  timerDisplay.textContent = formatTime(Math.floor(elapsedMs / 1000))
 }
 
 // =============================================
@@ -304,17 +330,22 @@ async function startTimer(projectId) {
   const proj = projects.find(p => p.id === projectId)
   if (!proj) return
 
-  showLoading('Starting timer...')
-
-  // If there's an active timer on a different project, stop it first
-  if (activeTimer && activeTimer.projectId !== projectId) {
-    await stopCurrentTimer()
+  // If same project already running, ignore
+  if (activeTimer && activeTimer.projectId === projectId && !isPaused) {
+    return
   }
 
-  // If the same project is already active, do nothing
-  if (activeTimer && activeTimer.projectId === projectId) {
-    hideLoading()
-    return
+  showLoading('Starting timer...')
+
+  // Stop existing timer first if different project
+  if (activeTimer) {
+    try {
+      await api('PATCH', `/api/timeline/entries/${activeTimer.id}`, { action: 'stop' })
+    } catch (err) {
+      console.error('Error stopping previous timer:', err)
+    }
+    activeTimer = null
+    isPaused = false
   }
 
   try {
@@ -323,7 +354,7 @@ async function startTimer(projectId) {
       isManual: false,
     })
 
-    if (res.ok && res.data.entry) {
+    if (res.ok && res.data && res.data.entry) {
       const entry = res.data.entry
       activeTimer = {
         id: entry.id,
@@ -338,7 +369,8 @@ async function startTimer(projectId) {
       showTimerPanel()
       renderProjectList()
     } else {
-      console.error('Failed to start timer:', res.data)
+      const errMsg = res.data?.error || 'Failed to start timer'
+      console.error('Start timer error:', errMsg)
     }
   } catch (err) {
     console.error('Error starting timer:', err)
@@ -351,9 +383,7 @@ async function stopCurrentTimer() {
   if (!activeTimer) return
 
   try {
-    await api('PATCH', `/api/timeline/entries/${activeTimer.id}`, {
-      action: 'stop',
-    })
+    await api('PATCH', `/api/timeline/entries/${activeTimer.id}`, { action: 'stop' })
   } catch (err) {
     console.error('Error stopping timer:', err)
   }
@@ -370,51 +400,40 @@ async function pauseResumeTimer() {
   const action = isPaused ? 'resume' : 'pause'
 
   try {
-    const res = await api('PATCH', `/api/timeline/entries/${activeTimer.id}`, {
-      action: action,
-    })
+    const res = await api('PATCH', `/api/timeline/entries/${activeTimer.id}`, { action })
 
     if (res.ok) {
       if (action === 'pause') {
-        // We just paused — track when this pause started
         isPaused = true
         activeTimer.status = 'PAUSED'
         activeTimer.currentPauseStart = new Date()
       } else {
-        // We just resumed — add the pause duration to completed pauses
         isPaused = false
         activeTimer.status = 'RUNNING'
         if (activeTimer.currentPauseStart) {
-          const pausedMs = new Date().getTime() - activeTimer.currentPauseStart.getTime()
-          activeTimer.completedPauseMs = (activeTimer.completedPauseMs || 0) + pausedMs
+          activeTimer.completedPauseMs += Date.now() - activeTimer.currentPauseStart.getTime()
           activeTimer.currentPauseStart = null
         }
       }
-
       showTimerPanel()
     }
   } catch (err) {
-    console.error('Error pause/resume timer:', err)
+    console.error('Error pause/resume:', err)
   }
 }
 
-btnStop.addEventListener('click', async () => {
-  await stopCurrentTimer()
-})
-
-btnPause.addEventListener('click', async () => {
-  await pauseResumeTimer()
-})
+btnStop.addEventListener('click', () => stopCurrentTimer())
+btnPause.addEventListener('click', () => pauseResumeTimer())
 
 // =============================================
-// Project List Render
+// Project List
 // =============================================
 
 function renderProjectList() {
   projectList.innerHTML = ''
 
   if (projects.length === 0) {
-    projectList.innerHTML = '<div style="padding: 20px; text-align: center; color: #666680; font-size: 12px;">No projects found</div>'
+    projectList.innerHTML = '<div style="padding:20px;text-align:center;color:#666680;font-size:12px;">No projects found</div>'
     return
   }
 
@@ -428,17 +447,10 @@ function renderProjectList() {
         <div class="project-name">${escapeHtml(proj.name)}</div>
         <div class="project-client">${escapeHtml(proj.clientName || 'No Client')}</div>
       </div>
-      <div class="project-play">${isActive ? '&#9654;' : '&#9654;'}</div>
+      <div class="project-play">${isActive ? (isPaused ? '&#9654;' : '&#9646;&#9646;') : '&#9654;'}</div>
     `
 
-    item.addEventListener('click', () => {
-      if (isActive && !isPaused) {
-        // Already running on this project — do nothing or pause
-        return
-      }
-      startTimer(proj.id)
-    })
-
+    item.addEventListener('click', () => startTimer(proj.id))
     projectList.appendChild(item)
   })
 }
@@ -455,30 +467,26 @@ function escapeHtml(text) {
 
 btnRefresh.addEventListener('click', async () => {
   showLoading('Refreshing...')
-  await loadProjects()
-  await checkActiveTimer()
+  await Promise.all([loadProjects(), checkActiveTimer()])
   hideLoading()
 })
 
 btnDisconnect.addEventListener('click', async () => {
   await electronAPI.store.delete('apiKey')
+  await electronAPI.store.delete('userName')
+  await electronAPI.store.delete('userEmail')
   apiKey = null
+  currentUser = null
   activeTimer = null
   isPaused = false
   hideTimerPanel()
   stopTickingDisplay()
   projects = []
+  userBar.classList.add('hidden')
   showScreen('setup')
   inputApiKey.value = ''
   setupError.textContent = ''
 })
-
-// =============================================
-// Window Controls
-// =============================================
-
-btnMinimize.addEventListener('click', () => electronAPI.minimize())
-btnClose.addEventListener('click', () => electronAPI.close())
 
 // =============================================
 // Boot

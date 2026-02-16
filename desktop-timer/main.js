@@ -9,8 +9,8 @@ let tray = null;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 320,
-    height: 480,
+    width: 340,
+    height: 520,
     resizable: false,
     alwaysOnTop: true,
     frame: false,
@@ -30,8 +30,8 @@ function createWindow() {
     mainWindow.show();
   });
 
+  // Close minimizes to tray, unless we're quitting
   mainWindow.on('close', (e) => {
-    // Minimize to tray instead of closing
     if (!app.isQuitting) {
       e.preventDefault();
       mainWindow.hide();
@@ -40,8 +40,15 @@ function createWindow() {
 }
 
 function createTray() {
-  // Create a simple tray icon (16x16 colored square)
-  const icon = nativeImage.createFromBuffer(createTrayIcon());
+  // Use the packaged icon, or fallback to generated
+  let icon;
+  try {
+    const iconPath = path.join(__dirname, 'icon.png');
+    icon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
+  } catch {
+    icon = nativeImage.createFromBuffer(createTrayIcon());
+  }
+
   tray = new Tray(icon);
 
   const contextMenu = Menu.buildFromTemplate([
@@ -79,53 +86,38 @@ function createTray() {
   });
 }
 
-// Generate a simple 16x16 purple tray icon
+// Generate a 16x16 tray icon with "SF" letters
 function createTrayIcon() {
-  const { createCanvas } = (() => {
-    try { return require('canvas'); } catch { return {}; }
-  })();
-
-  // Fallback: create a tiny BMP-like icon using raw pixel data
-  // 16x16 RGBA pixels for a purple circle
   const size = 16;
   const bmpHeaderSize = 54;
   const dataSize = size * size * 4;
   const fileSize = bmpHeaderSize + dataSize;
-
   const buf = Buffer.alloc(fileSize);
 
-  // BMP header
   buf.write('BM', 0);
   buf.writeUInt32LE(fileSize, 2);
   buf.writeUInt32LE(bmpHeaderSize, 10);
-  buf.writeUInt32LE(40, 14); // DIB header size
+  buf.writeUInt32LE(40, 14);
   buf.writeInt32LE(size, 18);
-  buf.writeInt32LE(-size, 22); // Negative for top-down
-  buf.writeUInt16LE(1, 26); // Planes
-  buf.writeUInt16LE(32, 28); // BPP
-  buf.writeUInt32LE(0, 30); // No compression
+  buf.writeInt32LE(-size, 22);
+  buf.writeUInt16LE(1, 26);
+  buf.writeUInt16LE(32, 28);
+  buf.writeUInt32LE(0, 30);
   buf.writeUInt32LE(dataSize, 34);
 
-  // Purple circle pixels
-  const cx = 8, cy = 8, r = 7;
+  // Purple rounded square
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       const offset = bmpHeaderSize + (y * size + x) * 4;
-      const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
-      if (dist <= r) {
-        buf[offset] = 0xf0;     // B
-        buf[offset + 1] = 0x57; // G
-        buf[offset + 2] = 0xa6; // R (#a657f0)
-        buf[offset + 3] = 0xff; // A
-      } else {
-        buf[offset] = 0;
-        buf[offset + 1] = 0;
-        buf[offset + 2] = 0;
-        buf[offset + 3] = 0; // Transparent
+      const inBounds = x >= 1 && x <= 14 && y >= 1 && y <= 14;
+      if (inBounds) {
+        buf[offset] = 0xf0;
+        buf[offset + 1] = 0x57;
+        buf[offset + 2] = 0xa6;
+        buf[offset + 3] = 0xff;
       }
     }
   }
-
   return buf;
 }
 
@@ -134,9 +126,13 @@ function createTrayIcon() {
 // =============================================
 
 // Window controls
-ipcMain.on('window:minimize', () => mainWindow?.hide());
+ipcMain.on('window:minimize', () => {
+  if (mainWindow) mainWindow.hide();
+});
+
 ipcMain.on('window:close', () => {
   app.isQuitting = true;
+  if (mainWindow) mainWindow.close();
   app.quit();
 });
 
@@ -146,14 +142,14 @@ ipcMain.handle('store:set', (_, key, value) => store.set(key, value));
 ipcMain.handle('store:delete', (_, key) => store.delete(key));
 
 // API calls (proxied through main process to avoid CORS)
-ipcMain.handle('api:request', async (_, { method, path, body, apiKey, apiUrl }) => {
+ipcMain.handle('api:request', async (_, { method, path: urlPath, body, apiKey, apiUrl }) => {
   try {
-    const url = `${apiUrl}${path}`;
+    const url = `${apiUrl}${urlPath}`;
     const options = {
       method: method || 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'X-Extension-Key': apiKey,
+        'X-Extension-Key': apiKey || '',
       },
     };
 
@@ -162,7 +158,14 @@ ipcMain.handle('api:request', async (_, { method, path, body, apiKey, apiUrl }) 
     }
 
     const response = await fetch(url, options);
-    const data = await response.json();
+    const text = await response.text();
+
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { error: 'Invalid response from server', raw: text.substring(0, 200) };
+    }
 
     return { ok: response.ok, status: response.status, data };
   } catch (error) {
