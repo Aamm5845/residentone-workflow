@@ -1,5 +1,6 @@
-const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, net } = require('electron');
 const nodePath = require('path');
+const https = require('https');
 const Store = require('electron-store');
 
 const store = new Store();
@@ -99,13 +100,9 @@ function createFallbackIcon() {
 // IPC Handlers
 // =============================================
 
-ipcMain.on('window:minimize', () => {
-  console.log('[MAIN] IPC: window:minimize received');
-  if (mainWindow) mainWindow.hide();
-});
+ipcMain.on('window:minimize', () => { if (mainWindow) mainWindow.hide(); });
 
 ipcMain.on('window:close', () => {
-  console.log('[MAIN] IPC: window:close received');
   isQuitting = true;
   if (mainWindow) mainWindow.destroy();
   app.quit();
@@ -115,12 +112,11 @@ ipcMain.handle('store:get', (_, key) => store.get(key));
 ipcMain.handle('store:set', (_, key, value) => store.set(key, value));
 ipcMain.handle('store:delete', (_, key) => store.delete(key));
 
-// API proxy — supports Bearer token OR X-Extension-Key
+// API proxy — uses Node.js https to avoid Electron/Chromium SSL issues
 ipcMain.handle('api:request', async (_, args) => {
   const { method, path: urlPath, body, token, apiKey, apiUrl: baseUrl } = args || {};
   try {
     const url = `${baseUrl || ''}${urlPath || ''}`;
-
     const headers = { 'Content-Type': 'application/json' };
 
     // Bearer token takes priority (login-based auth)
@@ -130,18 +126,37 @@ ipcMain.handle('api:request', async (_, args) => {
       headers['X-Extension-Key'] = apiKey;
     }
 
-    const options = { method: method || 'GET', headers };
-    if (body && method !== 'GET') {
-      options.body = JSON.stringify(body);
-    }
+    const bodyStr = (body && method !== 'GET') ? JSON.stringify(body) : null;
 
-    const response = await fetch(url, options);
-    const text = await response.text();
+    const result = await new Promise((resolve, reject) => {
+      const parsed = new URL(url);
+      const reqOptions = {
+        hostname: parsed.hostname,
+        port: parsed.port || 443,
+        path: parsed.pathname + parsed.search,
+        method: method || 'GET',
+        headers,
+      };
 
-    let data;
-    try { data = JSON.parse(text); } catch { data = { error: 'Invalid response', raw: text.substring(0, 200) }; }
+      const req = https.request(reqOptions, (res) => {
+        let chunks = [];
+        res.on('data', (chunk) => chunks.push(chunk));
+        res.on('end', () => {
+          const text = Buffer.concat(chunks).toString('utf8');
+          let data;
+          try { data = JSON.parse(text); } catch { data = { error: 'Invalid response', raw: text.substring(0, 200) }; }
+          resolve({ ok: res.statusCode >= 200 && res.statusCode < 300, status: res.statusCode, data });
+        });
+      });
 
-    return { ok: response.ok, status: response.status, data };
+      req.on('error', (err) => reject(err));
+      req.setTimeout(15000, () => { req.destroy(); reject(new Error('Request timeout')); });
+
+      if (bodyStr) req.write(bodyStr);
+      req.end();
+    });
+
+    return result;
   } catch (error) {
     return { ok: false, status: 0, data: { error: error.message } };
   }

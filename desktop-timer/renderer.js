@@ -1,57 +1,11 @@
 // =============================================
-// StudioFlow Desktop Timer v1.3.2 — Renderer
+// StudioFlow Desktop Timer v2.0.0 — Renderer
 // Email/Password login with JWT Bearer token
-// DEBUG BUILD — visible debug panel
 // =============================================
 
-// =============================================
-// Debug Logger (visible on-screen)
-// =============================================
-const debugLog = document.getElementById('debug-log')
-
-function dbg(msg) {
-  const ts = new Date().toLocaleTimeString()
-  const line = document.createElement('div')
-  line.textContent = `[${ts}] ${msg}`
-  line.style.marginBottom = '2px'
-  if (debugLog) {
-    debugLog.appendChild(line)
-    debugLog.parentElement.scrollTop = debugLog.parentElement.scrollHeight
-  }
-  console.log(`[DBG] ${msg}`)
-}
-
-function dbgErr(msg) {
-  const ts = new Date().toLocaleTimeString()
-  const line = document.createElement('div')
-  line.textContent = `[${ts}] ERROR: ${msg}`
-  line.style.color = '#f66'
-  line.style.marginBottom = '2px'
-  if (debugLog) {
-    debugLog.appendChild(line)
-    debugLog.parentElement.scrollTop = debugLog.parentElement.scrollHeight
-  }
-  console.error(`[DBG] ${msg}`)
-}
-
-// =============================================
-// Check electronAPI availability
-// =============================================
-dbg('Renderer starting...')
-
-// NOTE: "electronAPI" is already a global from contextBridge.exposeInMainWorld
-// so we must NOT redeclare it with let/const. Just use the alias "eAPI".
+// NOTE: "electronAPI" is a global from contextBridge.exposeInMainWorld
+// so we use "eAPI" alias to avoid redeclaration errors.
 const eAPI = window.electronAPI
-
-if (eAPI) {
-  dbg('electronAPI found on window')
-  dbg(`  .minimize = ${typeof eAPI.minimize}`)
-  dbg(`  .close = ${typeof eAPI.close}`)
-  dbg(`  .store = ${typeof eAPI.store}`)
-  dbg(`  .apiRequest = ${typeof eAPI.apiRequest}`)
-} else {
-  dbgErr('window.electronAPI is UNDEFINED — preload.js did not load!')
-}
 
 // =============================================
 // State
@@ -98,45 +52,11 @@ const projectList = $('project-list')
 const btnRefresh = $('btn-refresh')
 const btnLogout = $('btn-logout')
 
-// Debug: verify critical DOM elements exist
-dbg(`DOM: btnMinimize=${!!btnMinimize}, btnClose=${!!btnClose}`)
-dbg(`DOM: btnLogin=${!!btnLogin}, inputEmail=${!!inputEmail}, inputPassword=${!!inputPassword}`)
-dbg(`DOM: screenLogin=${!!screenLogin}, screenMain=${!!screenMain}`)
-
 // =============================================
 // Window Controls
 // =============================================
-if (btnMinimize) {
-  btnMinimize.addEventListener('click', () => {
-    dbg('MINIMIZE button clicked')
-    if (eAPI && eAPI.minimize) {
-      dbg('Calling eAPI.minimize()...')
-      eAPI.minimize()
-      dbg('eAPI.minimize() called')
-    } else {
-      dbgErr('eAPI.minimize is not available!')
-    }
-  })
-  dbg('Minimize listener attached')
-} else {
-  dbgErr('btn-minimize element not found!')
-}
-
-if (btnClose) {
-  btnClose.addEventListener('click', () => {
-    dbg('CLOSE button clicked')
-    if (eAPI && eAPI.close) {
-      dbg('Calling eAPI.close()...')
-      eAPI.close()
-      dbg('eAPI.close() called')
-    } else {
-      dbgErr('eAPI.close is not available!')
-    }
-  })
-  dbg('Close listener attached')
-} else {
-  dbgErr('btn-close element not found!')
-}
+btnMinimize.addEventListener('click', () => eAPI.minimize())
+btnClose.addEventListener('click', () => eAPI.close())
 
 // =============================================
 // Helpers
@@ -152,7 +72,6 @@ function hideLoading() {
 }
 
 function showScreen(name) {
-  dbg(`showScreen("${name}")`)
   screenLogin.classList.toggle('hidden', name !== 'login')
   screenMain.classList.toggle('hidden', name !== 'main')
 }
@@ -173,44 +92,27 @@ async function api(method, path, body) {
 // =============================================
 
 async function init() {
-  dbg('init() called')
-
-  if (!eAPI) {
-    dbgErr('Cannot init — eAPI missing!')
-    return
-  }
-
-  try {
-    authToken = await eAPI.store.get('authToken')
-    dbg(`Stored authToken: ${authToken ? 'exists (' + authToken.substring(0, 20) + '...)' : 'none'}`)
-    apiUrl = await eAPI.store.get('apiUrl') || 'https://app.meisnerinteriors.com'
-    dbg(`apiUrl: ${apiUrl}`)
-  } catch (err) {
-    dbgErr(`store.get failed: ${err.message}`)
-  }
+  authToken = await eAPI.store.get('authToken')
+  apiUrl = await eAPI.store.get('apiUrl') || 'https://app.meisnerinteriors.com'
 
   if (authToken) {
     showLoading('Signing in...')
     const user = await verifyToken()
     if (user) {
-      dbg(`Token valid — user: ${user.name} (${user.email})`)
       currentUser = user
       await enterMainScreen()
     } else {
-      dbg('Token invalid — clearing')
       authToken = null
       await eAPI.store.delete('authToken')
       hideLoading()
       showScreen('login')
     }
   } else {
-    dbg('No stored token — showing login')
     showScreen('login')
   }
 }
 
 async function verifyToken() {
-  dbg('verifyToken() — calling /api/auth/me')
   try {
     const res = await eAPI.apiRequest({
       method: 'GET',
@@ -218,21 +120,16 @@ async function verifyToken() {
       token: authToken,
       apiUrl,
     })
-    dbg(`verifyToken response: ok=${res.ok}, status=${res.status}`)
     if (res.ok && res.data && res.data.user) {
       return res.data.user
     }
-    dbg(`verifyToken failed: ${JSON.stringify(res.data).substring(0, 100)}`)
     return null
-  } catch (err) {
-    dbgErr(`verifyToken exception: ${err.message}`)
+  } catch {
     return null
   }
 }
 
 async function loginWithCredentials(email, password) {
-  dbg(`loginWithCredentials("${email}", "****")`)
-  dbg(`POST ${apiUrl}/api/auth/mobile-login`)
   try {
     const res = await eAPI.apiRequest({
       method: 'POST',
@@ -241,87 +138,59 @@ async function loginWithCredentials(email, password) {
       apiUrl,
     })
 
-    dbg(`Login response: ok=${res.ok}, status=${res.status}`)
-    dbg(`Login data keys: ${res.data ? Object.keys(res.data).join(',') : 'null'}`)
-
     if (res.ok && res.data && res.data.token) {
-      dbg('Login SUCCESS — got token')
       return { token: res.data.token, user: res.data.user }
     }
 
-    const errMsg = res.data?.error || `Login failed (status ${res.status})`
-    dbgErr(`Login FAILED: ${errMsg}`)
-    return { error: errMsg }
+    return { error: res.data?.error || 'Login failed' }
   } catch (err) {
-    dbgErr(`Login EXCEPTION: ${err.message}`)
     return { error: 'Connection failed. Check your internet.' }
   }
 }
 
-if (btnLogin) {
-  btnLogin.addEventListener('click', async () => {
-    dbg('LOGIN button clicked')
+btnLogin.addEventListener('click', async () => {
+  const email = inputEmail.value.trim().toLowerCase()
+  const password = inputPassword.value
 
-    const email = inputEmail.value.trim().toLowerCase()
-    const password = inputPassword.value
+  if (!email || !password) {
+    loginError.textContent = 'Enter your email and password'
+    return
+  }
 
-    dbg(`Email input value: "${email}"`)
-    dbg(`Password input value: ${password ? '****(' + password.length + ' chars)' : 'EMPTY'}`)
+  loginError.textContent = ''
+  btnLogin.disabled = true
+  btnLogin.textContent = 'Signing in...'
 
-    if (!email || !password) {
-      dbg('Validation fail — empty email or password')
-      loginError.textContent = 'Enter your email and password'
-      return
-    }
+  const result = await loginWithCredentials(email, password)
 
-    loginError.textContent = ''
-    btnLogin.disabled = true
-    btnLogin.textContent = 'Signing in...'
+  if (result.token) {
+    authToken = result.token
+    currentUser = result.user
+    await eAPI.store.set('authToken', authToken)
+    await eAPI.store.set('apiUrl', apiUrl)
+    showLoading('Loading projects...')
+    await enterMainScreen()
+  } else {
+    loginError.textContent = result.error || 'Invalid email or password'
+  }
 
-    const result = await loginWithCredentials(email, password)
+  btnLogin.disabled = false
+  btnLogin.textContent = 'Sign In'
+})
 
-    if (result.token) {
-      dbg('Storing token and entering main screen...')
-      authToken = result.token
-      currentUser = result.user
-      await eAPI.store.set('authToken', authToken)
-      await eAPI.store.set('apiUrl', apiUrl)
-      showLoading('Loading projects...')
-      await enterMainScreen()
-    } else {
-      dbgErr(`Login error shown to user: ${result.error}`)
-      loginError.textContent = result.error || 'Invalid email or password'
-    }
+inputPassword.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') btnLogin.click()
+})
 
-    btnLogin.disabled = false
-    btnLogin.textContent = 'Sign In'
-  })
-  dbg('Login button listener attached')
-} else {
-  dbgErr('btn-login element not found!')
-}
-
-if (inputPassword) {
-  inputPassword.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      dbg('Enter key in password field — triggering login')
-      btnLogin.click()
-    }
-  })
-}
-
-if (inputEmail) {
-  inputEmail.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') inputPassword.focus()
-  })
-}
+inputEmail.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') inputPassword.focus()
+})
 
 // =============================================
 // Main Screen
 // =============================================
 
 async function enterMainScreen() {
-  dbg('enterMainScreen()')
   showScreen('main')
   showUserBar()
   await Promise.all([loadProjects(), checkActiveTimer()])
@@ -339,18 +208,13 @@ function showUserBar() {
 }
 
 async function loadProjects() {
-  dbg('loadProjects() — fetching...')
   try {
     const res = await api('GET', '/api/extension/projects')
-    dbg(`loadProjects response: ok=${res.ok}, status=${res.status}`)
     if (res.ok && res.data && res.data.projects) {
       projects = res.data.projects
-      dbg(`Loaded ${projects.length} projects`)
-    } else {
-      dbg(`loadProjects: no projects in response`)
     }
   } catch (err) {
-    dbgErr(`loadProjects failed: ${err.message}`)
+    // Silently fail — project list will show empty
   }
   renderProjectList()
 }
@@ -586,7 +450,6 @@ btnRefresh.addEventListener('click', async () => {
 })
 
 btnLogout.addEventListener('click', async () => {
-  dbg('Logout clicked')
   await eAPI.store.delete('authToken')
   authToken = null
   currentUser = null
@@ -606,5 +469,4 @@ btnLogout.addEventListener('click', async () => {
 // Boot
 // =============================================
 
-dbg('About to call init()...')
 init()
