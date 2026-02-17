@@ -11,11 +11,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
-import {
   Plus,
   Pencil,
   Check,
@@ -26,7 +21,6 @@ import {
   Circle,
   Package,
   GripVertical,
-  Link2,
   ToggleLeft,
   ToggleRight,
 } from 'lucide-react'
@@ -90,43 +84,8 @@ function hasSpecs(item: FFEItem): boolean {
   return false
 }
 
-function getGroupedChildren(item: FFEItem, sections: FFESection[]): Array<FFEItem & { fromSection?: string; fromSectionId?: string }> {
-  const allChildren: Array<FFEItem & { fromSection?: string; fromSectionId?: string }> = []
-  sections.forEach(section => {
-    section.items.forEach(child => {
-      if ((child.customFields?.isGroupedItem || child.customFields?.isLinkedItem) &&
-          (child.customFields?.parentId === item.id || child.customFields?.parentName === item.name)) {
-        allChildren.push({
-          ...child,
-          fromSection: section.name,
-          fromSectionId: section.id
-        })
-      }
-    })
-  })
-  return allChildren.sort((a, b) => (a.order || 0) - (b.order || 0))
-}
-
-function hasGroupedChildren(item: FFEItem): boolean {
-  const cf = item.customFields
-  return cf?.hasChildren === true || (Array.isArray(cf?.linkedItems) && cf.linkedItems.length > 0)
-}
-
 function isGroupedChild(item: FFEItem): boolean {
   return item.customFields?.isGroupedItem === true || item.customFields?.isLinkedItem === true
-}
-
-function findParentItem(child: FFEItem, sections: FFESection[]): { item: FFEItem; sectionName: string } | null {
-  const parentId = child.customFields?.parentId
-  const parentName = child.customFields?.parentName
-  for (const section of sections) {
-    for (const item of section.items) {
-      if ((parentId && item.id === parentId) || (!parentId && parentName && item.name === parentName)) {
-        return { item, sectionName: section.name }
-      }
-    }
-  }
-  return null
 }
 
 function buildGroupConnections(sections: FFESection[]): Array<{ parentId: string; childId: string }> {
@@ -155,6 +114,25 @@ function buildGroupConnections(sections: FFESection[]): Array<{ parentId: string
   return connections
 }
 
+// Build a smooth bezier curve path from parent's right edge to child's left edge
+function buildCurvePath(
+  x1: number, y1: number,
+  x2: number, y2: number,
+  sameColumn: boolean
+): string {
+  if (sameColumn) {
+    // Same column: go down from bottom of parent to top of child
+    const midY = (y1 + y2) / 2
+    return `M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`
+  }
+
+  // Different columns: horizontal S-curve from right side to left side
+  const dx = Math.abs(x2 - x1)
+  const cpOffset = Math.max(dx * 0.4, 40)
+
+  return `M ${x1} ${y1} C ${x1 + cpOffset} ${y1}, ${x2 - cpOffset} ${y2}, ${x2} ${y2}`
+}
+
 export default function FFEBoardView({
   sections,
   roomId,
@@ -177,11 +155,11 @@ export default function FFEBoardView({
   const autoScrollRef = useRef<number | null>(null)
   const isDraggingRef = useRef(false)
 
-  // For SVG connector lines (existing groupings)
+  // SVG connector lines
   const boardRef = useRef<HTMLDivElement>(null)
-  const [lines, setLines] = useState<Array<{ x1: number; y1: number; x2: number; y2: number }>>([])
+  const [paths, setPaths] = useState<Array<{ d: string; key: string }>>([])
 
-  // Drag-to-link state: draw a line from one item to another
+  // Drag-to-link state
   const [drawingLine, setDrawingLine] = useState<{
     fromItemId: string
     fromItemName: string
@@ -192,16 +170,16 @@ export default function FFEBoardView({
   } | null>(null)
   const [hoveredItemId, setHoveredItemId] = useState<string | null>(null)
 
-  // Calculate existing group connector lines
-  const updateLines = useCallback(() => {
+  // Calculate connector paths between grouped items
+  const updatePaths = useCallback(() => {
     if (!showGroupLines || !boardRef.current) {
-      setLines([])
+      setPaths([])
       return
     }
 
     const connections = buildGroupConnections(sections)
     const boardRect = boardRef.current.getBoundingClientRect()
-    const newLines: Array<{ x1: number; y1: number; x2: number; y2: number }> = []
+    const newPaths: Array<{ d: string; key: string }> = []
 
     for (const conn of connections) {
       const parentEl = boardRef.current.querySelector(`[data-item-id="${conn.parentId}"]`)
@@ -211,61 +189,69 @@ export default function FFEBoardView({
       const parentRect = parentEl.getBoundingClientRect()
       const childRect = childEl.getBoundingClientRect()
 
-      const x1 = parentRect.right - boardRect.left
-      const y1 = parentRect.top + parentRect.height / 2 - boardRect.top
-      const x2 = childRect.left - boardRect.left
-      const y2 = childRect.top + childRect.height / 2 - boardRect.top
+      // Determine if same column (within 280px horizontal range)
+      const parentCenterX = parentRect.left + parentRect.width / 2 - boardRect.left
+      const childCenterX = childRect.left + childRect.width / 2 - boardRect.left
+      const sameColumn = Math.abs(parentCenterX - childCenterX) < 50
 
-      // If same column, connect from bottom to top
-      if (Math.abs(x1 - parentRect.width - x2) < 280) {
-        newLines.push({
-          x1: parentRect.left + parentRect.width / 2 - boardRect.left,
-          y1: parentRect.bottom - boardRect.top,
-          x2: childRect.left + childRect.width / 2 - boardRect.left,
-          y2: childRect.top - boardRect.top,
-        })
+      let x1: number, y1: number, x2: number, y2: number
+
+      if (sameColumn) {
+        // Same column: connect from bottom center to top center
+        x1 = parentCenterX
+        y1 = parentRect.bottom - boardRect.top + 2
+        x2 = childCenterX
+        y2 = childRect.top - boardRect.top - 2
       } else {
-        newLines.push({ x1, y1, x2, y2 })
+        // Different columns: connect from right edge to left edge
+        x1 = parentRect.right - boardRect.left + 2
+        y1 = parentRect.top + parentRect.height / 2 - boardRect.top
+        x2 = childRect.left - boardRect.left - 2
+        y2 = childRect.top + childRect.height / 2 - boardRect.top
       }
+
+      const d = buildCurvePath(x1, y1, x2, y2, sameColumn)
+      newPaths.push({ d, key: `${conn.parentId}-${conn.childId}` })
     }
 
-    setLines(newLines)
+    setPaths(newPaths)
   }, [showGroupLines, sections])
 
-  useEffect(() => { updateLines() }, [updateLines])
+  useEffect(() => { updatePaths() }, [updatePaths])
 
   useEffect(() => {
     const container = scrollContainerRef.current
     if (!container || !showGroupLines) return
-    const handleScroll = () => updateLines()
+    const handleScroll = () => updatePaths()
     container.addEventListener('scroll', handleScroll)
     window.addEventListener('resize', handleScroll)
     return () => {
       container.removeEventListener('scroll', handleScroll)
       window.removeEventListener('resize', handleScroll)
     }
-  }, [showGroupLines, updateLines])
+  }, [showGroupLines, updatePaths])
 
   useEffect(() => {
     if (showGroupLines) {
-      const timer = setTimeout(updateLines, 50)
+      const timer = setTimeout(updatePaths, 50)
       return () => clearTimeout(timer)
     }
-  }, [showGroupLines, sections, updateLines])
+  }, [showGroupLines, sections, updatePaths])
 
   // Handle mousemove while drawing a link line
   useEffect(() => {
     if (!drawingLine || !boardRef.current) return
 
+    const boardEl = boardRef.current
+
     const handleMouseMove = (e: MouseEvent) => {
-      const boardRect = boardRef.current!.getBoundingClientRect()
+      const boardRect = boardEl.getBoundingClientRect()
       setDrawingLine(prev => prev ? {
         ...prev,
         currentX: e.clientX - boardRect.left,
         currentY: e.clientY - boardRect.top,
       } : null)
 
-      // Check if hovering over an item card
       const target = (e.target as HTMLElement).closest('[data-item-id]')
       if (target) {
         const itemId = target.getAttribute('data-item-id')
@@ -276,12 +262,10 @@ export default function FFEBoardView({
     }
 
     const handleMouseUp = (e: MouseEvent) => {
-      // Check if released on an item card
       const target = (e.target as HTMLElement).closest('[data-item-id]')
       if (target && drawingLine) {
         const targetItemId = target.getAttribute('data-item-id')
         if (targetItemId && targetItemId !== drawingLine.fromItemId) {
-          // Find the target item to check if it's valid
           let targetItem: FFEItem | null = null
           for (const s of sections) {
             const found = s.items.find(i => i.id === targetItemId)
@@ -292,7 +276,6 @@ export default function FFEBoardView({
             if (isGroupedChild(targetItem)) {
               toast.error('This item is already grouped under another item')
             } else {
-              // Create the grouping: drawingLine.fromItemId is parent, targetItem.name is child name
               handleLinkItems(drawingLine.fromItemId, targetItem.name)
             }
           }
@@ -317,7 +300,7 @@ export default function FFEBoardView({
     if (!container) return
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isDraggingRef.current) return
+      if (!isDraggingRef.current && !drawingLine) return
 
       const rect = container.getBoundingClientRect()
       const edgeThreshold = 80
@@ -340,7 +323,7 @@ export default function FFEBoardView({
 
       if (scrollSpeed !== 0) {
         const doScroll = () => {
-          if (!isDraggingRef.current) return
+          if (!isDraggingRef.current && !drawingLine) return
           container.scrollLeft += scrollSpeed
           autoScrollRef.current = requestAnimationFrame(doScroll)
         }
@@ -355,7 +338,7 @@ export default function FFEBoardView({
         cancelAnimationFrame(autoScrollRef.current)
       }
     }
-  }, [])
+  }, [drawingLine])
 
   const handleDragEnd = useCallback(async (result: DropResult) => {
     isDraggingRef.current = false
@@ -407,7 +390,7 @@ export default function FFEBoardView({
       })
       if (!response.ok) throw new Error('Failed to save')
       toast.success(source.droppableId !== destination.droppableId ? 'Item moved to new section' : 'Item reordered')
-      setTimeout(updateLines, 100)
+      setTimeout(updatePaths, 100)
     } catch (error) {
       console.error('Error saving reorder:', error)
       toast.error('Failed to save changes')
@@ -415,7 +398,7 @@ export default function FFEBoardView({
     } finally {
       setSaving(false)
     }
-  }, [sections, roomId, onSectionsChange, updateLines])
+  }, [sections, roomId, onSectionsChange, updatePaths])
 
   const handleDragStart = useCallback(() => {
     isDraggingRef.current = true
@@ -451,7 +434,7 @@ export default function FFEBoardView({
     }
   }
 
-  // Start drawing a line from a connector dot
+  // Start drawing a line from the connector handle on the right side of a card
   const handleConnectorMouseDown = (e: React.MouseEvent, item: FFEItem) => {
     e.preventDefault()
     e.stopPropagation()
@@ -473,6 +456,15 @@ export default function FFEBoardView({
     })
   }
 
+  // Build the drawing line as a curve too
+  const drawingPath = drawingLine
+    ? buildCurvePath(
+        drawingLine.startX, drawingLine.startY,
+        drawingLine.currentX, drawingLine.currentY,
+        false
+      )
+    : null
+
   return (
     <div>
       {/* Board Controls */}
@@ -491,57 +483,57 @@ export default function FFEBoardView({
           Groups
         </button>
 
-        {showGroupLines && (
+        {showGroupLines && !drawingLine && (
           <span className="text-[11px] text-gray-400">
-            Drag from the <span className="text-blue-500 font-medium">●</span> dot on any item to another to create a grouping
+            Grab the <span className="text-blue-500 font-medium">●</span> handle on the right side of a card and drag to another item to group them
           </span>
         )}
 
         {drawingLine && (
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-orange-50 text-orange-700 border border-orange-300 animate-pulse">
-            Drawing from &quot;{drawingLine.fromItemName.length > 20 ? drawingLine.fromItemName.substring(0, 20) + '...' : drawingLine.fromItemName}&quot; — release on target item
+            Release on target item to group with &quot;{drawingLine.fromItemName.length > 20 ? drawingLine.fromItemName.substring(0, 20) + '...' : drawingLine.fromItemName}&quot;
           </div>
         )}
       </div>
 
       <DragDropContext onDragEnd={handleDragEnd} onDragStart={handleDragStart}>
         <div ref={boardRef} className="relative">
-          {/* SVG overlay for lines */}
+          {/* SVG overlay for connector lines */}
           <svg
             className="absolute inset-0 w-full h-full pointer-events-none"
             style={{ zIndex: 10, overflow: 'visible' }}
           >
             <defs>
-              <marker id="arrow-blue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+              <marker id="arrow-blue" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
                 <polygon points="0 0, 8 3, 0 6" fill="#3b82f6" fillOpacity="0.7" />
               </marker>
-              <marker id="arrow-orange" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-                <polygon points="0 0, 8 3, 0 6" fill="#f97316" fillOpacity="0.8" />
+              <marker id="arrow-orange" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="#f97316" fillOpacity="0.9" />
               </marker>
             </defs>
 
-            {/* Existing group connections (only when toggle is on) */}
-            {showGroupLines && lines.map((line, idx) => (
-              <line
-                key={`group-${idx}`}
-                x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2}
+            {/* Existing group connections — smooth curves */}
+            {showGroupLines && paths.map(p => (
+              <path
+                key={p.key}
+                d={p.d}
                 stroke="#3b82f6"
                 strokeWidth="2"
                 strokeOpacity="0.5"
-                strokeDasharray="6 3"
+                fill="none"
                 markerEnd="url(#arrow-blue)"
               />
             ))}
 
-            {/* Currently drawing line */}
-            {drawingLine && (
-              <line
-                x1={drawingLine.startX} y1={drawingLine.startY}
-                x2={drawingLine.currentX} y2={drawingLine.currentY}
+            {/* Currently drawing line — orange curve following cursor */}
+            {drawingPath && (
+              <path
+                d={drawingPath}
                 stroke="#f97316"
                 strokeWidth="2.5"
                 strokeOpacity="0.8"
-                strokeDasharray="4 2"
+                fill="none"
+                strokeDasharray="6 3"
                 markerEnd="url(#arrow-orange)"
               />
             )}
@@ -599,10 +591,10 @@ export default function FFEBoardView({
                           <Button variant="ghost" size="sm" onClick={() => onAddItem(section.id)} className="h-6 w-6 p-0" disabled={disabled} title="Add item">
                             <Plus className="w-3 h-3" />
                           </Button>
-                          <Button variant="ghost" size="sm" onClick={() => onSectionDuplicate(section.id, section.name)} className="h-6 w-6 p-0 text-gray-400 hover:text-blue-600" disabled={disabled} title="Duplicate section">
+                          <Button variant="ghost" size="sm" onClick={() => onSectionDuplicate(section.id, section.name)} className="h-6 w-6 p-0 text-gray-400 hover:text-blue-600" disabled={disabled} title="Duplicate">
                             <Copy className="w-3 h-3" />
                           </Button>
-                          <Button variant="ghost" size="sm" onClick={() => onSectionDelete(section.id, section.name)} className="h-6 w-6 p-0 text-gray-400 hover:text-red-500" disabled={disabled} title="Delete section">
+                          <Button variant="ghost" size="sm" onClick={() => onSectionDelete(section.id, section.name)} className="h-6 w-6 p-0 text-gray-400 hover:text-red-500" disabled={disabled} title="Delete">
                             <Trash2 className="w-3 h-3" />
                           </Button>
                         </div>
@@ -626,15 +618,13 @@ export default function FFEBoardView({
                             <Package className="h-5 w-5 text-gray-300 mb-1.5" />
                             <p className="text-[10px] text-gray-400">No items</p>
                             <Button size="sm" variant="ghost" onClick={() => onAddItem(section.id)} className="mt-1.5 text-[10px] h-6" disabled={disabled}>
-                              <Plus className="w-2.5 h-2.5 mr-0.5" />
-                              Add Item
+                              <Plus className="w-2.5 h-2.5 mr-0.5" /> Add Item
                             </Button>
                           </div>
                         ) : (
                           allItems.map((item, index) => {
                             const isChosen = hasSpecs(item)
                             const specCount = item.linkedSpecs?.length || 0
-                            const isParent = hasGroupedChildren(item)
                             const isChild = isGroupedChild(item)
                             const isDrawingFrom = drawingLine?.fromItemId === item.id
                             const isHoverTarget = hoveredItemId === item.id
@@ -683,7 +673,7 @@ export default function FFEBoardView({
                                         )}
                                       </div>
 
-                                      {/* Content */}
+                                      {/* Content — clean, no icons */}
                                       <div className="flex-1 min-w-0">
                                         <p className="text-xs font-medium text-gray-900 truncate">
                                           {item.name}
@@ -704,84 +694,21 @@ export default function FFEBoardView({
                                           )}
                                         </div>
                                       </div>
-
-                                      {/* Link icon — only for items that are part of a group */}
-                                      <div className="flex items-center gap-0.5 flex-shrink-0">
-                                        {isParent && (
-                                          <Popover>
-                                            <PopoverTrigger asChild>
-                                              <button
-                                                onClick={(e) => e.stopPropagation()}
-                                                className="p-0.5 rounded hover:bg-blue-100 transition-colors"
-                                                title="View grouped children"
-                                              >
-                                                <Link2 className="w-3 h-3 text-blue-500" />
-                                              </button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-56 p-2" side="right" align="start">
-                                              <p className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5">Grouped Children</p>
-                                              {getGroupedChildren(item, sections).map(child => (
-                                                <div
-                                                  key={child.id}
-                                                  className="flex items-center gap-1.5 py-1 px-1.5 rounded hover:bg-gray-50 text-xs cursor-pointer"
-                                                  onClick={() => onItemClick?.(child.id)}
-                                                >
-                                                  <Link2 className="w-2.5 h-2.5 text-blue-400 flex-shrink-0" />
-                                                  <span className="truncate text-gray-700">{child.name}</span>
-                                                  {child.fromSection && (
-                                                    <Badge variant="outline" className="text-[8px] px-1 py-0 ml-auto flex-shrink-0 bg-violet-50 text-violet-600 border-violet-200">
-                                                      {child.fromSection}
-                                                    </Badge>
-                                                  )}
-                                                </div>
-                                              ))}
-                                              <p className="text-[9px] text-gray-400 mt-1.5 pt-1.5 border-t">Click to view in list</p>
-                                            </PopoverContent>
-                                          </Popover>
-                                        )}
-
-                                        {isChild && !isParent && (
-                                          <Popover>
-                                            <PopoverTrigger asChild>
-                                              <button
-                                                onClick={(e) => e.stopPropagation()}
-                                                className="p-0.5 rounded hover:bg-blue-100 transition-colors"
-                                                title="View parent item"
-                                              >
-                                                <Link2 className="w-3 h-3 text-blue-500" />
-                                              </button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-56 p-2" side="right" align="start">
-                                              <p className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5">Grouped To</p>
-                                              {(() => {
-                                                const parent = findParentItem(item, sections)
-                                                if (!parent) return <p className="text-xs text-gray-400 italic">Parent not found</p>
-                                                return (
-                                                  <div
-                                                    className="flex items-center gap-1.5 py-1 px-1.5 rounded hover:bg-gray-50 text-xs cursor-pointer"
-                                                    onClick={() => onItemClick?.(parent.item.id)}
-                                                  >
-                                                    <Link2 className="w-2.5 h-2.5 text-blue-400 flex-shrink-0" />
-                                                    <span className="truncate text-gray-700">{parent.item.name}</span>
-                                                    <Badge variant="outline" className="text-[8px] px-1 py-0 ml-auto flex-shrink-0 bg-violet-50 text-violet-600 border-violet-200">
-                                                      {parent.sectionName}
-                                                    </Badge>
-                                                  </div>
-                                                )
-                                              })()}
-                                              <p className="text-[9px] text-gray-400 mt-1.5 pt-1.5 border-t">Click to view in list</p>
-                                            </PopoverContent>
-                                          </Popover>
-                                        )}
-                                      </div>
                                     </div>
 
-                                    {/* Connector dot — only when Groups toggle is on, for non-child items */}
+                                    {/* Connector handle on right side — only when Groups toggle is on */}
                                     {showGroupLines && !isChild && (
                                       <div
-                                        className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-blue-500 border-2 border-white shadow cursor-crosshair opacity-0 group-hover/card:opacity-100 hover:scale-125 transition-all z-20"
+                                        className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-blue-500 border-2 border-white shadow-md cursor-crosshair opacity-0 group-hover/card:opacity-100 hover:scale-150 transition-all z-20"
                                         onMouseDown={(e) => handleConnectorMouseDown(e, item)}
                                         title="Drag to another item to group"
+                                      />
+                                    )}
+
+                                    {/* Left side dot for child items (line connects here) */}
+                                    {showGroupLines && isChild && (
+                                      <div
+                                        className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-blue-400 border-2 border-white shadow-sm z-20 pointer-events-none"
                                       />
                                     )}
                                   </div>
