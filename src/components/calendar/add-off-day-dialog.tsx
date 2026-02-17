@@ -112,8 +112,12 @@ export function AddOffDayDialog({
       fetch('/api/team')
         .then((res) => res.json())
         .then((data) => {
-          if (data.members) {
+          if (data.teamMembers) {
+            setTeamMembers(data.teamMembers)
+          } else if (data.members) {
             setTeamMembers(data.members)
+          } else if (data.users) {
+            setTeamMembers(data.users)
           } else if (Array.isArray(data)) {
             setTeamMembers(data)
           }
