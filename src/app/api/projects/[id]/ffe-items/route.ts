@@ -141,6 +141,7 @@ export async function GET(
                   description: item.description,
                   notes: item.notes,
                   quantity: item.quantity,
+                  docCode: item.docCode || null,
                   hasLinkedSpecs: totalLinkedCount > 0,
                   linkedSpecsCount: totalLinkedCount,
                   linkedSpecs: allLinkedSpecs,

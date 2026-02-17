@@ -1994,8 +1994,19 @@ export function ItemDetailPanel({
       autoSaveTimerRef.current = null
     }
 
-    // Skip save for create mode or if no item
-    if (mode === 'create' || !item?.id || !item?.roomId) {
+    // For create mode: auto-save if name was entered, otherwise just close
+    if (mode === 'create') {
+      if (formData.name.trim()) {
+        // Auto-create the item with whatever data was entered
+        await handleSave()
+      } else {
+        onClose()
+      }
+      return
+    }
+
+    // Skip save if no item
+    if (!item?.id || !item?.roomId) {
       onClose()
       return
     }

@@ -410,6 +410,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   const [filterRoom, setFilterRoom] = useState<string>('all')
   const [summaryFilter, setSummaryFilter] = useState<'all' | 'needs_approval' | 'needs_price'>('all')
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
+  const [collapsedNeedsSections, setCollapsedNeedsSections] = useState<Set<string>>(new Set())
   const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<'category' | 'room' | 'status'>('category')
   const prevSortByRef = useRef<'category' | 'room' | 'status'>('category')
@@ -585,6 +586,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         name: string
         description?: string
         notes?: string
+        docCode?: string | null
         hasLinkedSpecs: boolean
         linkedSpecsCount: number
         status: string
@@ -3623,7 +3625,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   className={cn(
                     "relative px-5 py-3 text-sm font-medium transition-all",
                     activeTab === 'needs'
-                      ? "text-amber-600"
+                      ? "text-gray-900"
                       : "text-gray-500 hover:text-gray-700"
                   )}
                 >
@@ -3648,12 +3650,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       return (
                         <Badge
                           variant="outline"
-                          className={cn(
-                            "text-xs px-1.5 py-0 h-5",
-                            activeTab === 'needs'
-                              ? "bg-amber-100 text-amber-700 border-amber-300"
-                              : "bg-gray-100 text-gray-600 border-gray-200"
-                          )}
+                          className="text-xs px-1.5 py-0 h-5 bg-gray-100 text-gray-600 border-gray-200"
                         >
                           {isFiltered ? `${filteredCount} of ${totalCount}` : filteredCount}
                         </Badge>
@@ -3661,7 +3658,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     })()}
                   </div>
                   {activeTab === 'needs' && (
-                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-500 rounded-full" />
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900 rounded-full" />
                   )}
                 </button>
               </div>
@@ -3975,9 +3972,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       {/* Needs Selection Tab Content */}
       {activeTab === 'needs' && (
         <div className="max-w-full mx-auto px-4 py-4">
-          <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl border border-amber-200 p-6">
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center shadow-sm">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-500 to-gray-600 flex items-center justify-center shadow-sm">
                 <Circle className="w-6 h-6 text-white" />
               </div>
               <div>
@@ -4006,14 +4003,28 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   })
                   return Array.from(byCategory.entries()).map(([category, items]) => (
                     <div key={category} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                      <div className="bg-gray-100/50 px-4 py-2 border-b border-gray-200">
+                      <button
+                        onClick={() => setCollapsedNeedsSections(prev => {
+                          const next = new Set(prev)
+                          if (next.has(category)) next.delete(category)
+                          else next.add(category)
+                          return next
+                        })}
+                        className="w-full bg-gray-100/50 px-4 py-2 border-b border-gray-200 flex items-center gap-2 hover:bg-gray-100 transition-colors cursor-pointer"
+                      >
+                        {collapsedNeedsSections.has(category) ? (
+                          <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        )}
                         <span className="font-medium text-gray-900">{category}</span>
-                        <span className="text-sm text-gray-500 ml-2">({items.length} items)</span>
-                      </div>
+                        <span className="text-sm text-gray-500">({items.length} items)</span>
+                      </button>
+                      {!collapsedNeedsSections.has(category) && (
                       <div className="divide-y divide-gray-100">
                         {items.map(({ roomName, roomId, sectionId, item }) => (
-                          <div 
-                            key={item.id} 
+                          <div
+                            key={item.id}
                             className={cn(
                               "py-3 hover:bg-gray-50",
                               item.isLinkedItem ? "px-8 bg-gray-50/50" : "px-4"
@@ -4028,6 +4039,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 <div>
                                   <div className="flex items-center gap-2">
                                     <p className="font-medium text-gray-900">{item.name}</p>
+                                    {item.docCode && (
+                                      <span className="text-xs text-gray-400 font-mono">{item.docCode}</span>
+                                    )}
                                     {item.isLinkedItem && item.parentId && (
                                       <Popover>
                                         <PopoverTrigger asChild>
@@ -4138,14 +4152,15 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             </div>
                             {/* Notes Display */}
                             {item.notes && (
-                              <div className="mt-2 ml-7 flex items-start gap-2 bg-amber-50/50 rounded-lg p-2">
-                                <StickyNote className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
+                              <div className="mt-2 ml-7 flex items-start gap-2 bg-gray-50 rounded-lg p-2">
+                                <StickyNote className="w-3.5 h-3.5 text-gray-400 mt-0.5 flex-shrink-0" />
                                 <p className="text-xs text-gray-600">{item.notes}</p>
                               </div>
                             )}
                           </div>
                         ))}
                       </div>
+                      )}
                     </div>
                   ))
                 })()
@@ -4153,17 +4168,32 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 // Group by room
                 filteredFfeItems.filter(room => room.sections.some(s => s.items.some(i => !i.hasLinkedSpecs))).map(room => (
                   <div key={room.roomId} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                    <div className="bg-gray-100/50 px-4 py-2 border-b border-gray-200">
+                    <button
+                      onClick={() => setCollapsedNeedsSections(prev => {
+                        const next = new Set(prev)
+                        const key = `room-${room.roomId}`
+                        if (next.has(key)) next.delete(key)
+                        else next.add(key)
+                        return next
+                      })}
+                      className="w-full bg-gray-100/50 px-4 py-2 border-b border-gray-200 flex items-center gap-2 hover:bg-gray-100 transition-colors cursor-pointer"
+                    >
+                      {collapsedNeedsSections.has(`room-${room.roomId}`) ? (
+                        <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      )}
                       <span className="font-medium text-gray-900">{room.roomName}</span>
-                      <span className="text-sm text-gray-500 ml-2">
+                      <span className="text-sm text-gray-500">
                         ({room.sections.reduce((acc, s) => acc + s.items.filter(i => !i.hasLinkedSpecs).length, 0)} items)
                       </span>
-                    </div>
+                    </button>
+                    {!collapsedNeedsSections.has(`room-${room.roomId}`) && (
                     <div className="divide-y divide-gray-100">
-                      {room.sections.flatMap(section => 
+                      {room.sections.flatMap(section =>
                         section.items.filter(item => !item.hasLinkedSpecs).map(item => (
-                          <div 
-                            key={item.id} 
+                          <div
+                            key={item.id}
                             className={cn(
                               "py-3 hover:bg-gray-50",
                               item.isLinkedItem ? "px-8 bg-gray-50/50" : "px-4"
@@ -4178,6 +4208,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 <div>
                                   <div className="flex items-center gap-2">
                                     <p className="font-medium text-gray-900">{item.name}</p>
+                                    {item.docCode && (
+                                      <span className="text-xs text-gray-400 font-mono">{item.docCode}</span>
+                                    )}
                                     {item.isLinkedItem && item.parentId && (
                                       <Popover>
                                         <PopoverTrigger asChild>
@@ -4289,8 +4322,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             </div>
                             {/* Notes Display */}
                             {item.notes && (
-                              <div className="mt-2 ml-7 flex items-start gap-2 bg-amber-50/50 rounded-lg p-2">
-                                <StickyNote className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
+                              <div className="mt-2 ml-7 flex items-start gap-2 bg-gray-50 rounded-lg p-2">
+                                <StickyNote className="w-3.5 h-3.5 text-gray-400 mt-0.5 flex-shrink-0" />
                                 <p className="text-xs text-gray-600">{item.notes}</p>
                               </div>
                             )}
@@ -4298,6 +4331,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                         ))
                       )}
                     </div>
+                    )}
                   </div>
                 ))
               )}
