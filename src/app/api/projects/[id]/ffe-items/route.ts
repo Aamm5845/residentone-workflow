@@ -121,6 +121,7 @@ export async function GET(
               items: allItems.map(item => {
                 const customFields = item.customFields as any
                 const isLinkedItem = customFields?.isLinkedItem === true
+                const parentId = customFields?.parentId || null
                 const parentName = customFields?.parentName || null
 
                 // Combine both legacy (linkedSpecs) and new (ffeLinks) linking methods
@@ -147,6 +148,7 @@ export async function GET(
                   linkedSpecs: allLinkedSpecs,
                   // Linked item info (child of another item)
                   isLinkedItem,
+                  parentId,
                   parentName,
                   // For display: show if already chosen (check BOTH linking methods)
                   status: totalLinkedCount > 0

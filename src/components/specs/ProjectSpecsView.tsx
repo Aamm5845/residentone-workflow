@@ -416,7 +416,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   const prevSortByRef = useRef<'category' | 'room' | 'status'>('category')
   const [itemSortBy, setItemSortBy] = useState<'default' | 'name' | 'brand' | 'price_asc' | 'price_desc' | 'status'>('default')
   const [itemSortDirection, setItemSortDirection] = useState<'asc' | 'desc'>('asc')
-  const [activeTab, setActiveTab] = useState<'summary' | 'financial' | 'needs'>('summary')
+  const [activeTab, setActiveTab] = useState<'summary' | 'financial' | 'needs' | 'all-ffe'>('summary')
   const [viewMode, setViewMode] = useState<'list' | 'board'>('list')
   const [financials, setFinancials] = useState({
     totalTradePriceCAD: 0,
@@ -586,9 +586,13 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         name: string
         description?: string
         notes?: string
+        quantity?: number
         docCode?: string | null
         hasLinkedSpecs: boolean
         linkedSpecsCount: number
+        isLinkedItem?: boolean
+        parentId?: string | null
+        parentName?: string | null
         status: string
       }>
     }>
@@ -3661,6 +3665,38 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900 rounded-full" />
                   )}
                 </button>
+                <button
+                  onClick={() => setActiveTab('all-ffe')}
+                  className={cn(
+                    "relative px-5 py-3 text-sm font-medium transition-all",
+                    activeTab === 'all-ffe'
+                      ? "text-gray-900"
+                      : "text-gray-500 hover:text-gray-700"
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <List className="w-4 h-4" />
+                    All FFE Items
+                    {ffeItems.length > 0 && (() => {
+                      const totalCount = ffeItems.reduce((acc, room) =>
+                        acc + room.sections.reduce((sAcc, section) =>
+                          sAcc + section.items.length, 0
+                        ), 0
+                      )
+                      return totalCount > 0 ? (
+                        <Badge
+                          variant="outline"
+                          className="text-xs px-1.5 py-0 h-5 bg-gray-100 text-gray-600 border-gray-200"
+                        >
+                          {totalCount}
+                        </Badge>
+                      ) : null
+                    })()}
+                  </div>
+                  {activeTab === 'all-ffe' && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900 rounded-full" />
+                  )}
+                </button>
               </div>
             </div>
             
@@ -4347,8 +4383,186 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         </div>
       )}
 
+      {/* All FFE Items Tab Content */}
+      {activeTab === 'all-ffe' && (
+        <div className="max-w-full mx-auto px-4 py-4">
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-500 to-gray-600 flex items-center justify-center shadow-sm">
+                <List className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">All FFE Items</h3>
+                <p className="text-sm text-gray-600">
+                  Complete overview of all FFE items across rooms and sections
+                </p>
+              </div>
+            </div>
+
+            {/* All Items List */}
+            <div className="space-y-3">
+              {sortBy === 'category' ? (
+                // Group by category/section
+                (() => {
+                  const byCategory = new Map<string, Array<{ roomName: string; roomId: string; sectionId: string; item: any }>>()
+                  filteredFfeItems.forEach(room => {
+                    room.sections.forEach(section => {
+                      section.items.forEach(item => {
+                        const key = section.sectionName
+                        if (!byCategory.has(key)) byCategory.set(key, [])
+                        byCategory.get(key)!.push({ roomName: room.roomName, roomId: room.roomId, sectionId: section.sectionId, item })
+                      })
+                    })
+                  })
+                  return Array.from(byCategory.entries()).map(([category, items]) => (
+                    <div key={category} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                      <button
+                        onClick={() => setCollapsedNeedsSections(prev => {
+                          const next = new Set(prev)
+                          const key = `all-${category}`
+                          if (next.has(key)) next.delete(key)
+                          else next.add(key)
+                          return next
+                        })}
+                        className="w-full bg-gray-100/50 px-4 py-2 border-b border-gray-200 flex items-center gap-2 hover:bg-gray-100 transition-colors cursor-pointer"
+                      >
+                        {collapsedNeedsSections.has(`all-${category}`) ? (
+                          <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        )}
+                        <span className="font-medium text-gray-900">{category}</span>
+                        <span className="text-sm text-gray-500">({items.length} items)</span>
+                      </button>
+                      {!collapsedNeedsSections.has(`all-${category}`) && (
+                      <div className="divide-y divide-gray-100">
+                        {items.map(({ roomName, item }) => (
+                          <div key={item.id} className="px-4 py-3 hover:bg-gray-50">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <Circle className={cn("w-4 h-4", item.hasLinkedSpecs ? "text-emerald-500" : "text-gray-300")} />
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <p className="font-medium text-gray-900">{item.name}</p>
+                                    {item.docCode && (
+                                      <span className="text-xs text-gray-400 font-mono">{item.docCode}</span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-gray-500">{roomName}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {item.hasLinkedSpecs ? (
+                                  <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">
+                                    <CheckCircle2 className="w-3 h-3 mr-1" />
+                                    {item.status === 'chosen' ? 'Selected' : item.status}
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-xs bg-gray-50 text-gray-500 border-gray-200">
+                                    <Circle className="w-3 h-3 mr-1" />
+                                    Needs Selection
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            {item.notes && (
+                              <div className="mt-2 ml-7 flex items-start gap-2 bg-gray-50 rounded-lg p-2">
+                                <StickyNote className="w-3.5 h-3.5 text-gray-400 mt-0.5 flex-shrink-0" />
+                                <p className="text-xs text-gray-600">{item.notes}</p>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      )}
+                    </div>
+                  ))
+                })()
+              ) : (
+                // Group by room
+                filteredFfeItems.filter(room => room.sections.some(s => s.items.length > 0)).map(room => (
+                  <div key={room.roomId} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                    <button
+                      onClick={() => setCollapsedNeedsSections(prev => {
+                        const next = new Set(prev)
+                        const key = `all-room-${room.roomId}`
+                        if (next.has(key)) next.delete(key)
+                        else next.add(key)
+                        return next
+                      })}
+                      className="w-full bg-gray-100/50 px-4 py-2 border-b border-gray-200 flex items-center gap-2 hover:bg-gray-100 transition-colors cursor-pointer"
+                    >
+                      {collapsedNeedsSections.has(`all-room-${room.roomId}`) ? (
+                        <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      )}
+                      <span className="font-medium text-gray-900">{room.roomName}</span>
+                      <span className="text-sm text-gray-500">
+                        ({room.sections.reduce((acc, s) => acc + s.items.length, 0)} items)
+                      </span>
+                    </button>
+                    {!collapsedNeedsSections.has(`all-room-${room.roomId}`) && (
+                    <div className="divide-y divide-gray-100">
+                      {room.sections.flatMap(section =>
+                        section.items.map(item => (
+                          <div key={item.id} className="px-4 py-3 hover:bg-gray-50">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <Circle className={cn("w-4 h-4", item.hasLinkedSpecs ? "text-emerald-500" : "text-gray-300")} />
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <p className="font-medium text-gray-900">{item.name}</p>
+                                    {item.docCode && (
+                                      <span className="text-xs text-gray-400 font-mono">{item.docCode}</span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-gray-500">{section.sectionName}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {item.hasLinkedSpecs ? (
+                                  <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">
+                                    <CheckCircle2 className="w-3 h-3 mr-1" />
+                                    {item.status === 'chosen' ? 'Selected' : item.status}
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-xs bg-gray-50 text-gray-500 border-gray-200">
+                                    <Circle className="w-3 h-3 mr-1" />
+                                    Needs Selection
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            {item.notes && (
+                              <div className="mt-2 ml-7 flex items-start gap-2 bg-gray-50 rounded-lg p-2">
+                                <StickyNote className="w-3.5 h-3.5 text-gray-400 mt-0.5 flex-shrink-0" />
+                                <p className="text-xs text-gray-600">{item.notes}</p>
+                              </div>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    )}
+                  </div>
+                ))
+              )}
+
+              {filteredFfeItems.every(room => room.sections.every(s => s.items.length === 0)) && (
+                <div className="text-center py-8 text-gray-500">
+                  <Package className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <p className="font-medium text-gray-500">No FFE items found</p>
+                  <p className="text-sm text-gray-400 mt-1">Add items in the FFE Workspace first</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Content - Show for Summary and Financial tabs */}
-      {activeTab !== 'needs' && (
+      {activeTab !== 'needs' && activeTab !== 'all-ffe' && (
       <>
         {/* Board View */}
         {viewMode === 'board' ? (
@@ -6190,8 +6404,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       </>
       )}
 
-      {/* Floating Add Button - Only show when not on needs tab */}
-      {activeTab !== 'needs' && groupedSpecs.length > 0 && groupedSpecs[0]?.sectionId && groupedSpecs[0]?.roomId && (
+      {/* Floating Add Button - Only show when not on needs or all-ffe tab */}
+      {activeTab !== 'needs' && activeTab !== 'all-ffe' && groupedSpecs.length > 0 && groupedSpecs[0]?.sectionId && groupedSpecs[0]?.roomId && (
         <div className="fixed bottom-8 right-8 z-20">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
