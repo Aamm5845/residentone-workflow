@@ -274,6 +274,9 @@ export async function GET(
           include: {
             roomFFEItem: {
               select: { specStatus: true }
+            },
+            orderItems: {
+              select: { id: true }
             }
           }
         }
@@ -285,10 +288,11 @@ export async function GET(
       const paidAmount = invoice.payments.reduce((sum, p) => sum + Number(p.amount), 0)
       const isPaid = paidAmount >= totalAmount && totalAmount > 0
 
-      // Check if any items haven't been ordered yet
+      // Check if any items haven't been ordered yet (check both specStatus AND existing OrderItems)
       const itemsNotOrdered = invoice.lineItems.filter(li =>
         li.roomFFEItem &&
-        !['ORDERED', 'SHIPPED', 'RECEIVED', 'DELIVERED', 'INSTALLED', 'CLOSED'].includes(li.roomFFEItem.specStatus)
+        !['ORDERED', 'SHIPPED', 'RECEIVED', 'DELIVERED', 'INSTALLED', 'CLOSED'].includes(li.roomFFEItem.specStatus) &&
+        li.orderItems.length === 0
       )
 
       if (itemsNotOrdered.length > 0) {
@@ -362,7 +366,7 @@ export async function GET(
     const overdueOrders = await prisma.order.findMany({
       where: {
         projectId,
-        status: { notIn: ['DELIVERED', 'CANCELLED', 'SHIPPED'] },
+        status: { notIn: ['DELIVERED', 'CANCELLED', 'SHIPPED', 'IN_TRANSIT', 'COMPLETED', 'INSTALLED', 'RETURNED'] },
         expectedDelivery: { lt: now }
       },
       include: {
