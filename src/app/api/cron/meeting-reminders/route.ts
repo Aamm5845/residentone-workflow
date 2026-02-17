@@ -50,6 +50,19 @@ export async function POST(req: NextRequest) {
         continue // Too early for reminder
       }
 
+      // Build attendees list for email display
+      const allAttendees = meeting.attendees
+        .map((att: any) => {
+          let n: string | null = null
+          if (att.user) n = att.user.name
+          else if (att.client) n = att.client.name
+          else if (att.contractor) n = att.contractor.contactName || att.contractor.businessName
+          else if (att.externalName) n = att.externalName
+          if (!n) return null
+          return { name: n, type: att.type }
+        })
+        .filter(Boolean)
+
       // Send reminders to all attendees
       for (const attendee of meeting.attendees) {
         let email: string | null = null
@@ -85,6 +98,7 @@ export async function POST(req: NextRequest) {
                 organizerName: meeting.organizer?.name || 'Team',
                 projectName: meeting.project?.name,
               },
+              attendees: allAttendees,
             })
             totalSent++
           } catch (err) {

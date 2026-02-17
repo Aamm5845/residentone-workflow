@@ -194,8 +194,25 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// Helper: extract attendee info list for email display
+function getAttendeesList(meeting: any): { name: string; type: string }[] {
+  return meeting.attendees
+    .map((att: any) => {
+      let name: string | null = null
+      if (att.user) name = att.user.name
+      else if (att.client) name = att.client.name
+      else if (att.contractor) name = att.contractor.contactName || att.contractor.businessName
+      else if (att.externalName) name = att.externalName
+      if (!name) return null
+      return { name, type: att.type }
+    })
+    .filter(Boolean)
+}
+
 // Helper: send invitation emails to all attendees
 async function sendInvitationEmails(meeting: any) {
+  const allAttendees = getAttendeesList(meeting)
+
   for (const attendee of meeting.attendees) {
     let email: string | null = null
     let name: string | null = null
@@ -231,6 +248,7 @@ async function sendInvitationEmails(meeting: any) {
             organizerName: meeting.organizer?.name || 'Team',
             projectName: meeting.project?.name,
           },
+          attendees: allAttendees,
         })
       } catch (err) {
         console.error(`Failed to send invitation to ${email}:`, err)

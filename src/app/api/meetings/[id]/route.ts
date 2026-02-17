@@ -231,7 +231,23 @@ function getAttendeeEmailAndName(attendee: any): { email: string | null; name: s
   return { email: null, name: null }
 }
 
+function getAttendeesList(meeting: any): { name: string; type: string }[] {
+  return meeting.attendees
+    .map((att: any) => {
+      let name: string | null = null
+      if (att.user) name = att.user.name
+      else if (att.client) name = att.client.name
+      else if (att.contractor) name = att.contractor.contactName || att.contractor.businessName
+      else if (att.externalName) name = att.externalName
+      if (!name) return null
+      return { name, type: att.type }
+    })
+    .filter(Boolean)
+}
+
 async function sendCancellationEmails(meeting: any) {
+  const allAttendees = getAttendeesList(meeting)
+
   for (const attendee of meeting.attendees) {
     const { email, name } = getAttendeeEmailAndName(attendee)
     if (email) {
@@ -245,6 +261,7 @@ async function sendCancellationEmails(meeting: any) {
             startTime: meeting.startTime,
             organizerName: meeting.organizer?.name || 'Team',
           },
+          attendees: allAttendees,
         })
       } catch (err) {
         console.error(`Failed to send cancellation to ${email}:`, err)
@@ -254,6 +271,8 @@ async function sendCancellationEmails(meeting: any) {
 }
 
 async function sendUpdateEmailsToAttendees(meeting: any) {
+  const allAttendees = getAttendeesList(meeting)
+
   for (const attendee of meeting.attendees) {
     const { email, name } = getAttendeeEmailAndName(attendee)
     if (email) {
@@ -273,6 +292,7 @@ async function sendUpdateEmailsToAttendees(meeting: any) {
             organizerName: meeting.organizer?.name || 'Team',
             projectName: meeting.project?.name,
           },
+          attendees: allAttendees,
         })
       } catch (err) {
         console.error(`Failed to send update to ${email}:`, err)

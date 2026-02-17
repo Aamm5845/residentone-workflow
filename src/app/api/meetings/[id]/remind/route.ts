@@ -34,6 +34,19 @@ export async function POST(
     return NextResponse.json({ error: 'Meeting not found or already cancelled' }, { status: 404 })
   }
 
+  // Build attendees list for email display
+  const allAttendees = meeting.attendees
+    .map((att: any) => {
+      let name: string | null = null
+      if (att.user) name = att.user.name
+      else if (att.client) name = att.client.name
+      else if (att.contractor) name = att.contractor.contactName || att.contractor.businessName
+      else if (att.externalName) name = att.externalName
+      if (!name) return null
+      return { name, type: att.type }
+    })
+    .filter(Boolean)
+
   let sentCount = 0
 
   for (const attendee of meeting.attendees) {
@@ -70,6 +83,7 @@ export async function POST(
             organizerName: meeting.organizer?.name || 'Team',
             projectName: meeting.project?.name,
           },
+          attendees: allAttendees,
         })
         sentCount++
       } catch (err) {
