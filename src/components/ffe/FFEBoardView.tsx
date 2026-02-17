@@ -825,6 +825,16 @@ export default function FFEBoardView({
                       </div>
                     )}
                   </Droppable>
+
+                  {/* Add Item button at bottom of column */}
+                  <button
+                    onClick={() => onAddItem(section.id)}
+                    disabled={disabled}
+                    className="flex items-center justify-center gap-1 mx-1.5 mb-1.5 py-1.5 rounded-lg text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50"
+                  >
+                    <Plus className="w-3 h-3" />
+                    Add Item
+                  </button>
                 </div>
               )
             })}
