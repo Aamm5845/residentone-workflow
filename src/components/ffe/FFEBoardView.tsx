@@ -90,7 +90,6 @@ function hasSpecs(item: FFEItem): boolean {
   return false
 }
 
-// Get grouped children for an item across ALL sections
 function getGroupedChildren(item: FFEItem, sections: FFESection[]): Array<FFEItem & { fromSection?: string; fromSectionId?: string }> {
   const allChildren: Array<FFEItem & { fromSection?: string; fromSectionId?: string }> = []
   sections.forEach(section => {
@@ -108,18 +107,15 @@ function getGroupedChildren(item: FFEItem, sections: FFESection[]): Array<FFEIte
   return allChildren.sort((a, b) => (a.order || 0) - (b.order || 0))
 }
 
-// Check if an item has grouped children
 function hasGroupedChildren(item: FFEItem): boolean {
   const cf = item.customFields
   return cf?.hasChildren === true || (Array.isArray(cf?.linkedItems) && cf.linkedItems.length > 0)
 }
 
-// Check if an item IS a grouped child
 function isGroupedChild(item: FFEItem): boolean {
   return item.customFields?.isGroupedItem === true || item.customFields?.isLinkedItem === true
 }
 
-// Find the parent item for a grouped child across all sections
 function findParentItem(child: FFEItem, sections: FFESection[]): { item: FFEItem; sectionName: string } | null {
   const parentId = child.customFields?.parentId
   const parentName = child.customFields?.parentName
@@ -133,7 +129,6 @@ function findParentItem(child: FFEItem, sections: FFESection[]): { item: FFEItem
   return null
 }
 
-// Build all parent→child connections for line drawing
 function buildGroupConnections(sections: FFESection[]): Array<{ parentId: string; childId: string }> {
   const connections: Array<{ parentId: string; childId: string }> = []
   sections.forEach(section => {
@@ -143,7 +138,6 @@ function buildGroupConnections(sections: FFESection[]): Array<{ parentId: string
         if (parentId) {
           connections.push({ parentId, childId: item.id })
         } else {
-          // legacy: find by parentName
           const parentName = item.customFields?.parentName
           if (parentName) {
             for (const s of sections) {
@@ -177,21 +171,28 @@ export default function FFEBoardView({
   const [editSectionName, setEditSectionName] = useState('')
   const [saving, setSaving] = useState(false)
   const [showGroupLines, setShowGroupLines] = useState(false)
-  const [showLinking, setShowLinking] = useState(false)
-
-  // Linking mode
-  const [linkingFromItem, setLinkingFromItem] = useState<{ id: string; name: string; sectionId: string } | null>(null)
 
   // Auto-scroll refs
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const autoScrollRef = useRef<number | null>(null)
   const isDraggingRef = useRef(false)
 
-  // For SVG connector lines
+  // For SVG connector lines (existing groupings)
   const boardRef = useRef<HTMLDivElement>(null)
   const [lines, setLines] = useState<Array<{ x1: number; y1: number; x2: number; y2: number }>>([])
 
-  // Calculate connector lines between grouped items
+  // Drag-to-link state: draw a line from one item to another
+  const [drawingLine, setDrawingLine] = useState<{
+    fromItemId: string
+    fromItemName: string
+    startX: number
+    startY: number
+    currentX: number
+    currentY: number
+  } | null>(null)
+  const [hoveredItemId, setHoveredItemId] = useState<string | null>(null)
+
+  // Calculate existing group connector lines
   const updateLines = useCallback(() => {
     if (!showGroupLines || !boardRef.current) {
       setLines([])
@@ -200,8 +201,6 @@ export default function FFEBoardView({
 
     const connections = buildGroupConnections(sections)
     const boardRect = boardRef.current.getBoundingClientRect()
-    const scrollLeft = scrollContainerRef.current?.scrollLeft || 0
-    const scrollTop = scrollContainerRef.current?.scrollTop || 0
     const newLines: Array<{ x1: number; y1: number; x2: number; y2: number }> = []
 
     for (const conn of connections) {
@@ -212,44 +211,105 @@ export default function FFEBoardView({
       const parentRect = parentEl.getBoundingClientRect()
       const childRect = childEl.getBoundingClientRect()
 
-      // Calculate positions relative to the board container
-      const x1 = parentRect.left + parentRect.width / 2 - boardRect.left + scrollLeft
-      const y1 = parentRect.top + parentRect.height / 2 - boardRect.top + scrollTop
-      const x2 = childRect.left + childRect.width / 2 - boardRect.left + scrollLeft
-      const y2 = childRect.top + childRect.height / 2 - boardRect.top + scrollTop
+      const x1 = parentRect.right - boardRect.left
+      const y1 = parentRect.top + parentRect.height / 2 - boardRect.top
+      const x2 = childRect.left - boardRect.left
+      const y2 = childRect.top + childRect.height / 2 - boardRect.top
 
-      newLines.push({ x1, y1, x2, y2 })
+      // If same column, connect from bottom to top
+      if (Math.abs(x1 - parentRect.width - x2) < 280) {
+        newLines.push({
+          x1: parentRect.left + parentRect.width / 2 - boardRect.left,
+          y1: parentRect.bottom - boardRect.top,
+          x2: childRect.left + childRect.width / 2 - boardRect.left,
+          y2: childRect.top - boardRect.top,
+        })
+      } else {
+        newLines.push({ x1, y1, x2, y2 })
+      }
     }
 
     setLines(newLines)
   }, [showGroupLines, sections])
 
-  // Update lines on toggle, sections change, or scroll
-  useEffect(() => {
-    updateLines()
-  }, [updateLines])
+  useEffect(() => { updateLines() }, [updateLines])
 
   useEffect(() => {
     const container = scrollContainerRef.current
     if (!container || !showGroupLines) return
-
     const handleScroll = () => updateLines()
     container.addEventListener('scroll', handleScroll)
     window.addEventListener('resize', handleScroll)
-
     return () => {
       container.removeEventListener('scroll', handleScroll)
       window.removeEventListener('resize', handleScroll)
     }
   }, [showGroupLines, updateLines])
 
-  // Recalculate lines after DOM settles
   useEffect(() => {
     if (showGroupLines) {
       const timer = setTimeout(updateLines, 50)
       return () => clearTimeout(timer)
     }
   }, [showGroupLines, sections, updateLines])
+
+  // Handle mousemove while drawing a link line
+  useEffect(() => {
+    if (!drawingLine || !boardRef.current) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const boardRect = boardRef.current!.getBoundingClientRect()
+      setDrawingLine(prev => prev ? {
+        ...prev,
+        currentX: e.clientX - boardRect.left,
+        currentY: e.clientY - boardRect.top,
+      } : null)
+
+      // Check if hovering over an item card
+      const target = (e.target as HTMLElement).closest('[data-item-id]')
+      if (target) {
+        const itemId = target.getAttribute('data-item-id')
+        setHoveredItemId(itemId !== drawingLine.fromItemId ? itemId : null)
+      } else {
+        setHoveredItemId(null)
+      }
+    }
+
+    const handleMouseUp = (e: MouseEvent) => {
+      // Check if released on an item card
+      const target = (e.target as HTMLElement).closest('[data-item-id]')
+      if (target && drawingLine) {
+        const targetItemId = target.getAttribute('data-item-id')
+        if (targetItemId && targetItemId !== drawingLine.fromItemId) {
+          // Find the target item to check if it's valid
+          let targetItem: FFEItem | null = null
+          for (const s of sections) {
+            const found = s.items.find(i => i.id === targetItemId)
+            if (found) { targetItem = found; break }
+          }
+
+          if (targetItem) {
+            if (isGroupedChild(targetItem)) {
+              toast.error('This item is already grouped under another item')
+            } else {
+              // Create the grouping: drawingLine.fromItemId is parent, targetItem.name is child name
+              handleLinkItems(drawingLine.fromItemId, targetItem.name)
+            }
+          }
+        }
+      }
+
+      setDrawingLine(null)
+      setHoveredItemId(null)
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [drawingLine, sections])
 
   // Auto-scroll on drag near edges
   useEffect(() => {
@@ -272,7 +332,6 @@ export default function FFEBoardView({
       }
 
       let scrollSpeed = 0
-
       if (distFromLeft < edgeThreshold) {
         scrollSpeed = -maxScrollSpeed * (1 - distFromLeft / edgeThreshold)
       } else if (distFromRight < edgeThreshold) {
@@ -306,14 +365,10 @@ export default function FFEBoardView({
     }
 
     const { source, destination } = result
-
     if (!destination) return
     if (source.droppableId === destination.droppableId && source.index === destination.index) return
 
-    const previousSections = sections.map(s => ({
-      ...s,
-      items: [...s.items]
-    }))
+    const previousSections = sections.map(s => ({ ...s, items: [...s.items] }))
 
     const newSections = sections.map(s => ({
       ...s,
@@ -322,7 +377,6 @@ export default function FFEBoardView({
 
     const sourceSectionIdx = newSections.findIndex(s => s.id === source.droppableId)
     const destSectionIdx = newSections.findIndex(s => s.id === destination.droppableId)
-
     if (sourceSectionIdx === -1 || destSectionIdx === -1) return
 
     const [movedItem] = newSections[sourceSectionIdx].items.splice(source.index, 1)
@@ -331,24 +385,14 @@ export default function FFEBoardView({
     newSections[destSectionIdx].items.splice(destination.index, 0, movedItem)
 
     const affectedItems: { id: string; sectionId: string; order: number }[] = []
-
     newSections[destSectionIdx].items.forEach((item, idx) => {
       item.order = idx + 1
-      affectedItems.push({
-        id: item.id,
-        sectionId: newSections[destSectionIdx].id,
-        order: idx + 1,
-      })
+      affectedItems.push({ id: item.id, sectionId: newSections[destSectionIdx].id, order: idx + 1 })
     })
-
     if (source.droppableId !== destination.droppableId) {
       newSections[sourceSectionIdx].items.forEach((item, idx) => {
         item.order = idx + 1
-        affectedItems.push({
-          id: item.id,
-          sectionId: newSections[sourceSectionIdx].id,
-          order: idx + 1,
-        })
+        affectedItems.push({ id: item.id, sectionId: newSections[sourceSectionIdx].id, order: idx + 1 })
       })
     }
 
@@ -361,18 +405,8 @@ export default function FFEBoardView({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items: affectedItems })
       })
-
-      if (!response.ok) {
-        throw new Error('Failed to save')
-      }
-
-      toast.success(
-        source.droppableId !== destination.droppableId
-          ? 'Item moved to new section'
-          : 'Item reordered'
-      )
-
-      // Update lines after move
+      if (!response.ok) throw new Error('Failed to save')
+      toast.success(source.droppableId !== destination.droppableId ? 'Item moved to new section' : 'Item reordered')
       setTimeout(updateLines, 100)
     } catch (error) {
       console.error('Error saving reorder:', error)
@@ -388,16 +422,13 @@ export default function FFEBoardView({
   }, [])
 
   const handleSectionNameSave = async (sectionId: string) => {
-    if (!editSectionName.trim()) {
-      toast.error('Section name is required')
-      return
-    }
+    if (!editSectionName.trim()) { toast.error('Section name is required'); return }
     setEditingSectionId(null)
     await onSectionRename(sectionId, editSectionName.trim())
     setEditSectionName('')
   }
 
-  // Link item to another (create grouping)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const handleLinkItems = async (parentItemId: string, childItemName: string) => {
     try {
       setSaving(true)
@@ -406,44 +437,46 @@ export default function FFEBoardView({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'add', name: childItemName })
       })
-
       if (!response.ok) {
         const data = await response.json()
         throw new Error(data.error || 'Failed to link items')
       }
-
-      toast.success(`Linked "${childItemName}" to parent item`)
+      toast.success(`Grouped "${childItemName}" successfully`)
       await onDataReload()
     } catch (error: any) {
       console.error('Error linking items:', error)
       toast.error(error.message || 'Failed to link items')
     } finally {
       setSaving(false)
-      setLinkingFromItem(null)
     }
   }
 
-  const handleItemClickInLinkMode = (targetItem: FFEItem) => {
-    if (!linkingFromItem) return
+  // Start drawing a line from a connector dot
+  const handleConnectorMouseDown = (e: React.MouseEvent, item: FFEItem) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!boardRef.current) return
 
-    if (linkingFromItem.id === targetItem.id) {
-      toast.error("Can't link an item to itself")
-      return
-    }
+    const boardRect = boardRef.current.getBoundingClientRect()
+    const cardEl = (e.target as HTMLElement).closest('[data-item-id]')
+    if (!cardEl) return
 
-    if (isGroupedChild(targetItem)) {
-      toast.error('This item is already grouped under another item')
-      return
-    }
+    const cardRect = cardEl.getBoundingClientRect()
 
-    handleLinkItems(linkingFromItem.id, targetItem.name)
+    setDrawingLine({
+      fromItemId: item.id,
+      fromItemName: item.name,
+      startX: cardRect.right - boardRect.left,
+      startY: cardRect.top + cardRect.height / 2 - boardRect.top,
+      currentX: e.clientX - boardRect.left,
+      currentY: e.clientY - boardRect.top,
+    })
   }
 
   return (
     <div>
       {/* Board Controls */}
       <div className="flex items-center gap-3 mb-3">
-        {/* Show group lines toggle */}
         <button
           onClick={() => setShowGroupLines(!showGroupLines)}
           className={cn(
@@ -452,85 +485,67 @@ export default function FFEBoardView({
               ? 'bg-blue-50 text-blue-700 border-blue-200'
               : 'bg-white text-gray-500 border-gray-200 hover:text-gray-700'
           )}
-          title={showGroupLines ? 'Hide group connections' : 'Show group connections'}
+          title={showGroupLines ? 'Hide group connections' : 'Show group connections & enable linking'}
         >
-          {showGroupLines ? (
-            <ToggleRight className="w-4 h-4" />
-          ) : (
-            <ToggleLeft className="w-4 h-4" />
-          )}
+          {showGroupLines ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
           Groups
         </button>
 
-        {/* Link mode toggle */}
-        <button
-          onClick={() => {
-            const next = !showLinking
-            setShowLinking(next)
-            if (!next) setLinkingFromItem(null)
-          }}
-          className={cn(
-            'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all border',
-            showLinking
-              ? 'bg-orange-50 text-orange-700 border-orange-200'
-              : 'bg-white text-gray-500 border-gray-200 hover:text-gray-700'
-          )}
-          title={showLinking ? 'Exit linking mode' : 'Enter linking mode to group items'}
-        >
-          <Link2 className="w-3.5 h-3.5" />
-          Link Items
-        </button>
+        {showGroupLines && (
+          <span className="text-[11px] text-gray-400">
+            Drag from the <span className="text-blue-500 font-medium">●</span> dot on any item to another to create a grouping
+          </span>
+        )}
 
-        {/* Linking status */}
-        {showLinking && linkingFromItem && (
+        {drawingLine && (
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-orange-50 text-orange-700 border border-orange-300 animate-pulse">
-            Linking from &quot;{linkingFromItem.name.length > 15 ? linkingFromItem.name.substring(0, 15) + '...' : linkingFromItem.name}&quot; — click target item
-            <button
-              onClick={() => setLinkingFromItem(null)}
-              className="ml-1 p-0.5 rounded hover:bg-orange-100"
-            >
-              <X className="w-3 h-3" />
-            </button>
+            Drawing from &quot;{drawingLine.fromItemName.length > 20 ? drawingLine.fromItemName.substring(0, 20) + '...' : drawingLine.fromItemName}&quot; — release on target item
           </div>
         )}
       </div>
 
       <DragDropContext onDragEnd={handleDragEnd} onDragStart={handleDragStart}>
         <div ref={boardRef} className="relative">
-          {/* SVG overlay for group connection lines */}
-          {showGroupLines && lines.length > 0 && (
-            <svg
-              className="absolute inset-0 w-full h-full pointer-events-none"
-              style={{ zIndex: 10 }}
-            >
-              <defs>
-                <marker
-                  id="arrowhead"
-                  markerWidth="8"
-                  markerHeight="6"
-                  refX="8"
-                  refY="3"
-                  orient="auto"
-                >
-                  <polygon points="0 0, 8 3, 0 6" fill="#3b82f6" fillOpacity="0.6" />
-                </marker>
-              </defs>
-              {lines.map((line, idx) => (
-                <line
-                  key={idx}
-                  x1={line.x1}
-                  y1={line.y1}
-                  x2={line.x2}
-                  y2={line.y2}
-                  stroke="#3b82f6"
-                  strokeWidth="2"
-                  strokeOpacity="0.4"
-                  strokeDasharray="6 3"
-                  markerEnd="url(#arrowhead)"
-                />
-              ))}
-            </svg>
-          )}
+          {/* SVG overlay for lines */}
+          <svg
+            className="absolute inset-0 w-full h-full pointer-events-none"
+            style={{ zIndex: 10, overflow: 'visible' }}
+          >
+            <defs>
+              <marker id="arrow-blue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="#3b82f6" fillOpacity="0.7" />
+              </marker>
+              <marker id="arrow-orange" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="#f97316" fillOpacity="0.8" />
+              </marker>
+            </defs>
+
+            {/* Existing group connections (only when toggle is on) */}
+            {showGroupLines && lines.map((line, idx) => (
+              <line
+                key={`group-${idx}`}
+                x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2}
+                stroke="#3b82f6"
+                strokeWidth="2"
+                strokeOpacity="0.5"
+                strokeDasharray="6 3"
+                markerEnd="url(#arrow-blue)"
+              />
+            ))}
+
+            {/* Currently drawing line */}
+            {drawingLine && (
+              <line
+                x1={drawingLine.startX} y1={drawingLine.startY}
+                x2={drawingLine.currentX} y2={drawingLine.currentY}
+                stroke="#f97316"
+                strokeWidth="2.5"
+                strokeOpacity="0.8"
+                strokeDasharray="4 2"
+                markerEnd="url(#arrow-orange)"
+              />
+            )}
+          </svg>
 
           <div
             ref={scrollContainerRef}
@@ -581,34 +596,13 @@ export default function FFEBoardView({
                           </Badge>
                         </div>
                         <div className="flex items-center gap-0 flex-shrink-0">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onAddItem(section.id)}
-                            className="h-6 w-6 p-0"
-                            disabled={disabled}
-                            title="Add item"
-                          >
+                          <Button variant="ghost" size="sm" onClick={() => onAddItem(section.id)} className="h-6 w-6 p-0" disabled={disabled} title="Add item">
                             <Plus className="w-3 h-3" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onSectionDuplicate(section.id, section.name)}
-                            className="h-6 w-6 p-0 text-gray-400 hover:text-blue-600"
-                            disabled={disabled}
-                            title="Duplicate section"
-                          >
+                          <Button variant="ghost" size="sm" onClick={() => onSectionDuplicate(section.id, section.name)} className="h-6 w-6 p-0 text-gray-400 hover:text-blue-600" disabled={disabled} title="Duplicate section">
                             <Copy className="w-3 h-3" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onSectionDelete(section.id, section.name)}
-                            className="h-6 w-6 p-0 text-gray-400 hover:text-red-500"
-                            disabled={disabled}
-                            title="Delete section"
-                          >
+                          <Button variant="ghost" size="sm" onClick={() => onSectionDelete(section.id, section.name)} className="h-6 w-6 p-0 text-gray-400 hover:text-red-500" disabled={disabled} title="Delete section">
                             <Trash2 className="w-3 h-3" />
                           </Button>
                         </div>
@@ -631,13 +625,7 @@ export default function FFEBoardView({
                           <div className="flex flex-col items-center justify-center py-6 text-center">
                             <Package className="h-5 w-5 text-gray-300 mb-1.5" />
                             <p className="text-[10px] text-gray-400">No items</p>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => onAddItem(section.id)}
-                              className="mt-1.5 text-[10px] h-6"
-                              disabled={disabled}
-                            >
+                            <Button size="sm" variant="ghost" onClick={() => onAddItem(section.id)} className="mt-1.5 text-[10px] h-6" disabled={disabled}>
                               <Plus className="w-2.5 h-2.5 mr-0.5" />
                               Add Item
                             </Button>
@@ -648,15 +636,15 @@ export default function FFEBoardView({
                             const specCount = item.linkedSpecs?.length || 0
                             const isParent = hasGroupedChildren(item)
                             const isChild = isGroupedChild(item)
-                            const itemIsGrouped = isParent || isChild
-                            const isLinkingFrom = linkingFromItem?.id === item.id
+                            const isDrawingFrom = drawingLine?.fromItemId === item.id
+                            const isHoverTarget = hoveredItemId === item.id
 
                             return (
                               <Draggable
                                 key={item.id}
                                 draggableId={item.id}
                                 index={index}
-                                isDragDisabled={disabled || !!linkingFromItem}
+                                isDragDisabled={disabled || !!drawingLine}
                               >
                                 {(dragProvided, dragSnapshot) => (
                                   <div
@@ -664,23 +652,19 @@ export default function FFEBoardView({
                                     {...dragProvided.draggableProps}
                                     data-item-id={item.id}
                                     className={cn(
-                                      'rounded-lg border bg-white p-2 shadow-sm transition-all cursor-pointer group/card',
+                                      'rounded-lg border bg-white p-2 shadow-sm transition-all cursor-pointer group/card relative',
                                       dragSnapshot.isDragging && 'shadow-lg ring-2 ring-blue-400 rotate-1',
                                       isChosen ? 'border-emerald-200 bg-emerald-50/30' : 'border-gray-200 hover:border-gray-300',
-                                      isLinkingFrom && 'ring-2 ring-orange-400 bg-orange-50',
-                                      linkingFromItem && !isLinkingFrom && 'hover:ring-2 hover:ring-blue-400 hover:bg-blue-50/50'
+                                      isDrawingFrom && 'ring-2 ring-orange-400 bg-orange-50/50',
+                                      isHoverTarget && drawingLine && 'ring-2 ring-blue-400 bg-blue-50/50',
                                     )}
                                     onClick={() => {
-                                      if (linkingFromItem) {
-                                        handleItemClickInLinkMode(item)
-                                      } else {
-                                        onItemClick?.(item.id)
-                                      }
+                                      if (!drawingLine) onItemClick?.(item.id)
                                     }}
                                   >
                                     <div className="flex items-start gap-1.5">
                                       {/* Drag handle */}
-                                      {!linkingFromItem && (
+                                      {!drawingLine && (
                                         <div
                                           {...dragProvided.dragHandleProps}
                                           className="mt-0.5 opacity-0 group-hover/card:opacity-100 transition-opacity cursor-grab active:cursor-grabbing flex-shrink-0"
@@ -711,9 +695,7 @@ export default function FFEBoardView({
                                             </span>
                                           )}
                                           {item.quantity > 1 && (
-                                            <span className="text-[9px] text-gray-500">
-                                              x{item.quantity}
-                                            </span>
+                                            <span className="text-[9px] text-gray-500">x{item.quantity}</span>
                                           )}
                                           {specCount > 0 && (
                                             <span className="text-[9px] text-emerald-600 font-medium">
@@ -725,7 +707,6 @@ export default function FFEBoardView({
 
                                       {/* Link icon — only for items that are part of a group */}
                                       <div className="flex items-center gap-0.5 flex-shrink-0">
-                                        {/* Parent: click link icon → shows children in list view */}
                                         {isParent && (
                                           <Popover>
                                             <PopoverTrigger asChild>
@@ -738,9 +719,7 @@ export default function FFEBoardView({
                                               </button>
                                             </PopoverTrigger>
                                             <PopoverContent className="w-56 p-2" side="right" align="start">
-                                              <p className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5">
-                                                Grouped Children
-                                              </p>
+                                              <p className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5">Grouped Children</p>
                                               {getGroupedChildren(item, sections).map(child => (
                                                 <div
                                                   key={child.id}
@@ -756,14 +735,11 @@ export default function FFEBoardView({
                                                   )}
                                                 </div>
                                               ))}
-                                              <p className="text-[9px] text-gray-400 mt-1.5 pt-1.5 border-t">
-                                                Click an item to view in list
-                                              </p>
+                                              <p className="text-[9px] text-gray-400 mt-1.5 pt-1.5 border-t">Click to view in list</p>
                                             </PopoverContent>
                                           </Popover>
                                         )}
 
-                                        {/* Child: click link icon → shows parent in list view */}
                                         {isChild && !isParent && (
                                           <Popover>
                                             <PopoverTrigger asChild>
@@ -776,14 +752,10 @@ export default function FFEBoardView({
                                               </button>
                                             </PopoverTrigger>
                                             <PopoverContent className="w-56 p-2" side="right" align="start">
-                                              <p className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5">
-                                                Grouped To
-                                              </p>
+                                              <p className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5">Grouped To</p>
                                               {(() => {
                                                 const parent = findParentItem(item, sections)
-                                                if (!parent) return (
-                                                  <p className="text-xs text-gray-400 italic">Parent not found</p>
-                                                )
+                                                if (!parent) return <p className="text-xs text-gray-400 italic">Parent not found</p>
                                                 return (
                                                   <div
                                                     className="flex items-center gap-1.5 py-1 px-1.5 rounded hover:bg-gray-50 text-xs cursor-pointer"
@@ -797,28 +769,21 @@ export default function FFEBoardView({
                                                   </div>
                                                 )
                                               })()}
-                                              <p className="text-[9px] text-gray-400 mt-1.5 pt-1.5 border-t">
-                                                Click to view in list
-                                              </p>
+                                              <p className="text-[9px] text-gray-400 mt-1.5 pt-1.5 border-t">Click to view in list</p>
                                             </PopoverContent>
                                           </Popover>
                                         )}
-
-                                        {/* Start linking (only in link mode, only for non-child items) */}
-                                        {showLinking && !linkingFromItem && !isChild && (
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation()
-                                              setLinkingFromItem({ id: item.id, name: item.name, sectionId: section.id })
-                                            }}
-                                            className="p-0.5 rounded opacity-0 group-hover/card:opacity-100 hover:bg-orange-100 transition-all"
-                                            title="Link another item to this one"
-                                          >
-                                            <Link2 className="w-3 h-3 text-orange-400" />
-                                          </button>
-                                        )}
                                       </div>
                                     </div>
+
+                                    {/* Connector dot — only when Groups toggle is on, for non-child items */}
+                                    {showGroupLines && !isChild && (
+                                      <div
+                                        className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-blue-500 border-2 border-white shadow cursor-crosshair opacity-0 group-hover/card:opacity-100 hover:scale-125 transition-all z-20"
+                                        onMouseDown={(e) => handleConnectorMouseDown(e, item)}
+                                        title="Drag to another item to group"
+                                      />
+                                    )}
                                   </div>
                                 )}
                               </Draggable>
@@ -833,7 +798,6 @@ export default function FFEBoardView({
               )
             })}
 
-            {/* Saving indicator */}
             {saving && (
               <div className="fixed bottom-4 right-4 bg-gray-900 text-white text-sm px-3 py-1.5 rounded-lg shadow-lg z-50">
                 Saving...
