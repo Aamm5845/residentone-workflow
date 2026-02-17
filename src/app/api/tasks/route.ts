@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status')
     const priority = searchParams.get('priority')
     const projectId = searchParams.get('projectId')
+    const assigneeId = searchParams.get('assigneeId')
     const search = searchParams.get('search')
     const sortBy = searchParams.get('sortBy') || 'createdAt'
     const sortOrder = searchParams.get('sortOrder') || 'desc'
@@ -27,8 +28,13 @@ export async function GET(request: NextRequest) {
       where.assignedToId = session.user.id
     } else if (view === 'created_by_me') {
       where.createdById = session.user.id
+    } else if (view === 'team') {
+      // 'team' - show ALL tasks in the organization (visible to all team members)
+      where.project = {
+        organization: { users: { some: { id: session.user.id } } }
+      }
     } else {
-      // 'all' - show tasks user is involved in
+      // 'all' - show tasks user is involved in (assigned or created)
       where.OR = [
         { assignedToId: session.user.id },
         { createdById: session.user.id }
@@ -38,6 +44,8 @@ export async function GET(request: NextRequest) {
     if (status) where.status = status
     if (priority) where.priority = priority
     if (projectId) where.projectId = projectId
+    // Only apply assignee filter if the view doesn't already enforce a specific assignee
+    if (assigneeId && view !== 'assigned_to_me') where.assignedToId = assigneeId
 
     if (search) {
       const searchCondition = {

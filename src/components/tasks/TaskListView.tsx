@@ -17,7 +17,7 @@ interface TaskListViewProps {
   onStatusChange: (taskId: string, status: TaskStatus) => void
   onPriorityChange: (taskId: string, priority: TaskPriority) => void
   showProject?: boolean
-  groupBy?: 'none' | 'project' | 'status' | 'priority'
+  groupBy?: 'none' | 'project' | 'status' | 'priority' | 'assignee'
 }
 
 interface TaskGroup {
@@ -29,10 +29,30 @@ interface TaskGroup {
 
 function groupTasks(
   tasks: TaskData[],
-  groupBy: 'none' | 'project' | 'status' | 'priority'
+  groupBy: 'none' | 'project' | 'status' | 'priority' | 'assignee'
 ): TaskGroup[] {
   if (groupBy === 'none') {
     return [{ key: 'all', label: 'All Tasks', tasks }]
+  }
+
+  if (groupBy === 'assignee') {
+    const assigneeMap = new Map<string, TaskData[]>()
+    const assigneeNames = new Map<string, string>()
+
+    for (const task of tasks) {
+      const key = task.assignedToId || 'unassigned'
+      if (!assigneeMap.has(key)) {
+        assigneeMap.set(key, [])
+        assigneeNames.set(key, task.assignedTo?.name || task.assignedTo?.email || 'Unassigned')
+      }
+      assigneeMap.get(key)!.push(task)
+    }
+
+    return Array.from(assigneeMap.entries()).map(([key, groupTasks]) => ({
+      key,
+      label: assigneeNames.get(key) || 'Unassigned',
+      tasks: groupTasks,
+    }))
   }
 
   if (groupBy === 'project') {

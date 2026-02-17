@@ -34,7 +34,17 @@ export default function MyTasksContent({
   const { success, error: showError } = useToast()
 
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>(initialView === 'kanban' ? 'kanban' : 'list')
-  const [activeTab, setActiveTab] = useState(initialTab)
+  const [activeTab, setActiveTab] = useState(() => {
+    // Restore the tab the user was on before navigating to a task detail
+    if (typeof window !== 'undefined') {
+      const savedTab = sessionStorage.getItem('tasks_active_tab')
+      if (savedTab) {
+        sessionStorage.removeItem('tasks_active_tab')
+        return savedTab
+      }
+    }
+    return initialTab
+  })
   const [tasks, setTasks] = useState<TaskData[]>([])
   const [loading, setLoading] = useState(true)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
@@ -45,7 +55,8 @@ export default function MyTasksContent({
     priority: '',
     assigneeId: '',
     roomId: '',
-    search: ''
+    search: '',
+    projectId: ''
   })
 
   // Sync with URL
@@ -65,6 +76,8 @@ export default function MyTasksContent({
       if (filters.status) params.set('status', filters.status)
       if (filters.priority) params.set('priority', filters.priority)
       if (filters.search) params.set('search', filters.search)
+      if (filters.assigneeId) params.set('assigneeId', filters.assigneeId)
+      if (filters.projectId) params.set('projectId', filters.projectId)
 
       const res = await fetch(`/api/tasks?${params.toString()}`)
       if (res.ok) {
@@ -115,6 +128,10 @@ export default function MyTasksContent({
   }
 
   const handleTaskClick = (task: TaskData) => {
+    // Store current tab so we return to the same view after navigating back
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('tasks_active_tab', activeTab)
+    }
     router.push(`/tasks/${task.id}`)
   }
 
@@ -158,7 +175,8 @@ export default function MyTasksContent({
   const tabs = [
     { id: 'assigned_to_me', label: 'Assigned to Me' },
     { id: 'created_by_me', label: 'Created by Me' },
-    { id: 'all', label: 'All My Tasks' }
+    { id: 'all', label: 'All My Tasks' },
+    { id: 'team', label: 'Team Tasks' }
   ]
 
   return (
@@ -172,7 +190,7 @@ export default function MyTasksContent({
                 <CheckSquare className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">My Tasks</h1>
+                <h1 className="text-xl font-bold text-gray-900">{activeTab === 'team' ? 'Team Tasks' : 'My Tasks'}</h1>
                 <div className="flex items-center gap-4 mt-0.5">
                   <span className="text-xs text-gray-500">{totalTasks} total</span>
                   <span className="text-xs text-green-600">{completedTasks} done</span>
@@ -258,7 +276,7 @@ export default function MyTasksContent({
               onStatusChange={handleStatusChange}
               onPriorityChange={handlePriorityChange}
               showProject
-              groupBy="project"
+              groupBy={activeTab === 'team' ? 'assignee' : 'project'}
             />
             <div className="mt-2">
               <QuickTaskInput onCreateTask={handleQuickCreate} placeholder="Add a task..." />
