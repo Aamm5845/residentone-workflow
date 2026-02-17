@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Meisner FFE Clipper",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "Clip product information from any website and save it to your StudioFlow FFE schedules",
   "permissions": [
     "activeTab",

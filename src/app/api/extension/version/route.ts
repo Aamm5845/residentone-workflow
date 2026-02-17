@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 // Current extension version - update this when releasing new versions
-const EXTENSION_VERSION = '1.2.0'
+const EXTENSION_VERSION = '1.2.3'
 
 // Optional: URL where users can download the latest version
 const DOWNLOAD_URL = '/settings' // Or a direct download link
@@ -11,7 +11,7 @@ export async function GET() {
   return NextResponse.json({
     latestVersion: EXTENSION_VERSION,
     downloadUrl: DOWNLOAD_URL,
-    releaseNotes: 'New cascading dropdown flow, breadcrumb navigation, and multi-room product linking.',
+    releaseNotes: 'Smart fill improvements: AI no longer overwrites notes/description, auto-detects In Stock lead time from product pricing.',
     releasedAt: new Date().toISOString()
   })
 }

@@ -1,10 +1,10 @@
-// Meisner FFE Clipper - Popup Script v1.2.0
+// Meisner FFE Clipper - Popup Script v1.2.3
 
 // Environment Configuration
 const ENVIRONMENT = 'production'; // Change to 'local' for development
 
 // Extension Version
-const EXTENSION_VERSION = '1.2.1';
+const EXTENSION_VERSION = '1.2.3';
 
 // Configuration
 const CONFIG = {
@@ -1359,7 +1359,6 @@ function processSmartFillData(data) {
     height: 'height',
     depth: 'depth',
     length: 'length',
-    // leadTime is intentionally NOT included - user should select manually
     // Notes are intentionally NOT included - we don't want to auto-fill notes
     productWebsite: 'productWebsite',
     title: 'productName',
@@ -1368,7 +1367,7 @@ function processSmartFillData(data) {
     price: 'rrp',
     url: 'productWebsite'
   };
-  
+
   for (const [key, fieldId] of Object.entries(fieldMappings)) {
     if (data[key] && !state.clippedData[fieldId]) {
       const value = data[key];
@@ -1377,7 +1376,15 @@ function processSmartFillData(data) {
       if (input) input.value = value;
     }
   }
-  
+
+  // Handle lead time from API - only set if user hasn't already selected one
+  // API returns 'in-stock' when a price is visible on the page
+  if (data.leadTime && !state.clippedData.leadTime) {
+    state.clippedData.leadTime = data.leadTime;
+    const leadTimeSelect = document.getElementById('leadTime');
+    if (leadTimeSelect) leadTimeSelect.value = data.leadTime;
+  }
+
   if (data.images?.length > 0) {
     const existingUrls = new Set(state.clippedData.images);
     for (const img of data.images) {
@@ -1387,7 +1394,7 @@ function processSmartFillData(data) {
     }
     renderImages();
   }
-  
+
   // Smart fill should NOT auto-add any attachments
   // User can manually add attachments using the + button if needed
 }

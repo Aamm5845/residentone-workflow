@@ -14,7 +14,7 @@ import Link from 'next/link'
 
 // ─── Version Constants ───────────────────────────────────────
 const TIMER_VERSION = '2.5.1'
-const CLIPPER_VERSION = '1.2.0'
+const CLIPPER_VERSION = '1.2.3'
 
 // ─── Sidebar Nav Items ───────────────────────────────────────
 const navSections = [
@@ -580,10 +580,11 @@ function ClipperSection({
                 <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full font-medium">Latest</span>
               </div>
               <ul className="text-xs text-gray-500 space-y-0.5 list-disc list-inside">
+                <li>Smart fill no longer overwrites notes or description</li>
+                <li>Auto-detects &quot;In Stock&quot; lead time from product pricing</li>
                 <li>AI-powered smart fill for FFE items</li>
-                <li>Right-click image clipping</li>
-                <li>PDF attachment detection</li>
-                <li>Multi-room product linking</li>
+                <li>Right-click image clipping &amp; PDF detection</li>
+                <li>Multi-room product linking with supplier integration</li>
               </ul>
             </div>
           </div>
