@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import {
   Calendar,
   ChevronLeft,
@@ -18,12 +18,15 @@ import {
   CalendarDays,
   Filter,
   Eye,
-  Umbrella
+  Umbrella,
+  Video,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatDate } from '@/lib/utils'
 import { getHebrewHolidaysForMonth, HebrewHoliday } from '@/lib/hebrew-holidays'
 import { getCanadianHolidaysForMonth, CanadianHoliday } from '@/lib/canadian-holidays'
+import { ScheduleMeetingDialog } from './schedule-meeting-dialog'
+import { MeetingDetailDialog } from './meeting-detail-dialog'
 
 type Holiday = (HebrewHoliday | CanadianHoliday) & { source: 'hebrew' | 'canadian' }
 import Link from 'next/link'
@@ -87,10 +90,42 @@ interface TeamOffDay {
   notes?: string | null
 }
 
+interface MeetingItem {
+  id: string
+  title: string
+  description?: string | null
+  date: string
+  startTime: string
+  endTime: string
+  locationType: string
+  locationDetails?: string | null
+  meetingLink?: string | null
+  status: string
+  reminderMinutes: number
+  projectId?: string | null
+  project?: { id: string; name: string } | null
+  organizer?: { id: string; name: string | null; email: string } | null
+  attendees: Array<{
+    id: string
+    type: string
+    status: string
+    userId?: string | null
+    clientId?: string | null
+    contractorId?: string | null
+    externalName?: string | null
+    externalEmail?: string | null
+    user?: { id: string; name: string | null; email: string } | null
+    client?: { id: string; name: string; email: string } | null
+    contractor?: { id: string; businessName: string; contactName: string | null; email: string; type: string } | null
+  }>
+}
+
 interface CalendarPageClientProps {
   projects: Project[]
   tasks?: TaskItem[]
   teamOffDays?: TeamOffDay[]
+  meetings?: MeetingItem[]
+  projectList?: { id: string; name: string }[]
   currentUser: {
     id: string
     name: string
@@ -102,24 +137,49 @@ export default function CalendarPageClient({
   projects,
   tasks: taskItems = [],
   teamOffDays = [],
+  meetings: meetingItems = [],
+  projectList = [],
   currentUser
 }: CalendarPageClientProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [viewMode, setViewMode] = useState<'all' | 'mine'>('all')
   const [showHolidays, setShowHolidays] = useState(true)
   const [showVacations, setShowVacations] = useState(true)
+  const [showMeetings, setShowMeetings] = useState(true)
   const [selectedPhases, setSelectedPhases] = useState<string[]>(['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE', 'TASK'])
+
+  // Meeting dialogs state
+  const [selectedMeeting, setSelectedMeeting] = useState<MeetingItem | null>(null)
+  const [meetingDetailOpen, setMeetingDetailOpen] = useState(false)
+  const [editMeeting, setEditMeeting] = useState<MeetingItem | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  const handleMeetingClick = (meeting: MeetingItem) => {
+    setSelectedMeeting(meeting)
+    setMeetingDetailOpen(true)
+  }
+
+  const handleEditMeeting = (meeting: any) => {
+    setEditMeeting(meeting)
+  }
+
+  const handleMeetingSuccess = useCallback(() => {
+    setRefreshKey(k => k + 1)
+    setEditMeeting(null)
+    // Reload the page to get fresh data
+    window.location.reload()
+  }, [])
 
   // Transform projects into calendar tasks
   const allTasks = useMemo(() => {
     const tasks: CalendarTask[] = []
-    
+
     projects.forEach(project => {
       project.rooms?.forEach(room => {
         room.stages?.forEach(stage => {
-          const phaseTitle = stage.type === 'THREE_D' ? '3D Rendering' : 
+          const phaseTitle = stage.type === 'THREE_D' ? '3D Rendering' :
                             stage.type.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
-          
+
           // Add start date entry if exists
           if (stage.startDate && stage.status !== 'COMPLETED') {
             tasks.push({
@@ -137,7 +197,7 @@ export default function CalendarPageClient({
               } : undefined
             })
           }
-          
+
           // Add due date entry if exists
           if (stage.dueDate && stage.status !== 'COMPLETED') {
             tasks.push({
@@ -156,7 +216,7 @@ export default function CalendarPageClient({
             })
           }
         })
-        
+
         // Add room-level dates
         if (room.startDate) {
           tasks.push({
@@ -184,7 +244,7 @@ export default function CalendarPageClient({
         }
       })
     })
-    
+
     // Add user tasks with dates
     taskItems.forEach(task => {
       if (task.startDate) {
@@ -225,24 +285,41 @@ export default function CalendarPageClient({
   // Filter tasks based on view mode and selected phases
   const filteredTasks = useMemo(() => {
     let tasks = allTasks
-    
+
     if (viewMode === 'mine') {
       tasks = tasks.filter(task => task.assignedUser?.id === currentUser.id)
     }
-    
+
     // Filter by selected phases
     tasks = tasks.filter(task => {
       if (task.stageType === 'ROOM_START' || task.stageType === 'ROOM_DUE') return true
       return selectedPhases.includes(task.stageType || '')
     })
-    
+
     return tasks
   }, [allTasks, viewMode, currentUser.id, selectedPhases])
+
+  // Group meetings by date
+  const meetingsByDate = useMemo(() => {
+    if (!showMeetings) return {}
+    const grouped: { [date: string]: MeetingItem[] } = {}
+
+    meetingItems.forEach(meeting => {
+      const d = new Date(meeting.date)
+      const dateKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+      if (!grouped[dateKey]) {
+        grouped[dateKey] = []
+      }
+      grouped[dateKey].push(meeting)
+    })
+
+    return grouped
+  }, [meetingItems, showMeetings])
 
   // Get current month and year
   const currentMonth = currentDate.getMonth()
   const currentYear = currentDate.getFullYear()
-  
+
   // Get all holidays for the current month (Hebrew + Canadian)
   const allHolidays = useMemo((): Holiday[] => {
     if (!showHolidays) return []
@@ -260,17 +337,17 @@ export default function CalendarPageClient({
   // Group tasks by date
   const tasksByDate = useMemo(() => {
     const grouped: { [date: string]: CalendarTask[] } = {}
-    
+
     filteredTasks.forEach(task => {
       const taskDate = new Date(task.dueDate)
       const dateKey = `${taskDate.getFullYear()}-${taskDate.getMonth()}-${taskDate.getDate()}`
-      
+
       if (!grouped[dateKey]) {
         grouped[dateKey] = []
       }
       grouped[dateKey].push(task)
     })
-    
+
     return grouped
   }, [filteredTasks])
 
@@ -325,7 +402,7 @@ export default function CalendarPageClient({
     const dateKey = `${currentYear}-${currentMonth}-${day}`
     return tasksByDate[dateKey] || []
   }
-  
+
   const getHolidaysForDate = (day: number | null) => {
     if (!day || !showHolidays) return []
     return allHolidays.filter(holiday => holiday.date.getDate() === day)
@@ -335,6 +412,17 @@ export default function CalendarPageClient({
     if (!day || !showVacations) return []
     const dateKey = `${currentYear}-${currentMonth}-${day}`
     return offDaysByDate[dateKey] || []
+  }
+
+  const getMeetingsForDate = (day: number | null) => {
+    if (!day || !showMeetings) return []
+    const dateKey = `${currentYear}-${currentMonth}-${day}`
+    return meetingsByDate[dateKey] || []
+  }
+
+  const formatMeetingTime = (dateStr: string) => {
+    const d = new Date(dateStr)
+    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
   }
 
   const getOffDayLabel = (reason: string) => {
@@ -364,31 +452,31 @@ export default function CalendarPageClient({
 
   const getHolidayIcon = (holiday: Holiday) => {
     if (holiday.source === 'canadian') {
-      if (holiday.name.includes('Canada Day')) return '🇨🇦'
-      if (holiday.name.includes('Victoria Day')) return '👑'
-      if (holiday.name.includes('Thanksgiving')) return '🦃'
-      if (holiday.name.includes('Christmas')) return '🎄'
-      if (holiday.name.includes('Boxing')) return '🎁'
-      if (holiday.name.includes('New Year')) return '🎆'
-      if (holiday.name.includes('Good Friday') || holiday.name.includes('Easter')) return '✝️'
-      if (holiday.name.includes('Labour')) return '👷'
-      if (holiday.name.includes('Remembrance')) return '🌺'
-      if (holiday.name.includes('Family')) return '👨‍👩‍👧‍👦'
-      if (holiday.name.includes('Truth')) return '🧡'
-      if (holiday.name.includes('Civic')) return '🏛️'
-      return '🍁'
+      if (holiday.name.includes('Canada Day')) return '\u{1F1E8}\u{1F1E6}'
+      if (holiday.name.includes('Victoria Day')) return '\u{1F451}'
+      if (holiday.name.includes('Thanksgiving')) return '\u{1F983}'
+      if (holiday.name.includes('Christmas')) return '\u{1F384}'
+      if (holiday.name.includes('Boxing')) return '\u{1F381}'
+      if (holiday.name.includes('New Year')) return '\u{1F386}'
+      if (holiday.name.includes('Good Friday') || holiday.name.includes('Easter')) return '\u{271D}\u{FE0F}'
+      if (holiday.name.includes('Labour')) return '\u{1F477}'
+      if (holiday.name.includes('Remembrance')) return '\u{1F33A}'
+      if (holiday.name.includes('Family')) return '\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}\u{200D}\u{1F466}'
+      if (holiday.name.includes('Truth')) return '\u{1F9E1}'
+      if (holiday.name.includes('Civic')) return '\u{1F3DB}\u{FE0F}'
+      return '\u{1F341}'
     }
-    if (holiday.name.includes('Hanukkah')) return '🕎'
-    if (holiday.name.includes('Passover')) return '🍷'
-    if (holiday.name.includes('Rosh Hashanah')) return '🍎'
-    if (holiday.name.includes('Yom Kippur')) return '🙏'
-    if (holiday.name.includes('Sukkot')) return '🏕️'
-    if (holiday.name.includes('Purim')) return '🎭'
-    if (holiday.name.includes('Tu BiShvat')) return '🌳'
-    if (holiday.name.includes('Shavot')) return '📜'
-    if (holiday.name.includes('Independence')) return '🇮🇱'
-    if (holiday.name.includes('Holocaust')) return '🕯️'
-    return '✡️'
+    if (holiday.name.includes('Hanukkah')) return '\u{1F54E}'
+    if (holiday.name.includes('Passover')) return '\u{1F377}'
+    if (holiday.name.includes('Rosh Hashanah')) return '\u{1F34E}'
+    if (holiday.name.includes('Yom Kippur')) return '\u{1F64F}'
+    if (holiday.name.includes('Sukkot')) return '\u{1F3D5}\u{FE0F}'
+    if (holiday.name.includes('Purim')) return '\u{1F3AD}'
+    if (holiday.name.includes('Tu BiShvat')) return '\u{1F333}'
+    if (holiday.name.includes('Shavot')) return '\u{1F4DC}'
+    if (holiday.name.includes('Independence')) return '\u{1F1EE}\u{1F1F1}'
+    if (holiday.name.includes('Holocaust')) return '\u{1F56F}\u{FE0F}'
+    return '\u{2721}\u{FE0F}'
   }
 
   // Phase colors matching the brand
@@ -415,8 +503,8 @@ export default function CalendarPageClient({
   }
 
   const togglePhase = (phase: string) => {
-    setSelectedPhases(prev => 
-      prev.includes(phase) 
+    setSelectedPhases(prev =>
+      prev.includes(phase)
         ? prev.filter(p => p !== phase)
         : [...prev, phase]
     )
@@ -425,9 +513,16 @@ export default function CalendarPageClient({
   return (
     <div className="p-6">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Calendar</h1>
-        <p className="text-gray-600 mt-1">View and manage all your project deadlines</p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Calendar</h1>
+          <p className="text-gray-600 mt-1">View and manage all your project deadlines and meetings</p>
+        </div>
+        <ScheduleMeetingDialog
+          projects={projectList}
+          editMeeting={editMeeting}
+          onSuccess={handleMeetingSuccess}
+        />
       </div>
 
       {/* Controls */}
@@ -482,6 +577,17 @@ export default function CalendarPageClient({
               <Umbrella className="w-4 h-4 mr-1.5" />
               Vacations
             </Button>
+
+            {/* Meetings Toggle */}
+            <Button
+              variant={showMeetings ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowMeetings(!showMeetings)}
+              className={showMeetings ? "bg-cyan-600 hover:bg-cyan-700" : ""}
+            >
+              <Video className="w-4 h-4 mr-1.5" />
+              Meetings
+            </Button>
           </div>
 
           {/* Right: Month Navigation */}
@@ -516,8 +622,8 @@ export default function CalendarPageClient({
                   key={key}
                   onClick={() => togglePhase(key)}
                   className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
-                    isSelected 
-                      ? `${config.color} text-white shadow-sm` 
+                    isSelected
+                      ? `${config.color} text-white shadow-sm`
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
@@ -541,20 +647,21 @@ export default function CalendarPageClient({
             </div>
           ))}
         </div>
-        
+
         {/* Calendar grid */}
         <div className="grid grid-cols-7">
           {calendarDays.map((day, index) => {
             const tasksForDay = getTasksForDate(day)
             const holidaysForDay = getHolidaysForDate(day)
             const offDaysForDay = getOffDaysForDate(day)
+            const meetingsForDay = getMeetingsForDate(day)
             const isToday = day && new Date().getDate() === day &&
                           new Date().getMonth() === currentMonth &&
                           new Date().getFullYear() === currentYear
             const isWeekend = index % 7 === 0 || index % 7 === 6
 
-            // Calculate how many slots are taken by holidays and off days
-            const fixedSlots = holidaysForDay.length + (offDaysForDay.length > 0 ? 1 : 0)
+            // Calculate how many slots are taken by holidays, off days, and meetings
+            const fixedSlots = holidaysForDay.length + (offDaysForDay.length > 0 ? 1 : 0) + meetingsForDay.length
             const maxTaskSlots = Math.max(0, 3 - fixedSlots)
 
             return (
@@ -606,6 +713,26 @@ export default function CalendarPageClient({
                         </div>
                       )}
 
+                      {/* Meetings */}
+                      {meetingsForDay.map((meeting) => (
+                        <div
+                          key={meeting.id}
+                          onClick={() => handleMeetingClick(meeting)}
+                          className="text-[10px] p-1 rounded cursor-pointer hover:opacity-90 transition-all bg-cyan-500 text-white"
+                          title={`${meeting.title} - ${formatMeetingTime(meeting.startTime)}${meeting.project ? ` - ${meeting.project.name}` : ''}`}
+                        >
+                          <div className="truncate font-medium flex items-center space-x-0.5">
+                            <Video className="w-2.5 h-2.5 flex-shrink-0" />
+                            <span>{formatMeetingTime(meeting.startTime)} {meeting.title.length > 8 ? `${meeting.title.substring(0, 8)}...` : meeting.title}</span>
+                          </div>
+                          {meeting.project && (
+                            <div className="truncate text-[9px] opacity-90">
+                              {meeting.project.name}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+
                       {/* Tasks */}
                       {tasksForDay.slice(0, maxTaskSlots).map((task) => {
                         // Build the correct link
@@ -642,7 +769,7 @@ export default function CalendarPageClient({
                       })}
 
                       {/* Show more indicator */}
-                      {tasksForDay.length > maxTaskSlots && (
+                      {(tasksForDay.length > maxTaskSlots) && (
                         <div className="text-[10px] text-gray-500 p-0.5 flex items-center">
                           <Eye className="w-2.5 h-2.5 mr-0.5" />
                           +{tasksForDay.length - maxTaskSlots} more
@@ -658,16 +785,16 @@ export default function CalendarPageClient({
       </div>
 
       {/* Empty State */}
-      {filteredTasks.length === 0 && (
+      {filteredTasks.length === 0 && meetingItems.length === 0 && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center mt-4">
           <CalendarDays className="w-12 h-12 text-gray-300 mx-auto mb-3" />
           <h3 className="text-base font-medium text-gray-900 mb-1">
-            {viewMode === 'mine' ? 'No tasks assigned to you' : 'No scheduled tasks'}
+            {viewMode === 'mine' ? 'No tasks assigned to you' : 'No scheduled tasks or meetings'}
           </h3>
           <p className="text-sm text-gray-500 max-w-md mx-auto">
-            {viewMode === 'mine' 
-              ? 'Switch to "All Tasks" to see team tasks.' 
-              : 'Add due dates to your project stages to see them here.'}
+            {viewMode === 'mine'
+              ? 'Switch to "All Tasks" to see team tasks.'
+              : 'Add due dates to your project stages or schedule a meeting to see them here.'}
           </p>
           {viewMode === 'mine' && allTasks.length > 0 && (
             <Button
@@ -681,6 +808,25 @@ export default function CalendarPageClient({
             </Button>
           )}
         </div>
+      )}
+
+      {/* Meeting Detail Dialog */}
+      <MeetingDetailDialog
+        meeting={selectedMeeting}
+        open={meetingDetailOpen}
+        onOpenChange={setMeetingDetailOpen}
+        onEdit={handleEditMeeting}
+        onRefresh={handleMeetingSuccess}
+      />
+
+      {/* Edit Meeting Dialog (hidden, triggered programmatically) */}
+      {editMeeting && (
+        <ScheduleMeetingDialog
+          projects={projectList}
+          editMeeting={editMeeting}
+          onSuccess={handleMeetingSuccess}
+          trigger={<span />}
+        />
       )}
     </div>
   )

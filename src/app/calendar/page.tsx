@@ -16,7 +16,7 @@ export default async function CalendarPage() {
       orgId: string
     }
   } | null
-  
+
   if (!session?.user) {
     redirect('/auth/signin')
   }
@@ -25,9 +25,10 @@ export default async function CalendarPage() {
   let projects: any[] = []
   let tasks: any[] = []
   let teamOffDays: any[] = []
+  let meetings: any[] = []
 
   try {
-    [projects, tasks, teamOffDays] = await Promise.all([
+    [projects, tasks, teamOffDays, meetings] = await Promise.all([
       prisma.project.findMany({
         where: {
           status: { not: 'COMPLETED' }
@@ -82,14 +83,37 @@ export default async function CalendarPage() {
           }
         },
         orderBy: { date: 'asc' }
-      })
+      }),
+      // Fetch meetings for the organization
+      prisma.meeting.findMany({
+        where: {
+          orgId: session.user.orgId,
+          status: { not: 'CANCELLED' },
+        },
+        include: {
+          attendees: {
+            include: {
+              user: { select: { id: true, name: true, email: true } },
+              client: { select: { id: true, name: true, email: true } },
+              contractor: { select: { id: true, businessName: true, contactName: true, email: true, type: true } },
+            },
+          },
+          project: { select: { id: true, name: true } },
+          organizer: { select: { id: true, name: true, email: true } },
+        },
+        orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+      }),
     ])
   } catch (error) {
     console.error('Error fetching calendar data:', error)
     projects = []
     tasks = []
     teamOffDays = []
+    meetings = []
   }
+
+  // Get flat project list for meeting dialog
+  const projectList = projects.map(p => ({ id: p.id, name: p.name }))
 
   return (
     <DashboardLayout session={session}>
@@ -108,6 +132,19 @@ export default async function CalendarPage() {
           reason: od.reason,
           notes: od.notes,
         }))}
+        meetings={meetings.map(m => ({
+          ...m,
+          date: m.date.toISOString(),
+          startTime: m.startTime.toISOString(),
+          endTime: m.endTime.toISOString(),
+          createdAt: m.createdAt.toISOString(),
+          updatedAt: m.updatedAt.toISOString(),
+          attendees: m.attendees.map((a: any) => ({
+            ...a,
+            createdAt: a.createdAt.toISOString(),
+          })),
+        }))}
+        projectList={projectList}
         currentUser={{
           id: session.user.id,
           name: session.user.name || 'Unknown User',

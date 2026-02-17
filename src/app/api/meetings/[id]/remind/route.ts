@@ -1,0 +1,82 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getSession } from '@/auth'
+import { prisma } from '@/lib/prisma'
+import { sendMeetingReminder } from '@/lib/meeting-emails'
+
+// POST /api/meetings/[id]/remind — Manually send reminder to all attendees
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await getSession()
+  if (!session?.user?.orgId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const { id } = await params
+
+  const meeting = await prisma.meeting.findFirst({
+    where: { id, orgId: session.user.orgId, status: 'SCHEDULED' },
+    include: {
+      attendees: {
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          client: { select: { id: true, name: true, email: true } },
+          contractor: { select: { id: true, businessName: true, contactName: true, email: true } },
+        },
+      },
+      project: { select: { id: true, name: true } },
+      organizer: { select: { id: true, name: true } },
+    },
+  })
+
+  if (!meeting) {
+    return NextResponse.json({ error: 'Meeting not found or already cancelled' }, { status: 404 })
+  }
+
+  let sentCount = 0
+
+  for (const attendee of meeting.attendees) {
+    let email: string | null = null
+    let name: string | null = null
+
+    if (attendee.user) {
+      email = attendee.user.email
+      name = attendee.user.name
+    } else if (attendee.client) {
+      email = attendee.client.email
+      name = attendee.client.name
+    } else if (attendee.contractor) {
+      email = attendee.contractor.email
+      name = attendee.contractor.contactName || attendee.contractor.businessName
+    } else if (attendee.externalEmail) {
+      email = attendee.externalEmail
+      name = attendee.externalName
+    }
+
+    if (email) {
+      try {
+        await sendMeetingReminder({
+          to: email,
+          attendeeName: name || 'there',
+          meeting: {
+            title: meeting.title,
+            date: meeting.date,
+            startTime: meeting.startTime,
+            endTime: meeting.endTime,
+            locationType: meeting.locationType,
+            locationDetails: meeting.locationDetails,
+            meetingLink: meeting.meetingLink,
+            organizerName: meeting.organizer?.name || 'Team',
+            projectName: meeting.project?.name,
+          },
+        })
+        sentCount++
+      } catch (err) {
+        console.error(`Failed to send reminder to ${email}:`, err)
+      }
+    }
+  }
+
+  return NextResponse.json({ success: true, sentCount })
+}

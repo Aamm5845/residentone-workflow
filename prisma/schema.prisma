@@ -94,6 +94,8 @@ model Organization {
   programaItems  ProgramaItem[] @relation("OrgProgramaItems")
   budgetQuotes      BudgetQuote[]      @relation("BudgetQuoteOrg")
   plaidConnections  PlaidConnection[]
+  meetings          Meeting[]
+  zoomIntegration   ZoomIntegration?
 }
 
 // Shipping address phonebook - saved addresses for quick selection
@@ -254,6 +256,11 @@ model User {
   userTasksCreated            Task[]                      @relation("UserTasksCreated")
   userTaskComments            TaskComment[]               @relation("UserTaskComments")
   userTaskAttachments         TaskAttachment[]            @relation("UserTaskAttachments")
+  // Meeting system
+  organizedMeetings           Meeting[]                   @relation("MeetingOrganizer")
+  meetingAttendances          MeetingAttendee[]           @relation("MeetingAttendances")
+  // Zoom integration
+  zoomIntegrations            ZoomIntegration[]           @relation("ZoomConnectedBy")
 }
 
 model Client {
@@ -267,6 +274,7 @@ model Client {
   company      String?
   organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   projects     Project[]
+  meetingAttendances MeetingAttendee[]
 
   // Billing Information
   billingName       String?  // Contact name for billing (e.g., "Accounts Payable")
@@ -297,6 +305,7 @@ model Contractor {
   organization       Organization        @relation(fields: [orgId], references: [id], onDelete: Cascade)
   projectContractors ProjectContractor[]
   projectUpdateTasks ProjectUpdateTask[]
+  meetingAttendances MeetingAttendee[]
 
   @@unique([orgId, email])
   @@index([orgId, type])
@@ -382,6 +391,8 @@ model Project {
   billingInvoices           BillingInvoice[]           @relation("ProjectBillingInvoices")
   // Task management system
   tasks                     Task[]                     @relation("ProjectTasks")
+  // Meeting system
+  meetings                  Meeting[]
 }
 
 // Client Sources - files received from clients (measurements, architect plans, etc.)
@@ -4699,4 +4710,118 @@ model PlaidConnection {
 
   @@unique([orgId, itemId])
   @@index([orgId])
+}
+
+// =============================================
+// Zoom Integration (Organization-level)
+// =============================================
+
+model ZoomIntegration {
+  id              String    @id @default(cuid())
+  orgId           String    @unique            // One Zoom account per org
+  accessToken     String    @db.Text           // Encrypted Zoom access token
+  refreshToken    String    @db.Text           // Encrypted Zoom refresh token
+  tokenExpiresAt  DateTime                     // When access token expires
+  zoomAccountId   String?                      // Zoom user ID
+  zoomEmail       String?                      // Zoom account email for display
+  scopes          String?                      // Granted OAuth scopes
+  status          String    @default("ACTIVE") // ACTIVE | REVOKED | ERROR
+  connectedById   String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  connectedBy  User         @relation("ZoomConnectedBy", fields: [connectedById], references: [id])
+
+  @@index([orgId])
+}
+
+// =============================================
+// Meeting Scheduling System
+// =============================================
+
+enum MeetingLocationType {
+  VIRTUAL
+  IN_OFFICE
+  ON_SITE
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  CANCELLED
+  COMPLETED
+}
+
+enum AttendeeType {
+  TEAM_MEMBER
+  CLIENT
+  CONTRACTOR
+  SUBCONTRACTOR
+  EXTERNAL
+}
+
+enum AttendeeStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+model Meeting {
+  id              String              @id @default(cuid())
+  title           String
+  description     String?             @db.Text
+  date            DateTime
+  startTime       DateTime
+  endTime         DateTime
+  locationType    MeetingLocationType
+  locationDetails String?
+  meetingLink     String?
+  zoomMeetingId   String?             // Zoom meeting ID if auto-created via Zoom API
+  status          MeetingStatus       @default(SCHEDULED)
+  reminderSent    Boolean             @default(false)
+  reminderMinutes Int                 @default(30)
+
+  projectId       String?
+  project         Project?            @relation(fields: [projectId], references: [id])
+
+  organizerId     String
+  organizer       User                @relation("MeetingOrganizer", fields: [organizerId], references: [id])
+
+  orgId           String
+  organization    Organization        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  attendees       MeetingAttendee[]
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([orgId, date])
+  @@index([organizerId])
+  @@index([status])
+}
+
+model MeetingAttendee {
+  id           String         @id @default(cuid())
+  meetingId    String
+  meeting      Meeting        @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  type         AttendeeType
+  status       AttendeeStatus @default(PENDING)
+
+  userId       String?
+  user         User?          @relation("MeetingAttendances", fields: [userId], references: [id])
+  clientId     String?
+  client       Client?        @relation(fields: [clientId], references: [id])
+  contractorId String?
+  contractor   Contractor?    @relation(fields: [contractorId], references: [id])
+
+  externalName  String?
+  externalEmail String?
+
+  createdAt    DateTime       @default(now())
+
+  @@unique([meetingId, userId])
+  @@unique([meetingId, clientId])
+  @@unique([meetingId, contractorId])
+  @@unique([meetingId, externalEmail])
+  @@index([meetingId])
 }

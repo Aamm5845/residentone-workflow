@@ -33,6 +33,7 @@ const navSections = [
       { id: 'payment', label: 'Payment Methods', icon: CreditCard, color: 'text-pink-600', bg: 'bg-pink-50', href: '/settings/payment-methods' },
       { id: 'library', label: 'Item Library', icon: FolderOpen, color: 'text-amber-600', bg: 'bg-amber-50', href: '/settings/item-library' },
       { id: 'import', label: 'Programa Import', icon: FileSpreadsheet, color: 'text-teal-600', bg: 'bg-teal-50', href: '/settings/programa-import' },
+      { id: 'integrations', label: 'Integrations', icon: Puzzle, color: 'text-indigo-600', bg: 'bg-indigo-50', href: '/settings/integrations' },
       { id: 'preferences', label: 'Preferences', icon: Settings, color: 'text-gray-600', bg: 'bg-gray-100', href: '/preferences' },
     ]
   },
