@@ -7,6 +7,7 @@ import FFEUnifiedWorkspace from '@/components/ffe/FFEUnifiedWorkspace'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import { PhaseChat } from '@/components/chat/PhaseChat'
 import FFEActivityLogPanel from '@/components/ffe/v2/FFEActivityLogPanel'
+import FFESidebarWrapper from '@/components/ffe/FFESidebarWrapper'
 
 interface FFEWorkspacePageProps {
   params: {
@@ -108,13 +109,13 @@ export default async function FFEWorkspacePage({ params }: FFEWorkspacePageProps
             />
           </div>
 
-          {/* Right Sidebar - Activity Log & Chat */}
-          <div className="w-96 border-l border-gray-200/60 bg-white flex flex-col">
+          {/* Right Sidebar - Collapsible Activity Log & Chat */}
+          <FFESidebarWrapper>
             {/* Activity Log - Compact */}
             <div className="h-44 border-b border-gray-100 flex-shrink-0">
               <FFEActivityLogPanel roomId={roomId} />
             </div>
-            
+
             {/* Chat - Fills remaining space */}
             <div className="flex-1 overflow-hidden">
               <PhaseChat
@@ -123,7 +124,7 @@ export default async function FFEWorkspacePage({ params }: FFEWorkspacePageProps
                 className="h-full"
               />
             </div>
-          </div>
+          </FFESidebarWrapper>
         </div>
       </div>
     </DashboardLayout>
