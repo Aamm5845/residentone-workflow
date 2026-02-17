@@ -202,11 +202,16 @@ export async function DELETE(
     return NextResponse.json({ error: 'Meeting not found' }, { status: 404 })
   }
 
-  // Delete Zoom meeting if one was auto-created
+  // Delete Zoom meeting if one was auto-created — await to ensure it completes
   if (existing.zoomMeetingId) {
-    deleteZoomMeeting(session.user.orgId!, existing.zoomMeetingId).catch((err) =>
+    try {
+      const deleted = await deleteZoomMeeting(session.user.orgId!, existing.zoomMeetingId)
+      if (!deleted) {
+        console.warn(`Zoom meeting ${existing.zoomMeetingId} could not be deleted`)
+      }
+    } catch (err) {
       console.error('Failed to delete Zoom meeting:', err)
-    )
+    }
   }
 
   await prisma.meeting.update({

@@ -263,6 +263,7 @@ export async function updateZoomMeeting(
 
 /**
  * Delete a Zoom meeting.
+ * Uses schedule_for_reminder=true to notify participants and remove from their calendars.
  * Returns true on success, false on failure.
  */
 export async function deleteZoomMeeting(
@@ -270,16 +271,34 @@ export async function deleteZoomMeeting(
   zoomMeetingId: string
 ): Promise<boolean> {
   const accessToken = await getValidAccessToken(orgId)
-  if (!accessToken) return false
+  if (!accessToken) {
+    console.error('Zoom delete: no valid access token for org', orgId)
+    return false
+  }
 
-  const response = await fetch(`${ZOOM_API_BASE}/meetings/${zoomMeetingId}`, {
-    method: 'DELETE',
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-    },
-  })
+  try {
+    const response = await fetch(
+      `${ZOOM_API_BASE}/meetings/${zoomMeetingId}?schedule_for_reminder=true&cancel_meeting_reminder=true`,
+      {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      }
+    )
 
-  return response.ok // 204 on success
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'no body')
+      console.error(`Zoom delete failed (${response.status}): ${errorText}`)
+      return false
+    }
+
+    console.log(`Zoom meeting ${zoomMeetingId} deleted successfully`)
+    return true
+  } catch (err) {
+    console.error('Zoom delete network error:', err)
+    return false
+  }
 }
 
 // ─── Get Zoom User Info ─────────────────────────────────
