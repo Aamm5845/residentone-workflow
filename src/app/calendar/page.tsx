@@ -148,7 +148,8 @@ export default async function CalendarPage() {
         currentUser={{
           id: session.user.id,
           name: session.user.name || 'Unknown User',
-          email: session.user.email || ''
+          email: session.user.email || '',
+          role: (session.user as any).role || 'VIEWER',
         }}
       />
     </DashboardLayout>

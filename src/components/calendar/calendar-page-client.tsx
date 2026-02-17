@@ -31,6 +31,7 @@ import { getHebrewHolidaysForMonth, HebrewHoliday } from '@/lib/hebrew-holidays'
 import { getCanadianHolidaysForMonth, CanadianHoliday } from '@/lib/canadian-holidays'
 import { ScheduleMeetingDialog } from './schedule-meeting-dialog'
 import { MeetingDetailDialog } from './meeting-detail-dialog'
+import { AddOffDayDialog } from './add-off-day-dialog'
 
 type Holiday = (HebrewHoliday | CanadianHoliday) & { source: 'hebrew' | 'canadian' }
 import Link from 'next/link'
@@ -134,6 +135,7 @@ interface CalendarPageClientProps {
     id: string
     name: string
     email: string
+    role?: string
   }
 }
 
@@ -162,6 +164,8 @@ export default function CalendarPageClient({
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
   const [scheduleMeetingDate, setScheduleMeetingDate] = useState<string | null>(null)
   const [scheduleMeetingOpen, setScheduleMeetingOpen] = useState(false)
+  const [addOffDayDate, setAddOffDayDate] = useState<string | null>(null)
+  const [addOffDayOpen, setAddOffDayOpen] = useState(false)
 
   // Stable reference for "today" to avoid hydration issues
   const [todayRef] = useState(() => {
@@ -183,6 +187,12 @@ export default function CalendarPageClient({
     const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     setScheduleMeetingDate(dateStr)
     setScheduleMeetingOpen(true)
+  }
+
+  const handleAddOffDayForDay = (day: number) => {
+    const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    setAddOffDayDate(dateStr)
+    setAddOffDayOpen(true)
   }
 
   const handleEditMeeting = (meeting: any) => {
@@ -837,6 +847,18 @@ export default function CalendarPageClient({
                 <Button
                   size="sm"
                   variant="default"
+                  className="h-7 text-xs gap-1.5 bg-amber-500 hover:bg-amber-600"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleAddOffDayForDay(selectedDay)
+                  }}
+                >
+                  <Umbrella className="w-3.5 h-3.5" />
+                  Add Vacation
+                </Button>
+                <Button
+                  size="sm"
+                  variant="default"
                   className="h-7 text-xs gap-1.5 bg-blue-600 hover:bg-blue-700"
                   onClick={(e) => {
                     e.stopPropagation()
@@ -861,7 +883,7 @@ export default function CalendarPageClient({
                 <div className="text-center py-6">
                   <CalendarDays className="w-8 h-8 text-gray-300 mx-auto mb-2" />
                   <p className="text-sm text-gray-500">Nothing scheduled for this day</p>
-                  <p className="text-xs text-gray-400 mt-1">Click &ldquo;Schedule Meeting&rdquo; to add one</p>
+                  <p className="text-xs text-gray-400 mt-1">Schedule a meeting or add a vacation day</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -1033,6 +1055,24 @@ export default function CalendarPageClient({
         }}
         onSuccess={handleMeetingSuccess}
         trigger={<span className="hidden" />}
+      />
+
+      {/* Add Off Day from Day Click */}
+      <AddOffDayDialog
+        defaultDate={addOffDayDate}
+        open={addOffDayOpen}
+        onOpenChange={(isOpen) => {
+          setAddOffDayOpen(isOpen)
+          if (!isOpen) setAddOffDayDate(null)
+        }}
+        onSuccess={() => {
+          window.location.reload()
+        }}
+        currentUser={{
+          id: currentUser.id,
+          name: currentUser.name,
+          role: currentUser.role || 'VIEWER',
+        }}
       />
     </div>
   )
