@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import {
   Plus,
   FolderPlus,
@@ -1999,8 +2000,8 @@ export default function FFEUnifiedWorkspace({
             </div>
           ) : (
             filteredSections.map(section => {
-              // Filter out grouped children (show them under their parents)
-              const parentItems = section.items.filter(item => !item.customFields?.isGroupedItem && !item.customFields?.isLinkedItem)
+              // Show ALL items in the flat list (grouped children look identical to regular items)
+              const parentItems = [...section.items].sort((a, b) => (a.order || 0) - (b.order || 0))
               const chosenCount = parentItems.filter(item => hasSpecs(item)).length
               
               return (
@@ -2145,12 +2146,78 @@ export default function FFEUnifiedWorkspace({
                                       </div>
                                     )}
                                     
-                                    {/* Linked children indicator */}
+                                    {/* Group link icon — parent: shows popover with children / child: scrolls to parent */}
                                     {groupedChildren.length > 0 && (
-                                      <div className="flex items-center gap-1 text-blue-600">
-                                        <LinkIcon className="w-3 h-3" />
-                                        <span className="text-xs font-medium">{groupedChildren.length}</span>
-                                      </div>
+                                      <Popover>
+                                        <PopoverTrigger asChild>
+                                          <button
+                                            className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors p-0.5 rounded hover:bg-blue-50"
+                                            onClick={(e) => e.stopPropagation()}
+                                            title={`${groupedChildren.length} grouped item${groupedChildren.length > 1 ? 's' : ''}`}
+                                          >
+                                            <LinkIcon className="w-3.5 h-3.5" />
+                                            <span className="text-xs font-medium">{groupedChildren.length}</span>
+                                          </button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-60 p-2" align="start" side="bottom">
+                                          <p className="text-xs font-medium text-gray-500 mb-1.5 px-1">Grouped Items</p>
+                                          <div className="space-y-0.5">
+                                            {groupedChildren.map(child => (
+                                              <button
+                                                key={child.id}
+                                                className="w-full text-left px-2 py-1.5 rounded-md hover:bg-blue-50 text-sm text-gray-700 hover:text-blue-700 transition-colors flex items-center gap-2"
+                                                onClick={() => {
+                                                  const el = document.getElementById(`ffe-item-${child.id}`)
+                                                  if (el) {
+                                                    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                                                    setHighlightedItemId(child.id)
+                                                    setTimeout(() => setHighlightedItemId(null), 2000)
+                                                  }
+                                                }}
+                                              >
+                                                <LinkIcon className="w-3 h-3 text-blue-400 flex-shrink-0" />
+                                                <span className="truncate">{child.name}</span>
+                                                {(child as any).fromSection && (
+                                                  <Badge variant="outline" className="text-[9px] px-1 py-0 ml-auto flex-shrink-0 bg-violet-50 text-violet-600 border-violet-200">
+                                                    {(child as any).fromSection}
+                                                  </Badge>
+                                                )}
+                                              </button>
+                                            ))}
+                                          </div>
+                                        </PopoverContent>
+                                      </Popover>
+                                    )}
+                                    {/* Child item: link icon that scrolls to parent */}
+                                    {(item.customFields?.isGroupedItem || item.customFields?.isLinkedItem) && (item.customFields?.parentId || item.customFields?.parentName) && (
+                                      <button
+                                        className="flex items-center gap-1 text-blue-500 hover:text-blue-700 transition-colors p-0.5 rounded hover:bg-blue-50"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          // Find the parent item and scroll to it
+                                          const parentId = item.customFields?.parentId
+                                          const parentName = item.customFields?.parentName
+                                          let targetId = parentId
+                                          if (!targetId && parentName) {
+                                            // Search all sections for parent by name
+                                            for (const s of sections) {
+                                              const parent = s.items.find(i => i.name === parentName && !i.customFields?.isGroupedItem && !i.customFields?.isLinkedItem)
+                                              if (parent) { targetId = parent.id; break }
+                                            }
+                                          }
+                                          if (targetId) {
+                                            const el = document.getElementById(`ffe-item-${targetId}`)
+                                            if (el) {
+                                              el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                                              setHighlightedItemId(targetId)
+                                              setTimeout(() => setHighlightedItemId(null), 2000)
+                                            }
+                                          }
+                                        }}
+                                        title={`Grouped under: ${item.customFields?.parentName || 'Parent'}`}
+                                      >
+                                        <LinkIcon className="w-3.5 h-3.5" />
+                                      </button>
                                     )}
                                     
                                     {/* Description toggle */}
@@ -2334,6 +2401,20 @@ export default function FFEUnifiedWorkspace({
                                           <DropdownMenuItem onClick={() => handleReorderItem(item.id, 'down', section.id)}>
                                             <ArrowDown className="w-4 h-4 mr-2 text-gray-600" />
                                             Move Down
+                                          </DropdownMenuItem>
+                                        )}
+                                        {/* Ungroup from Parent — only for grouped child items */}
+                                        {(item.customFields?.isGroupedItem || item.customFields?.isLinkedItem) && (
+                                          <DropdownMenuItem
+                                            onClick={() => {
+                                              if (confirm(`Ungroup "${item.name}"? It will become a standalone item in its current section.`)) {
+                                                handleUngroupItem(item.id, item.name)
+                                              }
+                                            }}
+                                            className="text-violet-600"
+                                          >
+                                            <X className="w-4 h-4 mr-2" />
+                                            Ungroup from Parent
                                           </DropdownMenuItem>
                                         )}
                                         <DropdownMenuItem
@@ -2590,347 +2671,6 @@ export default function FFEUnifiedWorkspace({
                                   </div>
                                 )}
                                 
-                                {/* Grouped Children */}
-                                {groupedChildren.length > 0 && (
-                                  <div className="ml-10 border-l-2 border-blue-200 bg-blue-50/30">
-                                    {groupedChildren.map(child => {
-                                      const childIsChosen = hasSpecs(child)
-                                      const childWithSection = child as FFEItem & { fromSection?: string; fromSectionId?: string }
-                                      return (
-                                        <div key={child.id} id={`ffe-item-${child.id}`}>
-                                          <div
-                                            className={cn(
-                                              "group flex items-center justify-between py-3 px-4 hover:bg-blue-50/50 transition-all",
-                                              highlightedItemId === child.id && "ring-2 ring-blue-500 ring-inset bg-blue-100"
-                                            )}
-                                          >
-                                          <div className="flex items-center gap-2 flex-1">
-                                            {childIsChosen ? (
-                                              <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                                            ) : (
-                                              <Circle className="w-4 h-4 text-gray-300 flex-shrink-0" />
-                                            )}
-                                            <LinkIcon className="w-3 h-3 text-blue-500 flex-shrink-0" />
-                                            <span className="text-sm text-gray-700">{child.name}</span>
-                                            {/* Cross-category indicator */}
-                                            {childWithSection.fromSection && (
-                                              <Badge variant="outline" className="text-[10px] bg-violet-50 text-violet-600 border-violet-200">
-                                                from {childWithSection.fromSection}
-                                              </Badge>
-                                            )}
-                                          </div>
-                                          <div className="flex items-center gap-3">
-                                            {/* Doc Code for grouped item - same as parent items */}
-                                            <div className="w-14 flex-shrink-0 text-right">
-                                              {editingDocCodeItemId === child.id ? (
-                                                <div className="flex items-center gap-1">
-                                                  <Input
-                                                    value={editDocCodeValue}
-                                                    onChange={(e) => setEditDocCodeValue(e.target.value)}
-                                                    placeholder="Code"
-                                                    className="h-5 w-14 text-xs text-center font-mono"
-                                                    autoFocus
-                                                    onKeyDown={(e) => {
-                                                      if (e.key === 'Enter') handleUpdateItemDocCode(child.id)
-                                                      if (e.key === 'Escape') { setEditingDocCodeItemId(null); setEditDocCodeValue('') }
-                                                    }}
-                                                    onBlur={() => handleUpdateItemDocCode(child.id)}
-                                                  />
-                                                </div>
-                                              ) : (
-                                                <span
-                                                  className={cn(
-                                                    "text-sm font-mono cursor-pointer hover:text-purple-600 transition-colors",
-                                                    child.docCode ? "text-purple-700 font-bold" : "text-gray-400 font-normal"
-                                                  )}
-                                                  onClick={() => { setEditingDocCodeItemId(child.id); setEditDocCodeValue(child.docCode || '') }}
-                                                  title="Click to edit doc code"
-                                                >
-                                                  {child.docCode || '—'}
-                                                </span>
-                                              )}
-                                            </div>
-                                            
-                                            {/* Status Badge - fixed width, same as parent items */}
-                                            <div className="w-28 flex-shrink-0">
-                                              {childIsChosen ? (
-                                                <Badge 
-                                                  className="bg-emerald-100 text-emerald-700 text-xs cursor-pointer hover:bg-emerald-200 transition-colors w-full justify-center"
-                                                  onClick={() => {
-                                                    // Toggle spec details panel - same behavior as parent items
-                                                    setExpandedSpecItems(prev => {
-                                                      const newSet = new Set(prev)
-                                                      if (newSet.has(child.id)) {
-                                                        newSet.delete(child.id)
-                                                      } else {
-                                                        newSet.add(child.id)
-                                                        // Initialize to first option if not set
-                                                        if (selectedOptionIndex[child.id] === undefined && child.linkedSpecs && child.linkedSpecs.length > 0) {
-                                                          setSelectedOptionIndex(prev => ({ ...prev, [child.id]: 0 }))
-                                                        }
-                                                      }
-                                                      return newSet
-                                                    })
-                                                  }}
-                                                >
-                                                  {child.linkedSpecs?.length === 1 
-                                                    ? 'View Spec' 
-                                                    : child.linkedSpecs?.length && child.linkedSpecs.length > 1 
-                                                      ? `${child.linkedSpecs.length} options` 
-                                                      : 'View Spec'}
-                                                  <ChevronDown className={cn("w-3 h-3 ml-1 transition-transform", expandedSpecItems.has(child.id) && "rotate-180")} />
-                                                </Badge>
-                                              ) : (
-                                                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs w-full justify-center">
-                                                  Needs Selection
-                                                </Badge>
-                                              )}
-                                            </div>
-                                            {/* Full dropdown menu - same as standard items */}
-                                            <DropdownMenu>
-                                              <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100">
-                                                  <MoreHorizontal className="w-4 h-4" />
-                                                </Button>
-                                              </DropdownMenuTrigger>
-                                              <DropdownMenuContent align="end">
-                                                {/* Add New Product */}
-                                                <DropdownMenuItem onClick={() => {
-                                                  setChooseProductItem({ id: child.id, name: child.name, sectionId: section.id })
-                                                  setNewProductData({
-                                                    name: '',
-                                                    description: '',
-                                                    brand: '',
-                                                    sku: '',
-                                                    unitCost: '',
-                                                    tradePrice: '',
-                                                    rrp: '',
-                                                    sourceUrl: '',
-                                                    images: [],
-                                                    notes: '',
-                                                    material: '',
-                                                    color: '',
-                                                    finish: '',
-                                                    width: '',
-                                                    height: '',
-                                                    depth: '',
-                                                    leadTime: '',
-                                                    supplierName: '',
-                                                    supplierLink: '',
-                                                    supplierId: '',
-                                                    length: ''
-                                                  })
-                                                  setProductPanelTab('summary')
-                                                  setShowChooseProductDialog(true)
-                                                }}>
-                                                  <Plus className="w-4 h-4 mr-2 text-emerald-600" />
-                                                  Add New Product
-                                                </DropdownMenuItem>
-                                                {/* Generate from URL */}
-                                                <DropdownMenuItem onClick={() => {
-                                                  setUrlGenerateItem({ id: child.id, name: child.name, sectionId: section.id })
-                                                  setUrlInput('')
-                                                  setExtractedData(null)
-                                                  setShowUrlGenerateDialog(true)
-                                                }}>
-                                                  <Globe className="w-4 h-4 mr-2 text-blue-600" />
-                                                  Generate from URL
-                                                </DropdownMenuItem>
-                                                {/* Link to Existing Product */}
-                                                <DropdownMenuItem onClick={() => {
-                                                  setLinkToExistingItem({ id: child.id, name: child.name, sectionId: section.id })
-                                                  setProductSearchQuery('')
-                                                  loadAvailableProducts()
-                                                  setShowLinkToExistingDialog(true)
-                                                }}>
-                                                  <LinkIcon className="w-4 h-4 mr-2 text-indigo-600" />
-                                                  Link to Existing Product
-                                                </DropdownMenuItem>
-                                                {/* Add/Edit Note */}
-                                                <DropdownMenuItem onClick={() => {
-                                                  setEditingNotesItemId(child.id)
-                                                  setEditNotesValue(child.notes || '')
-                                                }}>
-                                                  <StickyNote className="w-4 h-4 mr-2 text-amber-600" />
-                                                  {child.notes ? 'Edit Note' : 'Add Note'}
-                                                </DropdownMenuItem>
-                                                {/* Search Item Online */}
-                                                <DropdownMenuItem onClick={() => {
-                                                  setSearchItemName(child.name)
-                                                  setSearchRegion('ca')
-                                                  setSearchMode(renderingImages.length > 0 ? 'image' : 'text')
-                                                  setSelectedRenderingForSearch(renderingImages.length > 0 ? renderingImages[0].url : '')
-                                                  setShowSearchDialog(true)
-                                                }}>
-                                                  <Search className="w-4 h-4 mr-2 text-purple-600" />
-                                                  Search Item
-                                                </DropdownMenuItem>
-                                                {/* Ungroup - remove from parent */}
-                                                <DropdownMenuItem
-                                                  onClick={() => {
-                                                    if (confirm(`Ungroup "${child.name}"? It will become a standalone item in its current section.`)) {
-                                                      handleUngroupItem(child.id, child.name)
-                                                    }
-                                                  }}
-                                                  className="text-violet-600"
-                                                >
-                                                  <X className="w-4 h-4 mr-2" />
-                                                  Ungroup from Parent
-                                                </DropdownMenuItem>
-                                                {/* Delete */}
-                                                <DropdownMenuItem
-                                                  onClick={() => { if (confirm(`Delete "${child.name}"?`)) handleDeleteItem(child.id) }}
-                                                  className="text-red-600"
-                                                >
-                                                  <Trash2 className="w-4 h-4 mr-2" />
-                                                  Delete
-                                                </DropdownMenuItem>
-                                              </DropdownMenuContent>
-                                            </DropdownMenu>
-                                          </div>
-                                        </div>
-                                        
-                                        {/* Expanded Spec Options Panel for grouped item - same as parent items */}
-                                        {expandedSpecItems.has(child.id) && child.linkedSpecs && child.linkedSpecs.length > 0 && (
-                                          <div className="border-t border-blue-100 bg-white/50 p-4 ml-6">
-                                            {/* Option Tabs - only show if multiple options */}
-                                            {child.linkedSpecs.length > 1 && (
-                                              <div className="flex items-center gap-2 mb-4">
-                                                <span className="text-xs font-medium text-gray-500 mr-2">Options:</span>
-                                                {child.linkedSpecs.map((spec, index) => (
-                                                  <button
-                                                    key={spec.id}
-                                                    onClick={() => setSelectedOptionIndex(prev => ({ ...prev, [child.id]: index }))}
-                                                    className={cn(
-                                                      "px-3 py-1.5 text-xs font-medium rounded-md transition-all",
-                                                      (selectedOptionIndex[child.id] ?? 0) === index
-                                                        ? "bg-blue-600 text-white shadow-sm"
-                                                        : "bg-white text-gray-600 border border-gray-200 hover:border-blue-300 hover:text-blue-600"
-                                                    )}
-                                                  >
-                                                    Option {index + 1}
-                                                    {spec.clientApproved && (
-                                                      <CheckCircle2 className="w-3 h-3 ml-1 inline text-emerald-400" />
-                                                    )}
-                                                  </button>
-                                                ))}
-                                              </div>
-                                            )}
-                                            
-                                            {/* Selected Option Details */}
-                                            {(() => {
-                                              const selectedSpec = child.linkedSpecs![(selectedOptionIndex[child.id] ?? 0)]
-                                              if (!selectedSpec) return null
-                                              
-                                              const imageUrl = selectedSpec.images?.[0]
-                                              
-                                              return (
-                                                <div className="flex gap-4">
-                                                  {/* Product Image */}
-                                                  {imageUrl && (
-                                                    <div className="w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-white border border-gray-200">
-                                                      <img 
-                                                        src={imageUrl} 
-                                                        alt={selectedSpec.name}
-                                                        className="w-full h-full object-cover"
-                                                      />
-                                                    </div>
-                                                  )}
-                                                  
-                                                  {/* Product Details */}
-                                                  <div className="flex-1 min-w-0">
-                                                    <div className="flex items-start justify-between gap-2 mb-2">
-                                                      <div>
-                                                        <h4 className="font-medium text-gray-900 text-sm">{selectedSpec.name}</h4>
-                                                        {selectedSpec.brand && (
-                                                          <p className="text-xs text-gray-500">{selectedSpec.brand}</p>
-                                                        )}
-                                                      </div>
-                                                      {/* Actions */}
-                                                      <div className="flex items-center gap-2">
-                                                        {projectId && (
-                                                          <Button
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            className="h-6 text-xs"
-                                                            onClick={() => router.push(`/projects/${projectId}/specs/all?highlightItem=${selectedSpec.id}`)}
-                                                          >
-                                                            <ExternalLink className="w-3 h-3 mr-1" />
-                                                            View in Specs
-                                                          </Button>
-                                                        )}
-                                                        <Button
-                                                          size="sm"
-                                                          variant="ghost"
-                                                          className="h-6 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                          onClick={() => handleUnlinkFromSpec(child.id, selectedSpec.id, selectedSpec.name)}
-                                                        >
-                                                          <LinkIcon className="w-3 h-3 mr-1" />
-                                                          Unlink
-                                                        </Button>
-                                                      </div>
-                                                    </div>
-                                                    
-                                                    {/* Spec Details Grid */}
-                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-1 text-xs">
-                                                      {selectedSpec.sku && (
-                                                        <div>
-                                                          <span className="text-gray-400">SKU:</span>
-                                                          <span className="ml-1 text-gray-700">{selectedSpec.sku}</span>
-                                                        </div>
-                                                      )}
-                                                      {selectedSpec.supplierName && (
-                                                        <div>
-                                                          <span className="text-gray-400">Supplier:</span>
-                                                          <span className="ml-1 text-gray-700">{selectedSpec.supplierName}</span>
-                                                        </div>
-                                                      )}
-                                                      {selectedSpec.color && (
-                                                        <div>
-                                                          <span className="text-gray-400">Color:</span>
-                                                          <span className="ml-1 text-gray-700">{selectedSpec.color}</span>
-                                                        </div>
-                                                      )}
-                                                      {selectedSpec.finish && (
-                                                        <div>
-                                                          <span className="text-gray-400">Finish:</span>
-                                                          <span className="ml-1 text-gray-700">{selectedSpec.finish}</span>
-                                                        </div>
-                                                      )}
-                                                      {selectedSpec.material && (
-                                                        <div>
-                                                          <span className="text-gray-400">Material:</span>
-                                                          <span className="ml-1 text-gray-700">{selectedSpec.material}</span>
-                                                        </div>
-                                                      )}
-                                                      {selectedSpec.leadTime && (
-                                                        <div>
-                                                          <span className="text-gray-400">Lead Time:</span>
-                                                          <span className="ml-1 text-gray-700">{selectedSpec.leadTime}</span>
-                                                        </div>
-                                                      )}
-                                                    </div>
-                                                    
-                                                    {/* Approval Status */}
-                                                    {selectedSpec.clientApproved && (
-                                                      <div className="mt-2">
-                                                        <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-xs">
-                                                          <CheckCircle2 className="w-3 h-3 mr-1" />
-                                                          Client Approved
-                                                        </Badge>
-                                                      </div>
-                                                    )}
-                                                  </div>
-                                                </div>
-                                              )
-                                            })()}
-                                          </div>
-                                        )}
-                                      </div>
-                                    )
-                                  })}
-                                </div>
-                              )}
                               </div>
                             )
                           })}
