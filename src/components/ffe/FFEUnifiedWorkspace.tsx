@@ -440,9 +440,18 @@ export default function FFEUnifiedWorkspace({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [sections, router])
 
+  const initialLoadDone = React.useRef(false)
+
   const loadFFEData = async (forceIncludeHidden?: boolean) => {
     try {
-      setLoading(true)
+      // Only show full loading spinner on initial load, not on subsequent refreshes
+      if (!initialLoadDone.current) {
+        setLoading(true)
+      }
+
+      // Save scroll position before reloading data
+      const scrollY = window.scrollY
+
       const includeHidden = forceIncludeHidden ?? showHiddenItems
       const queryParam = includeHidden ? 'includeHidden=true' : 'onlyVisible=true'
       const response = await fetch(`/api/ffe/v2/rooms/${roomId}?${queryParam}`)
@@ -472,6 +481,14 @@ export default function FFEUnifiedWorkspace({
         setSections([])
         setStats({ totalItems: 0, chosenItems: 0, needsSelection: 0, sectionsCount: 0 })
       }
+
+      // Restore scroll position after state update
+      if (initialLoadDone.current) {
+        requestAnimationFrame(() => {
+          window.scrollTo(0, scrollY)
+        })
+      }
+      initialLoadDone.current = true
     } catch (error) {
       console.error('Error loading FFE data:', error)
       toast.error('Failed to load FFE data')
@@ -725,21 +742,21 @@ export default function FFEUnifiedWorkspace({
     }
   }
 
-  const handleAddItem = async () => {
+  const handleAddItem = async (keepOpen = false) => {
     if (!newItemName.trim() || !selectedSectionId) { toast.error('Item name and section are required'); return }
-    
+
     // If linking to parent, validate parent selection
     if (linkToParent && !selectedParentItemId) { toast.error('Please select a parent item to link to'); return }
-    
+
     try {
       setSaving(true)
-      
+
       if (linkToParent && selectedParentItemId) {
         // Create as linked child item
         const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${selectedParentItemId}/linked-items`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
+          body: JSON.stringify({
             action: 'add',
             name: newItemName.trim()
           })
@@ -754,11 +771,11 @@ export default function FFEUnifiedWorkspace({
         const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            sectionId: selectedSectionId, 
-            name: newItemName.trim(), 
-            description: newItemDescription.trim() || undefined, 
-            quantity: newItemQuantity, 
+          body: JSON.stringify({
+            sectionId: selectedSectionId,
+            name: newItemName.trim(),
+            description: newItemDescription.trim() || undefined,
+            quantity: newItemQuantity,
             visibility: 'VISIBLE',
             isSpecItem: false // This is a requirement, not a spec
           })
@@ -766,15 +783,25 @@ export default function FFEUnifiedWorkspace({
         if (!response.ok) throw new Error('Failed to add item')
         toast.success('Item added')
       }
-      
+
       await loadFFEData()
-      setShowAddItemDialog(false)
-      setNewItemName('')
-      setNewItemDescription('')
-      setNewItemQuantity(1)
-      setSelectedSectionId('')
-      setLinkToParent(false)
-      setSelectedParentItemId('')
+
+      if (keepOpen) {
+        // Reset only the item fields, keep section selected for quick batch adding
+        setNewItemName('')
+        setNewItemDescription('')
+        setNewItemQuantity(1)
+        setLinkToParent(false)
+        setSelectedParentItemId('')
+      } else {
+        setShowAddItemDialog(false)
+        setNewItemName('')
+        setNewItemDescription('')
+        setNewItemQuantity(1)
+        setSelectedSectionId('')
+        setLinkToParent(false)
+        setSelectedParentItemId('')
+      }
     } catch (error: any) {
       toast.error(error.message || 'Failed to add item')
     } finally {
@@ -3317,9 +3344,17 @@ export default function FFEUnifiedWorkspace({
               </>
             )}
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button variant="outline" onClick={() => { setShowAddItemDialog(false); setNewItemName(''); setNewItemDescription(''); setNewItemQuantity(1); setSelectedSectionId(''); setLinkToParent(false); setSelectedParentItemId('') }}>Cancel</Button>
-            <Button onClick={handleAddItem} disabled={saving || !newItemName.trim() || !selectedSectionId || (linkToParent && !selectedParentItemId)}>
+            <Button
+              variant="outline"
+              onClick={() => handleAddItem(true)}
+              disabled={saving || !newItemName.trim() || !selectedSectionId || (linkToParent && !selectedParentItemId)}
+            >
+              {saving ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-1" />}
+              {linkToParent ? 'Add & Add Another' : 'Add & Add Another'}
+            </Button>
+            <Button onClick={() => handleAddItem(false)} disabled={saving || !newItemName.trim() || !selectedSectionId || (linkToParent && !selectedParentItemId)}>
               {saving ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : null}
               {linkToParent ? 'Add Grouped Item' : 'Add Item'}
             </Button>
