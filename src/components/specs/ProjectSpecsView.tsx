@@ -581,6 +581,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
     sections: Array<{
       sectionId: string
       sectionName: string
+      docCodePrefix?: string | null
       items: Array<{
         id: string
         name: string
@@ -597,7 +598,22 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       }>
     }>
   }>>([])
-  
+
+  // Unlinked spec items (in All Specs but not linked to any FFE requirement)
+  const [unlinkedSpecs, setUnlinkedSpecs] = useState<Array<{
+    id: string
+    name: string
+    description?: string
+    notes?: string
+    docCode?: string | null
+    brand?: string
+    sku?: string
+    specStatus?: string
+    sectionName: string
+    roomId: string
+    roomName: string
+  }>>([])
+
   // Cascading selection state for FFE linking
   const [selectedFfeRoom, setSelectedFfeRoom] = useState<string>('')
   const [selectedFfeSection, setSelectedFfeSection] = useState<string>('')
@@ -1006,6 +1022,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       const data = await res.json()
       if (data.success && data.ffeItems) {
         setFfeItems(data.ffeItems)
+      }
+      if (data.unlinkedSpecs) {
+        setUnlinkedSpecs(data.unlinkedSpecs)
       }
     } catch (error) {
       console.error('Failed to load FFE items:', error)
@@ -2469,6 +2488,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           const ffeData = await ffeRes.json()
           if (ffeData.success && ffeData.ffeItems) {
             setFfeItems(ffeData.ffeItems)
+            if (ffeData.unlinkedSpecs) setUnlinkedSpecs(ffeData.unlinkedSpecs)
           }
         } catch (e) {
           // Silent fail on FFE refresh
@@ -4387,16 +4407,46 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       {activeTab === 'all-ffe' && (
         <div className="max-w-full mx-auto px-4 py-4">
           <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-500 to-gray-600 flex items-center justify-center shadow-sm">
-                <List className="w-6 h-6 text-white" />
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-500 to-gray-600 flex items-center justify-center shadow-sm">
+                  <List className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">All FFE Items</h3>
+                  <p className="text-sm text-gray-600">
+                    Complete overview of all FFE items across rooms and sections
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">All FFE Items</h3>
-                <p className="text-sm text-gray-600">
-                  Complete overview of all FFE items across rooms and sections
-                </p>
-              </div>
+              {/* Regenerate All Doc Codes button */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs gap-1.5"
+                onClick={async () => {
+                  try {
+                    const res = await fetch(`/api/projects/${project.id}/regenerate-doc-codes`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ categories: [] })
+                    })
+                    const data = await res.json()
+                    if (data.success) {
+                      toast.success(`Regenerated doc codes for ${data.updatedCount} items`)
+                      loadFfeItems()
+                      fetchSpecs()
+                    } else {
+                      toast.error(data.error || 'Failed to regenerate')
+                    }
+                  } catch {
+                    toast.error('Failed to regenerate doc codes')
+                  }
+                }}
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                Regenerate All Doc Codes
+              </Button>
             </div>
 
             {/* All Items List */}
@@ -4404,36 +4454,72 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               {sortBy === 'category' ? (
                 // Group by category/section
                 (() => {
-                  const byCategory = new Map<string, Array<{ roomName: string; roomId: string; sectionId: string; item: any }>>()
+                  const byCategory = new Map<string, { prefix: string | null; items: Array<{ roomName: string; roomId: string; sectionId: string; item: any }> }>()
                   filteredFfeItems.forEach(room => {
                     room.sections.forEach(section => {
                       section.items.forEach(item => {
                         const key = section.sectionName
-                        if (!byCategory.has(key)) byCategory.set(key, [])
-                        byCategory.get(key)!.push({ roomName: room.roomName, roomId: room.roomId, sectionId: section.sectionId, item })
+                        if (!byCategory.has(key)) byCategory.set(key, { prefix: section.docCodePrefix || null, items: [] })
+                        const cat = byCategory.get(key)!
+                        if (!cat.prefix && section.docCodePrefix) cat.prefix = section.docCodePrefix
+                        cat.items.push({ roomName: room.roomName, roomId: room.roomId, sectionId: section.sectionId, item })
                       })
                     })
                   })
-                  return Array.from(byCategory.entries()).map(([category, items]) => (
+                  return Array.from(byCategory.entries()).map(([category, { prefix, items }]) => (
                     <div key={category} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                      <button
-                        onClick={() => setCollapsedNeedsSections(prev => {
-                          const next = new Set(prev)
-                          const key = `all-${category}`
-                          if (next.has(key)) next.delete(key)
-                          else next.add(key)
-                          return next
-                        })}
-                        className="w-full bg-gray-100/50 px-4 py-2 border-b border-gray-200 flex items-center gap-2 hover:bg-gray-100 transition-colors cursor-pointer"
-                      >
-                        {collapsedNeedsSections.has(`all-${category}`) ? (
-                          <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                        ) : (
-                          <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      <div className="flex items-center border-b border-gray-200 bg-gray-100/50">
+                        <button
+                          onClick={() => setCollapsedNeedsSections(prev => {
+                            const next = new Set(prev)
+                            const key = `all-${category}`
+                            if (next.has(key)) next.delete(key)
+                            else next.add(key)
+                            return next
+                          })}
+                          className="flex-1 px-4 py-2 flex items-center gap-2 hover:bg-gray-100 transition-colors cursor-pointer"
+                        >
+                          {collapsedNeedsSections.has(`all-${category}`) ? (
+                            <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                          )}
+                          <span className="font-medium text-gray-900">{category}</span>
+                          {prefix && (
+                            <span className="text-xs font-mono text-gray-400 bg-gray-200/60 px-1.5 py-0.5 rounded">{prefix}</span>
+                          )}
+                          <span className="text-sm text-gray-500">({items.length} items)</span>
+                        </button>
+                        {prefix && (
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation()
+                              try {
+                                const res = await fetch(`/api/projects/${project.id}/regenerate-doc-codes`, {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ categories: [category] })
+                                })
+                                const data = await res.json()
+                                if (data.success) {
+                                  toast.success(`Regenerated ${data.updatedCount} doc codes for ${category}`)
+                                  loadFfeItems()
+                                  fetchSpecs()
+                                } else {
+                                  toast.error(data.error || 'Failed to regenerate')
+                                }
+                              } catch {
+                                toast.error('Failed to regenerate doc codes')
+                              }
+                            }}
+                            className="px-3 py-1 mr-2 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded transition-colors flex items-center gap-1"
+                            title={`Regenerate doc codes for ${category}`}
+                          >
+                            <RefreshCw className="w-3 h-3" />
+                            Regen
+                          </button>
                         )}
-                        <span className="font-medium text-gray-900">{category}</span>
-                        <span className="text-sm text-gray-500">({items.length} items)</span>
-                      </button>
+                      </div>
                       {!collapsedNeedsSections.has(`all-${category}`) && (
                       <div className="divide-y divide-gray-100">
                         {items.map(({ roomName, item }) => (
@@ -4445,7 +4531,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   <div className="flex items-center gap-2">
                                     <p className="font-medium text-gray-900">{item.name}</p>
                                     {item.docCode && (
-                                      <span className="text-xs text-gray-400 font-mono">{item.docCode}</span>
+                                      <span className="text-xs text-gray-400 font-mono bg-gray-100 px-1.5 py-0.5 rounded">{item.docCode}</span>
                                     )}
                                   </div>
                                   <p className="text-xs text-gray-500">{roomName}</p>
@@ -4514,7 +4600,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   <div className="flex items-center gap-2">
                                     <p className="font-medium text-gray-900">{item.name}</p>
                                     {item.docCode && (
-                                      <span className="text-xs text-gray-400 font-mono">{item.docCode}</span>
+                                      <span className="text-xs text-gray-400 font-mono bg-gray-100 px-1.5 py-0.5 rounded">{item.docCode}</span>
                                     )}
                                   </div>
                                   <p className="text-xs text-gray-500">{section.sectionName}</p>
@@ -4549,7 +4635,60 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 ))
               )}
 
-              {filteredFfeItems.every(room => room.sections.every(s => s.items.length === 0)) && (
+              {/* Unlinked Spec Items - items in All Specs not linked to any FFE requirement */}
+              {unlinkedSpecs.length > 0 && (
+                <div className="bg-white rounded-lg border border-orange-200 overflow-hidden">
+                  <button
+                    onClick={() => setCollapsedNeedsSections(prev => {
+                      const next = new Set(prev)
+                      if (next.has('all-unlinked')) next.delete('all-unlinked')
+                      else next.add('all-unlinked')
+                      return next
+                    })}
+                    className="w-full bg-orange-50/50 px-4 py-2 border-b border-orange-200 flex items-center gap-2 hover:bg-orange-50 transition-colors cursor-pointer"
+                  >
+                    {collapsedNeedsSections.has('all-unlinked') ? (
+                      <ChevronRight className="w-4 h-4 text-orange-400 flex-shrink-0" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-orange-400 flex-shrink-0" />
+                    )}
+                    <AlertCircle className="w-4 h-4 text-orange-500 flex-shrink-0" />
+                    <span className="font-medium text-orange-800">Unlinked Spec Items</span>
+                    <span className="text-sm text-orange-600">({unlinkedSpecs.length} items not linked to any FFE requirement)</span>
+                  </button>
+                  {!collapsedNeedsSections.has('all-unlinked') && (
+                  <div className="divide-y divide-gray-100">
+                    {unlinkedSpecs.map(spec => (
+                      <div key={spec.id} className="px-4 py-3 hover:bg-gray-50">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <AlertCircle className="w-4 h-4 text-orange-400" />
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium text-gray-900">{spec.name}</p>
+                                {spec.docCode && (
+                                  <span className="text-xs text-gray-400 font-mono bg-gray-100 px-1.5 py-0.5 rounded">{spec.docCode}</span>
+                                )}
+                                {spec.brand && (
+                                  <span className="text-xs text-gray-400">{spec.brand}</span>
+                                )}
+                              </div>
+                              <p className="text-xs text-gray-500">{spec.roomName} &middot; {spec.sectionName}</p>
+                            </div>
+                          </div>
+                          <Badge variant="outline" className="text-xs bg-orange-50 text-orange-600 border-orange-200">
+                            <AlertCircle className="w-3 h-3 mr-1" />
+                            Unlinked
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  )}
+                </div>
+              )}
+
+              {filteredFfeItems.every(room => room.sections.every(s => s.items.length === 0)) && unlinkedSpecs.length === 0 && (
                 <div className="text-center py-8 text-gray-500">
                   <Package className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                   <p className="font-medium text-gray-500">No FFE items found</p>

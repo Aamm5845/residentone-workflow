@@ -118,6 +118,7 @@ export async function GET(
             return {
               sectionId: section.id,
               sectionName: section.name,
+              docCodePrefix: section.docCodePrefix || null,
               items: allItems.map(item => {
                 const customFields = item.customFields as any
                 const isLinkedItem = customFields?.isLinkedItem === true
@@ -180,9 +181,69 @@ export async function GET(
       }
     })
 
+    // Find spec items in All Specs that are NOT linked to any FFE requirement
+    // These are items with isSpecItem=true, visible, with valid specStatus,
+    // but no ffeRequirementId AND no FFESpecLink records
+    const unlinkedSpecItems = await prisma.roomFFEItem.findMany({
+      where: {
+        isSpecItem: true,
+        visibility: 'VISIBLE',
+        specStatus: { notIn: ['DRAFT', 'NEEDS_SPEC', 'HIDDEN'] },
+        ffeRequirementId: null,
+        specLinks: { none: {} },
+        section: {
+          instance: {
+            room: { projectId }
+          }
+        }
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        notes: true,
+        docCode: true,
+        brand: true,
+        sku: true,
+        specStatus: true,
+        section: {
+          select: {
+            name: true,
+            instance: {
+              select: {
+                room: {
+                  select: {
+                    id: true,
+                    name: true,
+                    type: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      orderBy: { name: 'asc' }
+    })
+
+    const unlinkedSpecs = unlinkedSpecItems.map(item => ({
+      id: item.id,
+      name: item.name,
+      description: item.description,
+      notes: item.notes,
+      docCode: item.docCode || null,
+      brand: item.brand,
+      sku: item.sku,
+      specStatus: item.specStatus,
+      sectionName: item.section?.name || 'Unknown',
+      roomId: item.section?.instance?.room?.id || '',
+      roomName: item.section?.instance?.room?.name || item.section?.instance?.room?.type?.replace(/_/g, ' ') || 'Unknown Room'
+    }))
+
     return NextResponse.json({
       success: true,
       ffeItems,
+      unlinkedSpecs,
       // Unique sections across all rooms (for All Specs section grouping)
       uniqueSections: Array.from(allSections.values()).map(s => ({
         name: s.name,
