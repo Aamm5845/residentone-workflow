@@ -45,7 +45,9 @@ import {
   ArrowDown,
   ArrowLeft,
   Keyboard,
-  Eye
+  Eye,
+  List,
+  LayoutGrid
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -54,6 +56,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import AIGenerateFFEDialog from './AIGenerateFFEDialog'
+import FFEBoardView from './FFEBoardView'
 import AddSupplierDialog from '@/components/suppliers/AddSupplierDialog'
 import CropFromRenderingDialog from '@/components/image/CropFromRenderingDialog'
 import toast from 'react-hot-toast'
@@ -131,6 +134,7 @@ export default function FFEUnifiedWorkspace({
   const [sections, setSections] = useState<FFESection[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [viewMode, setViewMode] = useState<'list' | 'board'>('list')
   const [searchQuery, setSearchQuery] = useState('')
   const [showHiddenItems, setShowHiddenItems] = useState(false)
   const [renderingImages, setRenderingImages] = useState<Array<{id: string, url: string, filename: string}>>([])
@@ -1831,6 +1835,34 @@ export default function FFEUnifiedWorkspace({
             </div>
 
             <div className="flex items-center gap-2">
+              {/* View mode toggle */}
+              <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={cn(
+                    'p-1.5 rounded-md transition-all',
+                    viewMode === 'list'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  )}
+                  title="List view"
+                >
+                  <List className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('board')}
+                  className={cn(
+                    'p-1.5 rounded-md transition-all',
+                    viewMode === 'board'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  )}
+                  title="Board view (drag & drop)"
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
+              </div>
+
               <Button
                 variant={showHiddenItems ? 'default' : 'outline'}
                 size="sm"
@@ -1876,7 +1908,45 @@ export default function FFEUnifiedWorkspace({
 
       {/* Content Area */}
       <div className="px-6 py-6">
-        {/* Sections */}
+        {/* Board View */}
+        {viewMode === 'board' && filteredSections.length > 0 ? (
+          <FFEBoardView
+            sections={filteredSections}
+            roomId={roomId}
+            disabled={disabled}
+            onSectionsChange={setSections}
+            onSectionRename={async (sectionId, newName) => {
+              // Optimistic update
+              setSections(prev => prev.map(s => s.id === sectionId ? { ...s, name: newName } : s))
+              try {
+                const response = await fetch(`/api/ffe/v2/rooms/${roomId}/sections?sectionId=${sectionId}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ name: newName })
+                })
+                if (!response.ok) throw new Error('Failed to update')
+                toast.success('Section name updated')
+              } catch {
+                toast.error('Failed to update section name')
+                await loadFFEData()
+              }
+            }}
+            onSectionDelete={handleDeleteSection}
+            onSectionDuplicate={handleDuplicateSection}
+            onAddItem={(sectionId) => { setSelectedSectionId(sectionId); setShowAddItemDialog(true) }}
+            onItemClick={(itemId) => {
+              setHighlightedItemId(itemId)
+              // Switch to list view and scroll to the item
+              setViewMode('list')
+              setTimeout(() => {
+                const el = document.getElementById(`ffe-item-${itemId}`)
+                el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+              }, 100)
+            }}
+            onDataReload={loadFFEData}
+          />
+        ) : (
+        /* List View - Sections */
         <div className="space-y-4">
           {filteredSections.length === 0 ? (
             <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">
@@ -2846,6 +2916,7 @@ export default function FFEUnifiedWorkspace({
             })
           )}
         </div>
+        )}
       </div>
 
       {/* Dialogs */}

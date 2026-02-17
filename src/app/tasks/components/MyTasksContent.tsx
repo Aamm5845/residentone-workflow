@@ -175,7 +175,6 @@ export default function MyTasksContent({
   const tabs = [
     { id: 'assigned_to_me', label: 'Assigned to Me' },
     { id: 'created_by_me', label: 'Created by Me' },
-    { id: 'all', label: 'All My Tasks' },
     { id: 'team', label: 'Team Tasks' }
   ]
 
