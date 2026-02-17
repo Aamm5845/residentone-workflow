@@ -27,7 +27,6 @@ import {
   Package,
   GripVertical,
   Link2,
-  Unlink,
   ToggleLeft,
   ToggleRight,
 } from 'lucide-react'
@@ -120,13 +119,46 @@ function isGroupedChild(item: FFEItem): boolean {
   return item.customFields?.isGroupedItem === true || item.customFields?.isLinkedItem === true
 }
 
-// Get parent info for a grouped child
-function getParentInfo(item: FFEItem): { parentId?: string; parentName?: string } | null {
-  if (!isGroupedChild(item)) return null
-  return {
-    parentId: item.customFields?.parentId,
-    parentName: item.customFields?.parentName
+// Find the parent item for a grouped child across all sections
+function findParentItem(child: FFEItem, sections: FFESection[]): { item: FFEItem; sectionName: string } | null {
+  const parentId = child.customFields?.parentId
+  const parentName = child.customFields?.parentName
+  for (const section of sections) {
+    for (const item of section.items) {
+      if ((parentId && item.id === parentId) || (!parentId && parentName && item.name === parentName)) {
+        return { item, sectionName: section.name }
+      }
+    }
   }
+  return null
+}
+
+// Build all parent→child connections for line drawing
+function buildGroupConnections(sections: FFESection[]): Array<{ parentId: string; childId: string }> {
+  const connections: Array<{ parentId: string; childId: string }> = []
+  sections.forEach(section => {
+    section.items.forEach(item => {
+      if (isGroupedChild(item)) {
+        const parentId = item.customFields?.parentId
+        if (parentId) {
+          connections.push({ parentId, childId: item.id })
+        } else {
+          // legacy: find by parentName
+          const parentName = item.customFields?.parentName
+          if (parentName) {
+            for (const s of sections) {
+              const parent = s.items.find(i => i.name === parentName && !isGroupedChild(i))
+              if (parent) {
+                connections.push({ parentId: parent.id, childId: item.id })
+                break
+              }
+            }
+          }
+        }
+      }
+    })
+  })
+  return connections
 }
 
 export default function FFEBoardView({
@@ -144,15 +176,80 @@ export default function FFEBoardView({
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null)
   const [editSectionName, setEditSectionName] = useState('')
   const [saving, setSaving] = useState(false)
-  const [showGroups, setShowGroups] = useState(false)
+  const [showGroupLines, setShowGroupLines] = useState(false)
+  const [showLinking, setShowLinking] = useState(false)
 
-  // Linking mode: draw a line from one item to another to group them
+  // Linking mode
   const [linkingFromItem, setLinkingFromItem] = useState<{ id: string; name: string; sectionId: string } | null>(null)
 
   // Auto-scroll refs
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const autoScrollRef = useRef<number | null>(null)
   const isDraggingRef = useRef(false)
+
+  // For SVG connector lines
+  const boardRef = useRef<HTMLDivElement>(null)
+  const [lines, setLines] = useState<Array<{ x1: number; y1: number; x2: number; y2: number }>>([])
+
+  // Calculate connector lines between grouped items
+  const updateLines = useCallback(() => {
+    if (!showGroupLines || !boardRef.current) {
+      setLines([])
+      return
+    }
+
+    const connections = buildGroupConnections(sections)
+    const boardRect = boardRef.current.getBoundingClientRect()
+    const scrollLeft = scrollContainerRef.current?.scrollLeft || 0
+    const scrollTop = scrollContainerRef.current?.scrollTop || 0
+    const newLines: Array<{ x1: number; y1: number; x2: number; y2: number }> = []
+
+    for (const conn of connections) {
+      const parentEl = boardRef.current.querySelector(`[data-item-id="${conn.parentId}"]`)
+      const childEl = boardRef.current.querySelector(`[data-item-id="${conn.childId}"]`)
+      if (!parentEl || !childEl) continue
+
+      const parentRect = parentEl.getBoundingClientRect()
+      const childRect = childEl.getBoundingClientRect()
+
+      // Calculate positions relative to the board container
+      const x1 = parentRect.left + parentRect.width / 2 - boardRect.left + scrollLeft
+      const y1 = parentRect.top + parentRect.height / 2 - boardRect.top + scrollTop
+      const x2 = childRect.left + childRect.width / 2 - boardRect.left + scrollLeft
+      const y2 = childRect.top + childRect.height / 2 - boardRect.top + scrollTop
+
+      newLines.push({ x1, y1, x2, y2 })
+    }
+
+    setLines(newLines)
+  }, [showGroupLines, sections])
+
+  // Update lines on toggle, sections change, or scroll
+  useEffect(() => {
+    updateLines()
+  }, [updateLines])
+
+  useEffect(() => {
+    const container = scrollContainerRef.current
+    if (!container || !showGroupLines) return
+
+    const handleScroll = () => updateLines()
+    container.addEventListener('scroll', handleScroll)
+    window.addEventListener('resize', handleScroll)
+
+    return () => {
+      container.removeEventListener('scroll', handleScroll)
+      window.removeEventListener('resize', handleScroll)
+    }
+  }, [showGroupLines, updateLines])
+
+  // Recalculate lines after DOM settles
+  useEffect(() => {
+    if (showGroupLines) {
+      const timer = setTimeout(updateLines, 50)
+      return () => clearTimeout(timer)
+    }
+  }, [showGroupLines, sections, updateLines])
 
   // Auto-scroll on drag near edges
   useEffect(() => {
@@ -163,13 +260,12 @@ export default function FFEBoardView({
       if (!isDraggingRef.current) return
 
       const rect = container.getBoundingClientRect()
-      const edgeThreshold = 80 // px from edge to start scrolling
+      const edgeThreshold = 80
       const maxScrollSpeed = 15
 
       const distFromLeft = e.clientX - rect.left
       const distFromRight = rect.right - e.clientX
 
-      // Cancel any existing animation
       if (autoScrollRef.current) {
         cancelAnimationFrame(autoScrollRef.current)
         autoScrollRef.current = null
@@ -178,10 +274,8 @@ export default function FFEBoardView({
       let scrollSpeed = 0
 
       if (distFromLeft < edgeThreshold) {
-        // Scroll left - speed increases as cursor gets closer to edge
         scrollSpeed = -maxScrollSpeed * (1 - distFromLeft / edgeThreshold)
       } else if (distFromRight < edgeThreshold) {
-        // Scroll right
         scrollSpeed = maxScrollSpeed * (1 - distFromRight / edgeThreshold)
       }
 
@@ -216,16 +310,14 @@ export default function FFEBoardView({
     if (!destination) return
     if (source.droppableId === destination.droppableId && source.index === destination.index) return
 
-    // Save previous state for rollback
     const previousSections = sections.map(s => ({
       ...s,
       items: [...s.items]
     }))
 
-    // Build new sections state (only parent items for drag calculation)
     const newSections = sections.map(s => ({
       ...s,
-      items: s.items.filter(i => !i.customFields?.isGroupedItem && !i.customFields?.isLinkedItem)
+      items: [...s.items].sort((a, b) => a.order - b.order)
     }))
 
     const sourceSectionIdx = newSections.findIndex(s => s.id === source.droppableId)
@@ -233,17 +325,13 @@ export default function FFEBoardView({
 
     if (sourceSectionIdx === -1 || destSectionIdx === -1) return
 
-    // Remove from source
     const [movedItem] = newSections[sourceSectionIdx].items.splice(source.index, 1)
     if (!movedItem) return
 
-    // Insert at destination
     newSections[destSectionIdx].items.splice(destination.index, 0, movedItem)
 
-    // Recalculate orders for affected sections
     const affectedItems: { id: string; sectionId: string; order: number }[] = []
 
-    // Always recalculate the destination section
     newSections[destSectionIdx].items.forEach((item, idx) => {
       item.order = idx + 1
       affectedItems.push({
@@ -253,7 +341,6 @@ export default function FFEBoardView({
       })
     })
 
-    // If cross-section, also recalculate source section
     if (source.droppableId !== destination.droppableId) {
       newSections[sourceSectionIdx].items.forEach((item, idx) => {
         item.order = idx + 1
@@ -265,21 +352,8 @@ export default function FFEBoardView({
       })
     }
 
-    // Rebuild full sections with grouped children preserved
-    const updatedSections = sections.map(s => {
-      const newSection = newSections.find(ns => ns.id === s.id)
-      if (!newSection) return s
-      const groupedChildren = s.items.filter(i => i.customFields?.isGroupedItem || i.customFields?.isLinkedItem)
-      return {
-        ...s,
-        items: [...newSection.items, ...groupedChildren]
-      }
-    })
+    onSectionsChange(newSections)
 
-    // Optimistic UI update
-    onSectionsChange(updatedSections)
-
-    // Persist to backend
     try {
       setSaving(true)
       const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items/bulk-reorder`, {
@@ -297,6 +371,9 @@ export default function FFEBoardView({
           ? 'Item moved to new section'
           : 'Item reordered'
       )
+
+      // Update lines after move
+      setTimeout(updateLines, 100)
     } catch (error) {
       console.error('Error saving reorder:', error)
       toast.error('Failed to save changes')
@@ -304,7 +381,7 @@ export default function FFEBoardView({
     } finally {
       setSaving(false)
     }
-  }, [sections, roomId, onSectionsChange])
+  }, [sections, roomId, onSectionsChange, updateLines])
 
   const handleDragStart = useCallback(() => {
     isDraggingRef.current = true
@@ -346,24 +423,19 @@ export default function FFEBoardView({
     }
   }
 
-  // Handle clicking an item while in linking mode
-  const handleItemClickInLinkMode = (targetItem: FFEItem, targetSectionId: string) => {
+  const handleItemClickInLinkMode = (targetItem: FFEItem) => {
     if (!linkingFromItem) return
 
-    // Can't link to self
     if (linkingFromItem.id === targetItem.id) {
       toast.error("Can't link an item to itself")
       return
     }
 
-    // Can't link if target is already a grouped child
     if (isGroupedChild(targetItem)) {
       toast.error('This item is already grouped under another item')
       return
     }
 
-    // The clicked item becomes a child of the linking-from item
-    // We create a NEW grouped child with the target item's name under the parent
     handleLinkItems(linkingFromItem.id, targetItem.name)
   }
 
@@ -371,21 +443,18 @@ export default function FFEBoardView({
     <div>
       {/* Board Controls */}
       <div className="flex items-center gap-3 mb-3">
-        {/* Group toggle */}
+        {/* Show group lines toggle */}
         <button
-          onClick={() => {
-            setShowGroups(!showGroups)
-            if (linkingFromItem) setLinkingFromItem(null)
-          }}
+          onClick={() => setShowGroupLines(!showGroupLines)}
           className={cn(
             'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all border',
-            showGroups
+            showGroupLines
               ? 'bg-blue-50 text-blue-700 border-blue-200'
               : 'bg-white text-gray-500 border-gray-200 hover:text-gray-700'
           )}
-          title={showGroups ? 'Hide grouped items' : 'Show grouped items'}
+          title={showGroupLines ? 'Hide group connections' : 'Show group connections'}
         >
-          {showGroups ? (
+          {showGroupLines ? (
             <ToggleRight className="w-4 h-4" />
           ) : (
             <ToggleLeft className="w-4 h-4" />
@@ -393,164 +462,198 @@ export default function FFEBoardView({
           Groups
         </button>
 
-        {/* Link mode button - only visible when groups toggle is on */}
-        {showGroups && (
-          <button
-            onClick={() => {
-              if (linkingFromItem) {
-                setLinkingFromItem(null)
-              }
-              // Link mode is activated by clicking the link icon on a specific item card
-            }}
-            className={cn(
-              'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all border',
-              linkingFromItem
-                ? 'bg-orange-50 text-orange-700 border-orange-300 animate-pulse'
-                : 'bg-white text-gray-400 border-gray-200'
-            )}
-          >
-            <Link2 className="w-3.5 h-3.5" />
-            {linkingFromItem ? (
-              <>
-                Linking from &quot;{linkingFromItem.name.length > 15 ? linkingFromItem.name.substring(0, 15) + '...' : linkingFromItem.name}&quot; — click target item
-                <button
-                  onClick={(e) => { e.stopPropagation(); setLinkingFromItem(null) }}
-                  className="ml-1 p-0.5 rounded hover:bg-orange-100"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </>
-            ) : (
-              'Click link icon on an item to start grouping'
-            )}
-          </button>
+        {/* Link mode toggle */}
+        <button
+          onClick={() => {
+            const next = !showLinking
+            setShowLinking(next)
+            if (!next) setLinkingFromItem(null)
+          }}
+          className={cn(
+            'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all border',
+            showLinking
+              ? 'bg-orange-50 text-orange-700 border-orange-200'
+              : 'bg-white text-gray-500 border-gray-200 hover:text-gray-700'
+          )}
+          title={showLinking ? 'Exit linking mode' : 'Enter linking mode to group items'}
+        >
+          <Link2 className="w-3.5 h-3.5" />
+          Link Items
+        </button>
+
+        {/* Linking status */}
+        {showLinking && linkingFromItem && (
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-orange-50 text-orange-700 border border-orange-300 animate-pulse">
+            Linking from &quot;{linkingFromItem.name.length > 15 ? linkingFromItem.name.substring(0, 15) + '...' : linkingFromItem.name}&quot; — click target item
+            <button
+              onClick={() => setLinkingFromItem(null)}
+              className="ml-1 p-0.5 rounded hover:bg-orange-100"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
         )}
       </div>
 
       <DragDropContext onDragEnd={handleDragEnd} onDragStart={handleDragStart}>
-        <div
-          ref={scrollContainerRef}
-          className="flex gap-3 overflow-x-auto pb-4 min-h-[400px] scroll-smooth"
-        >
-          {sections.map(section => {
-            const parentItems = section.items.filter(
-              item => !item.customFields?.isGroupedItem && !item.customFields?.isLinkedItem
-            )
+        <div ref={boardRef} className="relative">
+          {/* SVG overlay for group connection lines */}
+          {showGroupLines && lines.length > 0 && (
+            <svg
+              className="absolute inset-0 w-full h-full pointer-events-none"
+              style={{ zIndex: 10 }}
+            >
+              <defs>
+                <marker
+                  id="arrowhead"
+                  markerWidth="8"
+                  markerHeight="6"
+                  refX="8"
+                  refY="3"
+                  orient="auto"
+                >
+                  <polygon points="0 0, 8 3, 0 6" fill="#3b82f6" fillOpacity="0.6" />
+                </marker>
+              </defs>
+              {lines.map((line, idx) => (
+                <line
+                  key={idx}
+                  x1={line.x1}
+                  y1={line.y1}
+                  x2={line.x2}
+                  y2={line.y2}
+                  stroke="#3b82f6"
+                  strokeWidth="2"
+                  strokeOpacity="0.4"
+                  strokeDasharray="6 3"
+                  markerEnd="url(#arrowhead)"
+                />
+              ))}
+            </svg>
+          )}
 
-            return (
-              <div
-                key={section.id}
-                className="min-w-[220px] max-w-[260px] w-[240px] flex-shrink-0 bg-gray-50 rounded-xl border border-gray-200 flex flex-col"
-              >
-                {/* Column Header */}
-                <div className="p-2.5 border-b border-gray-200 bg-white rounded-t-xl">
-                  {editingSectionId === section.id ? (
-                    <div className="flex items-center gap-1">
-                      <Input
-                        value={editSectionName}
-                        onChange={(e) => setEditSectionName(e.target.value)}
-                        className="h-6 text-xs flex-1"
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleSectionNameSave(section.id)
-                          if (e.key === 'Escape') { setEditingSectionId(null); setEditSectionName('') }
-                        }}
-                      />
-                      <Button size="sm" variant="ghost" onClick={() => handleSectionNameSave(section.id)} className="h-6 w-6 p-0 text-green-600">
-                        <Check className="w-3 h-3" />
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => { setEditingSectionId(null); setEditSectionName('') }} className="h-6 w-6 p-0 text-gray-400">
-                        <X className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 group/header min-w-0">
-                        <h3 className="font-semibold text-gray-900 text-xs truncate">{section.name}</h3>
-                        <button
-                          onClick={() => { setEditingSectionId(section.id); setEditSectionName(section.name) }}
-                          className="opacity-0 group-hover/header:opacity-100 p-0.5 hover:bg-gray-100 rounded transition-opacity flex-shrink-0"
-                          disabled={disabled}
-                        >
-                          <Pencil className="w-2.5 h-2.5 text-gray-400" />
-                        </button>
-                        <Badge variant="secondary" className="text-[10px] px-1 py-0 flex-shrink-0">
-                          {parentItems.length}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-0 flex-shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onAddItem(section.id)}
-                          className="h-6 w-6 p-0"
-                          disabled={disabled}
-                          title="Add item"
-                        >
-                          <Plus className="w-3 h-3" />
+          <div
+            ref={scrollContainerRef}
+            className="flex gap-3 overflow-x-auto pb-4 min-h-[400px] scroll-smooth"
+          >
+            {sections.map(section => {
+              const allItems = [...section.items].sort((a, b) => a.order - b.order)
+
+              return (
+                <div
+                  key={section.id}
+                  className="min-w-[220px] max-w-[260px] w-[240px] flex-shrink-0 bg-gray-50 rounded-xl border border-gray-200 flex flex-col"
+                >
+                  {/* Column Header */}
+                  <div className="p-2.5 border-b border-gray-200 bg-white rounded-t-xl">
+                    {editingSectionId === section.id ? (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          value={editSectionName}
+                          onChange={(e) => setEditSectionName(e.target.value)}
+                          className="h-6 text-xs flex-1"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSectionNameSave(section.id)
+                            if (e.key === 'Escape') { setEditingSectionId(null); setEditSectionName('') }
+                          }}
+                        />
+                        <Button size="sm" variant="ghost" onClick={() => handleSectionNameSave(section.id)} className="h-6 w-6 p-0 text-green-600">
+                          <Check className="w-3 h-3" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onSectionDuplicate(section.id, section.name)}
-                          className="h-6 w-6 p-0 text-gray-400 hover:text-blue-600"
-                          disabled={disabled}
-                          title="Duplicate section"
-                        >
-                          <Copy className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onSectionDelete(section.id, section.name)}
-                          className="h-6 w-6 p-0 text-gray-400 hover:text-red-500"
-                          disabled={disabled}
-                          title="Delete section"
-                        >
-                          <Trash2 className="w-3 h-3" />
+                        <Button size="sm" variant="ghost" onClick={() => { setEditingSectionId(null); setEditSectionName('') }} className="h-6 w-6 p-0 text-gray-400">
+                          <X className="w-3 h-3" />
                         </Button>
                       </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Droppable area */}
-                <Droppable droppableId={section.id}>
-                  {(provided, snapshot) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className={cn(
-                        'flex-1 p-1.5 space-y-1 min-h-[60px] transition-colors overflow-y-auto max-h-[calc(100vh-280px)]',
-                        snapshot.isDraggingOver && 'bg-blue-50/50 border-blue-200'
-                      )}
-                    >
-                      {parentItems.length === 0 && !snapshot.isDraggingOver ? (
-                        <div className="flex flex-col items-center justify-center py-6 text-center">
-                          <Package className="h-5 w-5 text-gray-300 mb-1.5" />
-                          <p className="text-[10px] text-gray-400">No items</p>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => onAddItem(section.id)}
-                            className="mt-1.5 text-[10px] h-6"
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 group/header min-w-0">
+                          <h3 className="font-semibold text-gray-900 text-xs truncate">{section.name}</h3>
+                          <button
+                            onClick={() => { setEditingSectionId(section.id); setEditSectionName(section.name) }}
+                            className="opacity-0 group-hover/header:opacity-100 p-0.5 hover:bg-gray-100 rounded transition-opacity flex-shrink-0"
                             disabled={disabled}
                           >
-                            <Plus className="w-2.5 h-2.5 mr-0.5" />
-                            Add Item
+                            <Pencil className="w-2.5 h-2.5 text-gray-400" />
+                          </button>
+                          <Badge variant="secondary" className="text-[10px] px-1 py-0 flex-shrink-0">
+                            {allItems.length}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-0 flex-shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onAddItem(section.id)}
+                            className="h-6 w-6 p-0"
+                            disabled={disabled}
+                            title="Add item"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onSectionDuplicate(section.id, section.name)}
+                            className="h-6 w-6 p-0 text-gray-400 hover:text-blue-600"
+                            disabled={disabled}
+                            title="Duplicate section"
+                          >
+                            <Copy className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onSectionDelete(section.id, section.name)}
+                            className="h-6 w-6 p-0 text-gray-400 hover:text-red-500"
+                            disabled={disabled}
+                            title="Delete section"
+                          >
+                            <Trash2 className="w-3 h-3" />
                           </Button>
                         </div>
-                      ) : (
-                        parentItems.map((item, index) => {
-                          const isChosen = hasSpecs(item)
-                          const specCount = item.linkedSpecs?.length || 0
-                          const isParent = hasGroupedChildren(item)
-                          const groupedChildren = showGroups ? getGroupedChildren(item, sections) : []
-                          const isLinkingFrom = linkingFromItem?.id === item.id
+                      </div>
+                    )}
+                  </div>
 
-                          return (
-                            <React.Fragment key={item.id}>
+                  {/* Droppable area */}
+                  <Droppable droppableId={section.id}>
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        className={cn(
+                          'flex-1 p-1.5 space-y-1 min-h-[60px] transition-colors overflow-y-auto max-h-[calc(100vh-280px)]',
+                          snapshot.isDraggingOver && 'bg-blue-50/50 border-blue-200'
+                        )}
+                      >
+                        {allItems.length === 0 && !snapshot.isDraggingOver ? (
+                          <div className="flex flex-col items-center justify-center py-6 text-center">
+                            <Package className="h-5 w-5 text-gray-300 mb-1.5" />
+                            <p className="text-[10px] text-gray-400">No items</p>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => onAddItem(section.id)}
+                              className="mt-1.5 text-[10px] h-6"
+                              disabled={disabled}
+                            >
+                              <Plus className="w-2.5 h-2.5 mr-0.5" />
+                              Add Item
+                            </Button>
+                          </div>
+                        ) : (
+                          allItems.map((item, index) => {
+                            const isChosen = hasSpecs(item)
+                            const specCount = item.linkedSpecs?.length || 0
+                            const isParent = hasGroupedChildren(item)
+                            const isChild = isGroupedChild(item)
+                            const itemIsGrouped = isParent || isChild
+                            const isLinkingFrom = linkingFromItem?.id === item.id
+
+                            return (
                               <Draggable
+                                key={item.id}
                                 draggableId={item.id}
                                 index={index}
                                 isDragDisabled={disabled || !!linkingFromItem}
@@ -559,6 +662,7 @@ export default function FFEBoardView({
                                   <div
                                     ref={dragProvided.innerRef}
                                     {...dragProvided.draggableProps}
+                                    data-item-id={item.id}
                                     className={cn(
                                       'rounded-lg border bg-white p-2 shadow-sm transition-all cursor-pointer group/card',
                                       dragSnapshot.isDragging && 'shadow-lg ring-2 ring-blue-400 rotate-1',
@@ -568,7 +672,7 @@ export default function FFEBoardView({
                                     )}
                                     onClick={() => {
                                       if (linkingFromItem) {
-                                        handleItemClickInLinkMode(item, section.id)
+                                        handleItemClickInLinkMode(item)
                                       } else {
                                         onItemClick?.(item.id)
                                       }
@@ -619,27 +723,29 @@ export default function FFEBoardView({
                                         </div>
                                       </div>
 
-                                      {/* Grouped indicator + link action */}
+                                      {/* Link icon — only for items that are part of a group */}
                                       <div className="flex items-center gap-0.5 flex-shrink-0">
+                                        {/* Parent: click link icon → shows children in list view */}
                                         {isParent && (
                                           <Popover>
                                             <PopoverTrigger asChild>
                                               <button
                                                 onClick={(e) => e.stopPropagation()}
                                                 className="p-0.5 rounded hover:bg-blue-100 transition-colors"
-                                                title="View grouped items"
+                                                title="View grouped children"
                                               >
                                                 <Link2 className="w-3 h-3 text-blue-500" />
                                               </button>
                                             </PopoverTrigger>
                                             <PopoverContent className="w-56 p-2" side="right" align="start">
                                               <p className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5">
-                                                Grouped Items
+                                                Grouped Children
                                               </p>
                                               {getGroupedChildren(item, sections).map(child => (
                                                 <div
                                                   key={child.id}
-                                                  className="flex items-center gap-1.5 py-1 px-1.5 rounded hover:bg-gray-50 text-xs"
+                                                  className="flex items-center gap-1.5 py-1 px-1.5 rounded hover:bg-gray-50 text-xs cursor-pointer"
+                                                  onClick={() => onItemClick?.(child.id)}
                                                 >
                                                   <Link2 className="w-2.5 h-2.5 text-blue-400 flex-shrink-0" />
                                                   <span className="truncate text-gray-700">{child.name}</span>
@@ -650,12 +756,56 @@ export default function FFEBoardView({
                                                   )}
                                                 </div>
                                               ))}
+                                              <p className="text-[9px] text-gray-400 mt-1.5 pt-1.5 border-t">
+                                                Click an item to view in list
+                                              </p>
                                             </PopoverContent>
                                           </Popover>
                                         )}
 
-                                        {/* Start linking from this item (only when groups are shown) */}
-                                        {showGroups && !linkingFromItem && !isGroupedChild(item) && (
+                                        {/* Child: click link icon → shows parent in list view */}
+                                        {isChild && !isParent && (
+                                          <Popover>
+                                            <PopoverTrigger asChild>
+                                              <button
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="p-0.5 rounded hover:bg-blue-100 transition-colors"
+                                                title="View parent item"
+                                              >
+                                                <Link2 className="w-3 h-3 text-blue-500" />
+                                              </button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-56 p-2" side="right" align="start">
+                                              <p className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5">
+                                                Grouped To
+                                              </p>
+                                              {(() => {
+                                                const parent = findParentItem(item, sections)
+                                                if (!parent) return (
+                                                  <p className="text-xs text-gray-400 italic">Parent not found</p>
+                                                )
+                                                return (
+                                                  <div
+                                                    className="flex items-center gap-1.5 py-1 px-1.5 rounded hover:bg-gray-50 text-xs cursor-pointer"
+                                                    onClick={() => onItemClick?.(parent.item.id)}
+                                                  >
+                                                    <Link2 className="w-2.5 h-2.5 text-blue-400 flex-shrink-0" />
+                                                    <span className="truncate text-gray-700">{parent.item.name}</span>
+                                                    <Badge variant="outline" className="text-[8px] px-1 py-0 ml-auto flex-shrink-0 bg-violet-50 text-violet-600 border-violet-200">
+                                                      {parent.sectionName}
+                                                    </Badge>
+                                                  </div>
+                                                )
+                                              })()}
+                                              <p className="text-[9px] text-gray-400 mt-1.5 pt-1.5 border-t">
+                                                Click to view in list
+                                              </p>
+                                            </PopoverContent>
+                                          </Popover>
+                                        )}
+
+                                        {/* Start linking (only in link mode, only for non-child items) */}
+                                        {showLinking && !linkingFromItem && !isChild && (
                                           <button
                                             onClick={(e) => {
                                               e.stopPropagation()
@@ -672,45 +822,24 @@ export default function FFEBoardView({
                                   </div>
                                 )}
                               </Draggable>
+                            )
+                          })
+                        )}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                </div>
+              )
+            })}
 
-                              {/* Show grouped children inline when toggle is on */}
-                              {showGroups && groupedChildren.length > 0 && (
-                                <div className="ml-4 border-l-2 border-blue-200 space-y-0.5 pl-1.5 mb-1">
-                                  {groupedChildren.map(child => (
-                                    <div
-                                      key={child.id}
-                                      className="rounded border border-blue-100 bg-blue-50/40 p-1.5 flex items-center gap-1.5 text-[11px] cursor-pointer hover:bg-blue-100/50 transition-colors"
-                                      onClick={() => onItemClick?.(child.id)}
-                                    >
-                                      <Link2 className="w-2.5 h-2.5 text-blue-400 flex-shrink-0" />
-                                      <span className="truncate text-gray-700">{child.name}</span>
-                                      {child.fromSection && (
-                                        <Badge variant="outline" className="text-[8px] px-1 py-0 ml-auto flex-shrink-0 bg-violet-50 text-violet-600 border-violet-200">
-                                          {child.fromSection}
-                                        </Badge>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </React.Fragment>
-                          )
-                        })
-                      )}
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
+            {/* Saving indicator */}
+            {saving && (
+              <div className="fixed bottom-4 right-4 bg-gray-900 text-white text-sm px-3 py-1.5 rounded-lg shadow-lg z-50">
+                Saving...
               </div>
-            )
-          })}
-
-          {/* Saving indicator */}
-          {saving && (
-            <div className="fixed bottom-4 right-4 bg-gray-900 text-white text-sm px-3 py-1.5 rounded-lg shadow-lg z-50">
-              Saving...
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </DragDropContext>
     </div>
