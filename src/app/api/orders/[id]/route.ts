@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { syncItemsStatus } from '@/lib/procurement/status-sync'
 
 export const dynamic = 'force-dynamic'
 
@@ -236,7 +237,12 @@ export async function PATCH(
     const userId = session.user.id
 
     const existing = await prisma.order.findFirst({
-      where: { id, orgId }
+      where: { id, orgId },
+      include: {
+        items: {
+          select: { roomFFEItemId: true }
+        }
+      }
     })
 
     if (!existing) {
@@ -317,7 +323,7 @@ export async function PATCH(
       }
     })
 
-    // Log status changes
+    // Log status changes and sync RoomFFEItem statuses
     if (status && status !== existing.status) {
       await prisma.orderActivity.create({
         data: {
@@ -327,6 +333,24 @@ export async function PATCH(
           userId
         }
       })
+
+      // Sync spec item statuses based on order status change
+      const STATUS_TO_TRIGGER: Record<string, string> = {
+        'ORDERED': 'order_created',
+        'CONFIRMED': 'order_confirmed',
+        'SHIPPED': 'order_shipped',
+        'IN_TRANSIT': 'order_shipped',
+        'DELIVERED': 'order_delivered',
+        'INSTALLED': 'installed',
+        'COMPLETED': 'completed',
+      }
+      const trigger = STATUS_TO_TRIGGER[status]
+      if (trigger && order.items?.length > 0) {
+        const itemIds = order.items.map((item: any) => item.roomFFEItemId).filter(Boolean) as string[]
+        if (itemIds.length > 0) {
+          await syncItemsStatus(itemIds, trigger, userId)
+        }
+      }
     }
 
     // Log tracking updates
@@ -431,6 +455,14 @@ export async function POST(
           }
         })
 
+        // Sync items to ORDERED status
+        if (order.items.length > 0) {
+          const itemIds = order.items.map(item => item.roomFFEItemId).filter(Boolean) as string[]
+          if (itemIds.length > 0) {
+            await syncItemsStatus(itemIds, 'order_created', userId)
+          }
+        }
+
         return NextResponse.json({ success: true, action: 'order_placed' })
 
       case 'add_tracking':
@@ -457,6 +489,14 @@ export async function POST(
             metadata: { trackingNumber, carrier, trackingUrl }
           }
         })
+
+        // Sync items to SHIPPED status
+        if (order.items.length > 0) {
+          const itemIds = order.items.map(item => item.roomFFEItemId).filter(Boolean) as string[]
+          if (itemIds.length > 0) {
+            await syncItemsStatus(itemIds, 'order_shipped', userId)
+          }
+        }
 
         return NextResponse.json({ success: true, action: 'tracking_added' })
 
@@ -492,6 +532,14 @@ export async function POST(
           }
         })
 
+        // Sync items to DELIVERED status
+        if (order.items.length > 0) {
+          const itemIds = order.items.map(item => item.roomFFEItemId).filter(Boolean) as string[]
+          if (itemIds.length > 0) {
+            await syncItemsStatus(itemIds, 'order_delivered', userId)
+          }
+        }
+
         return NextResponse.json({ success: true, action: 'marked_delivered' })
 
       case 'pay_supplier':
@@ -507,6 +555,10 @@ export async function POST(
 
         const amount = paymentAmount || parseFloat(order.totalAmount?.toString() || '0')
 
+        // Auto-confirm if still in pre-confirmed state
+        const preConfirmedStatuses = ['PENDING_PAYMENT', 'PAYMENT_RECEIVED', 'DEPOSIT_PAID', 'PAID_TO_SUPPLIER', 'ORDERED']
+        const shouldAutoConfirm = preConfirmedStatuses.includes(order.status)
+
         await prisma.order.update({
           where: { id },
           data: {
@@ -515,7 +567,11 @@ export async function POST(
             supplierPaymentRef: paymentRef || null,
             supplierPaymentAmount: amount,
             supplierPaymentNotes: paymentNotes || null,
-            updatedById: userId
+            updatedById: userId,
+            ...(shouldAutoConfirm && {
+              status: 'CONFIRMED',
+              confirmedAt: order.confirmedAt || new Date()
+            })
           }
         })
 
@@ -528,6 +584,14 @@ export async function POST(
             metadata: { paymentMethod, paymentRef, paymentAmount: amount }
           }
         })
+
+        // Sync items when auto-confirmed
+        if (shouldAutoConfirm && order.items.length > 0) {
+          const itemIds = order.items.map(item => item.roomFFEItemId).filter(Boolean) as string[]
+          if (itemIds.length > 0) {
+            await syncItemsStatus(itemIds, 'order_confirmed', userId)
+          }
+        }
 
         return NextResponse.json({ success: true, action: 'supplier_paid' })
 

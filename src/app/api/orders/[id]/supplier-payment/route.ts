@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { syncItemsStatus } from '@/lib/procurement/status-sync'
 
 export const dynamic = 'force-dynamic'
 
@@ -126,7 +127,12 @@ export async function POST(
     }
 
     const order = await prisma.order.findFirst({
-      where: { id: orderId, orgId }
+      where: { id: orderId, orgId },
+      include: {
+        items: {
+          select: { roomFFEItemId: true }
+        }
+      }
     })
 
     if (!order) {
@@ -161,9 +167,16 @@ export async function POST(
     }
 
     // Update deposit tracking based on payment type
-    // NOTE: We intentionally do NOT update the order status here
-    // The status field tracks fulfillment (ORDERED → SHIPPED → DELIVERED)
-    // Payment status is tracked separately via supplierPaymentAmount, depositPaid, etc.
+    // Auto-confirm: if a payment is recorded and the order is still in a pre-confirmed state,
+    // it means the supplier has been engaged, so we transition to CONFIRMED
+    const PRE_CONFIRMED_STATUSES = ['PENDING_PAYMENT', 'PAYMENT_RECEIVED', 'DEPOSIT_PAID', 'PAID_TO_SUPPLIER', 'ORDERED']
+    if (PRE_CONFIRMED_STATUSES.includes(order.status)) {
+      updateData.status = 'CONFIRMED'
+      if (!order.confirmedAt) {
+        updateData.confirmedAt = new Date()
+      }
+    }
+
     if (paymentType === 'DEPOSIT') {
       updateData.depositPaid = depositPaid + amount
       updateData.depositPaidAt = new Date()
@@ -198,6 +211,14 @@ export async function POST(
         }
       }
     })
+
+    // Sync RoomFFEItem statuses if order was auto-confirmed
+    if (PRE_CONFIRMED_STATUSES.includes(order.status) && order.items.length > 0) {
+      const itemIds = order.items.map(item => item.roomFFEItemId).filter(Boolean) as string[]
+      if (itemIds.length > 0) {
+        await syncItemsStatus(itemIds, 'order_confirmed', userId)
+      }
+    }
 
     return NextResponse.json({
       success: true,

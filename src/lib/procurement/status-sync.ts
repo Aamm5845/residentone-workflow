@@ -48,6 +48,7 @@ const STATUS_TRIGGERS: Record<string, FFESpecStatus> = {
   'invoice_sent': 'INVOICED_TO_CLIENT',
   'payment_received': 'CLIENT_PAID',
   'order_created': 'ORDERED',
+  'order_confirmed': 'ORDERED', // Confirmed = supplier acknowledged the order, items stay ORDERED in spec
   'order_shipped': 'SHIPPED',
   'order_received': 'RECEIVED',
   'order_delivered': 'DELIVERED',
