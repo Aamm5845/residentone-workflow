@@ -575,14 +575,14 @@ export default function FFEBoardView({
           {/* This inner div holds everything including the SVG — it scrolls together */}
           <div ref={scrollContentRef} className="relative inline-flex gap-3 pb-2" style={{ minWidth: '100%' }}>
 
-            {/* SVG layer — sits inside the scrollable content, behind cards */}
+            {/* SVG layer — sits inside the scrollable content, above columns for line visibility */}
             {(showGroupLines || drawingLine) && (
               <svg
                 className="absolute inset-0"
                 style={{
                   width: svgSize.width || '100%',
                   height: svgSize.height || '100%',
-                  zIndex: 3,
+                  zIndex: 10,
                   overflow: 'visible',
                   pointerEvents: 'none',
                 }}
@@ -662,8 +662,7 @@ export default function FFEBoardView({
               return (
                 <div
                   key={section.id}
-                  className="min-w-[220px] max-w-[260px] w-[240px] flex-shrink-0 bg-gray-50 rounded-xl border border-gray-200 flex flex-col"
-                  style={{ zIndex: 2, position: 'relative' }}
+                  className="min-w-[220px] max-w-[260px] w-[240px] flex-shrink-0 bg-gray-50 rounded-xl border border-gray-200 flex flex-col relative"
                 >
                   {/* Column Header */}
                   <div className="p-2.5 border-b border-gray-200 bg-white rounded-t-xl">
