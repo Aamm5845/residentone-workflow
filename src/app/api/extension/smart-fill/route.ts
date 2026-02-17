@@ -74,14 +74,13 @@ IMPORTANT RULES:
 - For dimensions, extract ALL dimension info you can find (W x D x H, or individual measurements)
 - For prices, distinguish between RRP/retail and trade/wholesale prices
 - Look for material composition, finish types, and color options
-- Extract any lead time, delivery time, or stock availability info
+- Check if a price is visible/available on the page (indicates the product is available to purchase)
 
 Return ONLY a valid JSON object with this structure:
 
 {
   "productName": "string - the specific product name (not the brand)",
   "brand": "string - brand or manufacturer name",
-  "description": "string - product description focused on the item (max 500 chars)",
   "sku": "string - SKU, model number, article number, or product code",
   "price": "string - retail price with currency symbol (e.g., '$1,299.00' or '£850')",
   "tradePrice": "string - trade/wholesale price if shown",
@@ -96,9 +95,10 @@ Return ONLY a valid JSON object with this structure:
     "diameter": "string - diameter if circular",
     "seatHeight": "string - seat height for chairs/stools"
   },
-  "leadTime": "string - delivery/lead time if mentioned (e.g., '4-6 weeks', 'In stock')",
-  "notes": "string - other relevant product details like warranty, care instructions, certifications"
+  "hasPriceVisible": "boolean - true if any price is shown on the page (product is available for purchase)"
 }
+
+IMPORTANT: Do NOT extract description, notes, or lead time fields. Only extract the fields listed above.
 
 Only include fields where you found clear, accurate data. Omit fields if unsure.`
 
@@ -163,12 +163,16 @@ ${pageContent?.substring(0, 12000) || 'No content provided'}`
       dimensionString = parts.join(' × ')
     }
 
+    // Determine lead time: if price is visible, product is available → "in-stock"
+    const hasPriceVisible = extractedData.hasPriceVisible === true || !!(extractedData.price || extractedData.tradePrice)
+    const leadTime = hasPriceVisible ? 'in-stock' : ''
+
     return NextResponse.json({
       success: true,
       data: {
         productName: extractedData.productName || '',
         brand: extractedData.brand || '',
-        productDescription: extractedData.description || '',
+        productDescription: '', // Never auto-fill description
         sku: extractedData.sku || '',
         rrp: extractedData.price || '',
         tradePrice: extractedData.tradePrice || '',
@@ -180,11 +184,11 @@ ${pageContent?.substring(0, 12000) || 'No content provided'}`
         depth: formatDimension(dims.depth) || '',
         length: formatDimension(dims.length) || '',
         dimensions: dimensionString,
-        leadTime: extractedData.leadTime || '',
-        notes: extractedData.notes || '',
+        leadTime,
+        notes: '', // Never auto-fill notes
         productWebsite: url || '',
         // Return filtered product images - prioritize mainImage if provided
-        images: mainImage 
+        images: mainImage
           ? [mainImage, ...productImages.filter((img: string) => img !== mainImage)].slice(0, 10)
           : productImages.slice(0, 10),
         // Don't include spec sheets/PDFs - user adds manually if needed

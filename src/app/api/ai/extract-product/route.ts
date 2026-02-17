@@ -51,14 +51,13 @@ IMPORTANT RULES:
 - For dimensions, extract ALL dimension info you can find (W x D x H, or individual measurements)
 - For prices, distinguish between RRP/retail and trade/wholesale prices
 - Look for material composition, finish types, and color options
-- Extract any lead time, delivery time, or stock availability info
+- Check if a price is visible/available on the page (indicates the product is available to purchase)
 
 Return ONLY a valid JSON object with this structure:
 
 {
   "productName": "string - the specific product name (not the brand)",
   "brand": "string - brand or manufacturer name",
-  "description": "string - product description focused on the item (max 500 chars)",
   "sku": "string - SKU, model number, article number, or product code",
   "price": "string - retail price with currency symbol (e.g., '$1,299.00' or '£850')",
   "tradePrice": "string - trade/wholesale price if shown",
@@ -71,10 +70,10 @@ Return ONLY a valid JSON object with this structure:
     "depth": "string - depth with unit",
     "length": "string - length with unit"
   },
-  "leadTime": "string - delivery/lead time if mentioned (e.g., '4-6 weeks', 'In stock')",
-  "notes": "string - other relevant product details like warranty, care instructions, certifications"
+  "hasPriceVisible": "boolean - true if any price is shown on the page (product is available for purchase)"
 }
 
+IMPORTANT: Do NOT extract description, notes, or lead time fields. Only extract the fields listed above.
 Only include fields where you found clear, accurate data. Omit fields if unsure.`
 
     const userMessage = `Extract the MAIN PRODUCT information from this page. Focus only on the primary product being sold.
@@ -116,12 +115,16 @@ ${pageContent?.substring(0, 12000) || 'No content provided'}`
     // Extract dimensions
     const dims = extractedData.dimensions || {}
 
+    // Determine lead time: if price is visible, product is available → "in-stock"
+    const hasPriceVisible = extractedData.hasPriceVisible === true || !!(extractedData.price || extractedData.tradePrice)
+    const leadTime = hasPriceVisible ? 'in-stock' : ''
+
     return NextResponse.json({
       success: true,
       data: {
         productName: extractedData.productName || '',
         brand: extractedData.brand || '',
-        productDescription: extractedData.description || '',
+        productDescription: '', // Never auto-fill description
         sku: extractedData.sku || '',
         rrp: extractedData.price || '',
         tradePrice: extractedData.tradePrice || '',
@@ -132,8 +135,8 @@ ${pageContent?.substring(0, 12000) || 'No content provided'}`
         height: dims.height || '',
         depth: dims.depth || '',
         length: dims.length || '',
-        leadTime: extractedData.leadTime || '',
-        notes: extractedData.notes || '',
+        leadTime,
+        notes: '', // Never auto-fill notes
         productWebsite: url || '',
         images: images || []
       }
