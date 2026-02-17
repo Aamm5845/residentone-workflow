@@ -1,0 +1,519 @@
+'use client'
+
+import { useState, useMemo, useCallback } from 'react'
+import Link from 'next/link'
+import useSWR from 'swr'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  ArrowLeft,
+  Plus,
+  Search,
+  LayoutGrid,
+  List,
+  X,
+  FileText,
+  Send,
+  FolderOpen,
+} from 'lucide-react'
+
+// Real components
+import DrawingRegisterTable from './DrawingRegisterTable'
+import DrawingRegisterCards from './DrawingRegisterCards'
+import DrawingDetailPanel from './DrawingDetailPanel'
+import DrawingFormDialog from './DrawingFormDialog'
+import NewRevisionDialog from './NewRevisionDialog'
+import TransmittalLog from './TransmittalLog'
+import NewTransmittalDialog from './NewTransmittalDialog'
+import TransmittalDetail from './TransmittalDetail'
+import FilterSidebar from './FilterSidebar'
+import SourcesGrid from './SourcesGrid'
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface Project {
+  id: string
+  name: string
+  dropboxFolder: string | null
+  client?: { id: string; name: string; email: string } | null
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json())
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
+export default function ProjectFilesV2Workspace({ project }: { project: Project }) {
+  // ---- State ----
+  const [activeTab, setActiveTab] = useState<'drawings' | 'transmittals' | 'sources'>('drawings')
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table')
+  const [filters, setFilters] = useState<{
+    discipline: string | null
+    floorId: string | null
+    status: string | null
+    search: string
+  }>({
+    discipline: null,
+    floorId: null,
+    status: null,
+    search: '',
+  })
+  const [searchInput, setSearchInput] = useState('')
+  const [selectedDrawingId, setSelectedDrawingId] = useState<string | null>(null)
+
+  // Dialog states
+  const [showAddDrawing, setShowAddDrawing] = useState(false)
+  const [editDrawing, setEditDrawing] = useState<any | null>(null)
+  const [revisionDrawing, setRevisionDrawing] = useState<any | null>(null)
+  const [showNewTransmittal, setShowNewTransmittal] = useState(false)
+  const [transmittalPreSelectedDrawings, setTransmittalPreSelectedDrawings] = useState<any[]>([])
+  const [viewTransmittal, setViewTransmittal] = useState<any | null>(null)
+
+  // ---- Derived filter params ----
+  const filterParams = useMemo(() => {
+    const params = new URLSearchParams()
+    if (filters.discipline) params.set('discipline', filters.discipline)
+    if (filters.floorId) params.set('floorId', filters.floorId)
+    if (filters.status) params.set('status', filters.status)
+    if (filters.search) params.set('search', filters.search)
+    return params.toString()
+  }, [filters])
+
+  // ---- SWR Data ----
+  const { data: drawingsData, isLoading: drawingsLoading, mutate: mutateDrawings } = useSWR(
+    `/api/projects/${project.id}/project-files-v2/drawings?${filterParams}`,
+    fetcher
+  )
+
+  const { data: floorsData, mutate: mutateFloors } = useSWR(
+    `/api/projects/${project.id}/project-files-v2/floors`,
+    fetcher
+  )
+
+  const { data: transmittalsData, isLoading: transmittalsLoading, mutate: mutateTransmittals } =
+    useSWR(
+      activeTab === 'transmittals' ? `/api/projects/${project.id}/project-files-v2/transmittals` : null,
+      fetcher
+    )
+
+  // ---- Handlers ----
+  const handleSearchSubmit = useCallback(() => {
+    setFilters((prev) => ({ ...prev, search: searchInput }))
+  }, [searchInput])
+
+  const handleSearchKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') handleSearchSubmit()
+    },
+    [handleSearchSubmit]
+  )
+
+  const clearFilters = useCallback(() => {
+    setFilters({ discipline: null, floorId: null, status: null, search: '' })
+    setSearchInput('')
+  }, [])
+
+  const hasActiveFilters = filters.discipline || filters.floorId || filters.status || filters.search
+
+  // ---- Derived data ----
+  const drawings = drawingsData?.drawings ?? []
+  const counts = drawingsData?.counts ?? { byDiscipline: [], byFloor: [] }
+  const floors = Array.isArray(floorsData) ? floorsData : (floorsData?.floors ?? floorsData ?? [])
+  const transmittals = transmittalsData?.transmittals ?? []
+
+  // Build discipline counts map
+  const disciplineCounts: Record<string, number> = {}
+  if (Array.isArray(counts.byDiscipline)) {
+    for (const c of counts.byDiscipline) {
+      disciplineCounts[c.discipline] = c.count
+    }
+  }
+
+  // Build floor counts map
+  const floorCounts: Record<string, number> = {}
+  if (Array.isArray(counts.byFloor)) {
+    for (const c of counts.byFloor) {
+      if (c.floorId) floorCounts[c.floorId] = c.count
+    }
+  }
+
+  // Status counts (we don't have these from API yet, pass empty)
+  const statusCounts: Record<string, number> = {}
+
+  // Refresh everything after mutations
+  const refreshAll = useCallback(() => {
+    mutateDrawings()
+    mutateFloors()
+  }, [mutateDrawings, mutateFloors])
+
+  // ===================================================================
+  // RENDER
+  // ===================================================================
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* ---------------------------------------------------------------- */}
+      {/* HEADER                                                           */}
+      {/* ---------------------------------------------------------------- */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-[1600px] mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            {/* Left: back + title */}
+            <div className="flex items-center gap-3">
+              <Link href={`/projects/${project.id}`}>
+                <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-900 -ml-2">
+                  <ArrowLeft className="w-4 h-4" />
+                </Button>
+              </Link>
+              <div>
+                <h1 className="text-xl font-semibold text-gray-900">Project Files</h1>
+                <p className="text-sm text-gray-500">{project.name}</p>
+              </div>
+            </div>
+
+            {/* Right: search + add drawing */}
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  placeholder="Search drawings..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  onKeyDown={handleSearchKeyDown}
+                  className="pl-9 w-64 h-9 text-sm"
+                />
+                {searchInput && (
+                  <button
+                    onClick={() => {
+                      setSearchInput('')
+                      setFilters((prev) => ({ ...prev, search: '' }))
+                    }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              <Button size="sm" onClick={() => setShowAddDrawing(true)}>
+                <Plus className="w-4 h-4 mr-1.5" />
+                Add Drawing
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ---------------------------------------------------------------- */}
+      {/* BODY                                                             */}
+      {/* ---------------------------------------------------------------- */}
+      <div className="max-w-[1600px] mx-auto px-6 py-6">
+        <div className="flex gap-6">
+          {/* -------------------------------------------------------------- */}
+          {/* FILTER SIDEBAR (drawings tab only)                             */}
+          {/* -------------------------------------------------------------- */}
+          {activeTab === 'drawings' && (
+            <FilterSidebar
+              selectedDiscipline={filters.discipline}
+              onDisciplineChange={(d) => setFilters((prev) => ({ ...prev, discipline: d }))}
+              disciplineCounts={disciplineCounts}
+              selectedFloorId={filters.floorId}
+              onFloorChange={(f) => setFilters((prev) => ({ ...prev, floorId: f }))}
+              floors={Array.isArray(floors) ? floors.map((f: any) => ({ id: f.id, name: f.name, shortName: f.shortName || f.name?.substring(0, 3)?.toUpperCase() || '' })) : []}
+              floorCounts={floorCounts}
+              selectedStatus={filters.status}
+              onStatusChange={(s) => setFilters((prev) => ({ ...prev, status: s }))}
+              statusCounts={statusCounts}
+              projectId={project.id}
+              onFloorAdded={() => mutateFloors()}
+            />
+          )}
+
+          {/* -------------------------------------------------------------- */}
+          {/* MAIN CONTENT                                                   */}
+          {/* -------------------------------------------------------------- */}
+          <div className="flex-1 min-w-0">
+            <Tabs
+              value={activeTab}
+              onValueChange={(val) => setActiveTab(val as typeof activeTab)}
+            >
+              {/* Tab bar + view toggle */}
+              <div className="flex items-center justify-between mb-4">
+                <TabsList>
+                  <TabsTrigger value="drawings" className="gap-1.5">
+                    <FileText className="w-4 h-4" />
+                    Drawings
+                  </TabsTrigger>
+                  <TabsTrigger value="transmittals" className="gap-1.5">
+                    <Send className="w-4 h-4" />
+                    Transmittals
+                  </TabsTrigger>
+                  <TabsTrigger value="sources" className="gap-1.5">
+                    <FolderOpen className="w-4 h-4" />
+                    Sources
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* View toggle - only for drawings tab */}
+                {activeTab === 'drawings' && (
+                  <div className="flex items-center bg-white border border-gray-200 rounded-lg p-0.5">
+                    <button
+                      onClick={() => setViewMode('table')}
+                      className={`p-1.5 rounded-md transition-colors ${
+                        viewMode === 'table'
+                          ? 'bg-gray-100 text-gray-900'
+                          : 'text-gray-400 hover:text-gray-600'
+                      }`}
+                      title="Table view"
+                    >
+                      <List className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setViewMode('cards')}
+                      className={`p-1.5 rounded-md transition-colors ${
+                        viewMode === 'cards'
+                          ? 'bg-gray-100 text-gray-900'
+                          : 'text-gray-400 hover:text-gray-600'
+                      }`}
+                      title="Card view"
+                    >
+                      <LayoutGrid className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* ======================================================= */}
+              {/* DRAWINGS TAB                                             */}
+              {/* ======================================================= */}
+              <TabsContent value="drawings">
+                {drawingsLoading ? (
+                  <DrawingsLoadingSkeleton viewMode={viewMode} />
+                ) : drawings.length === 0 ? (
+                  <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+                    <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <FileText className="w-7 h-7 text-gray-400" />
+                    </div>
+                    <h3 className="text-base font-semibold text-gray-900 mb-1">No drawings found</h3>
+                    <p className="text-sm text-gray-500 mb-5 max-w-sm mx-auto">
+                      {hasActiveFilters
+                        ? 'No drawings match your current filters. Try adjusting or clearing your filters.'
+                        : 'Get started by adding your first drawing to this project.'}
+                    </p>
+                    {hasActiveFilters ? (
+                      <Button variant="outline" size="sm" onClick={clearFilters}>
+                        Clear Filters
+                      </Button>
+                    ) : (
+                      <Button size="sm" onClick={() => setShowAddDrawing(true)}>
+                        <Plus className="w-4 h-4 mr-1.5" />
+                        Add Drawing
+                      </Button>
+                    )}
+                  </div>
+                ) : viewMode === 'table' ? (
+                  <DrawingRegisterTable
+                    drawings={drawings}
+                    onSelectDrawing={(d) => setSelectedDrawingId(d.id)}
+                    onEditDrawing={(d) => { setEditDrawing(d); setShowAddDrawing(true) }}
+                    onNewRevision={(d) => setRevisionDrawing(d)}
+                    onAddToTransmittal={(d) => {
+                      setTransmittalPreSelectedDrawings([d])
+                      setShowNewTransmittal(true)
+                    }}
+                    selectedDrawingId={selectedDrawingId}
+                  />
+                ) : (
+                  <DrawingRegisterCards
+                    drawings={drawings}
+                    onSelectDrawing={(d) => setSelectedDrawingId(d.id)}
+                    onEditDrawing={(d) => { setEditDrawing(d); setShowAddDrawing(true) }}
+                    onNewRevision={(d) => setRevisionDrawing(d)}
+                    onAddToTransmittal={(d) => {
+                      setTransmittalPreSelectedDrawings([d])
+                      setShowNewTransmittal(true)
+                    }}
+                    selectedDrawingId={selectedDrawingId}
+                  />
+                )}
+              </TabsContent>
+
+              {/* ======================================================= */}
+              {/* TRANSMITTALS TAB                                         */}
+              {/* ======================================================= */}
+              <TabsContent value="transmittals">
+                <TransmittalLog
+                  transmittals={transmittals}
+                  isLoading={transmittalsLoading}
+                  onViewDetail={(t) => setViewTransmittal(t)}
+                  onCreateNew={() => setShowNewTransmittal(true)}
+                />
+              </TabsContent>
+
+              {/* ======================================================= */}
+              {/* SOURCES TAB                                              */}
+              {/* ======================================================= */}
+              <TabsContent value="sources">
+                <SourcesGrid
+                  projectId={project.id}
+                  dropboxFolder={project.dropboxFolder}
+                />
+              </TabsContent>
+            </Tabs>
+          </div>
+
+          {/* -------------------------------------------------------------- */}
+          {/* DRAWING DETAIL PANEL (slide-out)                               */}
+          {/* -------------------------------------------------------------- */}
+          {selectedDrawingId && (
+            <DrawingDetailPanel
+              projectId={project.id}
+              drawingId={selectedDrawingId}
+              onClose={() => setSelectedDrawingId(null)}
+              onEdit={() => {
+                // Find the drawing from the list to populate edit dialog
+                const found = drawings.find((d: any) => d.id === selectedDrawingId)
+                if (found) {
+                  setEditDrawing(found)
+                  setShowAddDrawing(true)
+                }
+              }}
+              onNewRevision={() => {
+                const found = drawings.find((d: any) => d.id === selectedDrawingId)
+                if (found) setRevisionDrawing(found)
+              }}
+              onCreateTransmittal={() => {
+                const found = drawings.find((d: any) => d.id === selectedDrawingId)
+                if (found) {
+                  setTransmittalPreSelectedDrawings([found])
+                  setShowNewTransmittal(true)
+                }
+              }}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* ---------------------------------------------------------------- */}
+      {/* DIALOGS                                                          */}
+      {/* ---------------------------------------------------------------- */}
+
+      {/* Add / Edit Drawing Dialog */}
+      <DrawingFormDialog
+        projectId={project.id}
+        open={showAddDrawing}
+        onOpenChange={(open) => {
+          setShowAddDrawing(open)
+          if (!open) setEditDrawing(null)
+        }}
+        onSuccess={() => {
+          refreshAll()
+          setShowAddDrawing(false)
+          setEditDrawing(null)
+        }}
+        editDrawing={editDrawing}
+        floors={Array.isArray(floors) ? floors : []}
+      />
+
+      {/* New Revision Dialog */}
+      {revisionDrawing && (
+        <NewRevisionDialog
+          projectId={project.id}
+          drawing={{
+            id: revisionDrawing.id,
+            drawingNumber: revisionDrawing.drawingNumber || revisionDrawing.number || '',
+            title: revisionDrawing.title || '',
+            currentRevision: revisionDrawing.currentRevision || 1,
+          }}
+          open={!!revisionDrawing}
+          onOpenChange={(open) => {
+            if (!open) setRevisionDrawing(null)
+          }}
+          onSuccess={() => {
+            refreshAll()
+            setRevisionDrawing(null)
+          }}
+        />
+      )}
+
+      {/* New Transmittal Dialog */}
+      <NewTransmittalDialog
+        projectId={project.id}
+        open={showNewTransmittal}
+        onOpenChange={(open) => {
+          setShowNewTransmittal(open)
+          if (!open) setTransmittalPreSelectedDrawings([])
+        }}
+        onSuccess={() => {
+          mutateTransmittals()
+          setShowNewTransmittal(false)
+          setTransmittalPreSelectedDrawings([])
+        }}
+        preSelectedDrawings={transmittalPreSelectedDrawings}
+      />
+
+      {/* Transmittal Detail Dialog */}
+      {viewTransmittal && (
+        <TransmittalDetail
+          transmittal={viewTransmittal}
+          onClose={() => setViewTransmittal(null)}
+          onResend={() => {
+            mutateTransmittals()
+            setViewTransmittal(null)
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Loading skeletons
+// ---------------------------------------------------------------------------
+
+function DrawingsLoadingSkeleton({ viewMode }: { viewMode: 'table' | 'cards' }) {
+  if (viewMode === 'cards') {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="bg-white rounded-xl border border-gray-200 p-4 animate-pulse">
+            <div className="flex items-start justify-between mb-3">
+              <div className="h-3 bg-gray-200 rounded w-16" />
+              <div className="w-2.5 h-2.5 bg-gray-200 rounded-full" />
+            </div>
+            <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
+            <div className="h-3 bg-gray-200 rounded w-1/2 mb-3" />
+            <div className="flex items-center justify-between">
+              <div className="h-5 bg-gray-200 rounded-full w-14" />
+              <div className="h-3 bg-gray-200 rounded w-10" />
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="px-4 py-3 border-b border-gray-100">
+        <div className="h-4 bg-gray-200 rounded w-24 animate-pulse" />
+      </div>
+      <div className="divide-y divide-gray-100">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-4 px-4 py-3 animate-pulse">
+            <div className="h-3 bg-gray-200 rounded w-20" />
+            <div className="h-3 bg-gray-200 rounded flex-1 max-w-xs" />
+            <div className="h-5 bg-gray-200 rounded-full w-12" />
+            <div className="h-3 bg-gray-200 rounded w-12" />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}

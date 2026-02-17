@@ -261,6 +261,11 @@ model User {
   meetingAttendances          MeetingAttendee[]           @relation("MeetingAttendances")
   // Zoom integration
   zoomIntegrations            ZoomIntegration[]           @relation("ZoomConnectedBy")
+  // Project Files V2 relations
+  createdDrawings             ProjectDrawing[]            @relation("DrawingCreator")
+  issuedRevisions             DrawingRevision[]           @relation("RevisionIssuedBy")
+  createdTransmittals         Transmittal[]               @relation("TransmittalCreator")
+  sentTransmittals            Transmittal[]               @relation("TransmittalSentBy")
 }
 
 model Client {
@@ -393,6 +398,10 @@ model Project {
   tasks                     Task[]                     @relation("ProjectTasks")
   // Meeting system
   meetings                  Meeting[]
+  // Project Files V2 relations
+  floors                    ProjectFloor[]
+  drawings                  ProjectDrawing[]
+  transmittals              Transmittal[]
 }
 
 // Client Sources - files received from clients (measurements, architect plans, etc.)
@@ -4824,4 +4833,171 @@ model MeetingAttendee {
   @@unique([meetingId, contractorId])
   @@unique([meetingId, externalEmail])
   @@index([meetingId])
+}
+
+// =============================================
+// PROJECT FILES V2 - Drawing Management System
+// =============================================
+
+enum DrawingDiscipline {
+  ARCHITECTURAL
+  ELECTRICAL
+  RCP
+  PLUMBING
+  MECHANICAL
+  INTERIOR_DESIGN
+}
+
+enum DrawingType {
+  FLOOR_PLAN
+  REFLECTED_CEILING
+  ELEVATION
+  DETAIL
+  SECTION
+  TITLE_BLOCK
+  XREF
+  SCHEDULE
+  OTHER
+}
+
+enum DrawingStatus {
+  ACTIVE
+  SUPERSEDED
+  ARCHIVED
+  DRAFT
+}
+
+enum TransmittalStatus {
+  DRAFT
+  SENT
+  ACKNOWLEDGED
+  CANCELLED
+}
+
+enum TransmittalMethod {
+  EMAIL
+  HAND_DELIVERY
+  COURIER
+  FTP
+  OTHER
+}
+
+model ProjectFloor {
+  id        String   @id @default(cuid())
+  projectId String
+  name      String
+  shortName String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project  Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  drawings ProjectDrawing[]
+
+  @@index([projectId])
+  @@index([projectId, order])
+}
+
+model ProjectDrawing {
+  id              String            @id @default(cuid())
+  projectId       String
+  floorId         String?
+  drawingNumber   String
+  title           String
+  discipline      DrawingDiscipline
+  drawingType     DrawingType
+  status          DrawingStatus     @default(ACTIVE)
+  currentRevision Int               @default(1)
+  description     String?
+  dropboxPath     String?
+  dropboxUrl      String?
+  fileName        String?
+  fileSize        Int?
+  scale           String?
+  paperSize       String?
+  createdBy       String
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  project          Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  floor            ProjectFloor?      @relation(fields: [floorId], references: [id], onDelete: SetNull)
+  creator          User               @relation("DrawingCreator", fields: [createdBy], references: [id])
+  revisions        DrawingRevision[]
+  transmittalItems TransmittalItem[]
+
+  @@index([projectId])
+  @@index([projectId, discipline])
+  @@index([projectId, floorId])
+  @@index([drawingNumber])
+  @@unique([projectId, drawingNumber])
+}
+
+model DrawingRevision {
+  id             String   @id @default(cuid())
+  drawingId      String
+  revisionNumber Int
+  description    String?
+  dropboxPath    String?
+  dropboxUrl     String?
+  fileName       String?
+  fileSize       Int?
+  issuedDate     DateTime @default(now())
+  issuedBy       String
+  createdAt      DateTime @default(now())
+
+  drawing          ProjectDrawing    @relation(fields: [drawingId], references: [id], onDelete: Cascade)
+  issuedByUser     User              @relation("RevisionIssuedBy", fields: [issuedBy], references: [id])
+  transmittalItems TransmittalItem[]
+
+  @@index([drawingId])
+  @@index([drawingId, revisionNumber])
+  @@unique([drawingId, revisionNumber])
+}
+
+model Transmittal {
+  id                String            @id @default(cuid())
+  projectId         String
+  transmittalNumber String
+  subject           String?
+  recipientName     String
+  recipientEmail    String?
+  recipientCompany  String?
+  recipientType     String?
+  method            TransmittalMethod @default(EMAIL)
+  status            TransmittalStatus @default(DRAFT)
+  notes             String?
+  sentAt            DateTime?
+  sentBy            String?
+  emailId           String?
+  pdfUrl            String?
+  createdBy         String
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  project    Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  creator    User              @relation("TransmittalCreator", fields: [createdBy], references: [id])
+  sentByUser User?             @relation("TransmittalSentBy", fields: [sentBy], references: [id])
+  items      TransmittalItem[]
+
+  @@index([projectId])
+  @@index([projectId, transmittalNumber])
+  @@unique([projectId, transmittalNumber])
+}
+
+model TransmittalItem {
+  id             String   @id @default(cuid())
+  transmittalId  String
+  drawingId      String
+  revisionId     String?
+  revisionNumber Int?
+  purpose        String?
+  notes          String?
+  pdfUrl         String?
+
+  transmittal Transmittal      @relation(fields: [transmittalId], references: [id], onDelete: Cascade)
+  drawing     ProjectDrawing   @relation(fields: [drawingId], references: [id], onDelete: Cascade)
+  revision    DrawingRevision? @relation(fields: [revisionId], references: [id], onDelete: SetNull)
+
+  @@index([transmittalId])
+  @@index([drawingId])
 }
