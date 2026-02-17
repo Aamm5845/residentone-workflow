@@ -85,10 +85,13 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/timeline/off-days
  *
- * Add an off day for a user. Admins/Owners can add for any user.
+ * Add off day(s) for a user. Admins/Owners can add for any user.
+ * Supports single date or date range (weekdays only).
  *
  * Body:
- * - date: The date (YYYY-MM-DD)
+ * - date: Single date (YYYY-MM-DD) — legacy/backward-compatible
+ * - fromDate: Range start (YYYY-MM-DD)
+ * - toDate: Range end (YYYY-MM-DD)
  * - reason: VACATION | SICK | PERSONAL | HOLIDAY | OTHER
  * - notes: (optional) Additional notes
  * - userId: (optional) User ID to add off day for (admin only)
@@ -101,9 +104,13 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { date, reason = 'VACATION', notes, userId } = body
+    const { date, fromDate, toDate, reason = 'VACATION', notes, userId } = body
 
-    if (!date) {
+    // Support both legacy single-date and new range format
+    const rangeStart = fromDate || date
+    const rangeEnd = toDate || date
+
+    if (!rangeStart) {
       return NextResponse.json(
         { error: 'Date is required' },
         { status: 400 }
@@ -132,75 +139,86 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Parse date and set to midnight UTC
-    const offDate = new Date(date)
-    offDate.setUTCHours(0, 0, 0, 0)
+    // Build list of weekday dates in range
+    const dates: Date[] = []
+    const start = new Date(rangeStart + 'T00:00:00Z')
+    const end = new Date((rangeEnd || rangeStart) + 'T00:00:00Z')
 
-    // Check if off day already exists
-    const existing = await prisma.userOffDay.findUnique({
-      where: {
-        userId_date: {
-          userId: targetUserId,
-          date: offDate
-        }
-      }
-    })
-
-    if (existing) {
-      // Update existing
-      const updated = await prisma.userOffDay.update({
-        where: { id: existing.id },
-        data: {
-          reason: reason as any,
-          notes
-        },
-        include: {
-          user: {
-            select: { name: true, email: true }
-          }
-        }
-      })
-
-      return NextResponse.json({
-        success: true,
-        message: 'Off day updated',
-        offDay: {
-          id: updated.id,
-          userId: updated.userId,
-          userName: updated.user.name,
-          date: updated.date.toISOString().split('T')[0],
-          reason: updated.reason,
-          notes: updated.notes
-        }
-      })
+    if (end < start) {
+      return NextResponse.json(
+        { error: '"To" date cannot be before "From" date' },
+        { status: 400 }
+      )
     }
 
-    // Create new off day
-    const offDay = await prisma.userOffDay.create({
-      data: {
-        userId: targetUserId,
-        date: offDate,
-        reason: reason as any,
-        notes
-      },
-      include: {
-        user: {
-          select: { name: true, email: true }
-        }
+    // Safety: max 60 days range to prevent abuse
+    const diffDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+    if (diffDays > 60) {
+      return NextResponse.json(
+        { error: 'Date range cannot exceed 60 days' },
+        { status: 400 }
+      )
+    }
+
+    const cursor = new Date(start)
+    while (cursor <= end) {
+      const dow = cursor.getUTCDay()
+      // Skip weekends (0 = Sunday, 6 = Saturday)
+      if (dow !== 0 && dow !== 6) {
+        dates.push(new Date(cursor))
       }
-    })
+      cursor.setUTCDate(cursor.getUTCDate() + 1)
+    }
+
+    if (dates.length === 0) {
+      return NextResponse.json(
+        { error: 'No weekdays in the selected range' },
+        { status: 400 }
+      )
+    }
+
+    // Upsert each date (create or update)
+    let created = 0
+    let updated = 0
+
+    for (const offDate of dates) {
+      const existing = await prisma.userOffDay.findUnique({
+        where: {
+          userId_date: {
+            userId: targetUserId,
+            date: offDate,
+          },
+        },
+      })
+
+      if (existing) {
+        await prisma.userOffDay.update({
+          where: { id: existing.id },
+          data: { reason: reason as any, notes },
+        })
+        updated++
+      } else {
+        await prisma.userOffDay.create({
+          data: {
+            userId: targetUserId,
+            date: offDate,
+            reason: reason as any,
+            notes,
+          },
+        })
+        created++
+      }
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'Off day added',
-      offDay: {
-        id: offDay.id,
-        userId: offDay.userId,
-        userName: offDay.user.name,
-        date: offDay.date.toISOString().split('T')[0],
-        reason: offDay.reason,
-        notes: offDay.notes
-      }
+      message:
+        dates.length === 1
+          ? 'Off day added'
+          : `${created} off day${created !== 1 ? 's' : ''} added${updated > 0 ? `, ${updated} updated` : ''}`,
+      count: dates.length,
+      created,
+      updated,
     })
   } catch (error) {
     console.error('Error adding off day:', error)

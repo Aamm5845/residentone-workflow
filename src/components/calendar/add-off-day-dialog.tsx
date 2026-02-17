@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -27,6 +27,7 @@ import {
   HelpCircle,
   Loader2,
   Umbrella,
+  CalendarRange,
 } from 'lucide-react'
 
 const OFF_DAY_REASONS = [
@@ -56,6 +57,20 @@ interface AddOffDayDialogProps {
   }
 }
 
+/** Count weekdays between two dates (inclusive) */
+function countWeekdays(from: string, to: string): number {
+  const start = new Date(from + 'T00:00:00')
+  const end = new Date(to + 'T00:00:00')
+  let count = 0
+  const d = new Date(start)
+  while (d <= end) {
+    const dow = d.getDay()
+    if (dow !== 0 && dow !== 6) count++
+    d.setDate(d.getDate() + 1)
+  }
+  return count
+}
+
 export function AddOffDayDialog({
   defaultDate,
   open,
@@ -63,7 +78,8 @@ export function AddOffDayDialog({
   onSuccess,
   currentUser,
 }: AddOffDayDialogProps) {
-  const [date, setDate] = useState(defaultDate || '')
+  const [fromDate, setFromDate] = useState(defaultDate || '')
+  const [toDate, setToDate] = useState(defaultDate || '')
   const [reason, setReason] = useState('VACATION')
   const [notes, setNotes] = useState('')
   const [selectedUserId, setSelectedUserId] = useState(currentUser.id)
@@ -74,16 +90,24 @@ export function AddOffDayDialog({
 
   const isAdmin = ['OWNER', 'ADMIN'].includes(currentUser.role)
 
-  // Update date when defaultDate changes (opening for a new day)
+  // How many weekdays selected
+  const dayCount = useMemo(() => {
+    if (!fromDate || !toDate) return 0
+    if (toDate < fromDate) return 0
+    return countWeekdays(fromDate, toDate)
+  }, [fromDate, toDate])
+
+  // Update dates when defaultDate changes (opening for a new day)
   useEffect(() => {
     if (defaultDate) {
-      setDate(defaultDate)
+      setFromDate(defaultDate)
+      setToDate(defaultDate)
     }
   }, [defaultDate])
 
-  // Fetch team members when dialog opens (only for admins)
+  // Fetch team members when dialog opens
   useEffect(() => {
-    if (open && isAdmin && teamMembers.length === 0) {
+    if (open && teamMembers.length === 0) {
       setLoadingTeam(true)
       fetch('/api/team')
         .then((res) => res.json())
@@ -95,12 +119,11 @@ export function AddOffDayDialog({
           }
         })
         .catch(() => {
-          // Fallback: just show current user
           setTeamMembers([])
         })
         .finally(() => setLoadingTeam(false))
     }
-  }, [open, isAdmin, teamMembers.length])
+  }, [open, teamMembers.length])
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -112,9 +135,24 @@ export function AddOffDayDialog({
     }
   }, [open, currentUser.id])
 
+  // When fromDate changes and toDate is before it, sync toDate
+  useEffect(() => {
+    if (fromDate && toDate && toDate < fromDate) {
+      setToDate(fromDate)
+    }
+  }, [fromDate, toDate])
+
   const handleSubmit = async () => {
-    if (!date) {
-      setError('Please select a date')
+    if (!fromDate) {
+      setError('Please select a start date')
+      return
+    }
+    if (!toDate) {
+      setError('Please select an end date')
+      return
+    }
+    if (toDate < fromDate) {
+      setError('"To" date cannot be before "From" date')
       return
     }
 
@@ -126,7 +164,8 @@ export function AddOffDayDialog({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          date,
+          fromDate,
+          toDate,
           reason,
           notes: notes.trim() || undefined,
           ...(isAdmin && selectedUserId !== currentUser.id ? { userId: selectedUserId } : {}),
@@ -136,7 +175,7 @@ export function AddOffDayDialog({
       const data = await res.json()
 
       if (!res.ok) {
-        setError(data.error || 'Failed to add off day')
+        setError(data.error || 'Failed to add off days')
         return
       }
 
@@ -149,8 +188,6 @@ export function AddOffDayDialog({
     }
   }
 
-  const selectedMember = teamMembers.find((m) => m.id === selectedUserId)
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[440px]">
@@ -160,12 +197,12 @@ export function AddOffDayDialog({
             Add Vacation / Off Day
           </DialogTitle>
           <DialogDescription>
-            Add a day off for {isAdmin ? 'a team member' : 'yourself'}. It will appear on the calendar for everyone.
+            Add time off for {isAdmin ? 'a team member' : 'yourself'}. It will appear on the calendar for everyone.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 pt-2">
-          {/* Team Member Selector (admin only) */}
+          {/* Team Member Selector */}
           {isAdmin && (
             <div className="space-y-2">
               <Label htmlFor="team-member">Team Member</Label>
@@ -201,16 +238,38 @@ export function AddOffDayDialog({
             </div>
           )}
 
-          {/* Date */}
-          <div className="space-y-2">
-            <Label htmlFor="off-day-date">Date</Label>
-            <Input
-              id="off-day-date"
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
+          {/* Date Range: From / To */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="off-day-from">From</Label>
+              <Input
+                id="off-day-from"
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="off-day-to">To</Label>
+              <Input
+                id="off-day-to"
+                type="date"
+                value={toDate}
+                min={fromDate}
+                onChange={(e) => setToDate(e.target.value)}
+              />
+            </div>
           </div>
+
+          {/* Day count hint */}
+          {dayCount > 0 && (
+            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+              <CalendarRange className="w-3.5 h-3.5" />
+              {dayCount === 1
+                ? '1 weekday selected'
+                : `${dayCount} weekdays selected (weekends excluded)`}
+            </div>
+          )}
 
           {/* Reason */}
           <div className="space-y-2">
@@ -265,7 +324,7 @@ export function AddOffDayDialog({
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={submitting || !date}
+              disabled={submitting || !fromDate || !toDate}
               className="bg-amber-500 hover:bg-amber-600 text-white"
             >
               {submitting ? (
@@ -276,7 +335,7 @@ export function AddOffDayDialog({
               ) : (
                 <>
                   <Umbrella className="w-4 h-4 mr-2" />
-                  Add Off Day
+                  {dayCount > 1 ? `Add ${dayCount} Off Days` : 'Add Off Day'}
                 </>
               )}
             </Button>
