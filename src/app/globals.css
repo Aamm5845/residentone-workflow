@@ -770,3 +770,23 @@ html {
 .ProseMirror s {
   text-decoration: line-through;
 }
+
+/* FFE Board View — single thin scrollbar */
+.ffe-board-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #c4c4c4 transparent;
+}
+.ffe-board-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+.ffe-board-scroll::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 3px;
+}
+.ffe-board-scroll::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+  border-radius: 3px;
+}
+.ffe-board-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: #9ca3af;
+}

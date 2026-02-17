@@ -88,29 +88,47 @@ function isGroupedChild(item: FFEItem): boolean {
   return item.customFields?.isGroupedItem === true || item.customFields?.isLinkedItem === true
 }
 
-function buildGroupConnections(sections: FFESection[]): Array<{ parentId: string; childId: string }> {
-  const connections: Array<{ parentId: string; childId: string }> = []
-  sections.forEach(section => {
-    section.items.forEach(item => {
-      if (isGroupedChild(item)) {
-        const parentId = item.customFields?.parentId
-        if (parentId) {
-          connections.push({ parentId, childId: item.id })
-        } else {
-          const parentName = item.customFields?.parentName
-          if (parentName) {
-            for (const s of sections) {
-              const parent = s.items.find(i => i.name === parentName && !isGroupedChild(i))
-              if (parent) {
-                connections.push({ parentId: parent.id, childId: item.id })
-                break
-              }
+interface GroupConnection {
+  parentId: string
+  childId: string
+  parentName: string
+  childName: string
+}
+
+function buildGroupConnections(sections: FFESection[]): GroupConnection[] {
+  const connections: GroupConnection[] = []
+  const allItems = sections.flatMap(s => s.items)
+
+  for (const item of allItems) {
+    if (isGroupedChild(item)) {
+      const parentId = item.customFields?.parentId
+      if (parentId) {
+        const parent = allItems.find(i => i.id === parentId)
+        connections.push({
+          parentId,
+          childId: item.id,
+          parentName: parent?.name || item.customFields?.parentName || 'Unknown',
+          childName: item.name,
+        })
+      } else {
+        const parentName = item.customFields?.parentName
+        if (parentName) {
+          for (const s of sections) {
+            const parent = s.items.find(i => i.name === parentName && !isGroupedChild(i))
+            if (parent) {
+              connections.push({
+                parentId: parent.id,
+                childId: item.id,
+                parentName: parent.name,
+                childName: item.name,
+              })
+              break
             }
           }
         }
       }
-    })
-  })
+    }
+  }
   return connections
 }
 
@@ -120,14 +138,19 @@ function buildCurvePath(x1: number, y1: number, x2: number, y2: number): string 
   const dy = Math.abs(y2 - y1)
 
   // If mostly horizontal (different columns), use horizontal S-curve
-  if (dx > 100) {
-    const cpOffset = Math.max(dx * 0.35, 30)
+  if (dx > 80) {
+    const cpOffset = Math.max(dx * 0.4, 40)
     return `M ${x1} ${y1} C ${x1 + cpOffset} ${y1}, ${x2 - cpOffset} ${y2}, ${x2} ${y2}`
   }
 
   // Same column or close: simple vertical connection with slight curve
   const cpOffsetY = Math.max(dy * 0.3, 15)
-  return `M ${x1} ${y1} C ${x1 + 20} ${y1 + cpOffsetY}, ${x2 - 20} ${y2 - cpOffsetY}, ${x2} ${y2}`
+  return `M ${x1} ${y1} C ${x1 + 30} ${y1 + cpOffsetY}, ${x2 - 30} ${y2 - cpOffsetY}, ${x2} ${y2}`
+}
+
+// Build a wider invisible path for easier clicking
+function buildHitPath(x1: number, y1: number, x2: number, y2: number): string {
+  return buildCurvePath(x1, y1, x2, y2)
 }
 
 export default function FFEBoardView({
@@ -154,8 +177,22 @@ export default function FFEBoardView({
 
   // SVG connector lines
   const scrollContentRef = useRef<HTMLDivElement>(null)
-  const [paths, setPaths] = useState<Array<{ d: string; key: string }>>([])
+  const [paths, setPaths] = useState<Array<{
+    d: string
+    key: string
+    parentId: string
+    childId: string
+    parentName: string
+    childName: string
+    x1: number
+    y1: number
+    x2: number
+    y2: number
+  }>>([])
   const [svgSize, setSvgSize] = useState({ width: 0, height: 0 })
+
+  // Hover state for lines
+  const [hoveredLineKey, setHoveredLineKey] = useState<string | null>(null)
 
   // Drag-to-link state
   const [drawingLine, setDrawingLine] = useState<{
@@ -178,13 +215,12 @@ export default function FFEBoardView({
     const container = scrollContentRef.current
     const containerRect = container.getBoundingClientRect()
     const connections = buildGroupConnections(sections)
-    const newPaths: Array<{ d: string; key: string }> = []
+    const newPaths: typeof paths = []
 
-    // Calculate SVG dimensions to match scrollable content
-    setSvgSize({
-      width: container.scrollWidth,
-      height: container.scrollHeight,
-    })
+    // Calculate SVG dimensions to cover the full scrollable content
+    const w = container.scrollWidth
+    const h = container.scrollHeight
+    setSvgSize({ width: Math.max(w, 1), height: Math.max(h, 1) })
 
     for (const conn of connections) {
       const parentEl = container.querySelector(`[data-item-id="${conn.parentId}"]`)
@@ -201,7 +237,15 @@ export default function FFEBoardView({
       const y2 = childRect.top + childRect.height / 2 - containerRect.top
 
       const d = buildCurvePath(x1, y1, x2, y2)
-      newPaths.push({ d, key: `${conn.parentId}-${conn.childId}` })
+      newPaths.push({
+        d,
+        key: `${conn.parentId}-${conn.childId}`,
+        parentId: conn.parentId,
+        childId: conn.childId,
+        parentName: conn.parentName,
+        childName: conn.childName,
+        x1, y1, x2, y2,
+      })
     }
 
     setPaths(newPaths)
@@ -435,6 +479,30 @@ export default function FFEBoardView({
     }
   }
 
+  // Remove a group connection by clicking the line
+  const handleRemoveGroupConnection = async (parentId: string, childId: string, childName: string) => {
+    try {
+      setSaving(true)
+      const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${parentId}/linked-items`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'remove', childItemId: childId })
+      })
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to remove grouping')
+      }
+      toast.success(`Removed "${childName}" from group`)
+      setHoveredLineKey(null)
+      await onDataReload()
+    } catch (error: any) {
+      console.error('Error removing group:', error)
+      toast.error(error.message || 'Failed to remove grouping')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   // Start drawing a line from the connector handle
   const handleConnectorMouseDown = (e: React.MouseEvent, item: FFEItem) => {
     e.preventDefault()
@@ -482,7 +550,7 @@ export default function FFEBoardView({
 
         {showGroupLines && !drawingLine && (
           <span className="text-[11px] text-gray-400">
-            Grab the <span className="text-blue-500 font-medium">●</span> handle on the right side of a card and drag to another item to group them
+            Drag <span className="text-blue-500 font-medium">●</span> to link items &middot; Click a line to remove grouping
           </span>
         )}
 
@@ -494,34 +562,81 @@ export default function FFEBoardView({
       </div>
 
       <DragDropContext onDragEnd={handleDragEnd} onDragStart={handleDragStart}>
+        {/* Single scroll container with hidden native scrollbar + custom thin scrollbar */}
         <div
           ref={scrollContainerRef}
-          className="overflow-x-auto pb-4 min-h-[400px]"
+          className="min-h-[400px] relative ffe-board-scroll"
+          style={{
+            overflowX: 'auto',
+            overflowY: 'hidden',
+          }}
         >
           {/* This inner div holds everything including the SVG — it scrolls together */}
-          <div ref={scrollContentRef} className="relative inline-flex gap-3" style={{ minWidth: '100%' }}>
+          <div ref={scrollContentRef} className="relative inline-flex gap-3 pb-2" style={{ minWidth: '100%' }}>
 
             {/* SVG layer — sits inside the scrollable content, behind cards */}
             {(showGroupLines || drawingLine) && (
               <svg
-                className="absolute inset-0 pointer-events-none"
+                className="absolute inset-0"
                 style={{
                   width: svgSize.width || '100%',
                   height: svgSize.height || '100%',
-                  zIndex: 1,
+                  zIndex: 3,
                   overflow: 'visible',
+                  pointerEvents: 'none',
                 }}
               >
-                {/* Existing group connections — subtle lines, NO arrows */}
+                {/* Existing group connections */}
                 {showGroupLines && paths.map(p => (
-                  <path
-                    key={p.key}
-                    d={p.d}
-                    stroke="#93c5fd"
-                    strokeWidth="1.5"
-                    fill="none"
-                    strokeOpacity="0.7"
-                  />
+                  <g key={p.key}>
+                    {/* Invisible wide hit area for clicking */}
+                    <path
+                      d={p.d}
+                      stroke="transparent"
+                      strokeWidth="14"
+                      fill="none"
+                      style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
+                      onMouseEnter={() => setHoveredLineKey(p.key)}
+                      onMouseLeave={() => setHoveredLineKey(null)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleRemoveGroupConnection(p.parentId, p.childId, p.childName)
+                      }}
+                    />
+                    {/* Visible line */}
+                    <path
+                      d={p.d}
+                      stroke={hoveredLineKey === p.key ? '#ef4444' : '#93c5fd'}
+                      strokeWidth={hoveredLineKey === p.key ? 2.5 : 1.5}
+                      fill="none"
+                      strokeOpacity={hoveredLineKey === p.key ? 1 : 0.7}
+                      style={{ pointerEvents: 'none', transition: 'stroke 0.15s, stroke-width 0.15s, stroke-opacity 0.15s' }}
+                    />
+                    {/* Small "x" delete indicator on hover — at midpoint of line */}
+                    {hoveredLineKey === p.key && (
+                      <>
+                        <circle
+                          cx={(p.x1 + p.x2) / 2}
+                          cy={(p.y1 + p.y2) / 2}
+                          r="8"
+                          fill="#ef4444"
+                          style={{ pointerEvents: 'none' }}
+                        />
+                        <text
+                          x={(p.x1 + p.x2) / 2}
+                          y={(p.y1 + p.y2) / 2}
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill="white"
+                          fontSize="10"
+                          fontWeight="bold"
+                          style={{ pointerEvents: 'none' }}
+                        >
+                          ✕
+                        </text>
+                      </>
+                    )}
+                  </g>
                 ))}
 
                 {/* Currently drawing line — orange dashed */}
@@ -533,6 +648,7 @@ export default function FFEBoardView({
                     strokeOpacity="0.8"
                     fill="none"
                     strokeDasharray="6 3"
+                    style={{ pointerEvents: 'none' }}
                   />
                 )}
               </svg>
@@ -599,14 +715,14 @@ export default function FFEBoardView({
                     )}
                   </div>
 
-                  {/* Droppable area */}
+                  {/* Droppable area — no inner scroll, columns stretch naturally */}
                   <Droppable droppableId={section.id}>
                     {(provided, snapshot) => (
                       <div
                         ref={provided.innerRef}
                         {...provided.droppableProps}
                         className={cn(
-                          'flex-1 p-1.5 space-y-1 min-h-[60px] transition-colors overflow-y-auto max-h-[calc(100vh-280px)]',
+                          'flex-1 p-1.5 space-y-1 min-h-[60px] transition-colors',
                           snapshot.isDraggingOver && 'bg-blue-50/50 border-blue-200'
                         )}
                       >
