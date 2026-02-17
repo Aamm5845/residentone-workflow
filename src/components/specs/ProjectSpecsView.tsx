@@ -4086,18 +4086,15 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               item.isLinkedItem ? "px-8 bg-gray-50/50" : "px-4"
                             )}
                           >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-3 flex-1 min-w-0">
                                 {item.isLinkedItem && (
                                   <div className="w-4 h-4 border-l-2 border-b-2 border-gray-300 -ml-4 mr-1" />
                                 )}
-                                <Circle className={cn("w-4 h-4", item.isLinkedItem ? "text-gray-400" : "text-gray-400")} />
-                                <div>
+                                <Circle className={cn("w-4 h-4 flex-shrink-0", item.isLinkedItem ? "text-gray-400" : "text-gray-400")} />
+                                <div className="min-w-0">
                                   <div className="flex items-center gap-2">
-                                    <p className="font-medium text-gray-900">{item.name}</p>
-                                    {item.docCode && (
-                                      <span className="text-xs text-gray-400 font-mono">{item.docCode}</span>
-                                    )}
+                                    <p className="font-medium text-gray-900 truncate">{item.name}</p>
                                     {item.isLinkedItem && item.parentId && (
                                       <Popover>
                                         <PopoverTrigger asChild>
@@ -4111,7 +4108,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                                 setTimeout(() => parentElement.classList.remove('ring-2', 'ring-violet-400'), 2000)
                                               }
                                             }}
-                                            className="w-5 h-5 flex items-center justify-center bg-violet-100 text-violet-600 rounded hover:bg-violet-200 transition-colors"
+                                            className="w-5 h-5 flex items-center justify-center bg-violet-100 text-violet-600 rounded hover:bg-violet-200 transition-colors flex-shrink-0"
                                             title={`Linked to: ${item.parentName}`}
                                           >
                                             <LinkIcon className="w-3 h-3" />
@@ -4153,6 +4150,13 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   </div>
                                   <p className="text-xs text-gray-500">{roomName}</p>
                                 </div>
+                              </div>
+                              <div className="w-20 flex-shrink-0 text-right">
+                                {item.docCode ? (
+                                  <span className="text-xs font-mono font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">{item.docCode}</span>
+                                ) : (
+                                  <span className="text-xs text-gray-300">—</span>
+                                )}
                               </div>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -4255,18 +4259,15 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               item.isLinkedItem ? "px-8 bg-gray-50/50" : "px-4"
                             )}
                           >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-3 flex-1 min-w-0">
                                 {item.isLinkedItem && (
                                   <div className="w-4 h-4 border-l-2 border-b-2 border-gray-300 -ml-4 mr-1" />
                                 )}
-                                <Circle className={cn("w-4 h-4", item.isLinkedItem ? "text-gray-400" : "text-gray-400")} />
-                                <div>
+                                <Circle className={cn("w-4 h-4 flex-shrink-0", item.isLinkedItem ? "text-gray-400" : "text-gray-400")} />
+                                <div className="min-w-0">
                                   <div className="flex items-center gap-2">
-                                    <p className="font-medium text-gray-900">{item.name}</p>
-                                    {item.docCode && (
-                                      <span className="text-xs text-gray-400 font-mono">{item.docCode}</span>
-                                    )}
+                                    <p className="font-medium text-gray-900 truncate">{item.name}</p>
                                     {item.isLinkedItem && item.parentId && (
                                       <Popover>
                                         <PopoverTrigger asChild>
@@ -4280,7 +4281,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                                 setTimeout(() => parentElement.classList.remove('ring-2', 'ring-violet-400'), 2000)
                                               }
                                             }}
-                                            className="w-5 h-5 flex items-center justify-center bg-violet-100 text-violet-600 rounded hover:bg-violet-200 transition-colors"
+                                            className="w-5 h-5 flex items-center justify-center bg-violet-100 text-violet-600 rounded hover:bg-violet-200 transition-colors flex-shrink-0"
                                             title={`Linked to: ${item.parentName}`}
                                           >
                                             <LinkIcon className="w-3 h-3" />
@@ -4323,6 +4324,13 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   </div>
                                   <p className="text-xs text-gray-500">{section.sectionName}</p>
                                 </div>
+                              </div>
+                              <div className="w-20 flex-shrink-0 text-right">
+                                {item.docCode ? (
+                                  <span className="text-xs font-mono font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">{item.docCode}</span>
+                                ) : (
+                                  <span className="text-xs text-gray-300">—</span>
+                                )}
                               </div>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -4524,20 +4532,22 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       <div className="divide-y divide-gray-100">
                         {items.map(({ roomName, item }) => (
                           <div key={item.id} className="px-4 py-3 hover:bg-gray-50">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <Circle className={cn("w-4 h-4", item.hasLinkedSpecs ? "text-emerald-500" : "text-gray-300")} />
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <p className="font-medium text-gray-900">{item.name}</p>
-                                    {item.docCode && (
-                                      <span className="text-xs text-gray-400 font-mono bg-gray-100 px-1.5 py-0.5 rounded">{item.docCode}</span>
-                                    )}
-                                  </div>
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                                <Circle className={cn("w-4 h-4 flex-shrink-0", item.hasLinkedSpecs ? "text-emerald-500" : "text-gray-300")} />
+                                <div className="min-w-0">
+                                  <p className="font-medium text-gray-900 truncate">{item.name}</p>
                                   <p className="text-xs text-gray-500">{roomName}</p>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2">
+                              <div className="w-20 flex-shrink-0 text-right">
+                                {item.docCode ? (
+                                  <span className="text-xs font-mono font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">{item.docCode}</span>
+                                ) : (
+                                  <span className="text-xs text-gray-300">—</span>
+                                )}
+                              </div>
+                              <div className="flex-shrink-0">
                                 {item.hasLinkedSpecs ? (
                                   <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">
                                     <CheckCircle2 className="w-3 h-3 mr-1" />
@@ -4593,20 +4603,22 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       {room.sections.flatMap(section =>
                         section.items.map(item => (
                           <div key={item.id} className="px-4 py-3 hover:bg-gray-50">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <Circle className={cn("w-4 h-4", item.hasLinkedSpecs ? "text-emerald-500" : "text-gray-300")} />
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <p className="font-medium text-gray-900">{item.name}</p>
-                                    {item.docCode && (
-                                      <span className="text-xs text-gray-400 font-mono bg-gray-100 px-1.5 py-0.5 rounded">{item.docCode}</span>
-                                    )}
-                                  </div>
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                                <Circle className={cn("w-4 h-4 flex-shrink-0", item.hasLinkedSpecs ? "text-emerald-500" : "text-gray-300")} />
+                                <div className="min-w-0">
+                                  <p className="font-medium text-gray-900 truncate">{item.name}</p>
                                   <p className="text-xs text-gray-500">{section.sectionName}</p>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2">
+                              <div className="w-20 flex-shrink-0 text-right">
+                                {item.docCode ? (
+                                  <span className="text-xs font-mono font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">{item.docCode}</span>
+                                ) : (
+                                  <span className="text-xs text-gray-300">—</span>
+                                )}
+                              </div>
+                              <div className="flex-shrink-0">
                                 {item.hasLinkedSpecs ? (
                                   <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">
                                     <CheckCircle2 className="w-3 h-3 mr-1" />
@@ -4660,23 +4672,27 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   <div className="divide-y divide-gray-100">
                     {unlinkedSpecs.map(spec => (
                       <div key={spec.id} className="px-4 py-3 hover:bg-gray-50">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <AlertCircle className="w-4 h-4 text-orange-400" />
-                            <div>
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <AlertCircle className="w-4 h-4 text-orange-400 flex-shrink-0" />
+                            <div className="min-w-0">
                               <div className="flex items-center gap-2">
-                                <p className="font-medium text-gray-900">{spec.name}</p>
-                                {spec.docCode && (
-                                  <span className="text-xs text-gray-400 font-mono bg-gray-100 px-1.5 py-0.5 rounded">{spec.docCode}</span>
-                                )}
+                                <p className="font-medium text-gray-900 truncate">{spec.name}</p>
                                 {spec.brand && (
-                                  <span className="text-xs text-gray-400">{spec.brand}</span>
+                                  <span className="text-xs text-gray-400 flex-shrink-0">{spec.brand}</span>
                                 )}
                               </div>
                               <p className="text-xs text-gray-500">{spec.roomName} &middot; {spec.sectionName}</p>
                             </div>
                           </div>
-                          <Badge variant="outline" className="text-xs bg-orange-50 text-orange-600 border-orange-200">
+                          <div className="w-20 flex-shrink-0 text-right">
+                            {spec.docCode ? (
+                              <span className="text-xs font-mono font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">{spec.docCode}</span>
+                            ) : (
+                              <span className="text-xs text-gray-300">—</span>
+                            )}
+                          </div>
+                          <Badge variant="outline" className="text-xs bg-orange-50 text-orange-600 border-orange-200 flex-shrink-0">
                             <AlertCircle className="w-3 h-3 mr-1" />
                             Unlinked
                           </Badge>
