@@ -4,6 +4,7 @@ import { useState } from 'react'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -163,6 +164,9 @@ export function MeetingDetailDialog({ meeting, open, onOpenChange, onEdit, onRef
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="text-lg">{meeting.title}</DialogTitle>
+          <DialogDescription>
+            {getLocationLabel(meeting.locationType)} · {formatDate(meeting.date)}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">

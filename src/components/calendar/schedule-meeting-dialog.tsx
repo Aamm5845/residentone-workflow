@@ -7,6 +7,7 @@ import { z } from 'zod'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -76,10 +77,15 @@ interface ScheduleMeetingDialogProps {
   editMeeting?: MeetingData | null
   trigger?: React.ReactNode
   onSuccess?: () => void
+  defaultDate?: string | null  // YYYY-MM-DD format to pre-fill the date
+  open?: boolean               // Controlled open state
+  onOpenChange?: (open: boolean) => void  // Controlled open change
 }
 
-export function ScheduleMeetingDialog({ projects, editMeeting, trigger, onSuccess }: ScheduleMeetingDialogProps) {
-  const [open, setOpen] = useState(false)
+export function ScheduleMeetingDialog({ projects, editMeeting, trigger, onSuccess, defaultDate, open: controlledOpen, onOpenChange: controlledOnOpenChange }: ScheduleMeetingDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false)
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen
+  const setOpen = controlledOnOpenChange || setInternalOpen
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [attendees, setAttendees] = useState<SelectedAttendee[]>([])
   const [sendInvitations, setSendInvitations] = useState(true)
@@ -181,7 +187,18 @@ export function ScheduleMeetingDialog({ projects, editMeeting, trigger, onSucces
         })
         setAttendees(existingAttendees)
       } else {
-        reset()
+        reset({
+          title: '',
+          description: '',
+          date: defaultDate || '',
+          startTime: '',
+          endTime: '',
+          locationType: 'VIRTUAL',
+          locationDetails: '',
+          meetingLink: '',
+          projectId: '',
+          reminderMinutes: 30,
+        })
         setAttendees([])
       }
     }
@@ -261,6 +278,9 @@ export function ScheduleMeetingDialog({ projects, editMeeting, trigger, onSucces
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Edit Meeting' : 'Schedule Meeting'}</DialogTitle>
+          <DialogDescription>
+            {isEditing ? 'Update meeting details and attendees.' : 'Set up a new meeting with your team, clients, or contractors.'}
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

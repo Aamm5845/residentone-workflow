@@ -128,10 +128,23 @@ export async function POST(req: NextRequest) {
         },
       })
 
+      // Auto-include the organizer as a TEAM_MEMBER attendee if not already in the list
+      const organizerAlreadyIncluded = attendees.some(
+        (att: { type: string; userId?: string }) =>
+          att.type === 'TEAM_MEMBER' && att.userId === session.user.id
+      )
+
+      const allAttendees = organizerAlreadyIncluded
+        ? attendees
+        : [
+            { type: 'TEAM_MEMBER', userId: session.user.id },
+            ...attendees,
+          ]
+
       // Create attendees
-      if (attendees.length > 0) {
+      if (allAttendees.length > 0) {
         await tx.meetingAttendee.createMany({
-          data: attendees.map((att: {
+          data: allAttendees.map((att: {
             type: string
             userId?: string
             clientId?: string

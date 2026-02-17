@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import {
   Calendar,
   ChevronLeft,
@@ -16,10 +16,14 @@ import {
   Package,
   Star,
   CalendarDays,
+  CalendarPlus,
   Filter,
   Eye,
   Umbrella,
   Video,
+  MapPin,
+  X,
+  ArrowRight,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatDate } from '@/lib/utils'
@@ -141,7 +145,7 @@ export default function CalendarPageClient({
   projectList = [],
   currentUser
 }: CalendarPageClientProps) {
-  const [currentDate, setCurrentDate] = useState(new Date())
+  const [currentDate, setCurrentDate] = useState(() => new Date())
   const [viewMode, setViewMode] = useState<'all' | 'mine'>('all')
   const [showHolidays, setShowHolidays] = useState(true)
   const [showVacations, setShowVacations] = useState(true)
@@ -154,9 +158,31 @@ export default function CalendarPageClient({
   const [editMeeting, setEditMeeting] = useState<MeetingItem | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
 
+  // Day click state
+  const [selectedDay, setSelectedDay] = useState<number | null>(null)
+  const [scheduleMeetingDate, setScheduleMeetingDate] = useState<string | null>(null)
+  const [scheduleMeetingOpen, setScheduleMeetingOpen] = useState(false)
+
+  // Stable reference for "today" to avoid hydration issues
+  const [todayRef] = useState(() => {
+    const now = new Date()
+    return { date: now.getDate(), month: now.getMonth(), year: now.getFullYear() }
+  })
+
   const handleMeetingClick = (meeting: MeetingItem) => {
     setSelectedMeeting(meeting)
     setMeetingDetailOpen(true)
+  }
+
+  const handleDayClick = (day: number) => {
+    setSelectedDay(prev => prev === day ? null : day)
+  }
+
+  const handleScheduleForDay = (day: number) => {
+    // Format as YYYY-MM-DD for the date input
+    const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    setScheduleMeetingDate(dateStr)
+    setScheduleMeetingOpen(true)
   }
 
   const handleEditMeeting = (meeting: any) => {
@@ -655,21 +681,26 @@ export default function CalendarPageClient({
             const holidaysForDay = getHolidaysForDate(day)
             const offDaysForDay = getOffDaysForDate(day)
             const meetingsForDay = getMeetingsForDate(day)
-            const isToday = day && new Date().getDate() === day &&
-                          new Date().getMonth() === currentMonth &&
-                          new Date().getFullYear() === currentYear
+            const isToday = day && todayRef.date === day &&
+                          todayRef.month === currentMonth &&
+                          todayRef.year === currentYear
             const isWeekend = index % 7 === 0 || index % 7 === 6
 
             // Calculate how many slots are taken by holidays, off days, and meetings
             const fixedSlots = holidaysForDay.length + (offDaysForDay.length > 0 ? 1 : 0) + meetingsForDay.length
             const maxTaskSlots = Math.max(0, 3 - fixedSlots)
 
+            const isSelected = day !== null && selectedDay === day
+
             return (
               <div
                 key={index}
+                onClick={() => day && handleDayClick(day)}
                 className={`min-h-[120px] p-1.5 border-b border-r border-gray-100 transition-colors ${
                   day ? (isWeekend ? 'bg-gray-50/50' : 'bg-white') : 'bg-gray-50'
-                } ${isToday ? 'bg-cyan-50 ring-1 ring-cyan-400 ring-inset' : ''} hover:bg-gray-50`}
+                } ${isToday ? 'bg-cyan-50 ring-1 ring-cyan-400 ring-inset' : ''} ${
+                  isSelected && !isToday ? 'bg-blue-50 ring-1 ring-blue-300 ring-inset' : ''
+                } ${day ? 'cursor-pointer hover:bg-gray-50/80' : ''}`}
               >
                 {day && (
                   <>
@@ -784,6 +815,168 @@ export default function CalendarPageClient({
         </div>
       </div>
 
+      {/* Day Detail Panel */}
+      {selectedDay !== null && (() => {
+        const dayTasks = getTasksForDate(selectedDay)
+        const dayHolidays = getHolidaysForDate(selectedDay)
+        const dayOffDays = getOffDaysForDate(selectedDay)
+        const dayMeetings = getMeetingsForDate(selectedDay)
+        const selectedDate = new Date(currentYear, currentMonth, selectedDay)
+        const dateStr = selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+        const hasContent = dayTasks.length > 0 || dayMeetings.length > 0 || dayHolidays.length > 0 || dayOffDays.length > 0
+
+        return (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 mt-4 overflow-hidden">
+            {/* Panel Header */}
+            <div className="flex items-center justify-between px-5 py-3 bg-gradient-to-r from-blue-50 to-cyan-50 border-b border-gray-200">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-blue-600" />
+                <h3 className="text-sm font-semibold text-gray-900">{dateStr}</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="default"
+                  className="h-7 text-xs gap-1.5 bg-blue-600 hover:bg-blue-700"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleScheduleForDay(selectedDay)
+                  }}
+                >
+                  <CalendarPlus className="w-3.5 h-3.5" />
+                  Schedule Meeting
+                </Button>
+                <button
+                  onClick={() => setSelectedDay(null)}
+                  className="text-gray-400 hover:text-gray-600 p-0.5 rounded-md hover:bg-gray-100"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Panel Content */}
+            <div className="p-5">
+              {!hasContent ? (
+                <div className="text-center py-6">
+                  <CalendarDays className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                  <p className="text-sm text-gray-500">Nothing scheduled for this day</p>
+                  <p className="text-xs text-gray-400 mt-1">Click &ldquo;Schedule Meeting&rdquo; to add one</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Holidays */}
+                  {dayHolidays.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Holidays</h4>
+                      <div className="space-y-1.5">
+                        {dayHolidays.map(holiday => (
+                          <div key={holiday.id} className="flex items-center gap-2 p-2 rounded-lg bg-purple-50 border border-purple-100">
+                            <span className="text-base">{getHolidayIcon(holiday)}</span>
+                            <div>
+                              <p className="text-sm font-medium text-purple-900">{holiday.name}</p>
+                              <p className="text-xs text-purple-600">{holiday.description}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Off Days */}
+                  {dayOffDays.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Team Off</h4>
+                      <div className="space-y-1.5">
+                        {dayOffDays.map(od => (
+                          <div key={od.id} className="flex items-center gap-2 p-2 rounded-lg bg-amber-50 border border-amber-100">
+                            <Umbrella className="w-4 h-4 text-amber-500" />
+                            <div>
+                              <p className="text-sm font-medium text-amber-900">{od.userName}</p>
+                              <p className="text-xs text-amber-600">{getOffDayLabel(od.reason)}{od.notes ? ` — ${od.notes}` : ''}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Meetings */}
+                  {dayMeetings.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Meetings ({dayMeetings.length})</h4>
+                      <div className="space-y-1.5">
+                        {dayMeetings.map(meeting => (
+                          <div
+                            key={meeting.id}
+                            onClick={() => handleMeetingClick(meeting)}
+                            className="flex items-center gap-3 p-3 rounded-lg bg-cyan-50 border border-cyan-100 cursor-pointer hover:bg-cyan-100/70 transition-colors"
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-cyan-500 text-white flex items-center justify-center flex-shrink-0">
+                              <Video className="w-4 h-4" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">{meeting.title}</p>
+                              <p className="text-xs text-gray-500">
+                                {formatMeetingTime(meeting.startTime)} — {formatMeetingTime(meeting.endTime)}
+                                {meeting.project && <span className="text-cyan-600 ml-1.5">• {meeting.project.name}</span>}
+                              </p>
+                            </div>
+                            <ArrowRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tasks */}
+                  {dayTasks.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Tasks ({dayTasks.length})</h4>
+                      <div className="space-y-1.5">
+                        {dayTasks.map(task => {
+                          let taskLink = `/stages/${task.id}`
+                          if (task.id.includes('-room-start') || task.id.includes('-room-due')) {
+                            taskLink = '#'
+                          } else if (task.type === 'task') {
+                            const actualId = task.id.replace(/^task-/, '').replace(/-(start|due)$/, '')
+                            taskLink = `/tasks/${actualId}`
+                          } else if (task.id.includes('-start')) {
+                            const stageId = task.id.replace('-start', '')
+                            taskLink = `/stages/${stageId}`
+                          }
+
+                          const PhaseIcon = getPhaseIcon(task.stageType)
+                          const phaseConf = phaseConfig[task.stageType || '']
+
+                          return (
+                            <Link key={task.id} href={taskLink}>
+                              <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 border border-gray-100 cursor-pointer hover:bg-gray-100/70 transition-colors">
+                                <div className={`w-8 h-8 rounded-lg text-white flex items-center justify-center flex-shrink-0 ${phaseConf?.color || 'bg-gray-500'}`}>
+                                  <PhaseIcon className="w-4 h-4" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-gray-900 truncate">{task.title}</p>
+                                  <p className="text-xs text-gray-500 truncate">
+                                    {task.projectName}
+                                    {task.assignedUser && <span className="ml-1.5">• {task.assignedUser.name}</span>}
+                                  </p>
+                                </div>
+                                <ArrowRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                              </div>
+                            </Link>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      })()}
+
       {/* Empty State */}
       {filteredTasks.length === 0 && meetingItems.length === 0 && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center mt-4">
@@ -828,6 +1021,19 @@ export default function CalendarPageClient({
           trigger={<span />}
         />
       )}
+
+      {/* Schedule Meeting from Day Click */}
+      <ScheduleMeetingDialog
+        projects={projectList}
+        defaultDate={scheduleMeetingDate}
+        open={scheduleMeetingOpen}
+        onOpenChange={(isOpen) => {
+          setScheduleMeetingOpen(isOpen)
+          if (!isOpen) setScheduleMeetingDate(null)
+        }}
+        onSuccess={handleMeetingSuccess}
+        trigger={<span className="hidden" />}
+      />
     </div>
   )
 }
