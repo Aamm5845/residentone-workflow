@@ -178,7 +178,7 @@ export default function DeliveryTrackerTab({ projectId, searchQuery }: DeliveryT
 
       // Filter to only show orders that are in shipping flow (not drafts, not cancelled)
       const shippingOrders = data.orders.filter((order: Order) =>
-        ['ORDERED', 'CONFIRMED', 'SHIPPED', 'IN_TRANSIT', 'DELIVERED', 'PAYMENT_RECEIVED'].includes(order.status)
+        ['ORDERED', 'CONFIRMED', 'SHIPPED', 'IN_TRANSIT', 'DELIVERED', 'COMPLETED', 'INSTALLED', 'PAYMENT_RECEIVED'].includes(order.status)
       )
 
       setOrders(shippingOrders)
@@ -342,6 +342,25 @@ export default function DeliveryTrackerTab({ projectId, searchQuery }: DeliveryT
       fetchOrders()
     } catch (error) {
       toast.error('Failed to update status')
+    }
+  }
+
+  const handleConfirmReceipt = async (order: Order) => {
+    try {
+      const res = await fetch(`/api/orders/${order.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'COMPLETED'
+        })
+      })
+
+      if (!res.ok) throw new Error('Failed to update')
+
+      toast.success('Receipt confirmed')
+      fetchOrders()
+    } catch (error) {
+      toast.error('Failed to confirm receipt')
     }
   }
 
@@ -605,10 +624,24 @@ export default function DeliveryTrackerTab({ projectId, searchQuery }: DeliveryT
                                 </Button>
                               </>
                             )}
-                            {column === 'DELIVERED' && order.actualDelivery && (
-                              <span className="text-xs text-gray-500">
-                                Delivered {formatDate(order.actualDelivery)}
-                              </span>
+                            {column === 'DELIVERED' && (
+                              <div className="flex items-center justify-between w-full">
+                                {order.actualDelivery && (
+                                  <span className="text-xs text-gray-500">
+                                    Delivered {formatDate(order.actualDelivery)}
+                                  </span>
+                                )}
+                                {order.status === 'DELIVERED' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 text-xs px-2 text-emerald-600"
+                                    onClick={() => handleConfirmReceipt(order)}
+                                  >
+                                    Confirm Receipt
+                                  </Button>
+                                )}
+                              </div>
                             )}
                           </div>
                         </CardContent>
@@ -702,6 +735,16 @@ export default function DeliveryTrackerTab({ projectId, searchQuery }: DeliveryT
                               onClick={() => handleMarkDelivered(order)}
                             >
                               Delivered
+                            </Button>
+                          )}
+                          {column === 'DELIVERED' && order.status === 'DELIVERED' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-xs border-emerald-300 text-emerald-600"
+                              onClick={() => handleConfirmReceipt(order)}
+                            >
+                              Confirm Receipt
                             </Button>
                           )}
                         </div>
