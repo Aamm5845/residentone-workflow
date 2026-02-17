@@ -14,7 +14,6 @@ import {
   Plug,
 } from 'lucide-react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
 
 export default function IntegrationsPage() {
   return (
@@ -47,7 +46,6 @@ export default function IntegrationsPage() {
 }
 
 function ZoomIntegrationCard() {
-  const searchParams = useSearchParams()
   const [loading, setLoading] = useState(true)
   const [connected, setConnected] = useState(false)
   const [configured, setConfigured] = useState(true)
@@ -63,10 +61,10 @@ function ZoomIntegrationCard() {
     fetchStatus()
 
     // Show messages from OAuth redirect
-    const zoomParam = searchParams.get('zoom')
+    const params = new URLSearchParams(window.location.search)
+    const zoomParam = params.get('zoom')
     if (zoomParam === 'connected') {
       setSuccessMessage('Zoom connected successfully!')
-      // Clear URL params
       window.history.replaceState({}, '', '/settings/integrations')
     } else if (zoomParam === 'denied') {
       setError('Zoom authorization was denied. Please try again.')
@@ -75,7 +73,7 @@ function ZoomIntegrationCard() {
       setError('Failed to connect Zoom. Please try again.')
       window.history.replaceState({}, '', '/settings/integrations')
     }
-  }, [searchParams])
+  }, [])
 
   const fetchStatus = async () => {
     try {
