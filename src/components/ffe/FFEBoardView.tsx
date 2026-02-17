@@ -114,23 +114,20 @@ function buildGroupConnections(sections: FFESection[]): Array<{ parentId: string
   return connections
 }
 
-// Build a smooth bezier curve path from parent's right edge to child's left edge
-function buildCurvePath(
-  x1: number, y1: number,
-  x2: number, y2: number,
-  sameColumn: boolean
-): string {
-  if (sameColumn) {
-    // Same column: go down from bottom of parent to top of child
-    const midY = (y1 + y2) / 2
-    return `M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`
+// Build a smooth bezier path between two points
+function buildCurvePath(x1: number, y1: number, x2: number, y2: number): string {
+  const dx = Math.abs(x2 - x1)
+  const dy = Math.abs(y2 - y1)
+
+  // If mostly horizontal (different columns), use horizontal S-curve
+  if (dx > 100) {
+    const cpOffset = Math.max(dx * 0.35, 30)
+    return `M ${x1} ${y1} C ${x1 + cpOffset} ${y1}, ${x2 - cpOffset} ${y2}, ${x2} ${y2}`
   }
 
-  // Different columns: horizontal S-curve from right side to left side
-  const dx = Math.abs(x2 - x1)
-  const cpOffset = Math.max(dx * 0.4, 40)
-
-  return `M ${x1} ${y1} C ${x1 + cpOffset} ${y1}, ${x2 - cpOffset} ${y2}, ${x2} ${y2}`
+  // Same column or close: simple vertical connection with slight curve
+  const cpOffsetY = Math.max(dy * 0.3, 15)
+  return `M ${x1} ${y1} C ${x1 + 20} ${y1 + cpOffsetY}, ${x2 - 20} ${y2 - cpOffsetY}, ${x2} ${y2}`
 }
 
 export default function FFEBoardView({
@@ -156,8 +153,9 @@ export default function FFEBoardView({
   const isDraggingRef = useRef(false)
 
   // SVG connector lines
-  const boardRef = useRef<HTMLDivElement>(null)
+  const scrollContentRef = useRef<HTMLDivElement>(null)
   const [paths, setPaths] = useState<Array<{ d: string; key: string }>>([])
+  const [svgSize, setSvgSize] = useState({ width: 0, height: 0 })
 
   // Drag-to-link state
   const [drawingLine, setDrawingLine] = useState<{
@@ -172,45 +170,37 @@ export default function FFEBoardView({
 
   // Calculate connector paths between grouped items
   const updatePaths = useCallback(() => {
-    if (!showGroupLines || !boardRef.current) {
+    if (!showGroupLines || !scrollContentRef.current) {
       setPaths([])
       return
     }
 
+    const container = scrollContentRef.current
+    const containerRect = container.getBoundingClientRect()
     const connections = buildGroupConnections(sections)
-    const boardRect = boardRef.current.getBoundingClientRect()
     const newPaths: Array<{ d: string; key: string }> = []
 
+    // Calculate SVG dimensions to match scrollable content
+    setSvgSize({
+      width: container.scrollWidth,
+      height: container.scrollHeight,
+    })
+
     for (const conn of connections) {
-      const parentEl = boardRef.current.querySelector(`[data-item-id="${conn.parentId}"]`)
-      const childEl = boardRef.current.querySelector(`[data-item-id="${conn.childId}"]`)
+      const parentEl = container.querySelector(`[data-item-id="${conn.parentId}"]`)
+      const childEl = container.querySelector(`[data-item-id="${conn.childId}"]`)
       if (!parentEl || !childEl) continue
 
       const parentRect = parentEl.getBoundingClientRect()
       const childRect = childEl.getBoundingClientRect()
 
-      // Determine if same column (within 280px horizontal range)
-      const parentCenterX = parentRect.left + parentRect.width / 2 - boardRect.left
-      const childCenterX = childRect.left + childRect.width / 2 - boardRect.left
-      const sameColumn = Math.abs(parentCenterX - childCenterX) < 50
+      // Positions relative to the scroll content container
+      const x1 = parentRect.right - containerRect.left
+      const y1 = parentRect.top + parentRect.height / 2 - containerRect.top
+      const x2 = childRect.left - containerRect.left
+      const y2 = childRect.top + childRect.height / 2 - containerRect.top
 
-      let x1: number, y1: number, x2: number, y2: number
-
-      if (sameColumn) {
-        // Same column: connect from bottom center to top center
-        x1 = parentCenterX
-        y1 = parentRect.bottom - boardRect.top + 2
-        x2 = childCenterX
-        y2 = childRect.top - boardRect.top - 2
-      } else {
-        // Different columns: connect from right edge to left edge
-        x1 = parentRect.right - boardRect.left + 2
-        y1 = parentRect.top + parentRect.height / 2 - boardRect.top
-        x2 = childRect.left - boardRect.left - 2
-        y2 = childRect.top + childRect.height / 2 - boardRect.top
-      }
-
-      const d = buildCurvePath(x1, y1, x2, y2, sameColumn)
+      const d = buildCurvePath(x1, y1, x2, y2)
       newPaths.push({ d, key: `${conn.parentId}-${conn.childId}` })
     }
 
@@ -233,51 +223,62 @@ export default function FFEBoardView({
 
   useEffect(() => {
     if (showGroupLines) {
-      const timer = setTimeout(updatePaths, 50)
+      const timer = setTimeout(updatePaths, 100)
       return () => clearTimeout(timer)
     }
   }, [showGroupLines, sections, updatePaths])
 
-  // Handle mousemove while drawing a link line
+  // Handle mousemove/mouseup while drawing a link line
   useEffect(() => {
-    if (!drawingLine || !boardRef.current) return
+    if (!drawingLine || !scrollContentRef.current) return
 
-    const boardEl = boardRef.current
+    const contentEl = scrollContentRef.current
 
     const handleMouseMove = (e: MouseEvent) => {
-      const boardRect = boardEl.getBoundingClientRect()
+      const rect = contentEl.getBoundingClientRect()
       setDrawingLine(prev => prev ? {
         ...prev,
-        currentX: e.clientX - boardRect.left,
-        currentY: e.clientY - boardRect.top,
+        currentX: e.clientX - rect.left,
+        currentY: e.clientY - rect.top,
       } : null)
 
-      const target = (e.target as HTMLElement).closest('[data-item-id]')
-      if (target) {
-        const itemId = target.getAttribute('data-item-id')
-        setHoveredItemId(itemId !== drawingLine.fromItemId ? itemId : null)
-      } else {
-        setHoveredItemId(null)
+      // Find which item card the mouse is over
+      const els = document.elementsFromPoint(e.clientX, e.clientY)
+      let foundItemId: string | null = null
+      for (const el of els) {
+        const card = (el as HTMLElement).closest?.('[data-item-id]')
+        if (card) {
+          foundItemId = card.getAttribute('data-item-id')
+          break
+        }
       }
+      setHoveredItemId(foundItemId && foundItemId !== drawingLine.fromItemId ? foundItemId : null)
     }
 
     const handleMouseUp = (e: MouseEvent) => {
-      const target = (e.target as HTMLElement).closest('[data-item-id]')
-      if (target && drawingLine) {
-        const targetItemId = target.getAttribute('data-item-id')
-        if (targetItemId && targetItemId !== drawingLine.fromItemId) {
-          let targetItem: FFEItem | null = null
-          for (const s of sections) {
-            const found = s.items.find(i => i.id === targetItemId)
-            if (found) { targetItem = found; break }
-          }
+      // Use elementsFromPoint to find card under cursor (bypasses pointer-events issues)
+      const els = document.elementsFromPoint(e.clientX, e.clientY)
+      let targetItemId: string | null = null
+      for (const el of els) {
+        const card = (el as HTMLElement).closest?.('[data-item-id]')
+        if (card) {
+          targetItemId = card.getAttribute('data-item-id')
+          break
+        }
+      }
 
-          if (targetItem) {
-            if (isGroupedChild(targetItem)) {
-              toast.error('This item is already grouped under another item')
-            } else {
-              handleLinkItems(drawingLine.fromItemId, targetItem.name)
-            }
+      if (targetItemId && drawingLine && targetItemId !== drawingLine.fromItemId) {
+        let targetItem: FFEItem | null = null
+        for (const s of sections) {
+          const found = s.items.find(i => i.id === targetItemId)
+          if (found) { targetItem = found; break }
+        }
+
+        if (targetItem) {
+          if (isGroupedChild(targetItem)) {
+            toast.error('This item is already grouped under another item')
+          } else {
+            handleLinkItems(drawingLine.fromItemId, targetItem.name)
           }
         }
       }
@@ -294,7 +295,7 @@ export default function FFEBoardView({
     }
   }, [drawingLine, sections])
 
-  // Auto-scroll on drag near edges
+  // Auto-scroll on drag near edges (for both item drag and line drawing)
   useEffect(() => {
     const container = scrollContainerRef.current
     if (!container) return
@@ -434,14 +435,15 @@ export default function FFEBoardView({
     }
   }
 
-  // Start drawing a line from the connector handle on the right side of a card
+  // Start drawing a line from the connector handle
   const handleConnectorMouseDown = (e: React.MouseEvent, item: FFEItem) => {
     e.preventDefault()
     e.stopPropagation()
-    if (!boardRef.current) return
+    if (!scrollContentRef.current) return
 
-    const boardRect = boardRef.current.getBoundingClientRect()
-    const cardEl = (e.target as HTMLElement).closest('[data-item-id]')
+    const contentRect = scrollContentRef.current.getBoundingClientRect()
+    const handleEl = e.currentTarget as HTMLElement
+    const cardEl = handleEl.closest('[data-item-id]')
     if (!cardEl) return
 
     const cardRect = cardEl.getBoundingClientRect()
@@ -449,20 +451,15 @@ export default function FFEBoardView({
     setDrawingLine({
       fromItemId: item.id,
       fromItemName: item.name,
-      startX: cardRect.right - boardRect.left,
-      startY: cardRect.top + cardRect.height / 2 - boardRect.top,
-      currentX: e.clientX - boardRect.left,
-      currentY: e.clientY - boardRect.top,
+      startX: cardRect.right - contentRect.left,
+      startY: cardRect.top + cardRect.height / 2 - contentRect.top,
+      currentX: e.clientX - contentRect.left,
+      currentY: e.clientY - contentRect.top,
     })
   }
 
-  // Build the drawing line as a curve too
   const drawingPath = drawingLine
-    ? buildCurvePath(
-        drawingLine.startX, drawingLine.startY,
-        drawingLine.currentX, drawingLine.currentY,
-        false
-      )
+    ? buildCurvePath(drawingLine.startX, drawingLine.startY, drawingLine.currentX, drawingLine.currentY)
     : null
 
   return (
@@ -497,52 +494,51 @@ export default function FFEBoardView({
       </div>
 
       <DragDropContext onDragEnd={handleDragEnd} onDragStart={handleDragStart}>
-        <div ref={boardRef} className="relative">
-          {/* SVG overlay for connector lines */}
-          <svg
-            className="absolute inset-0 w-full h-full pointer-events-none"
-            style={{ zIndex: 10, overflow: 'visible' }}
-          >
-            <defs>
-              <marker id="arrow-blue" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-                <polygon points="0 0, 8 3, 0 6" fill="#3b82f6" fillOpacity="0.7" />
-              </marker>
-              <marker id="arrow-orange" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-                <polygon points="0 0, 8 3, 0 6" fill="#f97316" fillOpacity="0.9" />
-              </marker>
-            </defs>
+        <div
+          ref={scrollContainerRef}
+          className="overflow-x-auto pb-4 min-h-[400px]"
+        >
+          {/* This inner div holds everything including the SVG — it scrolls together */}
+          <div ref={scrollContentRef} className="relative inline-flex gap-3" style={{ minWidth: '100%' }}>
 
-            {/* Existing group connections — smooth curves */}
-            {showGroupLines && paths.map(p => (
-              <path
-                key={p.key}
-                d={p.d}
-                stroke="#3b82f6"
-                strokeWidth="2"
-                strokeOpacity="0.5"
-                fill="none"
-                markerEnd="url(#arrow-blue)"
-              />
-            ))}
+            {/* SVG layer — sits inside the scrollable content, behind cards */}
+            {(showGroupLines || drawingLine) && (
+              <svg
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  width: svgSize.width || '100%',
+                  height: svgSize.height || '100%',
+                  zIndex: 1,
+                  overflow: 'visible',
+                }}
+              >
+                {/* Existing group connections — subtle lines, NO arrows */}
+                {showGroupLines && paths.map(p => (
+                  <path
+                    key={p.key}
+                    d={p.d}
+                    stroke="#93c5fd"
+                    strokeWidth="1.5"
+                    fill="none"
+                    strokeOpacity="0.7"
+                  />
+                ))}
 
-            {/* Currently drawing line — orange curve following cursor */}
-            {drawingPath && (
-              <path
-                d={drawingPath}
-                stroke="#f97316"
-                strokeWidth="2.5"
-                strokeOpacity="0.8"
-                fill="none"
-                strokeDasharray="6 3"
-                markerEnd="url(#arrow-orange)"
-              />
+                {/* Currently drawing line — orange dashed */}
+                {drawingPath && (
+                  <path
+                    d={drawingPath}
+                    stroke="#f97316"
+                    strokeWidth="2"
+                    strokeOpacity="0.8"
+                    fill="none"
+                    strokeDasharray="6 3"
+                  />
+                )}
+              </svg>
             )}
-          </svg>
 
-          <div
-            ref={scrollContainerRef}
-            className="flex gap-3 overflow-x-auto pb-4 min-h-[400px] scroll-smooth"
-          >
+            {/* Columns */}
             {sections.map(section => {
               const allItems = [...section.items].sort((a, b) => a.order - b.order)
 
@@ -550,6 +546,7 @@ export default function FFEBoardView({
                 <div
                   key={section.id}
                   className="min-w-[220px] max-w-[260px] w-[240px] flex-shrink-0 bg-gray-50 rounded-xl border border-gray-200 flex flex-col"
+                  style={{ zIndex: 2, position: 'relative' }}
                 >
                   {/* Column Header */}
                   <div className="p-2.5 border-b border-gray-200 bg-white rounded-t-xl">
@@ -653,7 +650,6 @@ export default function FFEBoardView({
                                     }}
                                   >
                                     <div className="flex items-start gap-1.5">
-                                      {/* Drag handle */}
                                       {!drawingLine && (
                                         <div
                                           {...dragProvided.dragHandleProps}
@@ -664,7 +660,6 @@ export default function FFEBoardView({
                                         </div>
                                       )}
 
-                                      {/* Chosen indicator */}
                                       <div className="mt-0.5 flex-shrink-0">
                                         {isChosen ? (
                                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
@@ -673,16 +668,11 @@ export default function FFEBoardView({
                                         )}
                                       </div>
 
-                                      {/* Content — clean, no icons */}
                                       <div className="flex-1 min-w-0">
-                                        <p className="text-xs font-medium text-gray-900 truncate">
-                                          {item.name}
-                                        </p>
+                                        <p className="text-xs font-medium text-gray-900 truncate">{item.name}</p>
                                         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                                           {item.docCode && (
-                                            <span className="text-[9px] font-mono text-gray-400 bg-gray-100 px-0.5 rounded">
-                                              {item.docCode}
-                                            </span>
+                                            <span className="text-[9px] font-mono text-gray-400 bg-gray-100 px-0.5 rounded">{item.docCode}</span>
                                           )}
                                           {item.quantity > 1 && (
                                             <span className="text-[9px] text-gray-500">x{item.quantity}</span>
@@ -696,19 +686,13 @@ export default function FFEBoardView({
                                       </div>
                                     </div>
 
-                                    {/* Connector handle on right side — only when Groups toggle is on */}
+                                    {/* Connector handle on right side — grab to draw a line */}
                                     {showGroupLines && !isChild && (
                                       <div
-                                        className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-blue-500 border-2 border-white shadow-md cursor-crosshair opacity-0 group-hover/card:opacity-100 hover:scale-150 transition-all z-20"
+                                        className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-blue-500 border-2 border-white shadow-md cursor-crosshair opacity-0 group-hover/card:opacity-100 hover:scale-125 transition-all"
+                                        style={{ zIndex: 30 }}
                                         onMouseDown={(e) => handleConnectorMouseDown(e, item)}
                                         title="Drag to another item to group"
-                                      />
-                                    )}
-
-                                    {/* Left side dot for child items (line connects here) */}
-                                    {showGroupLines && isChild && (
-                                      <div
-                                        className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-blue-400 border-2 border-white shadow-sm z-20 pointer-events-none"
                                       />
                                     )}
                                   </div>
@@ -724,15 +708,15 @@ export default function FFEBoardView({
                 </div>
               )
             })}
-
-            {saving && (
-              <div className="fixed bottom-4 right-4 bg-gray-900 text-white text-sm px-3 py-1.5 rounded-lg shadow-lg z-50">
-                Saving...
-              </div>
-            )}
           </div>
         </div>
       </DragDropContext>
+
+      {saving && (
+        <div className="fixed bottom-4 right-4 bg-gray-900 text-white text-sm px-3 py-1.5 rounded-lg shadow-lg z-50">
+          Saving...
+        </div>
+      )}
     </div>
   )
 }
