@@ -762,6 +762,10 @@ export default function FFEBoardView({
                                       isDrawingFrom && 'ring-2 ring-orange-400 bg-orange-50/50',
                                       isHoverTarget && drawingLine && 'ring-2 ring-blue-400 bg-blue-50/50',
                                     )}
+                                    style={{
+                                      ...dragProvided.draggableProps.style,
+                                      ...(dragSnapshot.isDragging ? { zIndex: 9999 } : {}),
+                                    }}
                                     onClick={() => {
                                       if (!drawingLine) onItemClick?.(item.id)
                                     }}

@@ -2146,80 +2146,6 @@ export default function FFEUnifiedWorkspace({
                                       </div>
                                     )}
                                     
-                                    {/* Group link icon — parent: shows popover with children / child: scrolls to parent */}
-                                    {groupedChildren.length > 0 && (
-                                      <Popover>
-                                        <PopoverTrigger asChild>
-                                          <button
-                                            className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors p-0.5 rounded hover:bg-blue-50"
-                                            onClick={(e) => e.stopPropagation()}
-                                            title={`${groupedChildren.length} grouped item${groupedChildren.length > 1 ? 's' : ''}`}
-                                          >
-                                            <LinkIcon className="w-3.5 h-3.5" />
-                                            <span className="text-xs font-medium">{groupedChildren.length}</span>
-                                          </button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-60 p-2" align="start" side="bottom">
-                                          <p className="text-xs font-medium text-gray-500 mb-1.5 px-1">Grouped Items</p>
-                                          <div className="space-y-0.5">
-                                            {groupedChildren.map(child => (
-                                              <button
-                                                key={child.id}
-                                                className="w-full text-left px-2 py-1.5 rounded-md hover:bg-blue-50 text-sm text-gray-700 hover:text-blue-700 transition-colors flex items-center gap-2"
-                                                onClick={() => {
-                                                  const el = document.getElementById(`ffe-item-${child.id}`)
-                                                  if (el) {
-                                                    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                                                    setHighlightedItemId(child.id)
-                                                    setTimeout(() => setHighlightedItemId(null), 2000)
-                                                  }
-                                                }}
-                                              >
-                                                <LinkIcon className="w-3 h-3 text-blue-400 flex-shrink-0" />
-                                                <span className="truncate">{child.name}</span>
-                                                {(child as any).fromSection && (
-                                                  <Badge variant="outline" className="text-[9px] px-1 py-0 ml-auto flex-shrink-0 bg-violet-50 text-violet-600 border-violet-200">
-                                                    {(child as any).fromSection}
-                                                  </Badge>
-                                                )}
-                                              </button>
-                                            ))}
-                                          </div>
-                                        </PopoverContent>
-                                      </Popover>
-                                    )}
-                                    {/* Child item: link icon that scrolls to parent */}
-                                    {(item.customFields?.isGroupedItem || item.customFields?.isLinkedItem) && (item.customFields?.parentId || item.customFields?.parentName) && (
-                                      <button
-                                        className="flex items-center gap-1 text-blue-500 hover:text-blue-700 transition-colors p-0.5 rounded hover:bg-blue-50"
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          // Find the parent item and scroll to it
-                                          const parentId = item.customFields?.parentId
-                                          const parentName = item.customFields?.parentName
-                                          let targetId = parentId
-                                          if (!targetId && parentName) {
-                                            // Search all sections for parent by name
-                                            for (const s of sections) {
-                                              const parent = s.items.find(i => i.name === parentName && !i.customFields?.isGroupedItem && !i.customFields?.isLinkedItem)
-                                              if (parent) { targetId = parent.id; break }
-                                            }
-                                          }
-                                          if (targetId) {
-                                            const el = document.getElementById(`ffe-item-${targetId}`)
-                                            if (el) {
-                                              el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                                              setHighlightedItemId(targetId)
-                                              setTimeout(() => setHighlightedItemId(null), 2000)
-                                            }
-                                          }
-                                        }}
-                                        title={`Grouped under: ${item.customFields?.parentName || 'Parent'}`}
-                                      >
-                                        <LinkIcon className="w-3.5 h-3.5" />
-                                      </button>
-                                    )}
-                                    
                                     {/* Description toggle */}
                                     {item.description && (
                                       <button 
@@ -2238,6 +2164,77 @@ export default function FFEUnifiedWorkspace({
                                   
                                   {/* Status and Actions */}
                                   <div className="flex items-center gap-3">
+                                    {/* Group link icon — fixed column. Parent icon takes priority over child icon */}
+                                    <div className="w-10 flex-shrink-0 flex justify-center">
+                                      {groupedChildren.length > 0 ? (
+                                        <Popover>
+                                          <PopoverTrigger asChild>
+                                            <button
+                                              className="flex items-center gap-0.5 text-blue-600 hover:text-blue-800 transition-colors p-0.5 rounded hover:bg-blue-50"
+                                              onClick={(e) => e.stopPropagation()}
+                                              title={`${groupedChildren.length} grouped item${groupedChildren.length > 1 ? 's' : ''}`}
+                                            >
+                                              <LinkIcon className="w-3.5 h-3.5" />
+                                              <span className="text-xs font-medium">{groupedChildren.length}</span>
+                                            </button>
+                                          </PopoverTrigger>
+                                          <PopoverContent className="w-60 p-2" align="end" side="bottom">
+                                            <p className="text-xs font-medium text-gray-500 mb-1.5 px-1">Grouped Items</p>
+                                            <div className="space-y-0.5">
+                                              {groupedChildren.map(child => (
+                                                <button
+                                                  key={child.id}
+                                                  className="w-full text-left px-2 py-1.5 rounded-md hover:bg-blue-50 text-sm text-gray-700 hover:text-blue-700 transition-colors flex items-center gap-2"
+                                                  onClick={() => {
+                                                    const el = document.getElementById(`ffe-item-${child.id}`)
+                                                    if (el) {
+                                                      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                                                      setHighlightedItemId(child.id)
+                                                      setTimeout(() => setHighlightedItemId(null), 2000)
+                                                    }
+                                                  }}
+                                                >
+                                                  <LinkIcon className="w-3 h-3 text-blue-400 flex-shrink-0" />
+                                                  <span className="truncate">{child.name}</span>
+                                                  {(child as any).fromSection && (
+                                                    <Badge variant="outline" className="text-[9px] px-1 py-0 ml-auto flex-shrink-0 bg-violet-50 text-violet-600 border-violet-200">
+                                                      {(child as any).fromSection}
+                                                    </Badge>
+                                                  )}
+                                                </button>
+                                              ))}
+                                            </div>
+                                          </PopoverContent>
+                                        </Popover>
+                                      ) : (item.customFields?.isGroupedItem || item.customFields?.isLinkedItem) && (item.customFields?.parentId || item.customFields?.parentName) ? (
+                                        <button
+                                          className="flex items-center text-blue-500 hover:text-blue-700 transition-colors p-0.5 rounded hover:bg-blue-50"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            const parentId = item.customFields?.parentId
+                                            const parentName = item.customFields?.parentName
+                                            let targetId = parentId
+                                            if (!targetId && parentName) {
+                                              for (const s of sections) {
+                                                const parent = s.items.find((i: any) => i.name === parentName && !i.customFields?.isGroupedItem && !i.customFields?.isLinkedItem)
+                                                if (parent) { targetId = parent.id; break }
+                                              }
+                                            }
+                                            if (targetId) {
+                                              const el = document.getElementById(`ffe-item-${targetId}`)
+                                              if (el) {
+                                                el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                                                setHighlightedItemId(targetId)
+                                                setTimeout(() => setHighlightedItemId(null), 2000)
+                                              }
+                                            }
+                                          }}
+                                          title={`Grouped under: ${item.customFields?.parentName || 'Parent'}`}
+                                        >
+                                          <LinkIcon className="w-3.5 h-3.5" />
+                                        </button>
+                                      ) : null}
+                                    </div>
                                     {/* Doc Code - plain text, fixed width, click to edit */}
                                     <div className="w-14 flex-shrink-0 text-right">
                                       {editingDocCodeItemId === item.id ? (
