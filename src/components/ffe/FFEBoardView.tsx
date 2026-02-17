@@ -322,7 +322,7 @@ export default function FFEBoardView({
           if (isGroupedChild(targetItem)) {
             toast.error('This item is already grouped under another item')
           } else {
-            handleLinkItems(drawingLine.fromItemId, targetItem.name)
+            handleLinkExistingItem(drawingLine.fromItemId, targetItem.id, targetItem.name)
           }
         }
       }
@@ -456,14 +456,15 @@ export default function FFEBoardView({
     setEditSectionName('')
   }
 
+  // Link an EXISTING item as a grouped child (no new item creation)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const handleLinkItems = async (parentItemId: string, childItemName: string) => {
+  const handleLinkExistingItem = async (parentItemId: string, childItemId: string, childItemName: string) => {
     try {
       setSaving(true)
       const response = await fetch(`/api/ffe/v2/rooms/${roomId}/items/${parentItemId}/linked-items`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'add', name: childItemName })
+        body: JSON.stringify({ action: 'link-existing', childItemId })
       })
       if (!response.ok) {
         const data = await response.json()
