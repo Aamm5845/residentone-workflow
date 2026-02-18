@@ -1,12 +1,30 @@
 'use client'
 
-import { useState, useMemo, useRef, useCallback } from 'react'
+import { useState, useMemo, useRef, useCallback, Component, type ReactNode } from 'react'
 import dynamic from 'next/dynamic'
 import useSWR from 'swr'
 import { Button } from '@/components/ui/button'
 
 const PdfThumbnail = dynamic(() => import('./PdfThumbnail'), { ssr: false })
 const PdfViewer = dynamic(() => import('./PdfViewer'), { ssr: false })
+
+// Error boundary to prevent react-pdf crashes from hiding PDF cards
+class DrawingErrorBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { hasError: boolean }> {
+  constructor(props: { children: ReactNode; fallback: ReactNode }) {
+    super(props)
+    this.state = { hasError: false }
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+  componentDidCatch(error: Error) {
+    console.error('[DrawingErrorBoundary] PDF rendering error:', error)
+  }
+  render() {
+    if (this.state.hasError) return this.props.fallback
+    return this.props.children
+  }
+}
 import {
   ChevronRight,
   FolderOpen,
@@ -543,10 +561,17 @@ function SubfolderContent({
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
 
   // Split files: PDFs always get visual cards (rendered client-side), images need thumbnailUrl
-  const pdfFiles = files.filter(f => f.fileType === 'pdf')
-  const imageFiles = files.filter(f => f.thumbnailUrl && f.fileType === 'image')
-  const otherFiles = files.filter(f => f.fileType !== 'pdf' && !(f.thumbnailUrl && f.fileType === 'image'))
+  // Also detect PDFs by filename extension as fallback (in case fileType is missing from API)
+  const pdfFiles = files.filter(f => f.fileType === 'pdf' || f.name.toLowerCase().endsWith('.pdf'))
+  const imageFiles = files.filter(f => f.thumbnailUrl && f.fileType === 'image' && !f.name.toLowerCase().endsWith('.pdf'))
+  const otherFiles = files.filter(f => !f.name.toLowerCase().endsWith('.pdf') && f.fileType !== 'pdf' && !(f.thumbnailUrl && f.fileType === 'image'))
   const hasDrawings = pdfFiles.length > 0
+
+  // Debug: log file types to help diagnose rendering issues
+  if (typeof window !== 'undefined' && files.length > 0) {
+    console.log('[SubfolderContent] File types:', files.map(f => ({ name: f.name, fileType: f.fileType, isPdf: f.name.toLowerCase().endsWith('.pdf') })))
+    console.log('[SubfolderContent] PDFs:', pdfFiles.length, 'Images:', imageFiles.length, 'Other:', otherFiles.length)
+  }
 
   return (
     <div className="space-y-5">
@@ -700,11 +725,18 @@ function DrawingCard({ file, onDownload, onFileClick }: { file: DropboxFileItem;
         className="relative w-full aspect-[4/3] bg-gray-50 overflow-hidden"
       >
         {file.thumbnailUrl ? (
-          <PdfThumbnail
-            url={file.thumbnailUrl}
-            width={280}
-            className="w-full h-full"
-          />
+          <DrawingErrorBoundary fallback={
+            <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50">
+              <FileText className="w-10 h-10 text-red-300" />
+              <span className="text-[9px] text-gray-400 mt-1">Preview unavailable</span>
+            </div>
+          }>
+            <PdfThumbnail
+              url={file.thumbnailUrl}
+              width={280}
+              className="w-full h-full"
+            />
+          </DrawingErrorBoundary>
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50">
             <FileText className="w-10 h-10 text-gray-300" />
