@@ -192,10 +192,7 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
               >
                 <Icon className={cn('h-5 w-5', item.color)} />
                 {showBadge && (
-                  <span className={cn(
-                    "absolute -top-1 -right-1 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center",
-                    badgeColor || "bg-red-500"
-                  )}>
+                  <span className="absolute -top-1 -right-1 bg-gray-100 text-gray-600 text-[10px] font-medium rounded-full w-5 h-5 flex items-center justify-center border border-gray-200">
                     {badge > 99 ? '99+' : badge}
                   </span>
                 )}
@@ -223,11 +220,7 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
               >
                 <Icon className={cn('h-5 w-5', item.color)} />
                 {showBadge && (
-                  <span className={cn(
-                    "absolute -top-1 -right-1 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center",
-                    'special' in item && item.special ? "bg-gradient-to-r from-[#a657f0] to-[#e94d97]" :
-                    'badgeColor' in item && item.badgeColor ? item.badgeColor : "bg-red-500"
-                  )}>
+                  <span className="absolute -top-1 -right-1 bg-gray-100 text-gray-600 text-[10px] font-medium rounded-full w-5 h-5 flex items-center justify-center border border-gray-200">
                     {item.badgeCount > 99 ? '99+' : item.badgeCount}
                   </span>
                 )}
@@ -267,10 +260,7 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
                   {item.name}
                 </div>
                 {showBadge && (
-                  <span className={cn(
-                    'text-white text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center',
-                    badgeColor || 'bg-red-500'
-                  )}>
+                  <span className="text-gray-500 text-xs font-medium bg-gray-100 rounded-full px-2 py-0.5 min-w-[20px] text-center">
                     {badge > 99 ? '99+' : badge}
                   </span>
                 )}
@@ -293,7 +283,7 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
               Procurement
             </div>
             {procurementCount > 0 && (
-              <span className="text-white text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center bg-amber-500">
+              <span className="text-gray-500 text-xs font-medium bg-gray-100 rounded-full px-2 py-0.5 min-w-[20px] text-center">
                 {procurementCount > 99 ? '99+' : procurementCount}
               </span>
             )}
@@ -338,8 +328,6 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
                   'group flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors',
                   isActive(item.href)
                     ? 'bg-purple-50 text-purple-700 border-r-2 border-purple-700'
-                    : isSpecial && showBadge
-                    ? 'text-gray-700 hover:bg-[#e94d97]/10 hover:text-[#e94d97] bg-gradient-to-r from-[#e94d97]/10 to-transparent'
                     : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                 )}
               >
@@ -348,11 +336,7 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
                   {item.name}
                 </div>
                 {showBadge && (
-                  <span className={cn(
-                    "text-white text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center",
-                    isSpecial ? "bg-gradient-to-r from-[#a657f0] to-[#e94d97]" : 
-                    'badgeColor' in item && item.badgeColor ? item.badgeColor : "bg-red-500"
-                  )}>
+                  <span className="text-gray-500 text-xs font-medium bg-gray-100 rounded-full px-2 py-0.5 min-w-[20px] text-center">
                     {item.badgeCount > 99 ? '99+' : item.badgeCount}
                   </span>
                 )}

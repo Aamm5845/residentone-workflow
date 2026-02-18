@@ -247,7 +247,7 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
                             {item.name}
                           </div>
                           {item.badge && (
-                            <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center">
+                            <span className="text-gray-500 text-xs font-medium bg-gray-100 rounded-full px-2 py-0.5 min-w-[20px] text-center">
                               {item.badge}
                             </span>
                           )}
@@ -278,7 +278,7 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
                       >
                         <Icon className={cn('h-5 w-5', item.color)} />
                         {item.badge && (
-                          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                          <span className="absolute -top-1 -right-1 bg-gray-100 text-gray-600 text-[10px] font-medium rounded-full w-5 h-5 flex items-center justify-center border border-gray-200">
                             {item.badge}
                           </span>
                         )}
