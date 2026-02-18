@@ -15,10 +15,11 @@ import {
   X,
   FileText,
   Send,
-  FolderOpen,
+  FolderTree,
+  Camera,
 } from 'lucide-react'
 
-// Real components
+// Components
 import DrawingRegisterTable from './DrawingRegisterTable'
 import DrawingRegisterCards from './DrawingRegisterCards'
 import DrawingDetailPanel from './DrawingDetailPanel'
@@ -28,7 +29,8 @@ import TransmittalLog from './TransmittalLog'
 import NewTransmittalDialog from './NewTransmittalDialog'
 import TransmittalDetail from './TransmittalDetail'
 import FilterSidebar from './FilterSidebar'
-import SourcesGrid from './SourcesGrid'
+import AllFilesBrowser from './AllFilesBrowser'
+import PhotosGallery from './PhotosGallery'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -40,6 +42,8 @@ interface Project {
   dropboxFolder: string | null
   client?: { id: string; name: string; email: string } | null
 }
+
+type TabValue = 'all-files' | 'drawings' | 'photos' | 'transmittals'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -53,7 +57,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
 export default function ProjectFilesV2Workspace({ project }: { project: Project }) {
   // ---- State ----
-  const [activeTab, setActiveTab] = useState<'drawings' | 'transmittals' | 'sources'>('drawings')
+  const [activeTab, setActiveTab] = useState<TabValue>('all-files')
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table')
   const [filters, setFilters] = useState<{
     discipline: string | null
@@ -87,14 +91,14 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
     return params.toString()
   }, [filters])
 
-  // ---- SWR Data ----
+  // ---- SWR Data (only fetch when on relevant tabs) ----
   const { data: drawingsData, isLoading: drawingsLoading, mutate: mutateDrawings } = useSWR(
-    `/api/projects/${project.id}/project-files-v2/drawings?${filterParams}`,
+    activeTab === 'drawings' ? `/api/projects/${project.id}/project-files-v2/drawings?${filterParams}` : null,
     fetcher
   )
 
   const { data: floorsData, mutate: mutateFloors } = useSWR(
-    `/api/projects/${project.id}/project-files-v2/floors`,
+    activeTab === 'drawings' ? `/api/projects/${project.id}/project-files-v2/floors` : null,
     fetcher
   )
 
@@ -145,7 +149,6 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
     }
   }
 
-  // Status counts (we don't have these from API yet, pass empty)
   const statusCounts: Record<string, number> = {}
 
   // Refresh everything after mutations
@@ -178,34 +181,36 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
               </div>
             </div>
 
-            {/* Right: search + add drawing */}
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  placeholder="Search drawings..."
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  onKeyDown={handleSearchKeyDown}
-                  className="pl-9 w-64 h-9 text-sm"
-                />
-                {searchInput && (
-                  <button
-                    onClick={() => {
-                      setSearchInput('')
-                      setFilters((prev) => ({ ...prev, search: '' }))
-                    }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
+            {/* Right: search + add drawing (only on drawings tab) */}
+            {activeTab === 'drawings' && (
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    placeholder="Search drawings..."
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    onKeyDown={handleSearchKeyDown}
+                    className="pl-9 w-64 h-9 text-sm"
+                  />
+                  {searchInput && (
+                    <button
+                      onClick={() => {
+                        setSearchInput('')
+                        setFilters((prev) => ({ ...prev, search: '' }))
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+                <Button size="sm" onClick={() => setShowAddDrawing(true)}>
+                  <Plus className="w-4 h-4 mr-1.5" />
+                  Add Drawing
+                </Button>
               </div>
-              <Button size="sm" onClick={() => setShowAddDrawing(true)}>
-                <Plus className="w-4 h-4 mr-1.5" />
-                Add Drawing
-              </Button>
-            </div>
+            )}
           </div>
         </div>
       </div>
@@ -214,85 +219,93 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
       {/* BODY                                                             */}
       {/* ---------------------------------------------------------------- */}
       <div className="max-w-[1600px] mx-auto px-6 py-6">
-        <div className="flex gap-6">
-          {/* -------------------------------------------------------------- */}
-          {/* FILTER SIDEBAR (drawings tab only)                             */}
-          {/* -------------------------------------------------------------- */}
-          {activeTab === 'drawings' && (
-            <FilterSidebar
-              selectedDiscipline={filters.discipline}
-              onDisciplineChange={(d) => setFilters((prev) => ({ ...prev, discipline: d }))}
-              disciplineCounts={disciplineCounts}
-              selectedFloorId={filters.floorId}
-              onFloorChange={(f) => setFilters((prev) => ({ ...prev, floorId: f }))}
-              floors={Array.isArray(floors) ? floors.map((f: any) => ({ id: f.id, name: f.name, shortName: f.shortName || f.name?.substring(0, 3)?.toUpperCase() || '' })) : []}
-              floorCounts={floorCounts}
-              selectedStatus={filters.status}
-              onStatusChange={(s) => setFilters((prev) => ({ ...prev, status: s }))}
-              statusCounts={statusCounts}
-              projectId={project.id}
-              onFloorAdded={() => mutateFloors()}
-            />
-          )}
+        <Tabs
+          value={activeTab}
+          onValueChange={(val) => setActiveTab(val as TabValue)}
+        >
+          {/* Tab bar + view toggle */}
+          <div className="flex items-center justify-between mb-4">
+            <TabsList>
+              <TabsTrigger value="all-files" className="gap-1.5">
+                <FolderTree className="w-4 h-4" />
+                All Files
+              </TabsTrigger>
+              <TabsTrigger value="drawings" className="gap-1.5">
+                <FileText className="w-4 h-4" />
+                Drawings
+              </TabsTrigger>
+              <TabsTrigger value="photos" className="gap-1.5">
+                <Camera className="w-4 h-4" />
+                Photos
+              </TabsTrigger>
+              <TabsTrigger value="transmittals" className="gap-1.5">
+                <Send className="w-4 h-4" />
+                Transmittals
+              </TabsTrigger>
+            </TabsList>
 
-          {/* -------------------------------------------------------------- */}
-          {/* MAIN CONTENT                                                   */}
-          {/* -------------------------------------------------------------- */}
-          <div className="flex-1 min-w-0">
-            <Tabs
-              value={activeTab}
-              onValueChange={(val) => setActiveTab(val as typeof activeTab)}
-            >
-              {/* Tab bar + view toggle */}
-              <div className="flex items-center justify-between mb-4">
-                <TabsList>
-                  <TabsTrigger value="drawings" className="gap-1.5">
-                    <FileText className="w-4 h-4" />
-                    Drawings
-                  </TabsTrigger>
-                  <TabsTrigger value="transmittals" className="gap-1.5">
-                    <Send className="w-4 h-4" />
-                    Transmittals
-                  </TabsTrigger>
-                  <TabsTrigger value="sources" className="gap-1.5">
-                    <FolderOpen className="w-4 h-4" />
-                    Sources
-                  </TabsTrigger>
-                </TabsList>
-
-                {/* View toggle - only for drawings tab */}
-                {activeTab === 'drawings' && (
-                  <div className="flex items-center bg-white border border-gray-200 rounded-lg p-0.5">
-                    <button
-                      onClick={() => setViewMode('table')}
-                      className={`p-1.5 rounded-md transition-colors ${
-                        viewMode === 'table'
-                          ? 'bg-gray-100 text-gray-900'
-                          : 'text-gray-400 hover:text-gray-600'
-                      }`}
-                      title="Table view"
-                    >
-                      <List className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => setViewMode('cards')}
-                      className={`p-1.5 rounded-md transition-colors ${
-                        viewMode === 'cards'
-                          ? 'bg-gray-100 text-gray-900'
-                          : 'text-gray-400 hover:text-gray-600'
-                      }`}
-                      title="Card view"
-                    >
-                      <LayoutGrid className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
+            {/* View toggle - only for drawings tab */}
+            {activeTab === 'drawings' && (
+              <div className="flex items-center bg-white border border-gray-200 rounded-lg p-0.5">
+                <button
+                  onClick={() => setViewMode('table')}
+                  className={`p-1.5 rounded-md transition-colors ${
+                    viewMode === 'table'
+                      ? 'bg-gray-100 text-gray-900'
+                      : 'text-gray-400 hover:text-gray-600'
+                  }`}
+                  title="Table view"
+                >
+                  <List className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('cards')}
+                  className={`p-1.5 rounded-md transition-colors ${
+                    viewMode === 'cards'
+                      ? 'bg-gray-100 text-gray-900'
+                      : 'text-gray-400 hover:text-gray-600'
+                  }`}
+                  title="Card view"
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
               </div>
+            )}
+          </div>
 
-              {/* ======================================================= */}
-              {/* DRAWINGS TAB                                             */}
-              {/* ======================================================= */}
-              <TabsContent value="drawings">
+          {/* ======================================================= */}
+          {/* ALL FILES TAB                                            */}
+          {/* ======================================================= */}
+          <TabsContent value="all-files">
+            <AllFilesBrowser
+              projectId={project.id}
+              dropboxFolder={project.dropboxFolder}
+            />
+          </TabsContent>
+
+          {/* ======================================================= */}
+          {/* DRAWINGS TAB — sidebar INSIDE this tab content           */}
+          {/* ======================================================= */}
+          <TabsContent value="drawings">
+            <div className="flex gap-6">
+              {/* Filter Sidebar */}
+              <FilterSidebar
+                selectedDiscipline={filters.discipline}
+                onDisciplineChange={(d) => setFilters((prev) => ({ ...prev, discipline: d }))}
+                disciplineCounts={disciplineCounts}
+                selectedFloorId={filters.floorId}
+                onFloorChange={(f) => setFilters((prev) => ({ ...prev, floorId: f }))}
+                floors={Array.isArray(floors) ? floors.map((f: any) => ({ id: f.id, name: f.name, shortName: f.shortName || f.name?.substring(0, 3)?.toUpperCase() || '' })) : []}
+                floorCounts={floorCounts}
+                selectedStatus={filters.status}
+                onStatusChange={(s) => setFilters((prev) => ({ ...prev, status: s }))}
+                statusCounts={statusCounts}
+                projectId={project.id}
+                onFloorAdded={() => mutateFloors()}
+              />
+
+              {/* Drawing register */}
+              <div className="flex-1 min-w-0">
                 {drawingsLoading ? (
                   <DrawingsLoadingSkeleton viewMode={viewMode} />
                 ) : drawings.length === 0 ? (
@@ -342,62 +355,59 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
                     selectedDrawingId={selectedDrawingId}
                   />
                 )}
-              </TabsContent>
+              </div>
 
-              {/* ======================================================= */}
-              {/* TRANSMITTALS TAB                                         */}
-              {/* ======================================================= */}
-              <TabsContent value="transmittals">
-                <TransmittalLog
-                  transmittals={transmittals}
-                  isLoading={transmittalsLoading}
-                  onViewDetail={(t) => setViewTransmittal(t)}
-                  onCreateNew={() => setShowNewTransmittal(true)}
-                />
-              </TabsContent>
-
-              {/* ======================================================= */}
-              {/* SOURCES TAB                                              */}
-              {/* ======================================================= */}
-              <TabsContent value="sources">
-                <SourcesGrid
+              {/* Drawing detail panel (slide-out, inside drawings flex) */}
+              {selectedDrawingId && (
+                <DrawingDetailPanel
                   projectId={project.id}
-                  dropboxFolder={project.dropboxFolder}
+                  drawingId={selectedDrawingId}
+                  onClose={() => setSelectedDrawingId(null)}
+                  onEdit={() => {
+                    const found = drawings.find((d: any) => d.id === selectedDrawingId)
+                    if (found) {
+                      setEditDrawing(found)
+                      setShowAddDrawing(true)
+                    }
+                  }}
+                  onNewRevision={() => {
+                    const found = drawings.find((d: any) => d.id === selectedDrawingId)
+                    if (found) setRevisionDrawing(found)
+                  }}
+                  onCreateTransmittal={() => {
+                    const found = drawings.find((d: any) => d.id === selectedDrawingId)
+                    if (found) {
+                      setTransmittalPreSelectedDrawings([found])
+                      setShowNewTransmittal(true)
+                    }
+                  }}
                 />
-              </TabsContent>
-            </Tabs>
-          </div>
+              )}
+            </div>
+          </TabsContent>
 
-          {/* -------------------------------------------------------------- */}
-          {/* DRAWING DETAIL PANEL (slide-out)                               */}
-          {/* -------------------------------------------------------------- */}
-          {selectedDrawingId && (
-            <DrawingDetailPanel
+          {/* ======================================================= */}
+          {/* PHOTOS TAB                                               */}
+          {/* ======================================================= */}
+          <TabsContent value="photos">
+            <PhotosGallery
               projectId={project.id}
-              drawingId={selectedDrawingId}
-              onClose={() => setSelectedDrawingId(null)}
-              onEdit={() => {
-                // Find the drawing from the list to populate edit dialog
-                const found = drawings.find((d: any) => d.id === selectedDrawingId)
-                if (found) {
-                  setEditDrawing(found)
-                  setShowAddDrawing(true)
-                }
-              }}
-              onNewRevision={() => {
-                const found = drawings.find((d: any) => d.id === selectedDrawingId)
-                if (found) setRevisionDrawing(found)
-              }}
-              onCreateTransmittal={() => {
-                const found = drawings.find((d: any) => d.id === selectedDrawingId)
-                if (found) {
-                  setTransmittalPreSelectedDrawings([found])
-                  setShowNewTransmittal(true)
-                }
-              }}
+              dropboxFolder={project.dropboxFolder}
             />
-          )}
-        </div>
+          </TabsContent>
+
+          {/* ======================================================= */}
+          {/* TRANSMITTALS TAB                                         */}
+          {/* ======================================================= */}
+          <TabsContent value="transmittals">
+            <TransmittalLog
+              transmittals={transmittals}
+              isLoading={transmittalsLoading}
+              onViewDetail={(t) => setViewTransmittal(t)}
+              onCreateNew={() => setShowNewTransmittal(true)}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* ---------------------------------------------------------------- */}
