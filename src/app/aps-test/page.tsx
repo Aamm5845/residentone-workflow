@@ -126,9 +126,14 @@ export default function ApsTestPage() {
     setFolderFiles(relevant)
     setSelectedFile(null)
 
-    // Auto-detect CTB file
+    // Auto-detect CTB file and auto-configure plot options
     const ctb = relevant.find(f => /\.(ctb|stb)$/i.test(f.name))
-    if (ctb) setCtbFile(ctb)
+    if (ctb) {
+      setCtbFile(ctb)
+      setPlotOptions(o => ({ ...o, plotStyleTable: ctb.name, plotStyles: true }))
+    } else {
+      setCtbFile(null)
+    }
   }
 
   // Upload & process
@@ -149,7 +154,8 @@ export default function ApsTestPage() {
 
     addLog(`Main file: "${selectedFile.name}" (${(selectedFile.size / 1024 / 1024).toFixed(1)} MB)`)
     addLog(`Folder: ${folderName} (${folderFiles.length} files total)`)
-    addLog(`Xref/reference files: ${xrefFiles.length}`)
+    addLog(`Bundled reference files: ${xrefFiles.length}`)
+    if (ctbFile) addLog(`Plot style: ${ctbFile.name} (auto-detected)`)
     addLog(`Output: ${outputFormat === 'svf2' ? '2D Viewer' : 'Plot to PDF'}`)
 
     try {
@@ -167,9 +173,10 @@ export default function ApsTestPage() {
 
       if (outputFormat === 'pdf') {
         formData.append('plotOptions', JSON.stringify(plotOptions))
+        // Send CTB separately for Design Automation (it needs it as a distinct input)
         if (ctbFile) {
           formData.append('ctbFile', ctbFile)
-          addLog(`Including CTB: ${ctbFile.name}`)
+          addLog(`CTB for plotting: ${ctbFile.name}`)
         }
       }
 
@@ -440,8 +447,8 @@ export default function ApsTestPage() {
         <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
           <h2 className="text-base font-semibold text-gray-900 mb-3">1. Select Project Folder</h2>
           <p className="text-xs text-gray-500 mb-4">
-            Choose the folder containing your DWG files and all referenced files (xrefs, images, etc.).
-            All files will be bundled together so references are resolved correctly.
+            Choose the folder containing your DWG files and references (xrefs, images, CTB).
+            Just like AutoCAD — the engine reads the folder and automatically resolves what it needs.
           </p>
 
           <input
@@ -490,6 +497,18 @@ export default function ApsTestPage() {
                   <p className="text-purple-600">CTB</p>
                 </div>
               </div>
+
+              {/* CTB auto-detected notice */}
+              {ctbFile && (
+                <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-xs text-purple-700">
+                    Plot style detected: <strong>{ctbFile.name}</strong> — will be used automatically when plotting to PDF
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -499,7 +518,8 @@ export default function ApsTestPage() {
           <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
             <h2 className="text-base font-semibold text-gray-900 mb-3">2. Choose Drawing to Open</h2>
             <p className="text-xs text-gray-500 mb-4">
-              Select which DWG file is the main drawing. All other files in the folder will be included as xrefs.
+              Pick the main drawing to open. All other files (DWGs, images, CTB) are bundled automatically
+              — the engine resolves only the references it needs, just like AutoCAD.
             </p>
 
             <div className="space-y-1.5 mb-4 max-h-64 overflow-y-auto">
@@ -536,10 +556,10 @@ export default function ApsTestPage() {
             </div>
 
             {/* Other files (xrefs) preview */}
-            {otherFiles.length > 0 && selectedFile && (
+            {xrefFiles.length > 0 && selectedFile && (
               <div className="bg-gray-50 rounded-lg border border-gray-200 p-3 mb-4">
                 <p className="text-xs font-medium text-gray-600 mb-2">
-                  Will include as references ({xrefFiles.length} files):
+                  Bundled with drawing ({xrefFiles.length} files — engine resolves what it needs):
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {xrefFiles.slice(0, 15).map((f, i) => {
@@ -656,19 +676,21 @@ export default function ApsTestPage() {
                             <input ref={ctbInputRef} type="file" accept=".ctb,.stb" className="hidden" onChange={(e) => {
                               if (e.target.files?.[0]) {
                                 setCtbFile(e.target.files[0])
-                                setPlotOptions(o => ({ ...o, plotStyleTable: e.target.files![0].name }))
+                                setPlotOptions(o => ({ ...o, plotStyleTable: e.target.files![0].name, plotStyles: true }))
                               }
                             }} />
-                            <button onClick={() => ctbInputRef.current?.click()} className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-                              Choose .ctb
-                            </button>
                             {ctbFile ? (
-                              <span className="text-xs text-gray-600 flex items-center gap-1">
-                                {ctbFile.name}
-                                <button onClick={() => { setCtbFile(null); setPlotOptions(o => ({ ...o, plotStyleTable: '' })) }} className="text-red-400 hover:text-red-600 ml-1">✕</button>
+                              <span className="text-xs text-purple-700 flex items-center gap-2 bg-purple-50 border border-purple-200 rounded-lg px-3 py-1.5">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                <strong>{ctbFile.name}</strong> (from folder)
+                                <button onClick={() => { setCtbFile(null); setPlotOptions(o => ({ ...o, plotStyleTable: '', plotStyles: false })) }} className="text-purple-400 hover:text-red-600 ml-1">✕</button>
                               </span>
                             ) : (
-                              <span className="text-xs text-gray-400">Auto-detected from folder or none</span>
+                              <button onClick={() => ctbInputRef.current?.click()} className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                                Choose .ctb manually
+                              </button>
                             )}
                           </div>
                         </div>
