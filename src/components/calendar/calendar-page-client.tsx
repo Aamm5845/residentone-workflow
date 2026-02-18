@@ -825,7 +825,7 @@ export default function CalendarPageClient({
         </div>
       </div>
 
-      {/* Day Detail Panel */}
+      {/* Day Detail Panel with Hourly Time Slots */}
       {selectedDay !== null && (() => {
         const dayTasks = getTasksForDate(selectedDay)
         const dayHolidays = getHolidaysForDate(selectedDay)
@@ -833,7 +833,39 @@ export default function CalendarPageClient({
         const dayMeetings = getMeetingsForDate(selectedDay)
         const selectedDate = new Date(currentYear, currentMonth, selectedDay)
         const dateStr = selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
-        const hasContent = dayTasks.length > 0 || dayMeetings.length > 0 || dayHolidays.length > 0 || dayOffDays.length > 0
+
+        // Time slot hours: 9 AM to 6 PM
+        const timeSlotHours = Array.from({ length: 10 }, (_, i) => i + 9) // 9, 10, 11, ... 18
+
+        // Helper: get hour from meeting time string (ISO)
+        const getMeetingHour = (timeStr: string) => {
+          const d = new Date(timeStr)
+          return d.getHours()
+        }
+
+        // Group meetings by their start hour
+        const meetingsByHour: Record<number, MeetingItem[]> = {}
+        dayMeetings.forEach(meeting => {
+          const hour = getMeetingHour(meeting.startTime)
+          if (!meetingsByHour[hour]) meetingsByHour[hour] = []
+          meetingsByHour[hour].push(meeting)
+        })
+
+        // Calculate meeting duration in hours (minimum 1 slot)
+        const getMeetingSpan = (meeting: MeetingItem) => {
+          const start = new Date(meeting.startTime)
+          const end = new Date(meeting.endTime)
+          const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60)
+          return Math.max(1, Math.round(diffHours))
+        }
+
+        // Format hour for display
+        const formatHour = (hour: number) => {
+          if (hour === 0) return '12 AM'
+          if (hour < 12) return `${hour} AM`
+          if (hour === 12) return '12 PM'
+          return `${hour - 12} PM`
+        }
 
         return (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 mt-4 overflow-hidden">
@@ -877,124 +909,167 @@ export default function CalendarPageClient({
               </div>
             </div>
 
-            {/* Panel Content */}
-            <div className="p-5">
-              {!hasContent ? (
-                <div className="text-center py-6">
-                  <CalendarDays className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                  <p className="text-sm text-gray-500">Nothing scheduled for this day</p>
-                  <p className="text-xs text-gray-400 mt-1">Schedule a meeting or add a vacation day</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {/* Holidays */}
-                  {dayHolidays.length > 0 && (
+            {/* Holidays & Off Days (above time grid) */}
+            {(dayHolidays.length > 0 || dayOffDays.length > 0) && (
+              <div className="px-5 py-3 border-b border-gray-100 space-y-2">
+                {dayHolidays.map(holiday => (
+                  <div key={holiday.id} className="flex items-center gap-2 p-2 rounded-lg bg-purple-50 border border-purple-100">
+                    <span className="text-base">{getHolidayIcon(holiday)}</span>
                     <div>
-                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Holidays</h4>
-                      <div className="space-y-1.5">
-                        {dayHolidays.map(holiday => (
-                          <div key={holiday.id} className="flex items-center gap-2 p-2 rounded-lg bg-purple-50 border border-purple-100">
-                            <span className="text-base">{getHolidayIcon(holiday)}</span>
-                            <div>
-                              <p className="text-sm font-medium text-purple-900">{holiday.name}</p>
-                              <p className="text-xs text-purple-600">{holiday.description}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                      <p className="text-sm font-medium text-purple-900">{holiday.name}</p>
+                      <p className="text-xs text-purple-600">{holiday.description}</p>
                     </div>
-                  )}
-
-                  {/* Off Days */}
-                  {dayOffDays.length > 0 && (
+                  </div>
+                ))}
+                {dayOffDays.map(od => (
+                  <div key={od.id} className="flex items-center gap-2 p-2 rounded-lg bg-amber-50 border border-amber-100">
+                    <Umbrella className="w-4 h-4 text-amber-500" />
                     <div>
-                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Team Off</h4>
-                      <div className="space-y-1.5">
-                        {dayOffDays.map(od => (
-                          <div key={od.id} className="flex items-center gap-2 p-2 rounded-lg bg-amber-50 border border-amber-100">
-                            <Umbrella className="w-4 h-4 text-amber-500" />
-                            <div>
-                              <p className="text-sm font-medium text-amber-900">{od.userName}</p>
-                              <p className="text-xs text-amber-600">{getOffDayLabel(od.reason)}{od.notes ? ` — ${od.notes}` : ''}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                      <p className="text-sm font-medium text-amber-900">{od.userName}</p>
+                      <p className="text-xs text-amber-600">{getOffDayLabel(od.reason)}{od.notes ? ` — ${od.notes}` : ''}</p>
                     </div>
-                  )}
+                  </div>
+                ))}
+              </div>
+            )}
 
-                  {/* Meetings */}
-                  {dayMeetings.length > 0 && (
-                    <div>
-                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Meetings ({dayMeetings.length})</h4>
-                      <div className="space-y-1.5">
-                        {dayMeetings.map(meeting => (
-                          <div
-                            key={meeting.id}
-                            onClick={() => handleMeetingClick(meeting)}
-                            className="flex items-center gap-3 p-3 rounded-lg bg-cyan-50 border border-cyan-100 cursor-pointer hover:bg-cyan-100/70 transition-colors"
-                          >
-                            <div className="w-8 h-8 rounded-lg bg-cyan-500 text-white flex items-center justify-center flex-shrink-0">
-                              <Video className="w-4 h-4" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-gray-900 truncate">{meeting.title}</p>
-                              <p className="text-xs text-gray-500">
-                                {formatMeetingTime(meeting.startTime)} — {formatMeetingTime(meeting.endTime)}
-                                {meeting.project && <span className="text-cyan-600 ml-1.5">• {meeting.project.name}</span>}
-                              </p>
-                            </div>
-                            <ArrowRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                          </div>
-                        ))}
-                      </div>
+            {/* Time Slot Grid (9 AM - 6 PM) */}
+            <div className="divide-y divide-gray-100">
+              {timeSlotHours.map(hour => {
+                const hourMeetings = meetingsByHour[hour] || []
+                const isNow = todayRef.date === selectedDay &&
+                              todayRef.month === currentMonth &&
+                              todayRef.year === currentYear &&
+                              new Date().getHours() === hour
+
+                return (
+                  <div
+                    key={hour}
+                    className={`flex min-h-[52px] group ${isNow ? 'bg-cyan-50/50' : 'hover:bg-gray-50/50'}`}
+                  >
+                    {/* Time label */}
+                    <div className={`w-20 flex-shrink-0 px-3 py-2 text-xs font-medium text-right border-r border-gray-100 ${
+                      isNow ? 'text-cyan-600' : 'text-gray-400'
+                    }`}>
+                      {formatHour(hour)}
+                      {isNow && (
+                        <div className="mt-0.5 text-[10px] text-cyan-500">Now</div>
+                      )}
                     </div>
-                  )}
 
-                  {/* Tasks */}
-                  {dayTasks.length > 0 && (
-                    <div>
-                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Tasks ({dayTasks.length})</h4>
-                      <div className="space-y-1.5">
-                        {dayTasks.map(task => {
-                          let taskLink = `/stages/${task.id}`
-                          if (task.id.includes('-room-start') || task.id.includes('-room-due')) {
-                            taskLink = '#'
-                          } else if (task.type === 'task') {
-                            const actualId = task.id.replace(/^task-/, '').replace(/-(start|due)$/, '')
-                            taskLink = `/tasks/${actualId}`
-                          } else if (task.id.includes('-start')) {
-                            const stageId = task.id.replace('-start', '')
-                            taskLink = `/stages/${stageId}`
-                          }
+                    {/* Content area */}
+                    <div className="flex-1 px-3 py-1.5 relative">
+                      {hourMeetings.length > 0 ? (
+                        <div className="space-y-1">
+                          {hourMeetings.map(meeting => {
+                            const span = getMeetingSpan(meeting)
+                            const locationIcon = meeting.locationType === 'VIRTUAL' ? (
+                              <Video className="w-3 h-3 flex-shrink-0" />
+                            ) : (
+                              <MapPin className="w-3 h-3 flex-shrink-0" />
+                            )
 
-                          const PhaseIcon = getPhaseIcon(task.stageType)
-                          const phaseConf = phaseConfig[task.stageType || '']
-
-                          return (
-                            <Link key={task.id} href={taskLink}>
-                              <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 border border-gray-100 cursor-pointer hover:bg-gray-100/70 transition-colors">
-                                <div className={`w-8 h-8 rounded-lg text-white flex items-center justify-center flex-shrink-0 ${phaseConf?.color || 'bg-gray-500'}`}>
-                                  <PhaseIcon className="w-4 h-4" />
+                            return (
+                              <div
+                                key={meeting.id}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleMeetingClick(meeting)
+                                }}
+                                className={`flex items-start gap-2.5 p-2.5 rounded-lg cursor-pointer hover:shadow-md transition-all border ${
+                                  span > 1
+                                    ? 'bg-gradient-to-r from-cyan-500 to-cyan-600 text-white border-cyan-600'
+                                    : 'bg-cyan-50 border-cyan-200 text-gray-900 hover:bg-cyan-100'
+                                }`}
+                              >
+                                <div className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                                  span > 1 ? 'bg-white/20' : 'bg-cyan-500 text-white'
+                                }`}>
+                                  <Video className="w-3.5 h-3.5" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-gray-900 truncate">{task.title}</p>
-                                  <p className="text-xs text-gray-500 truncate">
-                                    {task.projectName}
-                                    {task.assignedUser && <span className="ml-1.5">• {task.assignedUser.name}</span>}
+                                  <p className={`text-sm font-semibold truncate ${span > 1 ? 'text-white' : 'text-gray-900'}`}>
+                                    {meeting.title}
                                   </p>
+                                  <div className={`flex items-center gap-2 mt-0.5 text-xs ${span > 1 ? 'text-cyan-100' : 'text-gray-500'}`}>
+                                    <Clock className="w-3 h-3 flex-shrink-0" />
+                                    <span>{formatMeetingTime(meeting.startTime)} — {formatMeetingTime(meeting.endTime)}</span>
+                                  </div>
+                                  <div className={`flex items-center gap-1.5 mt-0.5 text-xs ${span > 1 ? 'text-cyan-100' : 'text-gray-500'}`}>
+                                    {locationIcon}
+                                    <span className="truncate">
+                                      {meeting.locationDetails || (meeting.locationType === 'VIRTUAL' ? 'Virtual' : meeting.locationType === 'OUR_OFFICE' ? 'Our Office' : 'On Site')}
+                                    </span>
+                                    {meeting.project && (
+                                      <span className={`ml-1 ${span > 1 ? 'text-cyan-200' : 'text-cyan-600'}`}>• {meeting.project.name}</span>
+                                    )}
+                                  </div>
+                                  {meeting.attendees.length > 0 && (
+                                    <div className={`flex items-center gap-1 mt-1 text-xs ${span > 1 ? 'text-cyan-200' : 'text-gray-400'}`}>
+                                      <Users className="w-3 h-3" />
+                                      <span>{meeting.attendees.length} attendee{meeting.attendees.length !== 1 ? 's' : ''}</span>
+                                    </div>
+                                  )}
                                 </div>
-                                <ArrowRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                <ArrowRight className={`w-4 h-4 flex-shrink-0 mt-1 ${span > 1 ? 'text-cyan-200' : 'text-gray-400'}`} />
                               </div>
-                            </Link>
-                          )
-                        })}
-                      </div>
+                            )
+                          })}
+                        </div>
+                      ) : (
+                        <div className="h-full flex items-center">
+                          <span className="text-xs text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity">
+                            No meetings
+                          </span>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              )}
+                  </div>
+                )
+              })}
             </div>
+
+            {/* Tasks section (below time grid) */}
+            {dayTasks.length > 0 && (
+              <div className="border-t border-gray-200 px-5 py-4">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Tasks ({dayTasks.length})</h4>
+                <div className="space-y-1.5">
+                  {dayTasks.map(task => {
+                    let taskLink = `/stages/${task.id}`
+                    if (task.id.includes('-room-start') || task.id.includes('-room-due')) {
+                      taskLink = '#'
+                    } else if (task.type === 'task') {
+                      const actualId = task.id.replace(/^task-/, '').replace(/-(start|due)$/, '')
+                      taskLink = `/tasks/${actualId}`
+                    } else if (task.id.includes('-start')) {
+                      const stageId = task.id.replace('-start', '')
+                      taskLink = `/stages/${stageId}`
+                    }
+
+                    const PhaseIcon = getPhaseIcon(task.stageType)
+                    const phaseConf = phaseConfig[task.stageType || '']
+
+                    return (
+                      <Link key={task.id} href={taskLink}>
+                        <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 border border-gray-100 cursor-pointer hover:bg-gray-100/70 transition-colors">
+                          <div className={`w-8 h-8 rounded-lg text-white flex items-center justify-center flex-shrink-0 ${phaseConf?.color || 'bg-gray-500'}`}>
+                            <PhaseIcon className="w-4 h-4" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">{task.title}</p>
+                            <p className="text-xs text-gray-500 truncate">
+                              {task.projectName}
+                              {task.assignedUser && <span className="ml-1.5">• {task.assignedUser.name}</span>}
+                            </p>
+                          </div>
+                          <ArrowRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        </div>
+                      </Link>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )
       })()}
