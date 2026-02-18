@@ -6,10 +6,12 @@ import { dropboxService } from '@/lib/dropbox-service-v2'
 export const runtime = 'nodejs'
 
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.heic']
+const VIDEO_EXTENSIONS = ['.mp4', '.mov', '.avi', '.mkv', '.webm']
+const MEDIA_EXTENSIONS = [...IMAGE_EXTENSIONS, ...VIDEO_EXTENSIONS]
 
-function isImageFile(filename: string): boolean {
+function isMediaFile(filename: string): boolean {
   const lower = filename.toLowerCase()
-  return IMAGE_EXTENSIONS.some(ext => lower.endsWith(ext))
+  return MEDIA_EXTENSIONS.some(ext => lower.endsWith(ext))
 }
 
 interface ImageEntry {
@@ -65,7 +67,7 @@ export async function GET(
     const photosBase = project.dropboxFolder + '/5- Photos'
     const targetPath = subfolder ? photosBase + '/' + subfolder : photosBase
 
-    // Recursively list all image files
+    // Recursively list all media files (images + videos)
     const allImages = await listImagesRecursive(targetPath)
 
     // Sort by lastModified descending (newest first)
@@ -286,9 +288,24 @@ export async function PATCH(
     }
 
     // Sanitize new name
-    const sanitized = newName.replace(/[<>:"/\\|?*]/g, '').trim()
+    let sanitized = newName.replace(/[<>:"/\\|?*]/g, '').trim()
     if (!sanitized) {
       return NextResponse.json({ error: 'Invalid file name' }, { status: 400 })
+    }
+
+    // Preserve the original file extension if the user removed it
+    const originalFilename = dropboxPath.split('/').pop() || ''
+    const originalExtMatch = originalFilename.match(/(\.[a-zA-Z0-9]+)$/)
+    if (originalExtMatch) {
+      const originalExt = originalExtMatch[1].toLowerCase()
+      const newExtMatch = sanitized.match(/(\.[a-zA-Z0-9]+)$/)
+      if (!newExtMatch || newExtMatch[1].toLowerCase() !== originalExt) {
+        // Strip any wrong extension the user may have typed, then append the original
+        if (newExtMatch) {
+          sanitized = sanitized.slice(0, -newExtMatch[1].length)
+        }
+        sanitized = sanitized + originalExt
+      }
     }
 
     // Verify project access
@@ -352,7 +369,7 @@ async function listImagesRecursive(folderPath: string): Promise<any[]> {
 
         // Collect image files
         for (const file of result.files) {
-          if (isImageFile(file.name)) {
+          if (isMediaFile(file.name)) {
             images.push(file)
           }
         }

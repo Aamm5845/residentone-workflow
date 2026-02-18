@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { dropboxService } from '@/lib/dropbox-service'
+import { dropboxService } from '@/lib/dropbox-service-v2'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -31,10 +31,6 @@ export async function POST(
 
     if (!project.dropboxFolder) {
       return NextResponse.json({ error: 'No Dropbox folder linked to this project' }, { status: 400 })
-    }
-
-    if (!dropboxService.isConfigured()) {
-      return NextResponse.json({ error: 'Dropbox is not configured' }, { status: 500 })
     }
 
     // Parse multipart form data
@@ -74,7 +70,7 @@ export async function POST(
     }
 
     // Upload to Dropbox
-    const uploadResult = await dropboxService.uploadFile(dropboxPath, buffer, { mode: 'add' })
+    const uploadResult = await dropboxService.uploadFile(dropboxPath, buffer)
 
     return NextResponse.json({
       success: true,

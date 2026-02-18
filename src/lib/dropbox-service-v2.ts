@@ -330,6 +330,52 @@ class DropboxServiceV2 {
   }
 
   /**
+   * Upload a file to Dropbox
+   */
+  async uploadFile(path: string, contents: Buffer, memberId?: string): Promise<{ path_display?: string }> {
+    try {
+      const client = this.getClient(memberId)
+      const normalizedPath = path.startsWith('/') ? path : `/${path}`
+      console.log(`[DropboxService] Uploading file: "${normalizedPath}" for member: ${memberId || 'default'}`)
+
+      const response = await client.filesUpload({
+        path: normalizedPath,
+        contents,
+        mode: { '.tag': 'add' },
+        autorename: true,
+      })
+
+      console.log(`[DropboxService] Successfully uploaded: "${normalizedPath}"`)
+      return { path_display: response?.result?.path_display || normalizedPath }
+    } catch (error: any) {
+      console.error('[DropboxService] Error uploading file:', error)
+      throw new Error(`Failed to upload file to Dropbox: ${error.message || 'Unknown error'}`)
+    }
+  }
+
+  /**
+   * Create a folder in Dropbox (ignores "folder already exists" errors)
+   */
+  async createFolder(path: string, memberId?: string): Promise<boolean> {
+    try {
+      const client = this.getClient(memberId)
+      const normalizedPath = path.startsWith('/') ? path : `/${path}`
+      console.log(`[DropboxService] Creating folder: "${normalizedPath}" for member: ${memberId || 'default'}`)
+
+      await client.filesCreateFolderV2({ path: normalizedPath, autorename: false })
+      console.log(`[DropboxService] Successfully created folder: "${normalizedPath}"`)
+      return true
+    } catch (error: any) {
+      // Ignore "folder already exists" error
+      if (error?.error?.error?.['.tag'] === 'path' && error?.error?.error?.path?.['.tag'] === 'conflict') {
+        return true
+      }
+      console.error('[DropboxService] Error creating folder:', error)
+      throw new Error(`Failed to create folder in Dropbox: ${error.message || 'Unknown error'}`)
+    }
+  }
+
+  /**
    * Check if a file has been updated (revision changed)
    */
   async checkFileUpdated(path: string, lastKnownRevision: string, memberId?: string): Promise<boolean> {

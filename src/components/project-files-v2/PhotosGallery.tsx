@@ -23,6 +23,8 @@ import {
   CheckSquare,
   Square,
   Ruler,
+  Play,
+  Video,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -61,6 +63,12 @@ interface PhotosGalleryProps {
 // ---------------------------------------------------------------------------
 
 const fetcher = (url: string) => fetch(url).then(res => res.json())
+
+const VIDEO_EXTENSIONS = ['.mp4', '.mov', '.avi', '.mkv', '.webm']
+function isVideoFile(filename: string): boolean {
+  const lower = filename.toLowerCase()
+  return VIDEO_EXTENSIONS.some(ext => lower.endsWith(ext))
+}
 
 function formatFileSize(bytes: number): string {
   if (bytes === 0) return '—'
@@ -523,7 +531,7 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
           ref={fileInputRef}
           type="file"
           multiple
-          accept="image/*"
+          accept="image/*,video/*"
           className="hidden"
           onChange={handleFileInputChange}
         />
@@ -596,7 +604,7 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
         ref={fileInputRef}
         type="file"
         multiple
-        accept="image/*"
+        accept="image/*,video/*"
         className="hidden"
         onChange={handleFileInputChange}
       />
@@ -685,21 +693,27 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
                   onClick={() => {
                     setUploadType('photo')
                     setShowUploadMenu(false)
-                    fileInputRef.current?.click()
+                    if (fileInputRef.current) {
+                      fileInputRef.current.accept = 'image/*,video/*'
+                      fileInputRef.current.click()
+                    }
                   }}
                   className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                 >
                   <Camera className="w-4 h-4 text-gray-500" />
                   <div className="text-left">
                     <p className="font-medium">Photos</p>
-                    <p className="text-xs text-gray-400">Site photos</p>
+                    <p className="text-xs text-gray-400">Site photos &amp; videos</p>
                   </div>
                 </button>
                 <button
                   onClick={() => {
                     setUploadType('survey')
                     setShowUploadMenu(false)
-                    fileInputRef.current?.click()
+                    if (fileInputRef.current) {
+                      fileInputRef.current.accept = 'image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.dwg,.dxf'
+                      fileInputRef.current.click()
+                    }
                   }}
                   className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                 >
@@ -829,12 +843,23 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
                 onClick={() => selectMode ? toggleSelect(photo.id) : openLightbox(index)}
                 className="w-full h-full"
               >
-                <img
-                  src={photo.url}
-                  alt={photo.name}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
+                {isVideoFile(photo.name) ? (
+                  <div className="w-full h-full relative bg-gray-900 flex items-center justify-center">
+                    <video src={photo.url} className="w-full h-full object-cover" muted preload="metadata" />
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="w-10 h-10 rounded-full bg-black/60 flex items-center justify-center">
+                        <Play className="w-5 h-5 text-white ml-0.5" fill="white" />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <img
+                    src={photo.url}
+                    alt={photo.name}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                )}
                 {/* Hover overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                   <div className="absolute bottom-0 left-0 right-0 p-2.5">
@@ -903,7 +928,9 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
                           e.stopPropagation()
                           setActionMenuPhoto(null)
                           setRenameTarget(photo)
-                          setRenameValue(photo.name)
+                          // Pre-fill with name without extension so user can't accidentally remove it
+                          const extMatch = photo.name.match(/\.[a-zA-Z0-9]+$/)
+                          setRenameValue(extMatch ? photo.name.slice(0, -extMatch[0].length) : photo.name)
                         }}
                         className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                       >
@@ -979,7 +1006,11 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <button
-                    onClick={() => { setRenameTarget(lightboxPhoto); setRenameValue(lightboxPhoto.name) }}
+                    onClick={() => {
+                      setRenameTarget(lightboxPhoto)
+                      const extMatch = lightboxPhoto.name.match(/\.[a-zA-Z0-9]+$/)
+                      setRenameValue(extMatch ? lightboxPhoto.name.slice(0, -extMatch[0].length) : lightboxPhoto.name)
+                    }}
                     className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
                     title="Rename"
                   >
@@ -1045,13 +1076,22 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
                 />
               </div>
 
-              {/* Image */}
+              {/* Image / Video */}
               <div className="flex-1 relative flex items-center justify-center overflow-hidden">
-                <img
-                  src={lightboxPhoto.url}
-                  alt={lightboxPhoto.name}
-                  className="max-w-full max-h-full object-contain"
-                />
+                {isVideoFile(lightboxPhoto.name) ? (
+                  <video
+                    src={lightboxPhoto.url}
+                    controls
+                    autoPlay
+                    className="max-w-full max-h-full object-contain"
+                  />
+                ) : (
+                  <img
+                    src={lightboxPhoto.url}
+                    alt={lightboxPhoto.name}
+                    className="max-w-full max-h-full object-contain"
+                  />
+                )}
 
                 {/* Prev/Next arrows */}
                 {lightboxIndex !== null && lightboxIndex > 0 && (
@@ -1127,17 +1167,27 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
                 Enter a new name for this photo. This will rename it in Dropbox.
               </p>
             </div>
-            <input
-              type="text"
-              value={renameValue}
-              onChange={(e) => setRenameValue(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-              placeholder="New filename"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && renameValue.trim()) handleRename()
-              }}
-            />
+            <div className="flex items-center gap-0">
+              <input
+                type="text"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                placeholder="New filename"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && renameValue.trim()) handleRename()
+                }}
+              />
+              {renameTarget && (() => {
+                const extMatch = renameTarget.name.match(/\.[a-zA-Z0-9]+$/)
+                return extMatch ? (
+                  <span className="px-3 py-2 text-sm bg-gray-100 border border-l-0 border-gray-300 rounded-r-lg text-gray-500">
+                    {extMatch[0]}
+                  </span>
+                ) : null
+              })()}
+            </div>
             <div className="flex items-center justify-end gap-2">
               <Button
                 variant="outline"
