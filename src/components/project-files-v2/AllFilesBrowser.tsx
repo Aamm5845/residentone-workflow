@@ -1,30 +1,11 @@
 'use client'
 
-import { useState, useMemo, useRef, useCallback, Component, type ReactNode } from 'react'
+import { useState, useMemo, useRef, useCallback } from 'react'
 import dynamic from 'next/dynamic'
 import useSWR from 'swr'
 import { Button } from '@/components/ui/button'
 
-const PdfThumbnail = dynamic(() => import('./PdfThumbnail'), { ssr: false })
 const PdfViewer = dynamic(() => import('./PdfViewer'), { ssr: false })
-
-// Error boundary to prevent react-pdf crashes from hiding PDF cards
-class DrawingErrorBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { hasError: boolean }> {
-  constructor(props: { children: ReactNode; fallback: ReactNode }) {
-    super(props)
-    this.state = { hasError: false }
-  }
-  static getDerivedStateFromError() {
-    return { hasError: true }
-  }
-  componentDidCatch(error: Error) {
-    console.error('[DrawingErrorBoundary] PDF rendering error:', error)
-  }
-  render() {
-    if (this.state.hasError) return this.props.fallback
-    return this.props.children
-  }
-}
 import {
   ChevronRight,
   FolderOpen,
@@ -519,6 +500,7 @@ export default function AllFilesBrowser({ projectId, dropboxFolder }: AllFilesBr
         </div>
       ) : (
         <SubfolderContent
+          projectId={projectId}
           folders={folders}
           files={files}
           navigateToFolder={navigateToFolder}
@@ -546,12 +528,14 @@ export default function AllFilesBrowser({ projectId, dropboxFolder }: AllFilesBr
 // ---------------------------------------------------------------------------
 
 function SubfolderContent({
+  projectId,
   folders,
   files,
   navigateToFolder,
   handleDownload,
   handleFileClick,
 }: {
+  projectId: string
   folders: DropboxFileItem[]
   files: DropboxFileItem[]
   navigateToFolder: (path: string) => void
@@ -567,11 +551,6 @@ function SubfolderContent({
   const otherFiles = files.filter(f => !f.name.toLowerCase().endsWith('.pdf') && f.fileType !== 'pdf' && !(f.thumbnailUrl && f.fileType === 'image'))
   const hasDrawings = pdfFiles.length > 0
 
-  // Debug: log file types to help diagnose rendering issues
-  if (typeof window !== 'undefined' && files.length > 0) {
-    console.log('[SubfolderContent] File types:', files.map(f => ({ name: f.name, fileType: f.fileType, isPdf: f.name.toLowerCase().endsWith('.pdf') })))
-    console.log('[SubfolderContent] PDFs:', pdfFiles.length, 'Images:', imageFiles.length, 'Other:', otherFiles.length)
-  }
 
   return (
     <div className="space-y-5">
@@ -612,7 +591,7 @@ function SubfolderContent({
       {hasDrawings && viewMode === 'grid' && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {pdfFiles.map((file) => (
-            <DrawingCard key={file.id} file={file} onDownload={handleDownload} onFileClick={handleFileClick} />
+            <DrawingCard key={file.id} file={file} projectId={projectId} onDownload={handleDownload} onFileClick={handleFileClick} />
           ))}
         </div>
       )}
@@ -707,9 +686,14 @@ function extractDrawingTitle(name: string): string {
   return withoutExt.toUpperCase()
 }
 
-function DrawingCard({ file, onDownload, onFileClick }: { file: DropboxFileItem; onDownload: (f: DropboxFileItem) => void; onFileClick: (f: DropboxFileItem) => void }) {
+function DrawingCard({ file, projectId, onDownload, onFileClick }: { file: DropboxFileItem; projectId: string; onDownload: (f: DropboxFileItem) => void; onFileClick: (f: DropboxFileItem) => void }) {
   const drawingNumber = extractDrawingNumber(file.name)
   const drawingTitle = extractDrawingTitle(file.name)
+  const [imgLoaded, setImgLoaded] = useState(false)
+  const [imgError, setImgError] = useState(false)
+
+  // Server-side PDF thumbnail URL
+  const thumbnailSrc = `/api/projects/${projectId}/project-files-v2/pdf-thumbnail?path=${encodeURIComponent(file.path)}`
 
   return (
     <div className="group relative flex flex-col bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg hover:border-blue-300 transition-all cursor-pointer">
@@ -719,24 +703,27 @@ function DrawingCard({ file, onDownload, onFileClick }: { file: DropboxFileItem;
         <p className="text-[10px] text-gray-500 truncate leading-tight mt-0.5">{drawingTitle}</p>
       </div>
 
-      {/* Thumbnail preview */}
+      {/* Thumbnail preview — server-rendered PNG */}
       <button
         onClick={() => onFileClick(file)}
         className="relative w-full aspect-[4/3] bg-gray-50 overflow-hidden"
       >
-        {file.thumbnailUrl ? (
-          <DrawingErrorBoundary fallback={
-            <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50">
-              <FileText className="w-10 h-10 text-red-300" />
-              <span className="text-[9px] text-gray-400 mt-1">Preview unavailable</span>
-            </div>
-          }>
-            <PdfThumbnail
-              url={file.thumbnailUrl}
-              width={280}
-              className="w-full h-full"
+        {!imgError ? (
+          <>
+            {!imgLoaded && (
+              <div className="absolute inset-0 bg-gray-50 animate-pulse flex items-center justify-center z-10">
+                <FileText className="w-10 h-10 text-gray-300" />
+              </div>
+            )}
+            <img
+              src={thumbnailSrc}
+              alt={file.name}
+              className={cn('w-full h-full object-contain bg-white', !imgLoaded && 'opacity-0')}
+              loading="lazy"
+              onLoad={() => setImgLoaded(true)}
+              onError={() => setImgError(true)}
             />
-          </DrawingErrorBoundary>
+          </>
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50">
             <FileText className="w-10 h-10 text-gray-300" />

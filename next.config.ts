@@ -6,6 +6,7 @@ import { withSentryConfig } from '@sentry/nextjs'
 const BUILD_TIME = new Date().toISOString()
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ['@napi-rs/canvas', 'unpdf', 'pdfjs-dist'],
   experimental: {
     serverActions: {
       allowedOrigins: [
