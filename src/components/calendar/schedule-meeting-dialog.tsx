@@ -539,7 +539,7 @@ export function ScheduleMeetingDialog({ projects, editMeeting, trigger, onSucces
           {/* Attendees */}
           <div className="space-y-1.5">
             <Label>Attendees</Label>
-            <AttendeeCombobox selected={attendees} onChange={setAttendees} />
+            <AttendeeCombobox selected={attendees} onChange={setAttendees} projectId={selectedProjectId || undefined} />
           </div>
 
           {/* Description */}

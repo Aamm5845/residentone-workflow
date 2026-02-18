@@ -28,9 +28,10 @@ export interface SelectedAttendee {
 interface AttendeeComboboxProps {
   selected: SelectedAttendee[]
   onChange: (attendees: SelectedAttendee[]) => void
+  projectId?: string
 }
 
-export function AttendeeCombobox({ selected, onChange }: AttendeeComboboxProps) {
+export function AttendeeCombobox({ selected, onChange, projectId }: AttendeeComboboxProps) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<AttendeeResult[]>([])
   const [isOpen, setIsOpen] = useState(false)
@@ -40,6 +41,15 @@ export function AttendeeCombobox({ selected, onChange }: AttendeeComboboxProps) 
   const [externalEmail, setExternalEmail] = useState('')
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // Load project contacts when projectId changes
+  useEffect(() => {
+    if (projectId) {
+      searchAttendees('')
+    } else {
+      setResults([])
+    }
+  }, [projectId, searchAttendees])
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -54,13 +64,16 @@ export function AttendeeCombobox({ selected, onChange }: AttendeeComboboxProps) 
   }, [])
 
   const searchAttendees = useCallback(async (q: string) => {
-    if (q.length < 1) {
+    if (q.length < 1 && !projectId) {
       setResults([])
       return
     }
     setIsLoading(true)
     try {
-      const res = await fetch(`/api/meetings/attendees/search?q=${encodeURIComponent(q)}`)
+      const params = new URLSearchParams()
+      if (q.length >= 1) params.set('q', q)
+      if (projectId) params.set('projectId', projectId)
+      const res = await fetch(`/api/meetings/attendees/search?${params.toString()}`)
       if (res.ok) {
         const data = await res.json()
         setResults(data.results || [])
@@ -69,7 +82,7 @@ export function AttendeeCombobox({ selected, onChange }: AttendeeComboboxProps) 
       console.error('Failed to search attendees:', err)
     }
     setIsLoading(false)
-  }, [])
+  }, [projectId])
 
   const handleInputChange = (value: string) => {
     setQuery(value)
@@ -190,13 +203,18 @@ export function AttendeeCombobox({ selected, onChange }: AttendeeComboboxProps) 
           placeholder="Search team members, clients, contractors..."
           value={query}
           onChange={(e) => handleInputChange(e.target.value)}
-          onFocus={() => { if (query.length >= 1) setIsOpen(true) }}
+          onFocus={() => {
+            setIsOpen(true)
+            if (query.length < 1 && projectId) {
+              searchAttendees('')
+            }
+          }}
           className="pl-8 h-9 text-sm"
         />
       </div>
 
       {/* Dropdown results */}
-      {isOpen && (query.length >= 1 || showExternalForm) && (
+      {isOpen && (query.length >= 1 || showExternalForm || (projectId && filteredResults.length > 0)) && (
         <div className="border rounded-md bg-popover shadow-md max-h-[200px] overflow-y-auto">
           {isLoading && (
             <div className="px-3 py-2 text-sm text-muted-foreground">Searching...</div>
@@ -208,7 +226,39 @@ export function AttendeeCombobox({ selected, onChange }: AttendeeComboboxProps) 
             </div>
           )}
 
-          {filteredResults.map((result) => (
+          {/* Project contacts section */}
+          {filteredResults.some((r: any) => r.isProjectContact) && (
+            <div className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider bg-muted/50">
+              Project contacts
+            </div>
+          )}
+          {filteredResults.filter((r: any) => r.isProjectContact).map((result) => (
+            <button
+              key={`${result.type}-${result.id}`}
+              type="button"
+              className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-accent transition-colors text-sm"
+              onClick={() => addAttendee(result)}
+            >
+              {getTypeIcon(result.type)}
+              <div className="flex-1 min-w-0">
+                <div className="font-medium truncate">{result.name}</div>
+                <div className="text-xs text-muted-foreground truncate">{result.email}</div>
+              </div>
+              <Badge variant="outline" className={`text-[10px] ${getTypeBadgeColor(result.type)}`}>
+                {result.type === 'TEAM_MEMBER' ? 'Team' :
+                 result.type === 'CLIENT' ? 'Client' :
+                 result.type === 'SUBCONTRACTOR' ? 'Sub' : 'Contractor'}
+              </Badge>
+            </button>
+          ))}
+
+          {/* Other results section */}
+          {filteredResults.some((r: any) => r.isProjectContact) && filteredResults.some((r: any) => !r.isProjectContact) && (
+            <div className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider bg-muted/50 border-t">
+              Others
+            </div>
+          )}
+          {filteredResults.filter((r: any) => !r.isProjectContact).map((result) => (
             <button
               key={`${result.type}-${result.id}`}
               type="button"
