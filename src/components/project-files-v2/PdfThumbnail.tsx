@@ -26,21 +26,20 @@ function PdfThumbnailInner({ url, width = 280, className }: PdfThumbnailProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [containerWidth, setContainerWidth] = useState<number>(0)
 
-  // Measure the actual container width for responsive rendering
   useEffect(() => {
     if (!containerRef.current) return
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        setContainerWidth(entry.contentRect.width)
+        const w = Math.round(entry.contentRect.width)
+        if (w > 0) setContainerWidth(w)
       }
     })
     observer.observe(containerRef.current)
     return () => observer.disconnect()
   }, [])
 
+  // Use container width if measured, otherwise fallback to prop
   const renderWidth = containerWidth > 0 ? containerWidth : width
-  // Render at 2x for crisp display on retina screens
-  const scale = typeof window !== 'undefined' ? Math.min(window.devicePixelRatio || 1, 2) : 1
 
   if (error) {
     return (
@@ -52,29 +51,28 @@ function PdfThumbnailInner({ url, width = 280, className }: PdfThumbnailProps) {
 
   return (
     <div ref={containerRef} className={cn('relative overflow-hidden bg-white', className)}>
-      {/* Loading skeleton */}
       {!loaded && (
         <div className="absolute inset-0 bg-gray-50 animate-pulse flex items-center justify-center z-10">
           <FileText className="w-10 h-10 text-gray-300" />
         </div>
       )}
-      <Document
-        file={url}
-        loading={null}
-        error={null}
-        onLoadSuccess={() => setLoaded(true)}
-        onLoadError={() => setError(true)}
-      >
-        <Page
-          pageNumber={1}
-          width={renderWidth}
-          scale={scale}
-          renderTextLayer={false}
-          renderAnnotationLayer={false}
+      {renderWidth > 0 && (
+        <Document
+          file={url}
           loading={null}
-          className="[&_canvas]:!w-full [&_canvas]:!h-auto"
-        />
-      </Document>
+          error={null}
+          onLoadSuccess={() => setLoaded(true)}
+          onLoadError={() => setError(true)}
+        >
+          <Page
+            pageNumber={1}
+            width={renderWidth}
+            renderTextLayer={false}
+            renderAnnotationLayer={false}
+            loading={null}
+          />
+        </Document>
+      )}
     </div>
   )
 }
