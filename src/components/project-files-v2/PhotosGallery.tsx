@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import useSWR from 'swr'
+import { upload } from '@vercel/blob/client'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -205,16 +206,39 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
         ? '6- Surveys/' + dateFolder
         : '5- Photos/' + dateFolder
 
+      const MAX_DIRECT_SIZE = 4 * 1024 * 1024 // 4MB — Vercel serverless limit
+
       let done = 0
       for (const file of files) {
         try {
-          const formData = new FormData()
-          formData.append('file', file)
-          formData.append('path', targetPath)
-          await fetch('/api/projects/' + projectId + '/project-files-v2/upload', {
-            method: 'POST',
-            body: formData,
-          })
+          if (file.size > MAX_DIRECT_SIZE) {
+            // Large file: upload to Vercel Blob first, then transfer to Dropbox
+            const sanitizedName = file.name.replace(/[^a-zA-Z0-9._\-() ]/g, '_')
+            const blobPath = `project-files/${projectId}/${dateFolder}/${Date.now()}-${sanitizedName}`
+            const blob = await upload(blobPath, file, {
+              access: 'public',
+              handleUploadUrl: '/api/blob-upload',
+            })
+            // Transfer from blob to Dropbox
+            await fetch('/api/projects/' + projectId + '/project-files-v2/upload-from-blob', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                blobUrl: blob.url,
+                fileName: file.name,
+                targetPath,
+              }),
+            })
+          } else {
+            // Small file: direct upload through server
+            const formData = new FormData()
+            formData.append('file', file)
+            formData.append('path', targetPath)
+            await fetch('/api/projects/' + projectId + '/project-files-v2/upload', {
+              method: 'POST',
+              body: formData,
+            })
+          }
           done++
           setUploadProgress({ done, total: files.length })
         } catch (err) {
