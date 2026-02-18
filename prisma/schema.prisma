@@ -402,6 +402,7 @@ model Project {
   floors                    ProjectFloor[]
   drawings                  ProjectDrawing[]
   transmittals              Transmittal[]
+  photoMeta                 ProjectPhotoMeta[]
 }
 
 // Client Sources - files received from clients (measurements, architect plans, etc.)
@@ -5000,4 +5001,18 @@ model TransmittalItem {
 
   @@index([transmittalId])
   @@index([drawingId])
+}
+
+model ProjectPhotoMeta {
+  id          String   @id @default(cuid())
+  projectId   String
+  dropboxPath String
+  tags        String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, dropboxPath])
+  @@index([projectId])
 }

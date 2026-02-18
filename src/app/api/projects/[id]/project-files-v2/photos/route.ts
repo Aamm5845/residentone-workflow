@@ -21,6 +21,7 @@ interface ImageEntry {
   size: number
   lastModified: string
   folder: string
+  tags: string[]
 }
 
 // GET - List all photos from {dropboxFolder}/5- Photos/ recursively
@@ -127,6 +128,7 @@ export async function GET(
               ? img.lastModified.toISOString()
               : String(img.lastModified),
             folder,
+            tags: [],
           } as ImageEntry
         })
       )
@@ -138,11 +140,34 @@ export async function GET(
       }
     }
 
+    // Merge tags from database
+    const relativePaths = photos.map(p => p.relativePath)
+    const metas = await prisma.projectPhotoMeta.findMany({
+      where: {
+        projectId: id,
+        dropboxPath: { in: relativePaths }
+      },
+      select: { dropboxPath: true, tags: true }
+    })
+    const metaMap = new Map(metas.map(m => [m.dropboxPath, m.tags]))
+
+    for (const photo of photos) {
+      photo.tags = metaMap.get(photo.relativePath) || []
+    }
+
+    // Get all tags used in this project for filter chips
+    const allProjectMetas = await prisma.projectPhotoMeta.findMany({
+      where: { projectId: id },
+      select: { tags: true }
+    })
+    const allTags = [...new Set(allProjectMetas.flatMap(m => m.tags))].sort()
+
     return NextResponse.json({
       success: true,
       photos,
       folders: Array.from(folderSet).sort(),
       total,
+      allTags,
     })
   } catch (error: any) {
     console.error('[project-files-v2/photos] GET error:', error)

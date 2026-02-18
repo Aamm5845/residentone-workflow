@@ -16,6 +16,7 @@ import {
   Upload,
   Loader2,
   CheckCircle,
+  Tag,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -32,6 +33,7 @@ interface PhotoItem {
   size: number
   lastModified: string
   folder: string
+  tags: string[]
 }
 
 interface PhotosResponse {
@@ -39,6 +41,7 @@ interface PhotosResponse {
   photos: PhotoItem[]
   folders: string[]
   total: number
+  allTags: string[]
 }
 
 interface PhotosGalleryProps {
@@ -68,14 +71,24 @@ function formatDate(dateStr: string): string {
   }
 }
 
+function getTodayDateFolder(): string {
+  const now = new Date()
+  const yyyy = now.getFullYear()
+  const mm = String(now.getMonth() + 1).padStart(2, '0')
+  const dd = String(now.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGalleryProps) {
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null)
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [page, setPage] = useState(0)
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+  const [tagInput, setTagInput] = useState('')
 
   const limit = 50
   const offset = page * limit
@@ -94,60 +107,36 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
   const photos = data?.photos ?? []
   const folders = data?.folders ?? []
   const total = data?.total ?? 0
+  const allTags = data?.allTags ?? []
+
+  // Client-side tag filtering
+  const filteredPhotos = useMemo(() => {
+    if (selectedTags.length === 0) return photos
+    return photos.filter(p =>
+      selectedTags.every(tag => p.tags?.includes(tag))
+    )
+  }, [photos, selectedTags])
 
   // Upload state
   const [isDragging, setIsDragging] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null)
   const [uploadSuccess, setUploadSuccess] = useState(false)
+  const [pendingFiles, setPendingFiles] = useState<File[] | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dragCountRef = useRef(0)
 
-  // Upload files to 5- Photos folder (optionally into subfolder)
-  const uploadFiles = useCallback(async (files: FileList | File[]) => {
-    if (files.length === 0) return
-    setUploading(true)
-    setUploadProgress({ done: 0, total: files.length })
-    setUploadSuccess(false)
-
-    // Target path: "5- Photos" or "5- Photos/{subfolder}"
-    const targetPath = selectedFolder
-      ? '5- Photos/' + selectedFolder
-      : '5- Photos'
-
-    let done = 0
-    for (const file of Array.from(files)) {
-      try {
-        const formData = new FormData()
-        formData.append('file', file)
-        formData.append('path', targetPath)
-        await fetch('/api/projects/' + projectId + '/project-files-v2/upload', {
-          method: 'POST',
-          body: formData,
-        })
-        done++
-        setUploadProgress({ done, total: files.length })
-      } catch (err) {
-        console.error('Upload error:', err)
-        done++
-        setUploadProgress({ done, total: files.length })
-      }
-    }
-
-    setUploading(false)
-    setUploadProgress(null)
-    setUploadSuccess(true)
-    mutate() // Refresh photo list
-    setTimeout(() => setUploadSuccess(false), 3000)
-  }, [selectedFolder, projectId, mutate])
-
-  // Handle file input change
+  // Handle file input change — set uploading state IMMEDIATELY (synchronous)
   const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      uploadFiles(e.target.files)
+      const files = Array.from(e.target.files)
+      setUploading(true)
+      setUploadProgress({ done: 0, total: files.length })
+      setUploadSuccess(false)
+      setPendingFiles(files)
       e.target.value = ''
     }
-  }, [uploadFiles])
+  }, [])
 
   // Drag & drop handlers
   const handleDragEnter = useCallback((e: React.DragEvent) => {
@@ -179,33 +168,148 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
     dragCountRef.current = 0
     setIsDragging(false)
     if (e.dataTransfer.files.length > 0) {
-      uploadFiles(e.dataTransfer.files)
+      const files = Array.from(e.dataTransfer.files)
+      setUploading(true)
+      setUploadProgress({ done: 0, total: files.length })
+      setUploadSuccess(false)
+      setPendingFiles(files)
     }
-  }, [uploadFiles])
+  }, [])
 
-  // Reset page when folder filter changes
+  // Effect: upload pending files AFTER React paints the uploading state
+  useEffect(() => {
+    if (!pendingFiles) return
+    const files = pendingFiles
+    setPendingFiles(null)
+
+    const doUpload = async () => {
+      // Auto date folder
+      const dateFolder = getTodayDateFolder()
+      const targetPath = '5- Photos/' + dateFolder
+
+      let done = 0
+      for (const file of files) {
+        try {
+          const formData = new FormData()
+          formData.append('file', file)
+          formData.append('path', targetPath)
+          await fetch('/api/projects/' + projectId + '/project-files-v2/upload', {
+            method: 'POST',
+            body: formData,
+          })
+          done++
+          setUploadProgress({ done, total: files.length })
+        } catch (err) {
+          console.error('Upload error:', err)
+          done++
+          setUploadProgress({ done, total: files.length })
+        }
+      }
+
+      setUploading(false)
+      setUploadProgress(null)
+      setUploadSuccess(true)
+      mutate()
+      setTimeout(() => setUploadSuccess(false), 3000)
+    }
+
+    doUpload()
+  }, [pendingFiles, projectId, mutate])
+
+  // Reset page when folder/tag filter changes
   useEffect(() => {
     setPage(0)
-  }, [selectedFolder])
+  }, [selectedFolder, selectedTags])
+
+  // Toggle tag filter
+  const toggleTag = useCallback((tag: string) => {
+    setSelectedTags(prev =>
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+    )
+  }, [])
+
+  // Add tag to a photo
+  const addTag = useCallback(async (photo: PhotoItem, newTag: string) => {
+    const tag = newTag.toLowerCase().trim()
+    if (!tag || photo.tags?.includes(tag)) return
+
+    const updatedTags = [...(photo.tags || []), tag]
+
+    // Optimistic update
+    mutate(
+      (current: PhotosResponse | undefined) => {
+        if (!current) return current
+        return {
+          ...current,
+          photos: current.photos.map(p =>
+            p.id === photo.id ? { ...p, tags: updatedTags } : p
+          ),
+          allTags: [...new Set([...(current.allTags || []), tag])].sort()
+        }
+      },
+      false
+    )
+
+    // Save to API
+    await fetch('/api/projects/' + projectId + '/project-files-v2/photos/tags', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dropboxPath: photo.relativePath, tags: updatedTags })
+    })
+
+    mutate()
+  }, [projectId, mutate])
+
+  // Remove tag from a photo
+  const removeTag = useCallback(async (photo: PhotoItem, tagToRemove: string) => {
+    const updatedTags = (photo.tags || []).filter(t => t !== tagToRemove)
+
+    // Optimistic update
+    mutate(
+      (current: PhotosResponse | undefined) => {
+        if (!current) return current
+        return {
+          ...current,
+          photos: current.photos.map(p =>
+            p.id === photo.id ? { ...p, tags: updatedTags } : p
+          ),
+        }
+      },
+      false
+    )
+
+    // Save to API
+    await fetch('/api/projects/' + projectId + '/project-files-v2/photos/tags', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dropboxPath: photo.relativePath, tags: updatedTags })
+    })
+
+    mutate()
+  }, [projectId, mutate])
 
   // Lightbox navigation
   const openLightbox = useCallback((index: number) => {
     setLightboxIndex(index)
+    setTagInput('')
   }, [])
 
   const closeLightbox = useCallback(() => {
     setLightboxIndex(null)
+    setTagInput('')
   }, [])
 
   const goToNext = useCallback(() => {
-    if (lightboxIndex !== null && lightboxIndex < photos.length - 1) {
+    if (lightboxIndex !== null && lightboxIndex < filteredPhotos.length - 1) {
       setLightboxIndex(lightboxIndex + 1)
+      setTagInput('')
     }
-  }, [lightboxIndex, photos.length])
+  }, [lightboxIndex, filteredPhotos.length])
 
   const goToPrev = useCallback(() => {
     if (lightboxIndex !== null && lightboxIndex > 0) {
       setLightboxIndex(lightboxIndex - 1)
+      setTagInput('')
     }
   }, [lightboxIndex])
 
@@ -213,6 +317,8 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
   useEffect(() => {
     if (lightboxIndex === null) return
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't navigate when typing in tag input
+      if ((e.target as HTMLElement)?.tagName === 'INPUT') return
       if (e.key === 'ArrowRight') goToNext()
       else if (e.key === 'ArrowLeft') goToPrev()
       else if (e.key === 'Escape') closeLightbox()
@@ -282,10 +388,17 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
             variant="outline"
             size="sm"
             onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
             className="gap-1.5"
           >
-            <Upload className="w-3.5 h-3.5" />
-            Upload Photos
+            {uploading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Upload className="w-3.5 h-3.5" />
+            )}
+            {uploading
+              ? `Uploading ${uploadProgress?.done ?? 0}/${uploadProgress?.total ?? 0}`
+              : 'Upload Photos'}
           </Button>
           {selectedFolder && (
             <Button variant="outline" size="sm" onClick={() => setSelectedFolder(null)}>
@@ -293,12 +406,27 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
             </Button>
           )}
         </div>
+        {/* Upload progress bar in empty state */}
+        {uploading && uploadProgress && (
+          <div className="mt-4 max-w-xs mx-auto">
+            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-teal-500 rounded-full transition-all duration-300"
+                style={{ width: `${(uploadProgress.done / uploadProgress.total) * 100}%` }}
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Uploading {uploadProgress.done} of {uploadProgress.total} photos…
+            </p>
+          </div>
+        )}
       </div>
     )
   }
 
   const hasMore = offset + limit < total
-  const lightboxPhoto = lightboxIndex !== null ? photos[lightboxIndex] : null
+  const lightboxPhoto = lightboxIndex !== null ? filteredPhotos[lightboxIndex] : null
+  const dateFolder = getTodayDateFolder()
 
   return (
     <div
@@ -374,7 +502,7 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
             <Camera className="w-10 h-10 text-teal-500 mx-auto mb-2" />
             <p className="text-sm font-medium text-teal-700">Drop photos to upload</p>
             <p className="text-xs text-teal-500 mt-1">
-              {selectedFolder ? `Photos will be added to ${selectedFolder}` : 'Photos will be added to 5- Photos'}
+              Photos will be saved to 5- Photos/{dateFolder}
             </p>
           </div>
         </div>
@@ -382,7 +510,7 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
 
       {/* Subfolder filter chips */}
       {folders.length > 0 && (
-        <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
           <button
             onClick={() => setSelectedFolder(null)}
             className={cn(
@@ -411,9 +539,38 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
         </div>
       )}
 
+      {/* Tag filter chips */}
+      {allTags.length > 0 && (
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          <Tag className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+          {allTags.map((tag) => (
+            <button
+              key={tag}
+              onClick={() => toggleTag(tag)}
+              className={cn(
+                'px-2.5 py-1 rounded-full text-xs font-medium border transition-colors',
+                selectedTags.includes(tag)
+                  ? 'bg-purple-600 text-white border-purple-600'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+              )}
+            >
+              {tag}
+            </button>
+          ))}
+          {selectedTags.length > 0 && (
+            <button
+              onClick={() => setSelectedTags([])}
+              className="px-2 py-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Photo grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-        {photos.map((photo, index) => (
+        {filteredPhotos.map((photo, index) => (
           <button
             key={photo.id}
             onClick={() => openLightbox(index)}
@@ -438,9 +595,30 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
                 {photo.folder}
               </div>
             )}
+            {/* Tag count badge */}
+            {photo.tags && photo.tags.length > 0 && (
+              <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-purple-600/80 text-[10px] text-white font-medium backdrop-blur-sm flex items-center gap-0.5">
+                <Tag className="w-2.5 h-2.5" />
+                {photo.tags.length}
+              </div>
+            )}
           </button>
         ))}
       </div>
+
+      {/* Filtered results message */}
+      {selectedTags.length > 0 && filteredPhotos.length === 0 && (
+        <div className="py-12 text-center">
+          <Tag className="w-8 h-8 text-gray-300 mx-auto mb-3" />
+          <p className="text-sm text-gray-500">No photos match the selected tags</p>
+          <button
+            onClick={() => setSelectedTags([])}
+            className="text-sm text-teal-600 hover:text-teal-700 mt-2"
+          >
+            Clear tag filters
+          </button>
+        </div>
+      )}
 
       {/* Load more / pagination */}
       {(hasMore || page > 0) && (
@@ -496,6 +674,38 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
                 </div>
               </div>
 
+              {/* Tags bar */}
+              <div className="flex items-center gap-2 px-4 py-2 bg-black/60 flex-wrap">
+                <Tag className="w-3.5 h-3.5 text-white/40 shrink-0" />
+                {lightboxPhoto.tags?.map(tag => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/15 text-white text-xs"
+                  >
+                    {tag}
+                    <button
+                      onClick={() => removeTag(lightboxPhoto, tag)}
+                      className="hover:text-red-300 transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+                <input
+                  type="text"
+                  placeholder="Add tag…"
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  className="bg-white/10 text-white text-xs rounded-full px-2.5 py-1 border border-white/20 placeholder-white/40 outline-none focus:border-white/40 w-24"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && tagInput.trim()) {
+                      addTag(lightboxPhoto, tagInput.trim())
+                      setTagInput('')
+                    }
+                  }}
+                />
+              </div>
+
               {/* Image */}
               <div className="flex-1 relative flex items-center justify-center overflow-hidden">
                 <img
@@ -513,7 +723,7 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
                     <ChevronLeft className="w-5 h-5" />
                   </button>
                 )}
-                {lightboxIndex !== null && lightboxIndex < photos.length - 1 && (
+                {lightboxIndex !== null && lightboxIndex < filteredPhotos.length - 1 && (
                   <button
                     onClick={goToNext}
                     className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
@@ -526,7 +736,7 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
               {/* Bottom counter */}
               <div className="text-center py-2 bg-black/80">
                 <span className="text-xs text-white/50">
-                  {(lightboxIndex ?? 0) + 1} of {photos.length}
+                  {(lightboxIndex ?? 0) + 1} of {filteredPhotos.length}
                 </span>
               </div>
             </div>
