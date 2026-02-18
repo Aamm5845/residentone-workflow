@@ -6,7 +6,10 @@
  * - File upload to Object Storage Service (OSS)
  * - Model Derivative translation (DWG/RVT/IFC → SVF2 for viewer, PDF for download)
  * - Design Automation (DWG → PDF with plot styles, xrefs, CTB)
+ * - ZIP-based xref resolution for DWG files with external references
  */
+
+import JSZip from 'jszip'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -251,48 +254,24 @@ async function uploadFile(fileName: string, buffer: Buffer): Promise<string> {
  * Start a translation job (CAD → SVF2 for viewer)
  * For 2D CAD files (DWG), only request '2d' views for faster translation.
  *
- * When xrefUrns are provided, they are included as references so the Model
- * Derivative engine can resolve external references (xrefs) in the main DWG.
+ * Use this for single files WITHOUT xrefs.
+ * For files WITH xrefs, use translateToSvf2Compressed() with a ZIP bundle.
  */
 async function translateToSvf2(
   urn: string,
   viewsHint: ('2d' | '3d')[] = ['2d', '3d'],
-  xrefUrns?: Array<{ urn: string; fileName: string }>
 ): Promise<{ urn: string; status: string }> {
   const token = await getToken()
-
-  // Build input object — include references if xrefs provided
-  const input: Record<string, any> = {
-    urn,
-    compressedUrn: false,
-    rootFilename: undefined as string | undefined,
-  }
-
-  // If we have xref references, add them
-  if (xrefUrns && xrefUrns.length > 0) {
-    input.checkReferences = true
-    input.references = xrefUrns.map(xref => ({
-      urn: xref.urn,
-      relativePath: xref.fileName,
-    }))
-  }
-
-  // Clean up undefined fields
-  if (!input.rootFilename) delete input.rootFilename
-  if (!input.references) {
-    delete input.checkReferences
-    delete input.references
-  }
 
   const resp = await fetch(APS_BASE + '/modelderivative/v2/designdata/job', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
-      'x-ads-force': 'true', // re-translate even if already done
+      'x-ads-force': 'true',
     },
     body: JSON.stringify({
-      input,
+      input: { urn },
       output: {
         formats: [
           {
@@ -311,6 +290,55 @@ async function translateToSvf2(
 
   const data = await resp.json()
   return { urn, status: data.result || 'created' }
+}
+
+/**
+ * Start a translation job from a compressed (ZIP) file.
+ * The ZIP must contain the root DWG + all xref DWGs + referenced images.
+ *
+ * The Model Derivative engine will extract the ZIP, use rootFilename as
+ * the entry point, and automatically resolve all xrefs found inside.
+ *
+ * This is the CORRECT way to handle DWG files with external references.
+ */
+async function translateToSvf2Compressed(
+  zipUrn: string,
+  rootFilename: string,
+  viewsHint: ('2d' | '3d')[] = ['2d', '3d'],
+): Promise<{ urn: string; status: string }> {
+  const token = await getToken()
+
+  const resp = await fetch(APS_BASE + '/modelderivative/v2/designdata/job', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'x-ads-force': 'true',
+    },
+    body: JSON.stringify({
+      input: {
+        urn: zipUrn,
+        compressedUrn: true,
+        rootFilename,
+      },
+      output: {
+        formats: [
+          {
+            type: 'svf2',
+            views: viewsHint,
+          },
+        ],
+      },
+    }),
+  })
+
+  if (!resp.ok) {
+    const errText = await resp.text()
+    throw new Error(`APS translate compressed failed (${resp.status}): ${errText}`)
+  }
+
+  const data = await resp.json()
+  return { urn: zipUrn, status: data.result || 'created' }
 }
 
 /**
@@ -853,12 +881,18 @@ async function getWorkItemStatus(workItemId: string): Promise<{
 // ---------------------------------------------------------------------------
 
 /**
- * Upload a main DWG file + xref files to APS, then start SVF2 translation
- * with references so the Model Derivative engine resolves all xrefs.
+ * Upload a main DWG file + xref files to APS as a ZIP bundle, then start
+ * SVF2 translation with compressedUrn so the engine resolves all xrefs.
  *
  * This is the key function for viewing DWGs that have external references.
- * Without uploading the xrefs, the viewer would only show dimensions/annotations
- * from the main file without the actual model geometry from the xref files.
+ * Without the xrefs, the viewer only shows dimensions/annotations from the
+ * main file — not the actual model geometry from xref files.
+ *
+ * How it works:
+ * 1. Creates a ZIP in memory with all files (main DWG + xref DWGs + images)
+ * 2. Uploads the ZIP to APS OSS
+ * 3. Starts translation with compressedUrn=true and rootFilename=mainDWG
+ * 4. Model Derivative extracts the ZIP and resolves all xrefs automatically
  */
 async function uploadFileWithXrefs(
   fileName: string,
@@ -868,24 +902,31 @@ async function uploadFileWithXrefs(
 ): Promise<{ urn: string; status: string }> {
   await ensureBucket()
 
-  // Upload the main DWG file
-  const mainUrn = await uploadFile(fileName, buffer)
-
-  // Upload xref files and collect their URNs
-  let xrefUrns: Array<{ urn: string; fileName: string }> | undefined
-  if (xrefFiles && xrefFiles.length > 0) {
-    xrefUrns = []
-    for (const xf of xrefFiles) {
-      const xrefUrn = await uploadFile(xf.name, xf.buffer)
-      xrefUrns.push({
-        urn: xrefUrn,
-        fileName: xf.name,
-      })
-    }
+  // If no xrefs, just upload the single file normally
+  if (!xrefFiles || xrefFiles.length === 0) {
+    const urn = await uploadFile(fileName, buffer)
+    return translateToSvf2(urn, viewsHint)
   }
 
-  // Start translation with xref references
-  return translateToSvf2(mainUrn, viewsHint, xrefUrns)
+  // Create a ZIP containing main DWG + all xref files
+  const zip = new JSZip()
+  zip.file(fileName, buffer)
+  for (const xf of xrefFiles) {
+    zip.file(xf.name, xf.buffer)
+  }
+
+  const zipBuffer = Buffer.from(await zip.generateAsync({
+    type: 'nodebuffer',
+    compression: 'DEFLATE',
+    compressionOptions: { level: 6 },
+  }))
+
+  // Upload the ZIP to OSS
+  const zipName = fileName.replace(/\.\w+$/i, '') + '_bundle.zip'
+  const zipUrn = await uploadFile(zipName, zipBuffer)
+
+  // Start translation with compressedUrn — engine extracts and resolves xrefs
+  return translateToSvf2Compressed(zipUrn, fileName, viewsHint)
 }
 
 /**
@@ -929,6 +970,7 @@ export const apsService = {
   uploadFileRaw,
   uploadFileWithXrefs,
   translateToSvf2,
+  translateToSvf2Compressed,
   translateToPdf,
   getTranslationStatus,
   getPdfDerivativeUrl,

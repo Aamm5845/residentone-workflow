@@ -163,11 +163,12 @@ export async function POST(request: NextRequest) {
         // Download the main file from Dropbox
         const mainBuffer = await dropboxService.downloadFile(dropboxPath)
 
-        // Find the folder path and list all sibling DWG/DXF files (xrefs)
+        // Find the folder path and list all sibling files (xref DWGs + referenced images)
         const folderPath = dropboxPath.substring(0, dropboxPath.lastIndexOf('/'))
         const folderContents = await dropboxService.listFolder(folderPath)
+        // Include DWG/DXF (xrefs), JPG/PNG (referenced images), and CTB files
         const siblingDwgs = folderContents.files.filter(f =>
-          /\.(dwg|dxf)$/i.test(f.name) &&
+          /\.(dwg|dxf|jpg|jpeg|png|ctb)$/i.test(f.name) &&
           f.path.toLowerCase() !== dropboxPath.toLowerCase() // Exclude the main file
         )
 

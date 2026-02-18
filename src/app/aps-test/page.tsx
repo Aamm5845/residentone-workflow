@@ -417,18 +417,20 @@ export default function ApsTestPage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".dwg,.dxf"
+              accept=".dwg,.dxf,.jpg,.jpeg,.png,.pdf"
               multiple
               className="hidden"
               onChange={(e) => {
                 if (e.target.files && e.target.files.length > 0) {
                   const allFiles = Array.from(e.target.files)
-                  // First file = main DWG, rest = xrefs
-                  setFile(allFiles[0])
-                  if (allFiles.length > 1) {
-                    setXrefFiles(allFiles.slice(1))
+                  // Find the main DWG/DXF file (first one), rest = xrefs
+                  const mainIdx = allFiles.findIndex(f => /\.(dwg|dxf)$/i.test(f.name))
+                  if (mainIdx >= 0) {
+                    setFile(allFiles[mainIdx])
+                    setXrefFiles(allFiles.filter((_, i) => i !== mainIdx))
                   } else {
-                    setXrefFiles([])
+                    setFile(allFiles[0])
+                    setXrefFiles(allFiles.slice(1))
                   }
                 }
               }}
@@ -437,7 +439,7 @@ export default function ApsTestPage() {
               onClick={() => fileInputRef.current?.click()}
               className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
             >
-              Choose DWG / DXF Files
+              Choose All CAD Files
             </button>
             {file && (
               <span className="text-sm text-gray-600">
@@ -449,7 +451,8 @@ export default function ApsTestPage() {
             )}
           </div>
           <p className="text-[11px] text-gray-400 mb-4">
-            Select all files together (main DWG + xref DWGs). First file = main drawing, rest = xrefs.
+            Select ALL files from the CAD folder — main DWG + xref DWGs + referenced images (JPG, PNG).
+            They will be bundled into a ZIP so the viewer can resolve all references.
             <br />
             <strong>Tip:</strong> When used from Project Files, xrefs are fetched automatically from the same Dropbox folder.
           </p>
