@@ -32,7 +32,7 @@ const meetingSchema = z.object({
   description: z.string().optional(),
   date: z.string().min(1, 'Date is required'),
   startTime: z.string().min(1, 'Start time is required'),
-  endTime: z.string().min(1, 'End time is required'),
+  endTime: z.string().optional(),
   locationType: z.enum(['VIRTUAL', 'IN_OFFICE', 'ON_SITE']),
   locationDetails: z.string().optional(),
   meetingLink: z.string().url('Must be a valid URL').optional().or(z.literal('')),
@@ -240,12 +240,18 @@ export function ScheduleMeetingDialog({ projects, editMeeting, trigger, onSucces
     try {
       // Build full datetime from date + time
       const startDateTime = new Date(`${data.date}T${data.startTime}:00`)
-      const endDateTime = new Date(`${data.date}T${data.endTime}:00`)
 
-      if (endDateTime <= startDateTime) {
-        setError('End time must be after start time')
-        setIsSubmitting(false)
-        return
+      // Default end time to 1 hour after start if not provided
+      let endDateTime: Date
+      if (data.endTime) {
+        endDateTime = new Date(`${data.date}T${data.endTime}:00`)
+        if (endDateTime <= startDateTime) {
+          setError('End time must be after start time')
+          setIsSubmitting(false)
+          return
+        }
+      } else {
+        endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000)
       }
 
       const payload = {
@@ -325,7 +331,29 @@ export function ScheduleMeetingDialog({ projects, editMeeting, trigger, onSucces
           </div>
 
           {/* Date & Time row */}
-          <div className="grid grid-cols-3 gap-3">
+          {/* If date is pre-filled from calendar, show it as a label with option to change */}
+          {defaultDate && watch('date') === defaultDate && !isEditing ? (
+            <div className="space-y-1.5">
+              <Label>Date</Label>
+              <div className="flex items-center justify-between p-2.5 bg-muted/50 border rounded-md">
+                <span className="text-sm font-medium">
+                  {new Date(defaultDate + 'T00:00:00').toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  })}
+                </span>
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+                  onClick={() => setValue('date', '')}
+                >
+                  Change
+                </button>
+              </div>
+            </div>
+          ) : (
             <div className="space-y-1.5">
               <Label htmlFor="meeting-date">Date *</Label>
               <Input
@@ -335,6 +363,9 @@ export function ScheduleMeetingDialog({ projects, editMeeting, trigger, onSucces
               />
               {errors.date && <p className="text-xs text-destructive">{errors.date.message}</p>}
             </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="meeting-start">Start *</Label>
               <Input
@@ -345,13 +376,13 @@ export function ScheduleMeetingDialog({ projects, editMeeting, trigger, onSucces
               {errors.startTime && <p className="text-xs text-destructive">{errors.startTime.message}</p>}
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="meeting-end">End *</Label>
+              <Label htmlFor="meeting-end" className="text-muted-foreground">End <span className="text-xs font-normal">(optional)</span></Label>
               <Input
                 id="meeting-end"
                 type="time"
+                placeholder="Defaults to 1hr"
                 {...register('endTime')}
               />
-              {errors.endTime && <p className="text-xs text-destructive">{errors.endTime.message}</p>}
             </div>
           </div>
 

@@ -71,12 +71,15 @@ export async function POST(req: NextRequest) {
       autoCreateZoom = false,
     } = body
 
-    if (!title || !date || !startTime || !endTime || !locationType) {
+    if (!title || !date || !startTime || !locationType) {
       return NextResponse.json(
-        { error: 'Title, date, startTime, endTime, and locationType are required' },
+        { error: 'Title, date, startTime, and locationType are required' },
         { status: 400 }
       )
     }
+
+    // Default endTime to 1 hour after startTime if not provided
+    const resolvedEndTime = endTime || new Date(new Date(startTime).getTime() + 60 * 60 * 1000).toISOString()
 
     // Auto-create Zoom meeting if requested and location is virtual
     let finalMeetingLink = meetingLink || null
@@ -85,7 +88,7 @@ export async function POST(req: NextRequest) {
     if (autoCreateZoom && locationType === 'VIRTUAL') {
       try {
         const startDT = new Date(startTime)
-        const endDT = new Date(endTime)
+        const endDT = new Date(resolvedEndTime)
         const durationMinutes = Math.max(
           Math.round((endDT.getTime() - startDT.getTime()) / 60000),
           15 // minimum 15 minutes
@@ -116,7 +119,7 @@ export async function POST(req: NextRequest) {
           description: description || null,
           date: new Date(date),
           startTime: new Date(startTime),
-          endTime: new Date(endTime),
+          endTime: new Date(resolvedEndTime),
           locationType,
           locationDetails: locationDetails || null,
           meetingLink: finalMeetingLink,
