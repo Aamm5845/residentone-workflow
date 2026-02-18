@@ -24,8 +24,18 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
-import { CalendarPlus, Loader2, Video, MapPin } from 'lucide-react'
+import { CalendarPlus, Loader2, Video, MapPin, Building2, HardHat, Users } from 'lucide-react'
 import { AttendeeCombobox, type SelectedAttendee } from './attendee-combobox'
+
+const OFFICE_ADDRESS = '6700 Ave Du Parc Unit 109, Montreal QC H2V4H9'
+
+interface QuickAddContact {
+  id: string
+  name: string
+  email: string
+  type: 'TEAM_MEMBER' | 'CLIENT' | 'CONTRACTOR' | 'SUBCONTRACTOR'
+  label: string
+}
 
 // Generate time options in 15-minute increments (7:00 AM to 10:00 PM)
 const timeOptions = (() => {
@@ -50,7 +60,7 @@ const meetingSchema = z.object({
   date: z.string().min(1, 'Date is required'),
   startTime: z.string().min(1, 'Start time is required'),
   endTime: z.string().optional(),
-  locationType: z.enum(['VIRTUAL', 'IN_OFFICE', 'ON_SITE']),
+  locationType: z.enum(['VIRTUAL', 'IN_OFFICE', 'ON_SITE', 'OUR_OFFICE']),
   locationDetails: z.string().optional(),
   meetingLink: z.string().url('Must be a valid URL').optional().or(z.literal('')),
   projectId: z.string().optional(),
@@ -114,6 +124,8 @@ export function ScheduleMeetingDialog({ projects, editMeeting, trigger, onSucces
   const [zoomConnected, setZoomConnected] = useState(false)
   const [autoCreateZoom, setAutoCreateZoom] = useState(true)
   const [useManualAddress, setUseManualAddress] = useState(false)
+  const [quickAddContacts, setQuickAddContacts] = useState<QuickAddContact[]>([])
+  const [quickAddTeam, setQuickAddTeam] = useState<QuickAddContact[]>([])
 
   const isEditing = !!editMeeting
 
@@ -123,6 +135,38 @@ export function ScheduleMeetingDialog({ projects, editMeeting, trigger, onSucces
       .then((res) => res.json())
       .then((data) => setZoomConnected(data.connected === true))
       .catch(() => {}) // Silently fail — manual link pasting still works
+  }, [])
+
+  // Fetch team members for quick-add (Sami & Shaya)
+  useEffect(() => {
+    async function fetchTeamQuickAdd() {
+      try {
+        const names = ['Sami', 'Shaya']
+        const results: QuickAddContact[] = []
+        for (const name of names) {
+          const res = await fetch(`/api/meetings/attendees/search?q=${encodeURIComponent(name)}`)
+          if (res.ok) {
+            const data = await res.json()
+            const match = (data.results || []).find(
+              (r: any) => r.type === 'TEAM_MEMBER' && r.name?.toLowerCase().includes(name.toLowerCase())
+            )
+            if (match) {
+              results.push({
+                id: match.id,
+                name: match.name,
+                email: match.email,
+                type: 'TEAM_MEMBER',
+                label: match.name.split(' ')[0], // First name only for label
+              })
+            }
+          }
+        }
+        setQuickAddTeam(results)
+      } catch (err) {
+        console.error('Failed to fetch team quick-add:', err)
+      }
+    }
+    fetchTeamQuickAdd()
   }, [])
 
   const {
@@ -150,6 +194,35 @@ export function ScheduleMeetingDialog({ projects, editMeeting, trigger, onSucces
 
   const locationType = watch('locationType')
   const selectedProjectId = watch('projectId')
+
+  // Fetch project contacts (client, contractors) for quick-add checkboxes
+  useEffect(() => {
+    if (!selectedProjectId) {
+      setQuickAddContacts([])
+      return
+    }
+    async function fetchProjectContacts() {
+      try {
+        const res = await fetch(`/api/meetings/attendees/search?projectId=${selectedProjectId}`)
+        if (res.ok) {
+          const data = await res.json()
+          const contacts: QuickAddContact[] = (data.results || [])
+            .filter((r: any) => r.isProjectContact)
+            .map((r: any) => ({
+              id: r.id,
+              name: r.name,
+              email: r.email,
+              type: r.type,
+              label: r.type === 'CLIENT' ? 'Client' : r.type === 'SUBCONTRACTOR' ? 'Sub' : 'Contractor',
+            }))
+          setQuickAddContacts(contacts)
+        }
+      } catch (err) {
+        console.error('Failed to fetch project contacts:', err)
+      }
+    }
+    fetchProjectContacts()
+  }, [selectedProjectId])
 
   // Build full address string from project fields
   const getProjectAddress = (project: Project): string => {
@@ -190,7 +263,7 @@ export function ScheduleMeetingDialog({ projects, editMeeting, trigger, onSucces
           date: meetDate.toISOString().split('T')[0],
           startTime: meetStart.toTimeString().slice(0, 5),
           endTime: meetEnd.toTimeString().slice(0, 5),
-          locationType: editMeeting.locationType as 'VIRTUAL' | 'IN_OFFICE' | 'ON_SITE',
+          locationType: editMeeting.locationType as 'VIRTUAL' | 'IN_OFFICE' | 'ON_SITE' | 'OUR_OFFICE',
           locationDetails: editMeeting.locationDetails || '',
           meetingLink: editMeeting.meetingLink || '',
           projectId: editMeeting.projectId || '',
@@ -247,6 +320,41 @@ export function ScheduleMeetingDialog({ projects, editMeeting, trigger, onSucces
         })
         setAttendees([])
       }
+    }
+  }
+
+  // Check if a quick-add contact is already selected as an attendee
+  const isQuickAddSelected = (contact: QuickAddContact) => {
+    return attendees.some((att) => {
+      if (contact.type === 'TEAM_MEMBER' && att.userId === contact.id) return true
+      if (contact.type === 'CLIENT' && att.clientId === contact.id) return true
+      if ((contact.type === 'CONTRACTOR' || contact.type === 'SUBCONTRACTOR') && att.contractorId === contact.id) return true
+      return false
+    })
+  }
+
+  // Toggle a quick-add contact in/out of attendees
+  const toggleQuickAdd = (contact: QuickAddContact) => {
+    if (isQuickAddSelected(contact)) {
+      // Remove
+      setAttendees(attendees.filter((att) => {
+        if (contact.type === 'TEAM_MEMBER' && att.userId === contact.id) return false
+        if (contact.type === 'CLIENT' && att.clientId === contact.id) return false
+        if ((contact.type === 'CONTRACTOR' || contact.type === 'SUBCONTRACTOR') && att.contractorId === contact.id) return false
+        return true
+      }))
+    } else {
+      // Add
+      const newAttendee: SelectedAttendee = {
+        type: contact.type,
+        displayName: contact.name,
+        displayEmail: contact.email,
+      }
+      if (contact.type === 'TEAM_MEMBER') newAttendee.userId = contact.id
+      else if (contact.type === 'CLIENT') newAttendee.clientId = contact.id
+      else newAttendee.contractorId = contact.id
+
+      setAttendees([...attendees, newAttendee])
     }
   }
 
@@ -424,20 +532,38 @@ export function ScheduleMeetingDialog({ projects, editMeeting, trigger, onSucces
             <Label>Location Type *</Label>
             <Select
               value={locationType}
-              onValueChange={(val) => setValue('locationType', val as 'VIRTUAL' | 'IN_OFFICE' | 'ON_SITE')}
+              onValueChange={(val) => {
+                setValue('locationType', val as 'VIRTUAL' | 'IN_OFFICE' | 'ON_SITE' | 'OUR_OFFICE')
+                // Auto-fill office address when "Our Office" is selected
+                if (val === 'OUR_OFFICE') {
+                  setValue('locationDetails', OFFICE_ADDRESS)
+                }
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select location type" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="VIRTUAL">Virtual</SelectItem>
-                <SelectItem value="IN_OFFICE">In Office</SelectItem>
-                <SelectItem value="ON_SITE">On Site</SelectItem>
+                <SelectItem value="OUR_OFFICE">Our Office</SelectItem>
+                <SelectItem value="ON_SITE">On Site (Project)</SelectItem>
+                <SelectItem value="IN_OFFICE">Other Office / Room</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {/* Location Details */}
+          {/* Location Details - Our Office (read-only display) */}
+          {locationType === 'OUR_OFFICE' && (
+            <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <MapPin className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-blue-900">{OFFICE_ADDRESS}</p>
+                <p className="text-xs text-blue-600 mt-0.5">Meisner Interiors Office</p>
+              </div>
+            </div>
+          )}
+
+          {/* Location Details - In Office or On Site */}
           {(locationType === 'IN_OFFICE' || locationType === 'ON_SITE') && (
             <div className="space-y-1.5">
               <Label htmlFor="meeting-location">
@@ -535,6 +661,56 @@ export function ScheduleMeetingDialog({ projects, editMeeting, trigger, onSucces
               </SelectContent>
             </Select>
           </div>
+
+          {/* Quick-add attendee checkboxes */}
+          {(quickAddContacts.length > 0 || quickAddTeam.length > 0) && (
+            <div className="space-y-2">
+              <Label>Quick Add Attendees</Label>
+              <div className="flex flex-wrap gap-2">
+                {/* Team members (Sami, Shaya) */}
+                {quickAddTeam.map((contact) => (
+                  <label
+                    key={`team-${contact.id}`}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs cursor-pointer transition-all ${
+                      isQuickAddSelected(contact)
+                        ? 'bg-blue-100 border-blue-300 text-blue-800'
+                        : 'bg-muted/30 border-border text-muted-foreground hover:bg-muted/50'
+                    }`}
+                  >
+                    <Checkbox
+                      checked={isQuickAddSelected(contact)}
+                      onCheckedChange={() => toggleQuickAdd(contact)}
+                      className="h-3.5 w-3.5"
+                    />
+                    <Users className="h-3 w-3" />
+                    <span className="font-medium">{contact.label}</span>
+                  </label>
+                ))}
+                {/* Project contacts (client, contractors) */}
+                {quickAddContacts.map((contact) => (
+                  <label
+                    key={`proj-${contact.type}-${contact.id}`}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs cursor-pointer transition-all ${
+                      isQuickAddSelected(contact)
+                        ? contact.type === 'CLIENT'
+                          ? 'bg-green-100 border-green-300 text-green-800'
+                          : 'bg-orange-100 border-orange-300 text-orange-800'
+                        : 'bg-muted/30 border-border text-muted-foreground hover:bg-muted/50'
+                    }`}
+                  >
+                    <Checkbox
+                      checked={isQuickAddSelected(contact)}
+                      onCheckedChange={() => toggleQuickAdd(contact)}
+                      className="h-3.5 w-3.5"
+                    />
+                    {contact.type === 'CLIENT' ? <Building2 className="h-3 w-3" /> : <HardHat className="h-3 w-3" />}
+                    <span className="font-medium">{contact.name}</span>
+                    <span className="text-[10px] opacity-60">({contact.label})</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Attendees */}
           <div className="space-y-1.5">

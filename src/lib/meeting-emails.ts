@@ -54,6 +54,7 @@ function getLocationLabel(type: string): string {
     case 'VIRTUAL': return 'Virtual Meeting'
     case 'IN_OFFICE': return 'In Office'
     case 'ON_SITE': return 'On Site'
+    case 'OUR_OFFICE': return 'Our Office'
     default: return type
   }
 }
@@ -63,6 +64,7 @@ function getLocationIcon(type: string): string {
     case 'VIRTUAL': return '💻'
     case 'IN_OFFICE': return '🏢'
     case 'ON_SITE': return '📍'
+    case 'OUR_OFFICE': return '🏢'
     default: return '📅'
   }
 }

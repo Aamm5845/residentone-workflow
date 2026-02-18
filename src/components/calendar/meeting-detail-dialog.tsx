@@ -92,6 +92,7 @@ function getLocationLabel(type: string): string {
     case 'VIRTUAL': return 'Virtual Meeting'
     case 'IN_OFFICE': return 'In Office'
     case 'ON_SITE': return 'On Site'
+    case 'OUR_OFFICE': return 'Our Office'
     default: return type
   }
 }
@@ -101,6 +102,7 @@ function getLocationIcon(type: string) {
     case 'VIRTUAL': return <Video className="h-4 w-4 text-cyan-400" />
     case 'IN_OFFICE': return <Building2 className="h-4 w-4 text-blue-400" />
     case 'ON_SITE': return <MapPin className="h-4 w-4 text-green-400" />
+    case 'OUR_OFFICE': return <Building2 className="h-4 w-4 text-blue-400" />
     default: return <MapPin className="h-4 w-4" />
   }
 }

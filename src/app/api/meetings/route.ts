@@ -162,6 +162,8 @@ export async function POST(req: NextRequest) {
             contractorId: att.contractorId || null,
             externalName: att.externalName || null,
             externalEmail: att.externalEmail || null,
+            // Auto-confirm the organizer (the person scheduling the meeting)
+            status: (att.type === 'TEAM_MEMBER' && att.userId === session.user.id) ? 'ACCEPTED' : 'PENDING',
           })),
         })
       }
@@ -217,6 +219,11 @@ async function sendInvitationEmails(meeting: any) {
   const allAttendees = getAttendeesList(meeting)
 
   for (const attendee of meeting.attendees) {
+    // Skip sending invitation to the organizer — they scheduled the meeting and are auto-confirmed
+    if (attendee.user && attendee.user.id === meeting.organizer?.id) {
+      continue
+    }
+
     let email: string | null = null
     let name: string | null = null
 

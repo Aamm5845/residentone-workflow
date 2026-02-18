@@ -4754,6 +4754,7 @@ enum MeetingLocationType {
   VIRTUAL
   IN_OFFICE
   ON_SITE
+  OUR_OFFICE
 }
 
 enum MeetingStatus {
