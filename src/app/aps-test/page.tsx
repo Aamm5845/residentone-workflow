@@ -2,7 +2,10 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import JSZip from 'jszip'
-import { uploadAndTranslate } from './actions'
+import { uploadAndTranslate, translateFromUrn } from './actions'
+
+// Threshold for using direct S3 upload (4 MB)
+const DIRECT_S3_THRESHOLD = 4 * 1024 * 1024
 
 // ----- Plot option types -----
 interface PlotOptions {
@@ -210,10 +213,101 @@ export default function ApsTestPage() {
         }
       }
 
-      addLog('Uploading to server...')
-      // Use server action instead of route handler — route handlers have a 1MB body limit
-      // Server actions respect the bodySizeLimit config (100mb)
-      const data = await uploadAndTranslate(formData)
+      // Determine total upload size
+      const fileEntry = formData.get('file') as File | Blob
+      const totalSize = fileEntry?.size || 0
+
+      let data: any
+
+      if (totalSize > DIRECT_S3_THRESHOLD) {
+        // --- DIRECT S3 UPLOAD (bypasses Vercel body size limit entirely) ---
+        addLog(`File is ${(totalSize / 1024 / 1024).toFixed(1)} MB — using direct S3 upload...`)
+
+        // Step 1: Get signed S3 URL from our API
+        addLog('Getting signed upload URL...')
+        const isBundle = formData.get('isZipBundle') === 'true'
+        const rootFn = formData.get('rootFilename') as string | null
+        const zipFileName = isBundle
+          ? (rootFn || 'upload').replace(/\.\w+$/i, '') + '_bundle.zip'
+          : (fileEntry instanceof File ? fileEntry.name : 'upload.dwg')
+
+        const signedResp = await fetch('/api/aps/signed-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileName: zipFileName }),
+        })
+        if (!signedResp.ok) {
+          const errData = await signedResp.json().catch(() => ({}))
+          throw new Error(errData.error || `Failed to get upload URL (${signedResp.status})`)
+        }
+        const { uploadUrl, uploadKey, objectKey } = await signedResp.json()
+        addLog('Got signed URL. Uploading directly to S3...')
+
+        // Step 2: Upload directly to S3 (no Vercel proxy involved)
+        const s3Resp = await fetch(uploadUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/octet-stream' },
+          body: fileEntry,
+        })
+        if (!s3Resp.ok) {
+          throw new Error(`S3 upload failed (${s3Resp.status})`)
+        }
+        addLog('S3 upload complete. Finalizing...')
+
+        // Step 3: Finalize upload and get URN
+        const finalizeResp = await fetch('/api/aps/signed-upload/finalize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ objectKey, uploadKey }),
+        })
+        if (!finalizeResp.ok) {
+          const errData = await finalizeResp.json().catch(() => ({}))
+          throw new Error(errData.error || `Finalize failed (${finalizeResp.status})`)
+        }
+        const { urn } = await finalizeResp.json()
+        addLog(`Upload finalized. URN: ${urn.slice(0, 30)}...`)
+
+        // Step 4: Start translation via lightweight server action (no file transfer)
+        addLog('Starting translation...')
+
+        // Prepare CTB as base64 for the server action (CTB files are small, typically < 100KB)
+        let ctbBase64: string | undefined
+        let ctbFn: string | undefined
+        const ctbEntry = formData.get('ctbFile') as File | null
+        if (ctbEntry && ctbEntry.name) {
+          ctbFn = ctbEntry.name
+          const ctbBytes = new Uint8Array(await ctbEntry.arrayBuffer())
+          // Use chunked btoa to avoid stack overflow on large arrays
+          let binary = ''
+          const chunkSize = 8192
+          for (let i = 0; i < ctbBytes.length; i += chunkSize) {
+            binary += String.fromCharCode(...ctbBytes.slice(i, i + chunkSize))
+          }
+          ctbBase64 = btoa(binary)
+        }
+
+        const plotOptsStr = formData.get('plotOptions') as string | null
+        let parsedPlotOpts: any = undefined
+        if (plotOptsStr) {
+          try { parsedPlotOpts = JSON.parse(plotOptsStr) } catch {}
+        }
+
+        data = await translateFromUrn({
+          urn,
+          objectKey,
+          fileName: zipFileName,
+          rootFilename: rootFn || undefined,
+          isZipBundle: isBundle,
+          outputFormat,
+          plotOptions: parsedPlotOpts,
+          ctbFileName: ctbFn,
+          ctbBase64,
+        })
+      } else {
+        // --- STANDARD UPLOAD (small files via server action) ---
+        addLog('Uploading to server...')
+        data = await uploadAndTranslate(formData)
+      }
 
       if (!data.success) {
         throw new Error(data.error || 'Upload failed')
