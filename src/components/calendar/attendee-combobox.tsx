@@ -42,27 +42,6 @@ export function AttendeeCombobox({ selected, onChange, projectId }: AttendeeComb
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Load project contacts when projectId changes
-  useEffect(() => {
-    if (projectId) {
-      searchAttendees('')
-    } else {
-      setResults([])
-    }
-  }, [projectId, searchAttendees])
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false)
-        setShowExternalForm(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
-
   const searchAttendees = useCallback(async (q: string) => {
     if (q.length < 1 && !projectId) {
       setResults([])
@@ -83,6 +62,27 @@ export function AttendeeCombobox({ selected, onChange, projectId }: AttendeeComb
     }
     setIsLoading(false)
   }, [projectId])
+
+  // Load project contacts when projectId changes
+  useEffect(() => {
+    if (projectId) {
+      searchAttendees('')
+    } else {
+      setResults([])
+    }
+  }, [projectId, searchAttendees])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false)
+        setShowExternalForm(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const handleInputChange = (value: string) => {
     setQuery(value)
