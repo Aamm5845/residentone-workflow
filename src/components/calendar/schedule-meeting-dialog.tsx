@@ -27,6 +27,23 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { CalendarPlus, Loader2, Video, MapPin } from 'lucide-react'
 import { AttendeeCombobox, type SelectedAttendee } from './attendee-combobox'
 
+// Generate time options in 15-minute increments (7:00 AM to 10:00 PM)
+const timeOptions = (() => {
+  const options: { value: string; label: string }[] = []
+  for (let h = 7; h <= 22; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      const hour24 = String(h).padStart(2, '0')
+      const min = String(m).padStart(2, '0')
+      const value = `${hour24}:${min}`
+      const hour12 = h > 12 ? h - 12 : h === 0 ? 12 : h
+      const ampm = h >= 12 ? 'PM' : 'AM'
+      const label = `${hour12}:${min} ${ampm}`
+      options.push({ value, label })
+    }
+  }
+  return options
+})()
+
 const meetingSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200),
   description: z.string().optional(),
@@ -367,22 +384,38 @@ export function ScheduleMeetingDialog({ projects, editMeeting, trigger, onSucces
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="meeting-start">Start *</Label>
-              <Input
-                id="meeting-start"
-                type="time"
-                {...register('startTime')}
-              />
+              <Label>Start *</Label>
+              <Select
+                value={watch('startTime') || ''}
+                onValueChange={(val) => setValue('startTime', val)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select time" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[240px]">
+                  {timeOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               {errors.startTime && <p className="text-xs text-destructive">{errors.startTime.message}</p>}
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="meeting-end" className="text-muted-foreground">End <span className="text-xs font-normal">(optional)</span></Label>
-              <Input
-                id="meeting-end"
-                type="time"
-                placeholder="Defaults to 1hr"
-                {...register('endTime')}
-              />
+              <Label className="text-muted-foreground">End <span className="text-xs font-normal">(optional)</span></Label>
+              <Select
+                value={watch('endTime') || ''}
+                onValueChange={(val) => setValue('endTime', val === 'none' ? '' : val)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="+ 1 hour" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[240px]">
+                  <SelectItem value="none">Default (1 hour)</SelectItem>
+                  {timeOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
