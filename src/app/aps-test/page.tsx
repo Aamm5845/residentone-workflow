@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import JSZip from 'jszip'
+import { uploadAndTranslate } from './actions'
 
 // ----- Plot option types -----
 interface PlotOptions {
@@ -210,14 +211,11 @@ export default function ApsTestPage() {
       }
 
       addLog('Uploading to server...')
-      const resp = await fetch('/api/aps/translate', {
-        method: 'POST',
-        body: formData,
-      })
+      // Use server action instead of route handler — route handlers have a 1MB body limit
+      // Server actions respect the bodySizeLimit config (100mb)
+      const data = await uploadAndTranslate(formData)
 
-      const data = await resp.json()
-
-      if (!resp.ok || !data.success) {
+      if (!data.success) {
         throw new Error(data.error || 'Upload failed')
       }
 
