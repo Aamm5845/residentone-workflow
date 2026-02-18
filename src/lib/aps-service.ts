@@ -156,7 +156,8 @@ async function ensureBucket(): Promise<void> {
 }
 
 /**
- * Upload a file buffer to APS OSS
+ * Upload a file buffer to APS OSS using the Direct-to-S3 approach
+ * (The legacy PUT endpoint is deprecated and returns 403)
  * Returns the URN (base64-encoded objectId) for use with Model Derivative
  */
 async function uploadFile(fileName: string, buffer: Buffer): Promise<string> {
@@ -166,25 +167,56 @@ async function uploadFile(fileName: string, buffer: Buffer): Promise<string> {
   // Sanitize the object key
   const objectKey = fileName.replace(/[^a-zA-Z0-9._\-]/g, '_')
 
-  const resp = await fetch(
-    APS_BASE + `/oss/v2/buckets/${BUCKET_KEY}/objects/${encodeURIComponent(objectKey)}`,
+  // Step 1: Get signed S3 upload URL(s)
+  const signedResp = await fetch(
+    APS_BASE + `/oss/v2/buckets/${BUCKET_KEY}/objects/${encodeURIComponent(objectKey)}/signeds3upload?firstPart=1&parts=1`,
     {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/octet-stream',
-        'Content-Length': String(buffer.length),
-      },
-      body: new Uint8Array(buffer),
+      headers: { Authorization: `Bearer ${token}` },
     }
   )
 
-  if (!resp.ok) {
-    const errText = await resp.text()
-    throw new Error(`APS upload failed (${resp.status}): ${errText}`)
+  if (!signedResp.ok) {
+    const errText = await signedResp.text()
+    throw new Error(`APS signed upload request failed (${signedResp.status}): ${errText}`)
   }
 
-  const data = await resp.json()
+  const signedData = await signedResp.json()
+  const uploadUrl = signedData.urls[0] // Signed S3 URL for part 1
+  const uploadKey = signedData.uploadKey
+
+  // Step 2: Upload directly to S3 using the signed URL
+  const s3Resp = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/octet-stream',
+    },
+    body: new Uint8Array(buffer),
+  })
+
+  if (!s3Resp.ok) {
+    const errText = await s3Resp.text()
+    throw new Error(`S3 direct upload failed (${s3Resp.status}): ${errText}`)
+  }
+
+  // Step 3: Finalize the upload
+  const finalizeResp = await fetch(
+    APS_BASE + `/oss/v2/buckets/${BUCKET_KEY}/objects/${encodeURIComponent(objectKey)}/signeds3upload`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ uploadKey }),
+    }
+  )
+
+  if (!finalizeResp.ok) {
+    const errText = await finalizeResp.text()
+    throw new Error(`APS upload finalize failed (${finalizeResp.status}): ${errText}`)
+  }
+
+  const data = await finalizeResp.json()
   const objectId = data.objectId // urn:adsk.objects:os.object:bucket/key
   const urn = Buffer.from(objectId).toString('base64url')
 
