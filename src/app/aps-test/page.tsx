@@ -510,7 +510,11 @@ export default function ApsTestPage() {
             setSheets(sheetList)
 
             viewer.addEventListener(Autodesk.Viewing.GEOMETRY_LOADED_EVENT, () => {
-              viewer.fitToView(undefined, undefined, true)
+              // Slight delay to let the container fully render at its new size
+              setTimeout(() => {
+                viewer.resize()
+                viewer.fitToView(undefined, undefined, true)
+              }, 100)
               viewer.navigation.setReverseZoomDirection(true)
               addLog('Drawing fitted to view')
             })
@@ -895,38 +899,45 @@ export default function ApsTestPage() {
           </div>
         )}
 
-        {/* Viewer */}
+      {/* Close max-w-5xl container before viewer so it can go full-width */}
+      </div>
+
+        {/* Viewer — full-width, outside the max-w-5xl container */}
         {viewerReady && (
-          <div className="bg-white rounded-xl border border-gray-200 mb-6 overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50">
-              <h2 className="text-sm font-semibold text-gray-900">2D Drawing Viewer</h2>
-              {sheets.length > 1 && (
-                <div className="flex items-center gap-1">
-                  <span className="text-xs text-gray-500 mr-2">Layouts:</span>
-                  {sheets.map((sheet) => (
-                    <button key={sheet.guid} onClick={() => switchSheet(sheet.guid)}
-                      className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-                        activeSheet === sheet.guid
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-300'
-                      }`}>
-                      {sheet.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div ref={viewerContainerRef} className="w-full bg-white" style={{ height: '700px' }} />
-            <div className="px-4 py-2 border-t border-gray-200 bg-gray-50">
-              <p className="text-xs text-gray-400">
-                Pan: Click + Drag &nbsp;|&nbsp; Zoom: Scroll wheel &nbsp;|&nbsp;
-                Layers: Use the layer panel in the toolbar &nbsp;|&nbsp;
-                Measure: Use the measure tool in the toolbar
-              </p>
+          <div className="px-4 mb-6">
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50 flex-wrap gap-2">
+                <h2 className="text-sm font-semibold text-gray-900">2D Drawing Viewer</h2>
+                {sheets.length > 1 && (
+                  <div className="flex items-center gap-1 flex-wrap">
+                    <span className="text-xs text-gray-500 mr-2">Layouts:</span>
+                    {sheets.map((sheet) => (
+                      <button key={sheet.guid} onClick={() => switchSheet(sheet.guid)}
+                        className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                          activeSheet === sheet.guid
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-300'
+                        }`}>
+                        {sheet.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div ref={viewerContainerRef} className="w-full bg-white" style={{ height: 'calc(100vh - 200px)', minHeight: '600px' }} />
+              <div className="px-4 py-2 border-t border-gray-200 bg-gray-50">
+                <p className="text-xs text-gray-400">
+                  Pan: Click + Drag &nbsp;|&nbsp; Zoom: Scroll wheel &nbsp;|&nbsp;
+                  Layers: Use the layer panel in the toolbar &nbsp;|&nbsp;
+                  Measure: Use the measure tool in the toolbar
+                </p>
+              </div>
             </div>
           </div>
         )}
 
+      {/* Re-open max-w-5xl container for logs section */}
+      <div className="max-w-5xl mx-auto">
         {/* Logs */}
         <div className="bg-gray-900 rounded-xl p-6">
           <div className="flex items-center justify-between mb-4">
