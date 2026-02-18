@@ -178,6 +178,138 @@ export async function GET(
   }
 }
 
+// DELETE - Delete a photo from Dropbox
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession()
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { id } = await params
+    const body = await request.json()
+    const { dropboxPath } = body
+
+    if (!dropboxPath || typeof dropboxPath !== 'string') {
+      return NextResponse.json({ error: 'dropboxPath is required' }, { status: 400 })
+    }
+
+    // Verify project access
+    const project = await prisma.project.findFirst({
+      where: { id, orgId: session.user.orgId || undefined },
+      select: { id: true, dropboxFolder: true }
+    })
+
+    if (!project || !project.dropboxFolder) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    }
+
+    // Security: ensure the path is within the project's photos folder
+    const photosBase = project.dropboxFolder + '/5- Photos'
+    const absolutePath = photosBase + '/' + dropboxPath
+    if (dropboxPath.includes('..') || !absolutePath.toLowerCase().startsWith(photosBase.toLowerCase())) {
+      return NextResponse.json({ error: 'Invalid path' }, { status: 400 })
+    }
+
+    // Delete from Dropbox
+    await dropboxService.deleteFile(absolutePath)
+
+    // Also clean up any photo meta (tags) for this photo
+    try {
+      await prisma.projectPhotoMeta.deleteMany({
+        where: { projectId: id, dropboxPath }
+      })
+    } catch {
+      // Not critical if meta cleanup fails
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    console.error('[project-files-v2/photos] DELETE error:', error)
+    return NextResponse.json(
+      { error: error.message || 'Failed to delete photo' },
+      { status: 500 }
+    )
+  }
+}
+
+// PATCH - Rename a photo in Dropbox
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession()
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { id } = await params
+    const body = await request.json()
+    const { dropboxPath, newName } = body
+
+    if (!dropboxPath || typeof dropboxPath !== 'string') {
+      return NextResponse.json({ error: 'dropboxPath is required' }, { status: 400 })
+    }
+    if (!newName || typeof newName !== 'string') {
+      return NextResponse.json({ error: 'newName is required' }, { status: 400 })
+    }
+
+    // Sanitize new name
+    const sanitized = newName.replace(/[<>:"/\\|?*]/g, '').trim()
+    if (!sanitized) {
+      return NextResponse.json({ error: 'Invalid file name' }, { status: 400 })
+    }
+
+    // Verify project access
+    const project = await prisma.project.findFirst({
+      where: { id, orgId: session.user.orgId || undefined },
+      select: { id: true, dropboxFolder: true }
+    })
+
+    if (!project || !project.dropboxFolder) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    }
+
+    // Security: ensure the path is within the project's photos folder
+    const photosBase = project.dropboxFolder + '/5- Photos'
+    const absoluteFromPath = photosBase + '/' + dropboxPath
+    if (dropboxPath.includes('..') || !absoluteFromPath.toLowerCase().startsWith(photosBase.toLowerCase())) {
+      return NextResponse.json({ error: 'Invalid path' }, { status: 400 })
+    }
+
+    // Build the new absolute path (same directory, new filename)
+    const pathParts = absoluteFromPath.split('/')
+    pathParts[pathParts.length - 1] = sanitized
+    const absoluteToPath = pathParts.join('/')
+
+    // Rename in Dropbox
+    await dropboxService.moveFile(absoluteFromPath, absoluteToPath)
+
+    // Update photo meta path if it exists
+    const newRelativePath = dropboxPath.split('/').slice(0, -1).concat(sanitized).join('/')
+    try {
+      await prisma.projectPhotoMeta.updateMany({
+        where: { projectId: id, dropboxPath },
+        data: { dropboxPath: newRelativePath }
+      })
+    } catch {
+      // Not critical if meta update fails
+    }
+
+    return NextResponse.json({ success: true, newPath: newRelativePath })
+  } catch (error: any) {
+    console.error('[project-files-v2/photos] PATCH error:', error)
+    return NextResponse.json(
+      { error: error.message || 'Failed to rename photo' },
+      { status: 500 }
+    )
+  }
+}
+
 // Recursively list all image files in a folder (BFS)
 async function listImagesRecursive(folderPath: string): Promise<any[]> {
   const images: any[] = []

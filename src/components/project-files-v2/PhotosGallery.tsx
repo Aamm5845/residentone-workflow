@@ -17,6 +17,9 @@ import {
   Loader2,
   CheckCircle,
   Tag,
+  MoreVertical,
+  Pencil,
+  Trash2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -287,6 +290,72 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
 
     mutate()
   }, [projectId, mutate])
+
+  // Delete / Rename state
+  const [deleteTarget, setDeleteTarget] = useState<PhotoItem | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [renameTarget, setRenameTarget] = useState<PhotoItem | null>(null)
+  const [renameValue, setRenameValue] = useState('')
+  const [renameLoading, setRenameLoading] = useState(false)
+  const [actionMenuPhoto, setActionMenuPhoto] = useState<string | null>(null)
+  const actionMenuRef = useRef<HTMLDivElement>(null)
+
+  // Close action menu on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (actionMenuRef.current && !actionMenuRef.current.contains(e.target as Node)) {
+        setActionMenuPhoto(null)
+      }
+    }
+    if (actionMenuPhoto) {
+      document.addEventListener('mousedown', handleClick)
+      return () => document.removeEventListener('mousedown', handleClick)
+    }
+  }, [actionMenuPhoto])
+
+  // Delete a photo
+  const handleDelete = useCallback(async () => {
+    if (!deleteTarget) return
+    setDeleteLoading(true)
+    try {
+      await fetch('/api/projects/' + projectId + '/project-files-v2/photos', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dropboxPath: deleteTarget.relativePath })
+      })
+      // If deleting the photo that's open in the lightbox, close the lightbox
+      if (lightboxIndex !== null && filteredPhotos[lightboxIndex]?.id === deleteTarget.id) {
+        setLightboxIndex(null)
+      }
+      mutate()
+    } catch (err) {
+      console.error('Delete error:', err)
+    }
+    setDeleteLoading(false)
+    setDeleteTarget(null)
+  }, [deleteTarget, projectId, mutate, lightboxIndex, filteredPhotos])
+
+  // Rename a photo
+  const handleRename = useCallback(async () => {
+    if (!renameTarget || !renameValue.trim()) return
+    setRenameLoading(true)
+    try {
+      await fetch('/api/projects/' + projectId + '/project-files-v2/photos', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dropboxPath: renameTarget.relativePath,
+          newName: renameValue.trim()
+        })
+      })
+      mutate()
+    } catch (err) {
+      console.error('Rename error:', err)
+    }
+    setRenameLoading(false)
+    setRenameTarget(null)
+    setRenameValue('')
+  }, [renameTarget, renameValue, projectId, mutate])
 
   // Lightbox navigation
   const openLightbox = useCallback((index: number) => {
@@ -571,38 +640,82 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
       {/* Photo grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
         {filteredPhotos.map((photo, index) => (
-          <button
-            key={photo.id}
-            onClick={() => openLightbox(index)}
-            className="group relative aspect-square rounded-lg overflow-hidden bg-gray-100 border border-gray-200 hover:border-gray-300 transition-all hover:shadow-md"
-          >
-            <img
-              src={photo.url}
-              alt={photo.name}
-              className="w-full h-full object-cover"
-              loading="lazy"
-            />
-            {/* Hover overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-              <div className="absolute bottom-0 left-0 right-0 p-2.5">
-                <p className="text-xs text-white font-medium truncate">{photo.name}</p>
-                <p className="text-[10px] text-white/70">{formatDate(photo.lastModified)}</p>
+          <div key={photo.id} className="group relative aspect-square rounded-lg overflow-hidden bg-gray-100 border border-gray-200 hover:border-gray-300 transition-all hover:shadow-md">
+            <button
+              onClick={() => openLightbox(index)}
+              className="w-full h-full"
+            >
+              <img
+                src={photo.url}
+                alt={photo.name}
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
+              {/* Hover overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                <div className="absolute bottom-0 left-0 right-0 p-2.5">
+                  <p className="text-xs text-white font-medium truncate">{photo.name}</p>
+                  <p className="text-[10px] text-white/70">{formatDate(photo.lastModified)}</p>
+                </div>
               </div>
-            </div>
+            </button>
+
             {/* Folder badge */}
             {photo.folder && !selectedFolder && (
-              <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/50 text-[10px] text-white font-medium backdrop-blur-sm">
+              <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/50 text-[10px] text-white font-medium backdrop-blur-sm pointer-events-none">
                 {photo.folder}
               </div>
             )}
             {/* Tag count badge */}
             {photo.tags && photo.tags.length > 0 && (
-              <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-purple-600/80 text-[10px] text-white font-medium backdrop-blur-sm flex items-center gap-0.5">
+              <div className="absolute top-2 right-8 px-1.5 py-0.5 rounded bg-purple-600/80 text-[10px] text-white font-medium backdrop-blur-sm flex items-center gap-0.5 pointer-events-none">
                 <Tag className="w-2.5 h-2.5" />
                 {photo.tags.length}
               </div>
             )}
-          </button>
+
+            {/* Action menu button */}
+            <div className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+              <button
+                onClick={(e) => { e.stopPropagation(); setActionMenuPhoto(actionMenuPhoto === photo.id ? null : photo.id) }}
+                className="p-1 rounded-md bg-black/50 text-white hover:bg-black/70 backdrop-blur-sm transition-colors"
+              >
+                <MoreVertical className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Dropdown */}
+              {actionMenuPhoto === photo.id && (
+                <div
+                  ref={actionMenuRef}
+                  className="absolute top-full right-0 mt-1 w-36 bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-50"
+                >
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setActionMenuPhoto(null)
+                      setRenameTarget(photo)
+                      setRenameValue(photo.name)
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    Rename
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setActionMenuPhoto(null)
+                      setDeleteTarget(photo)
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Delete
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         ))}
       </div>
 
@@ -654,6 +767,21 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
                   </p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => { setRenameTarget(lightboxPhoto); setRenameValue(lightboxPhoto.name) }}
+                    className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+                    title="Rename"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setDeleteTarget(lightboxPhoto)}
+                    className="p-2 rounded-lg text-white/70 hover:text-red-400 hover:bg-white/10 transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                  <div className="w-px h-5 bg-white/20 mx-0.5" />
                   <a
                     href={lightboxPhoto.url}
                     download={lightboxPhoto.name}
@@ -741,6 +869,84 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open) { setDeleteTarget(null) } }}>
+        <DialogContent className="max-w-sm">
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-base font-semibold text-gray-900">Delete Photo</h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Are you sure you want to delete <span className="font-medium text-gray-700">{deleteTarget?.name}</span>? This will permanently remove it from Dropbox.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleteLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={deleteLoading}
+                className="gap-1.5"
+              >
+                {deleteLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                Delete
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename Dialog */}
+      <Dialog open={renameTarget !== null} onOpenChange={(open) => { if (!open) { setRenameTarget(null); setRenameValue('') } }}>
+        <DialogContent className="max-w-sm">
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-base font-semibold text-gray-900">Rename Photo</h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Enter a new name for this photo. This will rename it in Dropbox.
+              </p>
+            </div>
+            <input
+              type="text"
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              placeholder="New filename"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && renameValue.trim()) handleRename()
+              }}
+            />
+            <div className="flex items-center justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setRenameTarget(null); setRenameValue('') }}
+                disabled={renameLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleRename}
+                disabled={renameLoading || !renameValue.trim() || renameValue === renameTarget?.name}
+                className="gap-1.5"
+              >
+                {renameLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                Rename
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -309,6 +309,27 @@ class DropboxServiceV2 {
   }
 
   /**
+   * Rename/move a file in Dropbox
+   */
+  async moveFile(fromPath: string, toPath: string, memberId?: string): Promise<boolean> {
+    try {
+      const client = this.getClient(memberId)
+      console.log(`[DropboxService] Moving file: "${fromPath}" -> "${toPath}" for member: ${memberId || 'default'}`)
+      await client.filesMoveV2({
+        from_path: fromPath,
+        to_path: toPath,
+        allow_shared_folder: true,
+        autorename: false,
+      })
+      console.log(`[DropboxService] Successfully moved: "${fromPath}" -> "${toPath}"`)
+      return true
+    } catch (error: any) {
+      console.error('[DropboxService] Error moving file:', error)
+      throw new Error(`Failed to move file in Dropbox: ${error.message || 'Unknown error'}`)
+    }
+  }
+
+  /**
    * Check if a file has been updated (revision changed)
    */
   async checkFileUpdated(path: string, lastKnownRevision: string, memberId?: string): Promise<boolean> {

@@ -29,6 +29,8 @@ import {
   Upload,
   Loader2,
   CheckCircle,
+  LayoutGrid,
+  List,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -538,54 +540,119 @@ function SubfolderContent({
   handleDownload: (file: DropboxFileItem) => void
   handleFileClick: (file: DropboxFileItem) => void
 }) {
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+
   // Split files: PDFs always get visual cards (rendered client-side), images need thumbnailUrl
-  const visualFiles = files.filter(f => f.fileType === 'pdf' || (f.thumbnailUrl && f.fileType === 'image'))
+  const pdfFiles = files.filter(f => f.fileType === 'pdf')
+  const imageFiles = files.filter(f => f.thumbnailUrl && f.fileType === 'image')
   const otherFiles = files.filter(f => f.fileType !== 'pdf' && !(f.thumbnailUrl && f.fileType === 'image'))
+  const hasDrawings = pdfFiles.length > 0
 
   return (
     <div className="space-y-5">
-      {/* Visual file cards (PDFs + images) */}
-      {visualFiles.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-          {visualFiles.map((file) => (
-            <FileCard key={file.id} file={file} onDownload={handleDownload} onFileClick={handleFileClick} />
+      {/* Drawing-style header when PDFs present */}
+      {hasDrawings && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-blue-600">
+              Viewing {pdfFiles.length} Drawing{pdfFiles.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={cn(
+                'p-1.5 rounded-md transition-colors',
+                viewMode === 'grid' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'
+              )}
+              title="Grid view"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={cn(
+                'p-1.5 rounded-md transition-colors',
+                viewMode === 'list' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'
+              )}
+              title="List view"
+            >
+              <List className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* PDF Drawing Cards — ProjectSight style */}
+      {hasDrawings && viewMode === 'grid' && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          {pdfFiles.map((file) => (
+            <DrawingCard key={file.id} file={file} onDownload={handleDownload} onFileClick={handleFileClick} />
           ))}
         </div>
       )}
 
-      {/* Folders + other files in table */}
-      {(folders.length > 0 || otherFiles.length > 0) && (
+      {/* PDF List view */}
+      {hasDrawings && viewMode === 'list' && (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          {/* Header */}
           <div className="grid grid-cols-[1fr_100px_140px_80px] gap-4 px-4 py-2.5 border-b border-gray-100 text-xs font-medium text-gray-500 uppercase tracking-wider">
             <div>Name</div>
             <div>Size</div>
             <div>Modified</div>
             <div></div>
           </div>
-
-          {/* Folders first */}
-          {folders.map((folder) => (
-            <button
-              key={folder.id}
-              onClick={() => navigateToFolder(folder.path)}
-              className="group w-full grid grid-cols-[1fr_100px_140px_80px] gap-4 px-4 py-3 hover:bg-amber-50/50 transition-colors border-b border-gray-50 text-left"
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
-                  <FolderOpen className="w-4.5 h-4.5 text-amber-500" />
-                </div>
-                <span className="text-sm font-medium text-gray-900 truncate group-hover:text-amber-700 transition-colors">{folder.name}</span>
-              </div>
-              <div className="text-sm text-gray-400">—</div>
-              <div className="text-sm text-gray-500">{formatDate(folder.lastModified)}</div>
-              <div className="flex items-center justify-end">
-                <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-amber-500 transition-colors" />
-              </div>
-            </button>
+          {pdfFiles.map((file) => (
+            <FileRow key={file.id} file={file} onDownload={handleDownload} onFileClick={handleFileClick} />
           ))}
+        </div>
+      )}
 
-          {/* Other files */}
+      {/* Image cards */}
+      {imageFiles.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+          {imageFiles.map((file) => (
+            <FileCard key={file.id} file={file} onDownload={handleDownload} onFileClick={handleFileClick} />
+          ))}
+        </div>
+      )}
+
+      {/* Subfolder cards — same style as root-level folder cards */}
+      {folders.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          {folders.map((folder) => {
+            const config = getFolderConfig(folder.name)
+            const Icon = config.icon
+            return (
+              <button
+                key={folder.id}
+                onClick={() => navigateToFolder(folder.path)}
+                className={cn(
+                  'group relative flex flex-col items-center gap-3 p-6 rounded-xl border transition-all',
+                  'hover:shadow-md hover:-translate-y-0.5',
+                  config.bgClass
+                )}
+              >
+                <div className={cn('w-12 h-12 rounded-lg flex items-center justify-center bg-white/80 shadow-sm')}>
+                  <Icon className={cn('w-6 h-6', config.colorClass)} />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-medium text-gray-900">{cleanFolderName(folder.name)}</p>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Other files in table */}
+      {otherFiles.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="grid grid-cols-[1fr_100px_140px_80px] gap-4 px-4 py-2.5 border-b border-gray-100 text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <div>Name</div>
+            <div>Size</div>
+            <div>Modified</div>
+            <div></div>
+          </div>
           {otherFiles.map((file) => (
             <FileRow key={file.id} file={file} onDownload={handleDownload} onFileClick={handleFileClick} />
           ))}
@@ -596,31 +663,94 @@ function SubfolderContent({
 }
 
 // ---------------------------------------------------------------------------
-// File Card — Visual preview card for PDFs and images
+// Drawing Card — ProjectSight-style PDF card with number, title, thumbnail
 // ---------------------------------------------------------------------------
 
-function FileCard({ file, onDownload, onFileClick }: { file: DropboxFileItem; onDownload: (f: DropboxFileItem) => void; onFileClick: (f: DropboxFileItem) => void }) {
-  const isPdf = file.fileType === 'pdf'
+function extractDrawingNumber(name: string): string {
+  const withoutExt = name.replace(/\.pdf$/i, '')
+  // Match patterns like A2.01, P3-0.1, P10-1.3, etc.
+  const match = withoutExt.match(/^([A-Z0-9][\w.-]*)/i)
+  return match ? match[1] : withoutExt.substring(0, 12)
+}
+
+function extractDrawingTitle(name: string): string {
+  const withoutExt = name.replace(/\.pdf$/i, '')
+  // Try to extract title after the drawing number
+  // Common patterns: "A2.01 - LEVEL 1 FLOOR PLAN" or "A2.01_Level_1_Floor_Plan"
+  const match = withoutExt.match(/^[A-Z0-9][\w.-]*[\s_-]+(.+)$/i)
+  if (match) return match[1].replace(/_/g, ' ').toUpperCase()
+  return withoutExt.toUpperCase()
+}
+
+function DrawingCard({ file, onDownload, onFileClick }: { file: DropboxFileItem; onDownload: (f: DropboxFileItem) => void; onFileClick: (f: DropboxFileItem) => void }) {
+  const drawingNumber = extractDrawingNumber(file.name)
+  const drawingTitle = extractDrawingTitle(file.name)
 
   return (
-    <div className="group relative flex flex-col bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md hover:border-gray-300 transition-all text-left">
-      {/* Preview area — clicking opens viewer for PDFs */}
+    <div className="group relative flex flex-col bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg hover:border-blue-300 transition-all cursor-pointer">
+      {/* Header — Drawing number + title */}
+      <div className="px-3 pt-2.5 pb-1.5 border-b border-gray-100 min-w-0">
+        <p className="text-xs font-bold text-gray-900 truncate">{drawingNumber}</p>
+        <p className="text-[10px] text-gray-500 truncate leading-tight mt-0.5">{drawingTitle}</p>
+      </div>
+
+      {/* Thumbnail preview */}
       <button
         onClick={() => onFileClick(file)}
         className="relative w-full aspect-[4/3] bg-gray-50 overflow-hidden"
       >
-        {isPdf && file.thumbnailUrl ? (
+        {file.thumbnailUrl ? (
           <PdfThumbnail
             url={file.thumbnailUrl}
             width={280}
             className="w-full h-full"
           />
-        ) : isPdf ? (
-          <div className="w-full h-full flex flex-col items-center justify-center bg-red-50/50">
-            <FileText className="w-12 h-12 text-red-400" />
-            <span className="text-xs text-red-400 mt-1 font-medium">PDF</span>
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50">
+            <FileText className="w-10 h-10 text-gray-300" />
           </div>
-        ) : file.thumbnailUrl ? (
+        )}
+
+        {/* Hover overlay */}
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
+
+        {/* Download button on hover */}
+        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={(e) => { e.stopPropagation(); onDownload(file) }}
+            className="p-1.5 rounded-md bg-white/90 shadow-sm text-gray-600 hover:text-gray-900 hover:bg-white transition-colors"
+            title="Download"
+          >
+            <Download className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </button>
+
+      {/* Footer — Status + info */}
+      <div className="px-3 py-2 flex items-center justify-between border-t border-gray-100">
+        <div className="flex items-center gap-1.5">
+          <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
+          <span className="text-[10px] text-gray-500">{formatFileSize(file.size)}</span>
+        </div>
+        <span className="text-[10px] text-gray-400">{formatDate(file.lastModified)}</span>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// File Card — Visual preview card for images
+// ---------------------------------------------------------------------------
+
+function FileCard({ file, onDownload, onFileClick }: { file: DropboxFileItem; onDownload: (f: DropboxFileItem) => void; onFileClick: (f: DropboxFileItem) => void }) {
+  return (
+    <div className="group relative flex flex-col bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md hover:border-gray-300 transition-all text-left">
+      {/* Preview area */}
+      <button
+        onClick={() => onFileClick(file)}
+        className="relative w-full aspect-[4/3] bg-gray-50 overflow-hidden"
+      >
+        {file.thumbnailUrl ? (
           <img
             src={file.thumbnailUrl}
             alt={file.name}
@@ -636,20 +766,13 @@ function FileCard({ file, onDownload, onFileClick }: { file: DropboxFileItem; on
         {/* Hover overlay */}
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
           <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 rounded-full p-2 shadow-lg">
-            {isPdf ? (
-              <ExternalLink className="w-5 h-5 text-gray-700" />
-            ) : (
-              <Download className="w-5 h-5 text-gray-700" />
-            )}
+            <Download className="w-5 h-5 text-gray-700" />
           </div>
         </div>
 
         {/* File type badge */}
-        <div className={cn(
-          'absolute top-2 right-2 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase backdrop-blur-sm',
-          isPdf ? 'bg-red-500/90 text-white' : 'bg-teal-500/90 text-white'
-        )}>
-          {isPdf ? 'PDF' : file.name.split('.').pop()?.toUpperCase()}
+        <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase backdrop-blur-sm bg-teal-500/90 text-white">
+          {file.name.split('.').pop()?.toUpperCase()}
         </div>
       </button>
 
