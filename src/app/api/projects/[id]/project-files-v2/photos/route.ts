@@ -178,7 +178,8 @@ export async function GET(
   }
 }
 
-// DELETE - Delete a photo from Dropbox
+// DELETE - Delete one or more photos from Dropbox
+// Accepts { dropboxPath: string } for single or { dropboxPaths: string[] } for bulk
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -191,10 +192,17 @@ export async function DELETE(
 
     const { id } = await params
     const body = await request.json()
-    const { dropboxPath } = body
+    const { dropboxPath, dropboxPaths } = body
 
-    if (!dropboxPath || typeof dropboxPath !== 'string') {
-      return NextResponse.json({ error: 'dropboxPath is required' }, { status: 400 })
+    // Support single or bulk delete
+    const pathsToDelete: string[] = dropboxPaths && Array.isArray(dropboxPaths)
+      ? dropboxPaths
+      : dropboxPath && typeof dropboxPath === 'string'
+        ? [dropboxPath]
+        : []
+
+    if (pathsToDelete.length === 0) {
+      return NextResponse.json({ error: 'dropboxPath or dropboxPaths is required' }, { status: 400 })
     }
 
     // Verify project access
@@ -207,30 +215,49 @@ export async function DELETE(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
-    // Security: ensure the path is within the project's photos folder
     const photosBase = project.dropboxFolder + '/5- Photos'
-    const absolutePath = photosBase + '/' + dropboxPath
-    if (dropboxPath.includes('..') || !absolutePath.toLowerCase().startsWith(photosBase.toLowerCase())) {
-      return NextResponse.json({ error: 'Invalid path' }, { status: 400 })
+
+    // Validate all paths
+    for (const p of pathsToDelete) {
+      const absolutePath = photosBase + '/' + p
+      if (p.includes('..') || !absolutePath.toLowerCase().startsWith(photosBase.toLowerCase())) {
+        return NextResponse.json({ error: 'Invalid path: ' + p }, { status: 400 })
+      }
     }
 
-    // Delete from Dropbox
-    await dropboxService.deleteFile(absolutePath)
+    // Delete from Dropbox (batch, 5 concurrent)
+    const errors: string[] = []
+    const batchSize = 5
+    for (let i = 0; i < pathsToDelete.length; i += batchSize) {
+      const batch = pathsToDelete.slice(i, i + batchSize)
+      const results = await Promise.allSettled(
+        batch.map(p => dropboxService.deleteFile(photosBase + '/' + p))
+      )
+      results.forEach((r, idx) => {
+        if (r.status === 'rejected') {
+          errors.push(batch[idx])
+        }
+      })
+    }
 
-    // Also clean up any photo meta (tags) for this photo
+    // Clean up photo meta for all deleted photos
     try {
       await prisma.projectPhotoMeta.deleteMany({
-        where: { projectId: id, dropboxPath }
+        where: { projectId: id, dropboxPath: { in: pathsToDelete } }
       })
     } catch {
       // Not critical if meta cleanup fails
     }
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({
+      success: true,
+      deleted: pathsToDelete.length - errors.length,
+      failed: errors.length,
+    })
   } catch (error: any) {
     console.error('[project-files-v2/photos] DELETE error:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to delete photo' },
+      { error: error.message || 'Failed to delete photo(s)' },
       { status: 500 }
     )
   }

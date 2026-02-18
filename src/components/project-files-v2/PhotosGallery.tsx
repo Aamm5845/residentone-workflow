@@ -20,6 +20,9 @@ import {
   MoreVertical,
   Pencil,
   Trash2,
+  CheckSquare,
+  Square,
+  Ruler,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -45,6 +48,7 @@ interface PhotosResponse {
   folders: string[]
   total: number
   allTags: string[]
+  error?: string
 }
 
 interface PhotosGalleryProps {
@@ -126,6 +130,7 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null)
   const [uploadSuccess, setUploadSuccess] = useState(false)
   const [pendingFiles, setPendingFiles] = useState<File[] | null>(null)
+  const [uploadType, setUploadType] = useState<'photo' | 'survey'>('photo')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dragCountRef = useRef(0)
 
@@ -186,9 +191,11 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
     setPendingFiles(null)
 
     const doUpload = async () => {
-      // Auto date folder
+      // Auto date folder — surveys go to a separate "6- Surveys" folder
       const dateFolder = getTodayDateFolder()
-      const targetPath = '5- Photos/' + dateFolder
+      const targetPath = uploadType === 'survey'
+        ? '6- Surveys/' + dateFolder
+        : '5- Photos/' + dateFolder
 
       let done = 0
       for (const file of files) {
@@ -217,7 +224,7 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
     }
 
     doUpload()
-  }, [pendingFiles, projectId, mutate])
+  }, [pendingFiles, projectId, mutate, uploadType])
 
   // Reset page when folder/tag filter changes
   useEffect(() => {
@@ -290,6 +297,85 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
 
     mutate()
   }, [projectId, mutate])
+
+  // Selection state for multi-select / bulk delete
+  const [selectMode, setSelectMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false)
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
+
+  const [showUploadMenu, setShowUploadMenu] = useState(false)
+  const uploadMenuRef = useRef<HTMLDivElement>(null)
+
+  // Close upload menu on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (uploadMenuRef.current && !uploadMenuRef.current.contains(e.target as Node)) {
+        setShowUploadMenu(false)
+      }
+    }
+    if (showUploadMenu) {
+      document.addEventListener('mousedown', handleClick)
+      return () => document.removeEventListener('mousedown', handleClick)
+    }
+  }, [showUploadMenu])
+
+  // Toggle selection of a single photo
+  const toggleSelect = useCallback((photoId: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(photoId)) {
+        next.delete(photoId)
+      } else {
+        next.add(photoId)
+      }
+      return next
+    })
+  }, [])
+
+  // Select all / deselect all
+  const toggleSelectAll = useCallback(() => {
+    if (selectedIds.size === filteredPhotos.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(filteredPhotos.map(p => p.id)))
+    }
+  }, [filteredPhotos, selectedIds.size])
+
+  // Exit select mode
+  const exitSelectMode = useCallback(() => {
+    setSelectMode(false)
+    setSelectedIds(new Set())
+  }, [])
+
+  // Bulk delete
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedIds.size === 0) return
+    setBulkDeleteLoading(true)
+    try {
+      const pathsToDelete = filteredPhotos
+        .filter(p => selectedIds.has(p.id))
+        .map(p => p.relativePath)
+
+      await fetch('/api/projects/' + projectId + '/project-files-v2/photos', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dropboxPaths: pathsToDelete })
+      })
+
+      setSelectedIds(new Set())
+      setSelectMode(false)
+      setBulkDeleteConfirm(false)
+      // Close lightbox if open
+      if (lightboxIndex !== null) {
+        setLightboxIndex(null)
+      }
+      mutate()
+    } catch (err) {
+      console.error('Bulk delete error:', err)
+    }
+    setBulkDeleteLoading(false)
+  }, [selectedIds, filteredPhotos, projectId, mutate, lightboxIndex])
 
   // Delete / Rename state
   const [deleteTarget, setDeleteTarget] = useState<PhotoItem | null>(null)
@@ -515,7 +601,7 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
         onChange={handleFileInputChange}
       />
 
-      {/* Header + upload button */}
+      {/* Header + upload / select buttons */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <h3 className="text-sm font-medium text-gray-900">
@@ -523,29 +609,117 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
             <span className="ml-1.5 text-xs text-gray-400 font-normal">({total})</span>
           </h3>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-          className="gap-1.5"
-        >
-          {uploading ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+        <div className="flex items-center gap-2">
+          {/* Select mode toggle */}
+          {selectMode ? (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={toggleSelectAll}
+                className="gap-1.5"
+              >
+                {selectedIds.size === filteredPhotos.length ? (
+                  <CheckSquare className="w-3.5 h-3.5" />
+                ) : (
+                  <Square className="w-3.5 h-3.5" />
+                )}
+                {selectedIds.size === filteredPhotos.length ? 'Deselect All' : 'Select All'}
+              </Button>
+              {selectedIds.size > 0 && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setBulkDeleteConfirm(true)}
+                  className="gap-1.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete ({selectedIds.size})
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={exitSelectMode}
+              >
+                Cancel
+              </Button>
+            </>
           ) : (
-            <Upload className="w-3.5 h-3.5" />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectMode(true)}
+              className="gap-1.5"
+            >
+              <CheckSquare className="w-3.5 h-3.5" />
+              Select
+            </Button>
           )}
-          {uploading
-            ? `Uploading ${uploadProgress?.done ?? 0}/${uploadProgress?.total ?? 0}`
-            : 'Upload Photos'}
-        </Button>
+
+          {/* Upload button with dropdown for Photo / Survey */}
+          <div className="relative" ref={uploadMenuRef}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (uploading) return
+                setShowUploadMenu(!showUploadMenu)
+              }}
+              disabled={uploading}
+              className="gap-1.5"
+            >
+              {uploading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Upload className="w-3.5 h-3.5" />
+              )}
+              {uploading
+                ? `Uploading ${uploadProgress?.done ?? 0}/${uploadProgress?.total ?? 0}`
+                : 'Upload'}
+            </Button>
+
+            {showUploadMenu && !uploading && (
+              <div className="absolute top-full right-0 mt-1 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-50">
+                <button
+                  onClick={() => {
+                    setUploadType('photo')
+                    setShowUploadMenu(false)
+                    fileInputRef.current?.click()
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <Camera className="w-4 h-4 text-gray-500" />
+                  <div className="text-left">
+                    <p className="font-medium">Photos</p>
+                    <p className="text-xs text-gray-400">Site photos</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => {
+                    setUploadType('survey')
+                    setShowUploadMenu(false)
+                    fileInputRef.current?.click()
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <Ruler className="w-4 h-4 text-blue-500" />
+                  <div className="text-left">
+                    <p className="font-medium">Survey</p>
+                    <p className="text-xs text-gray-400">Dimension sketches &amp; notes</p>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Upload success toast */}
       {uploadSuccess && (
         <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm animate-in fade-in slide-in-from-top-2 duration-300">
           <CheckCircle className="w-4 h-4 shrink-0" />
-          Photos uploaded successfully
+          {uploadType === 'survey' ? 'Survey photos uploaded to 6- Surveys' : 'Photos uploaded successfully'}
         </div>
       )}
 
@@ -571,7 +745,7 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
             <Camera className="w-10 h-10 text-teal-500 mx-auto mb-2" />
             <p className="text-sm font-medium text-teal-700">Drop photos to upload</p>
             <p className="text-xs text-teal-500 mt-1">
-              Photos will be saved to 5- Photos/{dateFolder}
+              Photos will be saved to {uploadType === 'survey' ? '6- Surveys' : '5- Photos'}/{dateFolder}
             </p>
           </div>
         </div>
@@ -639,84 +813,121 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
 
       {/* Photo grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-        {filteredPhotos.map((photo, index) => (
-          <div key={photo.id} className="group relative aspect-square rounded-lg overflow-hidden bg-gray-100 border border-gray-200 hover:border-gray-300 transition-all hover:shadow-md">
-            <button
-              onClick={() => openLightbox(index)}
-              className="w-full h-full"
+        {filteredPhotos.map((photo, index) => {
+          const isSelected = selectedIds.has(photo.id)
+          return (
+            <div
+              key={photo.id}
+              className={cn(
+                'group relative aspect-square rounded-lg overflow-hidden bg-gray-100 border transition-all hover:shadow-md',
+                selectMode && isSelected
+                  ? 'border-blue-500 ring-2 ring-blue-500/30'
+                  : 'border-gray-200 hover:border-gray-300'
+              )}
             >
-              <img
-                src={photo.url}
-                alt={photo.name}
-                className="w-full h-full object-cover"
-                loading="lazy"
-              />
-              {/* Hover overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                <div className="absolute bottom-0 left-0 right-0 p-2.5">
-                  <p className="text-xs text-white font-medium truncate">{photo.name}</p>
-                  <p className="text-[10px] text-white/70">{formatDate(photo.lastModified)}</p>
-                </div>
-              </div>
-            </button>
-
-            {/* Folder badge */}
-            {photo.folder && !selectedFolder && (
-              <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/50 text-[10px] text-white font-medium backdrop-blur-sm pointer-events-none">
-                {photo.folder}
-              </div>
-            )}
-            {/* Tag count badge */}
-            {photo.tags && photo.tags.length > 0 && (
-              <div className="absolute top-2 right-8 px-1.5 py-0.5 rounded bg-purple-600/80 text-[10px] text-white font-medium backdrop-blur-sm flex items-center gap-0.5 pointer-events-none">
-                <Tag className="w-2.5 h-2.5" />
-                {photo.tags.length}
-              </div>
-            )}
-
-            {/* Action menu button */}
-            <div className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
               <button
-                onClick={(e) => { e.stopPropagation(); setActionMenuPhoto(actionMenuPhoto === photo.id ? null : photo.id) }}
-                className="p-1 rounded-md bg-black/50 text-white hover:bg-black/70 backdrop-blur-sm transition-colors"
+                onClick={() => selectMode ? toggleSelect(photo.id) : openLightbox(index)}
+                className="w-full h-full"
               >
-                <MoreVertical className="w-3.5 h-3.5" />
+                <img
+                  src={photo.url}
+                  alt={photo.name}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
+                {/* Hover overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  <div className="absolute bottom-0 left-0 right-0 p-2.5">
+                    <p className="text-xs text-white font-medium truncate">{photo.name}</p>
+                    <p className="text-[10px] text-white/70">{formatDate(photo.lastModified)}</p>
+                  </div>
+                </div>
               </button>
 
-              {/* Dropdown */}
-              {actionMenuPhoto === photo.id && (
-                <div
-                  ref={actionMenuRef}
-                  className="absolute top-full right-0 mt-1 w-36 bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-50"
+              {/* Selection checkbox (select mode) */}
+              {selectMode && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); toggleSelect(photo.id) }}
+                  className="absolute top-2 left-2 z-10"
                 >
+                  <div className={cn(
+                    'w-5 h-5 rounded border-2 flex items-center justify-center transition-colors',
+                    isSelected
+                      ? 'bg-blue-500 border-blue-500 text-white'
+                      : 'bg-white/80 border-gray-300 backdrop-blur-sm'
+                  )}>
+                    {isSelected && (
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
+                </button>
+              )}
+
+              {/* Folder badge */}
+              {photo.folder && !selectedFolder && !selectMode && (
+                <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/50 text-[10px] text-white font-medium backdrop-blur-sm pointer-events-none">
+                  {photo.folder}
+                </div>
+              )}
+              {/* Tag count badge */}
+              {photo.tags && photo.tags.length > 0 && (
+                <div className={cn(
+                  'absolute top-2 px-1.5 py-0.5 rounded bg-purple-600/80 text-[10px] text-white font-medium backdrop-blur-sm flex items-center gap-0.5 pointer-events-none',
+                  selectMode ? 'right-2' : 'right-8'
+                )}>
+                  <Tag className="w-2.5 h-2.5" />
+                  {photo.tags.length}
+                </div>
+              )}
+
+              {/* Action menu button (hidden in select mode) */}
+              {!selectMode && (
+                <div className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setActionMenuPhoto(null)
-                      setRenameTarget(photo)
-                      setRenameValue(photo.name)
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    onClick={(e) => { e.stopPropagation(); setActionMenuPhoto(actionMenuPhoto === photo.id ? null : photo.id) }}
+                    className="p-1 rounded-md bg-black/50 text-white hover:bg-black/70 backdrop-blur-sm transition-colors"
                   >
-                    <Pencil className="w-3.5 h-3.5" />
-                    Rename
+                    <MoreVertical className="w-3.5 h-3.5" />
                   </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setActionMenuPhoto(null)
-                      setDeleteTarget(photo)
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    Delete
-                  </button>
+
+                  {/* Dropdown */}
+                  {actionMenuPhoto === photo.id && (
+                    <div
+                      ref={actionMenuRef}
+                      className="absolute top-full right-0 mt-1 w-36 bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-50"
+                    >
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setActionMenuPhoto(null)
+                          setRenameTarget(photo)
+                          setRenameValue(photo.name)
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        Rename
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setActionMenuPhoto(null)
+                          setDeleteTarget(photo)
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Delete
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* Filtered results message */}
@@ -944,6 +1155,40 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
               >
                 {renameLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 Rename
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <Dialog open={bulkDeleteConfirm} onOpenChange={(open) => { if (!open) setBulkDeleteConfirm(false) }}>
+        <DialogContent className="max-w-sm">
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-base font-semibold text-gray-900">Delete {selectedIds.size} Photos</h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Are you sure you want to delete <span className="font-medium text-gray-700">{selectedIds.size} photo{selectedIds.size !== 1 ? 's' : ''}</span>? This will permanently remove them from Dropbox.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setBulkDeleteConfirm(false)}
+                disabled={bulkDeleteLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={handleBulkDelete}
+                disabled={bulkDeleteLoading}
+                className="gap-1.5"
+              >
+                {bulkDeleteLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                Delete {selectedIds.size} Photos
               </Button>
             </div>
           </div>
