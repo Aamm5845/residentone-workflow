@@ -354,6 +354,47 @@ class DropboxServiceV2 {
   }
 
   /**
+   * Start an upload session for large files (chunked upload)
+   */
+  async uploadSessionStart(contents: Buffer, memberId?: string): Promise<string> {
+    const client = this.getClient(memberId)
+    const response = await client.filesUploadSessionStart({
+      close: false,
+      contents,
+    })
+    return response.result.session_id
+  }
+
+  /**
+   * Append data to an existing upload session
+   */
+  async uploadSessionAppend(sessionId: string, offset: number, contents: Buffer, memberId?: string): Promise<void> {
+    const client = this.getClient(memberId)
+    await client.filesUploadSessionAppendV2({
+      cursor: { session_id: sessionId, offset },
+      close: false,
+      contents,
+    })
+  }
+
+  /**
+   * Finish an upload session and commit the file
+   */
+  async uploadSessionFinish(sessionId: string, offset: number, path: string, memberId?: string): Promise<{ path_display?: string }> {
+    const client = this.getClient(memberId)
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`
+    const response = await client.filesUploadSessionFinish({
+      cursor: { session_id: sessionId, offset },
+      commit: {
+        path: normalizedPath,
+        mode: { '.tag': 'add' },
+        autorename: true,
+      },
+    })
+    return { path_display: response?.result?.path_display || normalizedPath }
+  }
+
+  /**
    * Create a folder in Dropbox (ignores "folder already exists" errors)
    */
   async createFolder(path: string, memberId?: string): Promise<boolean> {

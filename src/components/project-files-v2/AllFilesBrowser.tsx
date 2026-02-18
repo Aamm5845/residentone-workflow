@@ -130,6 +130,16 @@ function cleanFolderName(name: string): string {
 
 const fetcher = (url: string) => fetch(url).then(res => res.json())
 
+// Convert ArrayBuffer to base64 string for chunked upload
+function bufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer)
+  let binary = ''
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i])
+  }
+  return btoa(binary)
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -157,7 +167,69 @@ export default function AllFilesBrowser({ projectId, dropboxFolder }: AllFilesBr
     return currentPath.split('/').filter(Boolean)
   }, [currentPath])
 
-  // Upload files to current folder
+  // Upload files to current folder (uses chunked upload for files > 3.5MB)
+  const CHUNK_SIZE = 3.5 * 1024 * 1024 // 3.5MB chunks to stay under Vercel's 4.5MB body limit
+  const uploadUrl = '/api/projects/' + projectId + '/project-files-v2/upload'
+
+  const uploadFileChunked = useCallback(async (file: File, path: string) => {
+    const totalSize = file.size
+    let offset = 0
+    let sessionId = ''
+
+    // Read file as array buffer
+    const arrayBuffer = await file.arrayBuffer()
+
+    // Start session with first chunk
+    const firstChunk = arrayBuffer.slice(0, CHUNK_SIZE)
+    const startRes = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'start',
+        chunk: bufferToBase64(firstChunk),
+      }),
+    })
+    const startData = await startRes.json()
+    if (!startData.success) throw new Error(startData.error || 'Failed to start upload')
+    sessionId = startData.sessionId
+    offset = startData.offset
+
+    // Append remaining chunks
+    while (offset < totalSize) {
+      const end = Math.min(offset + CHUNK_SIZE, totalSize)
+      const chunk = arrayBuffer.slice(offset, end)
+      const appendRes = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'append',
+          sessionId,
+          offset,
+          chunk: bufferToBase64(chunk),
+        }),
+      })
+      const appendData = await appendRes.json()
+      if (!appendData.success) throw new Error(appendData.error || 'Failed to append chunk')
+      offset = appendData.offset
+    }
+
+    // Finish session
+    const finishRes = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'finish',
+        sessionId,
+        offset,
+        path,
+        filename: file.name,
+      }),
+    })
+    const finishData = await finishRes.json()
+    if (!finishData.success) throw new Error(finishData.error || 'Failed to finish upload')
+    return finishData
+  }, [uploadUrl])
+
   const uploadFiles = useCallback(async (files: FileList | File[]) => {
     if (!currentPath || files.length === 0) return
     setUploading(true)
@@ -167,13 +239,16 @@ export default function AllFilesBrowser({ projectId, dropboxFolder }: AllFilesBr
     let done = 0
     for (const file of Array.from(files)) {
       try {
-        const formData = new FormData()
-        formData.append('file', file)
-        formData.append('path', currentPath)
-        await fetch('/api/projects/' + projectId + '/project-files-v2/upload', {
-          method: 'POST',
-          body: formData,
-        })
+        if (file.size > CHUNK_SIZE) {
+          // Large file — use chunked upload
+          await uploadFileChunked(file, currentPath)
+        } else {
+          // Small file — use standard FormData upload
+          const formData = new FormData()
+          formData.append('file', file)
+          formData.append('path', currentPath)
+          await fetch(uploadUrl, { method: 'POST', body: formData })
+        }
         done++
         setUploadProgress({ done, total: files.length })
       } catch (err) {
@@ -188,7 +263,7 @@ export default function AllFilesBrowser({ projectId, dropboxFolder }: AllFilesBr
     setUploadSuccess(true)
     mutate() // Refresh the file list
     setTimeout(() => setUploadSuccess(false), 3000)
-  }, [currentPath, projectId, mutate])
+  }, [currentPath, projectId, mutate, uploadFileChunked, uploadUrl])
 
   // Drag & drop handlers
   const handleDragEnter = useCallback((e: React.DragEvent) => {
