@@ -109,8 +109,18 @@ export default function ApsTestPage() {
     const folder = firstPath ? firstPath.split('/')[0] : 'Selected folder'
     setFolderName(folder)
 
+    // Only include files directly in the root folder (not in subfolders)
+    // webkitRelativePath looks like "FolderName/file.dwg" for root files
+    // and "FolderName/Subfolder/file.dwg" for subfolder files
+    const rootFiles = files.filter(f => {
+      const relPath = (f as any).webkitRelativePath || ''
+      const parts = relPath.split('/')
+      // Root files have exactly 2 parts: [FolderName, filename]
+      return parts.length === 2
+    })
+
     // Filter to relevant file types only
-    const relevant = files.filter(f =>
+    const relevant = rootFiles.filter(f =>
       /\.(dwg|dxf|jpg|jpeg|png|ctb|stb|pdf)$/i.test(f.name)
     )
     setFolderFiles(relevant)
