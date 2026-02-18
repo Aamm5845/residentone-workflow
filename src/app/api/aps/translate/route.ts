@@ -104,24 +104,122 @@ export async function POST(request: NextRequest) {
         })
       } else {
         // Use Model Derivative for SVF2 viewer
-        const urn = await apsService.uploadFile(file.name, buffer)
+        // Also parse xref files — without them, only dimensions/annotations show
+        // and the actual model from xref files would be missing
+        const xrefEntries = formData.getAll('xrefFiles') as File[]
+        let xrefFiles: Array<{ name: string; buffer: Buffer }> | undefined
+        if (xrefEntries && xrefEntries.length > 0) {
+          xrefFiles = []
+          for (const xf of xrefEntries) {
+            if (xf && xf.name && xf.size > 0) {
+              xrefFiles.push({
+                name: xf.name,
+                buffer: Buffer.from(await xf.arrayBuffer()),
+              })
+            }
+          }
+          if (xrefFiles.length === 0) xrefFiles = undefined
+        }
+
         const is2dCad = /\.(dwg|dxf)$/i.test(file.name)
-        const result = await apsService.translateToSvf2(urn, is2dCad ? ['2d'] : ['2d', '3d'])
+        const result = await apsService.uploadFileWithXrefs(
+          file.name,
+          buffer,
+          xrefFiles,
+          is2dCad ? ['2d'] : ['2d', '3d']
+        )
         return NextResponse.json({
           success: true,
           urn: result.urn,
           status: result.status,
           type: 'model-derivative',
+          xrefCount: xrefFiles?.length || 0,
           message: 'Translation started. Poll /api/aps/translate/status?urn=<urn> for progress.',
         })
       }
     } else {
-      // JSON body with fileUrl
+      // JSON body — supports fileUrl mode OR dropboxPath mode
       const body = await request.json()
-      const { fileUrl, fileName, outputFormat = 'svf2' } = body
+      const { fileUrl, fileName, outputFormat = 'svf2', dropboxPath, projectId } = body
 
+      // --- Dropbox path mode: auto-fetch xrefs from same folder ---
+      if (dropboxPath && projectId) {
+        const { default: prisma } = await import('@/lib/prisma')
+        const { DropboxServiceV2 } = await import('@/lib/dropbox-service-v2')
+
+        // Get the project to find the Dropbox folder
+        const project = await prisma.project.findUnique({
+          where: { id: projectId },
+          select: { dropboxFolder: true },
+        })
+        if (!project?.dropboxFolder) {
+          return NextResponse.json({ error: 'Project has no Dropbox folder' }, { status: 400 })
+        }
+
+        const dropboxService = new DropboxServiceV2()
+        const mainFileName = dropboxPath.split('/').pop() || 'drawing.dwg'
+        const isDwg = /\.(dwg|dxf)$/i.test(mainFileName)
+
+        // Download the main file from Dropbox
+        const mainBuffer = await dropboxService.downloadFile(dropboxPath)
+
+        // Find the folder path and list all sibling DWG/DXF files (xrefs)
+        const folderPath = dropboxPath.substring(0, dropboxPath.lastIndexOf('/'))
+        const folderContents = await dropboxService.listFolder(folderPath)
+        const siblingDwgs = folderContents.files.filter(f =>
+          /\.(dwg|dxf)$/i.test(f.name) &&
+          f.path.toLowerCase() !== dropboxPath.toLowerCase() // Exclude the main file
+        )
+
+        // Download all sibling DWG files as potential xrefs
+        let xrefFiles: Array<{ name: string; buffer: Buffer }> | undefined
+        if (siblingDwgs.length > 0) {
+          xrefFiles = []
+          for (const xf of siblingDwgs) {
+            try {
+              const xrefBuffer = await dropboxService.downloadFile(xf.path)
+              xrefFiles.push({ name: xf.name, buffer: xrefBuffer })
+            } catch (err: any) {
+              console.warn(`[aps/translate] Failed to download xref ${xf.name}:`, err.message)
+            }
+          }
+          if (xrefFiles.length === 0) xrefFiles = undefined
+        }
+
+        if (outputFormat === 'pdf' && isDwg) {
+          const result = await apsService.uploadAndPlotToPdf(mainFileName, mainBuffer, {
+            xrefFiles,
+          })
+          return NextResponse.json({
+            success: true,
+            workItemId: result.workItemId,
+            pdfObjectKey: result.pdfObjectKey,
+            status: result.status,
+            type: 'design-automation',
+            xrefCount: xrefFiles?.length || 0,
+            message: 'Plot job submitted with xrefs from Dropbox folder.',
+          })
+        } else {
+          const result = await apsService.uploadFileWithXrefs(
+            mainFileName,
+            mainBuffer,
+            xrefFiles,
+            isDwg ? ['2d'] : ['2d', '3d']
+          )
+          return NextResponse.json({
+            success: true,
+            urn: result.urn,
+            status: result.status,
+            type: 'model-derivative',
+            xrefCount: xrefFiles?.length || 0,
+            message: `Translation started with ${xrefFiles?.length || 0} xref(s) from same folder.`,
+          })
+        }
+      }
+
+      // --- URL mode: direct file URL ---
       if (!fileUrl || !fileName) {
-        return NextResponse.json({ error: 'fileUrl and fileName are required' }, { status: 400 })
+        return NextResponse.json({ error: 'fileUrl and fileName (or dropboxPath and projectId) are required' }, { status: 400 })
       }
 
       const isDwg = /\.(dwg|dxf)$/i.test(fileName)

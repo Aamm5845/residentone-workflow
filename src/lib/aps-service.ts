@@ -249,10 +249,40 @@ async function uploadFile(fileName: string, buffer: Buffer): Promise<string> {
 
 /**
  * Start a translation job (CAD → SVF2 for viewer)
- * For 2D CAD files (DWG), only request '2d' views for faster translation
+ * For 2D CAD files (DWG), only request '2d' views for faster translation.
+ *
+ * When xrefUrns are provided, they are included as references so the Model
+ * Derivative engine can resolve external references (xrefs) in the main DWG.
  */
-async function translateToSvf2(urn: string, viewsHint: ('2d' | '3d')[] = ['2d', '3d']): Promise<{ urn: string; status: string }> {
+async function translateToSvf2(
+  urn: string,
+  viewsHint: ('2d' | '3d')[] = ['2d', '3d'],
+  xrefUrns?: Array<{ urn: string; fileName: string }>
+): Promise<{ urn: string; status: string }> {
   const token = await getToken()
+
+  // Build input object — include references if xrefs provided
+  const input: Record<string, any> = {
+    urn,
+    compressedUrn: false,
+    rootFilename: undefined as string | undefined,
+  }
+
+  // If we have xref references, add them
+  if (xrefUrns && xrefUrns.length > 0) {
+    input.checkReferences = true
+    input.references = xrefUrns.map(xref => ({
+      urn: xref.urn,
+      relativePath: xref.fileName,
+    }))
+  }
+
+  // Clean up undefined fields
+  if (!input.rootFilename) delete input.rootFilename
+  if (!input.references) {
+    delete input.checkReferences
+    delete input.references
+  }
 
   const resp = await fetch(APS_BASE + '/modelderivative/v2/designdata/job', {
     method: 'POST',
@@ -262,7 +292,7 @@ async function translateToSvf2(urn: string, viewsHint: ('2d' | '3d')[] = ['2d', 
       'x-ads-force': 'true', // re-translate even if already done
     },
     body: JSON.stringify({
-      input: { urn },
+      input,
       output: {
         formats: [
           {
@@ -819,8 +849,44 @@ async function getWorkItemStatus(workItemId: string): Promise<{
 }
 
 // ---------------------------------------------------------------------------
-// Convenience: Upload + Translate workflow
+// Convenience: Upload + Translate workflows
 // ---------------------------------------------------------------------------
+
+/**
+ * Upload a main DWG file + xref files to APS, then start SVF2 translation
+ * with references so the Model Derivative engine resolves all xrefs.
+ *
+ * This is the key function for viewing DWGs that have external references.
+ * Without uploading the xrefs, the viewer would only show dimensions/annotations
+ * from the main file without the actual model geometry from the xref files.
+ */
+async function uploadFileWithXrefs(
+  fileName: string,
+  buffer: Buffer,
+  xrefFiles?: Array<{ name: string; buffer: Buffer }>,
+  viewsHint: ('2d' | '3d')[] = ['2d']
+): Promise<{ urn: string; status: string }> {
+  await ensureBucket()
+
+  // Upload the main DWG file
+  const mainUrn = await uploadFile(fileName, buffer)
+
+  // Upload xref files and collect their URNs
+  let xrefUrns: Array<{ urn: string; fileName: string }> | undefined
+  if (xrefFiles && xrefFiles.length > 0) {
+    xrefUrns = []
+    for (const xf of xrefFiles) {
+      const xrefUrn = await uploadFile(xf.name, xf.buffer)
+      xrefUrns.push({
+        urn: xrefUrn,
+        fileName: xf.name,
+      })
+    }
+  }
+
+  // Start translation with xref references
+  return translateToSvf2(mainUrn, viewsHint, xrefUrns)
+}
 
 /**
  * Upload a CAD file from a URL (e.g., Dropbox temp link) to APS and start translation
@@ -861,6 +927,7 @@ export const apsService = {
   ensureBucket,
   uploadFile,
   uploadFileRaw,
+  uploadFileWithXrefs,
   translateToSvf2,
   translateToPdf,
   getTranslationStatus,

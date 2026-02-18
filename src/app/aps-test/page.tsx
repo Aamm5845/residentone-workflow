@@ -64,7 +64,6 @@ export default function ApsTestPage() {
   const [showPlotOptions, setShowPlotOptions] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const ctbInputRef = useRef<HTMLInputElement>(null)
-  const xrefInputRef = useRef<HTMLInputElement>(null)
   const viewerContainerRef = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<any>(null)
   const docRef = useRef<any>(null)
@@ -99,6 +98,15 @@ export default function ApsTestPage() {
       formData.append('file', file)
       formData.append('outputFormat', outputFormat)
 
+      // Append xref files for BOTH viewer and PDF modes
+      // Without xrefs, the viewer only shows dimensions/annotations from the main file
+      if (xrefFiles.length > 0) {
+        for (const xf of xrefFiles) {
+          formData.append('xrefFiles', xf)
+        }
+        addLog(`Including ${xrefFiles.length} xref file(s): ${xrefFiles.map(f => f.name).join(', ')}`)
+      }
+
       if (outputFormat === 'pdf') {
         // Append plot options as JSON
         formData.append('plotOptions', JSON.stringify(plotOptions))
@@ -107,14 +115,6 @@ export default function ApsTestPage() {
         if (ctbFile) {
           formData.append('ctbFile', ctbFile)
           addLog(`Including CTB: ${ctbFile.name}`)
-        }
-
-        // Append xref files if provided
-        if (xrefFiles.length > 0) {
-          for (const xf of xrefFiles) {
-            formData.append('xrefFiles', xf)
-          }
-          addLog(`Including ${xrefFiles.length} xref file(s): ${xrefFiles.map(f => f.name).join(', ')}`)
         }
       }
 
@@ -413,28 +413,46 @@ export default function ApsTestPage() {
         <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
           <h2 className="text-base font-semibold text-gray-900 mb-4">1. Upload CAD File</h2>
 
-          <div className="flex items-center gap-4 mb-4">
+          <div className="flex items-center gap-4 mb-2">
             <input
               ref={fileInputRef}
               type="file"
               accept=".dwg,.dxf"
+              multiple
               className="hidden"
               onChange={(e) => {
-                if (e.target.files?.[0]) setFile(e.target.files[0])
+                if (e.target.files && e.target.files.length > 0) {
+                  const allFiles = Array.from(e.target.files)
+                  // First file = main DWG, rest = xrefs
+                  setFile(allFiles[0])
+                  if (allFiles.length > 1) {
+                    setXrefFiles(allFiles.slice(1))
+                  } else {
+                    setXrefFiles([])
+                  }
+                }
               }}
             />
             <button
               onClick={() => fileInputRef.current?.click()}
               className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
             >
-              Choose DWG / DXF File
+              Choose DWG / DXF Files
             </button>
             {file && (
               <span className="text-sm text-gray-600">
                 {file.name} ({(file.size / 1024 / 1024).toFixed(1)} MB)
+                {xrefFiles.length > 0 && (
+                  <span className="text-blue-600 ml-1">+ {xrefFiles.length} xref(s)</span>
+                )}
               </span>
             )}
           </div>
+          <p className="text-[11px] text-gray-400 mb-4">
+            Select all files together (main DWG + xref DWGs). First file = main drawing, rest = xrefs.
+            <br />
+            <strong>Tip:</strong> When used from Project Files, xrefs are fetched automatically from the same Dropbox folder.
+          </p>
 
           <div className="flex items-center gap-4 mb-4">
             <label className="text-sm font-medium text-gray-700">Output:</label>
@@ -462,7 +480,24 @@ export default function ApsTestPage() {
             </div>
           </div>
 
-          {/* ---- Plot Options ---- */}
+          {/* ---- Xref files info ---- */}
+          {xrefFiles.length > 0 && (
+            <div className="mb-4 bg-blue-50 rounded-lg border border-blue-200 p-3">
+              <p className="text-xs font-semibold text-blue-800 mb-1">
+                Xref files detected ({xrefFiles.length})
+              </p>
+              <div className="space-y-0.5">
+                {xrefFiles.map((xf, i) => (
+                  <p key={i} className="text-[11px] text-blue-700 font-mono">{xf.name}</p>
+                ))}
+              </div>
+              <p className="text-[11px] text-blue-500 mt-1">
+                These will be uploaded alongside the main file so xrefs are resolved properly.
+              </p>
+            </div>
+          )}
+
+          {/* ---- Plot Options (PDF only) ---- */}
           {outputFormat === 'pdf' && (
             <div className="mb-4 space-y-4">
               <div className="flex items-center justify-between">
@@ -614,58 +649,6 @@ export default function ApsTestPage() {
                         <span className="text-xs text-gray-400">No CTB selected (will use default)</span>
                       )}
                     </div>
-                  </div>
-
-                  {/* Xref Files */}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">
-                      External References (Xrefs)
-                    </label>
-                    <div className="flex items-center gap-3 mb-2">
-                      <input
-                        ref={xrefInputRef}
-                        type="file"
-                        accept=".dwg,.dxf,.dgn,.dwf"
-                        multiple
-                        className="hidden"
-                        onChange={(e) => {
-                          if (e.target.files) {
-                            setXrefFiles(prev => [...prev, ...Array.from(e.target.files!)])
-                          }
-                        }}
-                      />
-                      <button
-                        onClick={() => xrefInputRef.current?.click()}
-                        className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                      >
-                        Add Xref Files
-                      </button>
-                      <span className="text-xs text-gray-400">
-                        Upload all referenced DWG files used by the main drawing
-                      </span>
-                    </div>
-                    {xrefFiles.length > 0 && (
-                      <div className="space-y-1">
-                        {xrefFiles.map((xf, i) => (
-                          <div key={i} className="flex items-center gap-2 text-xs text-gray-600">
-                            <span className="font-mono bg-gray-100 px-2 py-0.5 rounded">{xf.name}</span>
-                            <span className="text-gray-400">({(xf.size / 1024).toFixed(0)} KB)</span>
-                            <button
-                              onClick={() => setXrefFiles(prev => prev.filter((_, j) => j !== i))}
-                              className="text-red-400 hover:text-red-600"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        ))}
-                        <button
-                          onClick={() => setXrefFiles([])}
-                          className="text-xs text-red-500 hover:text-red-600"
-                        >
-                          Clear all xrefs
-                        </button>
-                      </div>
-                    )}
                   </div>
                 </div>
               )}
