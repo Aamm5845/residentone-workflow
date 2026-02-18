@@ -37,8 +37,11 @@ export async function POST(request: NextRequest) {
     // Ensure the bucket exists
     await apsService.ensureBucket()
 
-    // Sanitize the object key (same as aps-service.ts uploadFile)
-    const objectKey = fileName.replace(/[^a-zA-Z0-9._\-]/g, '_')
+    // Sanitize the object key and add timestamp to ensure uniqueness
+    // Without a timestamp, re-uploading the same file produces the same URN
+    // which can cause Autodesk's translation engine to return stale cached results
+    const timestamp = Date.now()
+    const objectKey = `${timestamp}_${fileName.replace(/[^a-zA-Z0-9._\-]/g, '_')}`
 
     // Get the APS auth token
     const token = await apsService.getToken()

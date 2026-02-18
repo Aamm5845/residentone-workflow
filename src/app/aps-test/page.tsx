@@ -345,7 +345,12 @@ export default function ApsTestPage() {
   const startTranslationPolling = (targetUrn: string) => {
     if (pollingRef.current) clearInterval(pollingRef.current)
 
+    let pollCount = 0
+    let lastProgress = ''
+    const startTime = Date.now()
+
     pollingRef.current = setInterval(async () => {
+      pollCount++
       try {
         const resp = await fetch(`/api/aps/translate/status?urn=${encodeURIComponent(targetUrn)}`)
         const data = await resp.json()
@@ -369,10 +374,18 @@ export default function ApsTestPage() {
             }
           }
         }
-        addLog(`Status: ${data.status} | Progress: ${data.progress}${derivativeInfo}`)
+
+        // Only log every 30s (6 polls) to reduce spam, unless progress changed
+        const progressChanged = data.progress !== lastProgress
+        lastProgress = data.progress
+        const elapsed = Math.round((Date.now() - startTime) / 1000)
+
+        if (progressChanged || pollCount % 6 === 0) {
+          addLog(`Status: ${data.status} | Progress: ${data.progress} | Elapsed: ${elapsed}s${derivativeInfo}`)
+        }
 
         if (data.status === 'success') {
-          addLog('Translation complete!')
+          addLog(`Translation complete! (took ${elapsed}s)`)
           addLog('Loading 2D Viewer...')
           setViewerReady(true)
           loadViewer(targetUrn)
@@ -380,7 +393,7 @@ export default function ApsTestPage() {
         }
 
         if (data.status === 'failed' || data.status === 'timeout') {
-          addLog(`Translation FAILED (${data.status})`)
+          addLog(`Translation FAILED (${data.status}) after ${elapsed}s`)
           if (data.derivatives) {
             data.derivatives.forEach((d: any) => {
               addLog(`  Derivative: ${d.outputType} (${d.status})`)
