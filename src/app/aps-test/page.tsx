@@ -183,13 +183,16 @@ export default function ApsTestPage() {
         }
 
         // Generate ZIP blob
+        let lastLoggedPercent = -1
         const zipBlob = await zip.generateAsync({
           type: 'blob',
           compression: 'DEFLATE',
           compressionOptions: { level: 3 }, // Fast compression
         }, (metadata) => {
-          if (metadata.percent % 20 < 1) {
-            addLog(`ZIP progress: ${Math.round(metadata.percent)}%`)
+          const pct = Math.floor(metadata.percent / 20) * 20 // 0, 20, 40, 60, 80, 100
+          if (pct > lastLoggedPercent) {
+            lastLoggedPercent = pct
+            addLog(`ZIP progress: ${pct}%`)
           }
         })
 
@@ -354,7 +357,19 @@ export default function ApsTestPage() {
 
         setStatus(data.status)
         setProgress(data.progress)
-        addLog(`Status: ${data.status} | Progress: ${data.progress}`)
+
+        // Log derivative-level messages (warnings, errors) even during inprogress
+        let derivativeInfo = ''
+        if (data.derivatives && data.derivatives.length > 0) {
+          for (const d of data.derivatives) {
+            if (d.messages) {
+              for (const m of d.messages) {
+                derivativeInfo += ` | ${m.type}: ${m.message}`
+              }
+            }
+          }
+        }
+        addLog(`Status: ${data.status} | Progress: ${data.progress}${derivativeInfo}`)
 
         if (data.status === 'success') {
           addLog('Translation complete!')

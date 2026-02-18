@@ -28,9 +28,15 @@ export async function GET(request: NextRequest) {
 
     const status = await apsService.getTranslationStatus(urn)
 
+    // Include region info for debugging
+    const debugInfo = status.status === 'inprogress' && status.progress === '0%'
+      ? { note: 'Translation is queued/initializing on Autodesk servers. Large files with many xrefs can take 5-15 minutes.' }
+      : {}
+
     return NextResponse.json({
       success: true,
       ...status,
+      ...debugInfo,
     })
   } catch (error: any) {
     console.error('[aps/translate/status] Error:', error)
