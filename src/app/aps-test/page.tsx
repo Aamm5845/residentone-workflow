@@ -43,10 +43,26 @@ const DEFAULT_PLOT_OPTIONS: PlotOptions = {
   layoutName: 'Layout1',
 }
 
+// File type icons/colors
+function getFileTypeInfo(name: string) {
+  const ext = name.split('.').pop()?.toLowerCase() || ''
+  if (ext === 'dwg' || ext === 'dxf') return { color: 'text-blue-600 bg-blue-50 border-blue-200', label: 'DWG' }
+  if (ext === 'jpg' || ext === 'jpeg') return { color: 'text-amber-600 bg-amber-50 border-amber-200', label: 'JPG' }
+  if (ext === 'png') return { color: 'text-green-600 bg-green-50 border-green-200', label: 'PNG' }
+  if (ext === 'ctb' || ext === 'stb') return { color: 'text-purple-600 bg-purple-50 border-purple-200', label: 'CTB' }
+  if (ext === 'pdf') return { color: 'text-red-600 bg-red-50 border-red-200', label: 'PDF' }
+  return { color: 'text-gray-600 bg-gray-50 border-gray-200', label: ext.toUpperCase() }
+}
+
 export default function ApsTestPage() {
-  const [file, setFile] = useState<File | null>(null)
+  // Step 1: Folder files
+  const [folderFiles, setFolderFiles] = useState<File[]>([])
+  const [folderName, setFolderName] = useState<string>('')
+  // Step 2: Selected main file
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  // CTB for plotting
   const [ctbFile, setCtbFile] = useState<File | null>(null)
-  const [xrefFiles, setXrefFiles] = useState<File[]>([])
+  // Processing state
   const [uploading, setUploading] = useState(false)
   const [urn, setUrn] = useState<string | null>(null)
   const [workItemId, setWorkItemId] = useState<string | null>(null)
@@ -62,7 +78,7 @@ export default function ApsTestPage() {
   const [activeSheet, setActiveSheet] = useState<string | null>(null)
   const [plotOptions, setPlotOptions] = useState<PlotOptions>(DEFAULT_PLOT_OPTIONS)
   const [showPlotOptions, setShowPlotOptions] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const folderInputRef = useRef<HTMLInputElement>(null)
   const ctbInputRef = useRef<HTMLInputElement>(null)
   const viewerContainerRef = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<any>(null)
@@ -74,9 +90,40 @@ export default function ApsTestPage() {
     setLogs(prev => [...prev, `[${time}] ${msg}`])
   }, [])
 
-  // Upload & process (translate or plot)
+  // Derived: DWG/DXF files in the folder (the ones user can choose to open)
+  const dwgFiles = folderFiles.filter(f => /\.(dwg|dxf)$/i.test(f.name))
+  // Derived: All other files (xrefs, images, etc.)
+  const otherFiles = folderFiles.filter(f => !/\.(dwg|dxf)$/i.test(f.name))
+  // Derived: xref files = everything in folder except the selected main file
+  const xrefFiles = selectedFile
+    ? folderFiles.filter(f => f !== selectedFile)
+    : []
+
+  // Handle folder selection
+  const handleFolderSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return
+    const files = Array.from(e.target.files)
+
+    // Try to get folder name from webkitRelativePath
+    const firstPath = (files[0] as any).webkitRelativePath || ''
+    const folder = firstPath ? firstPath.split('/')[0] : 'Selected folder'
+    setFolderName(folder)
+
+    // Filter to relevant file types only
+    const relevant = files.filter(f =>
+      /\.(dwg|dxf|jpg|jpeg|png|ctb|stb|pdf)$/i.test(f.name)
+    )
+    setFolderFiles(relevant)
+    setSelectedFile(null)
+
+    // Auto-detect CTB file
+    const ctb = relevant.find(f => /\.(ctb|stb)$/i.test(f.name))
+    if (ctb) setCtbFile(ctb)
+  }
+
+  // Upload & process
   const handleUpload = async () => {
-    if (!file) return
+    if (!selectedFile) return
     setUploading(true)
     setError(null)
     setUrn(null)
@@ -90,28 +137,26 @@ export default function ApsTestPage() {
     setActiveSheet(null)
     setLogs([])
 
-    addLog(`Uploading "${file.name}" (${(file.size / 1024 / 1024).toFixed(1)} MB)...`)
-    addLog(`Output: ${outputFormat === 'svf2' ? '2D Viewer' : 'Plot to PDF (Design Automation)'}`)
+    addLog(`Main file: "${selectedFile.name}" (${(selectedFile.size / 1024 / 1024).toFixed(1)} MB)`)
+    addLog(`Folder: ${folderName} (${folderFiles.length} files total)`)
+    addLog(`Xref/reference files: ${xrefFiles.length}`)
+    addLog(`Output: ${outputFormat === 'svf2' ? '2D Viewer' : 'Plot to PDF'}`)
 
     try {
       const formData = new FormData()
-      formData.append('file', file)
+      formData.append('file', selectedFile)
       formData.append('outputFormat', outputFormat)
 
-      // Append xref files for BOTH viewer and PDF modes
-      // Without xrefs, the viewer only shows dimensions/annotations from the main file
+      // Append ALL other files from the folder as xrefs
       if (xrefFiles.length > 0) {
         for (const xf of xrefFiles) {
           formData.append('xrefFiles', xf)
         }
-        addLog(`Including ${xrefFiles.length} xref file(s): ${xrefFiles.map(f => f.name).join(', ')}`)
+        addLog(`Bundling ${xrefFiles.length} xref/reference file(s) into ZIP...`)
       }
 
       if (outputFormat === 'pdf') {
-        // Append plot options as JSON
         formData.append('plotOptions', JSON.stringify(plotOptions))
-
-        // Append CTB file if provided
         if (ctbFile) {
           formData.append('ctbFile', ctbFile)
           addLog(`Including CTB: ${ctbFile.name}`)
@@ -130,7 +175,6 @@ export default function ApsTestPage() {
       }
 
       if (data.type === 'design-automation') {
-        // Design Automation (DWG → PDF plotting)
         addLog(`Upload complete. Work item: ${data.workItemId}`)
         addLog(`Plot job submitted (status: ${data.status})`)
         setWorkItemId(data.workItemId)
@@ -138,8 +182,10 @@ export default function ApsTestPage() {
         setStatus(data.status)
         startWorkItemPolling(data.workItemId, data.pdfObjectKey)
       } else {
-        // Model Derivative (SVF2 viewer)
         addLog(`Upload complete. URN: ${data.urn.slice(0, 30)}...`)
+        if (data.xrefCount > 0) {
+          addLog(`ZIP bundle uploaded with ${data.xrefCount} xref(s)`)
+        }
         addLog(`Translation started (status: ${data.status})`)
         setUrn(data.urn)
         setStatus(data.status)
@@ -197,7 +243,7 @@ export default function ApsTestPage() {
     }, 5000)
   }
 
-  // Poll for Design Automation work item status (PDF plotting)
+  // Poll for Design Automation work item status
   const startWorkItemPolling = (itemId: string, pdfKey: string) => {
     if (pollingRef.current) clearInterval(pollingRef.current)
 
@@ -225,17 +271,13 @@ export default function ApsTestPage() {
           } else {
             addLog('Warning: PDF plotted but no download URL returned.')
           }
-          if (data.reportUrl) {
-            addLog(`Report: ${data.reportUrl}`)
-          }
+          if (data.reportUrl) addLog(`Report: ${data.reportUrl}`)
           if (pollingRef.current) clearInterval(pollingRef.current)
         }
 
         if (data.status === 'failed') {
           addLog(`Plotting FAILED (${data.rawStatus})`)
-          if (data.reportUrl) {
-            addLog(`Report URL: ${data.reportUrl}`)
-          }
+          if (data.reportUrl) addLog(`Report URL: ${data.reportUrl}`)
           if (pollingRef.current) clearInterval(pollingRef.current)
         }
       } catch (err: any) {
@@ -247,7 +289,6 @@ export default function ApsTestPage() {
   // Load Autodesk Viewer — optimized for 2D CAD
   const loadViewer = async (targetUrn: string) => {
     try {
-      // Get viewer token
       const tokenResp = await fetch('/api/aps/token')
       const tokenData = await tokenResp.json()
 
@@ -258,7 +299,6 @@ export default function ApsTestPage() {
 
       addLog('Viewer token obtained')
 
-      // Load Autodesk scripts if not already loaded
       if (typeof (window as any).Autodesk === 'undefined') {
         addLog('Loading Autodesk Viewer SDK...')
         const link = document.createElement('link')
@@ -277,7 +317,6 @@ export default function ApsTestPage() {
       }
 
       const Autodesk = (window as any).Autodesk
-
       const options = {
         env: 'AutodeskProduction2',
         api: 'streamingV2',
@@ -289,16 +328,10 @@ export default function ApsTestPage() {
       Autodesk.Viewing.Initializer(options, () => {
         if (!viewerContainerRef.current) return
 
-        // Minimal config for 2D — only load essential extensions
-        const config = {
-          extensions: ['Autodesk.DocumentBrowser'],
-        }
-
+        const config = { extensions: ['Autodesk.DocumentBrowser'] }
         const viewer = new Autodesk.Viewing.GuiViewer3D(viewerContainerRef.current, config)
         viewer.start()
         viewerRef.current = viewer
-
-        // Fix inverted scroll zoom — reverse direction so scroll-up = zoom-in
         viewer.navigation.setReverseZoomDirection(true)
 
         addLog('Viewer initialized (zoom direction fixed, 2D-optimized)')
@@ -308,8 +341,6 @@ export default function ApsTestPage() {
           (doc: any) => {
             docRef.current = doc
             const root = doc.getRoot()
-
-            // Collect all viewable items (sheets/layouts in a 2D DWG)
             const viewables = root.search({ type: 'geometry' })
             const sheetList: Array<{ name: string; guid: string; role: string }> = []
 
@@ -324,31 +355,21 @@ export default function ApsTestPage() {
             addLog(`Found ${sheetList.length} viewable(s): ${sheetList.map(s => s.name).join(', ')}`)
             setSheets(sheetList)
 
-            // Listen for geometry loaded to fitToView and fix layout
             viewer.addEventListener(Autodesk.Viewing.GEOMETRY_LOADED_EVENT, () => {
-              // Fit the entire drawing to viewport — fixes cropped/weird layout
-              viewer.fitToView(undefined, undefined, true) // immediate=true, no animation
-              // Re-apply zoom direction in case it was reset
+              viewer.fitToView(undefined, undefined, true)
               viewer.navigation.setReverseZoomDirection(true)
               addLog('Drawing fitted to view')
             })
 
-            // Prefer 2D views — find first 2D viewable, fall back to default
             const first2d = sheetList.find(s => s.role === '2d') || sheetList[0]
             if (first2d) {
               const viewable = viewables.find((v: any) => v.guid() === first2d.guid) || viewables[0]
-              // Load with performance options for faster 2D loading
-              viewer.loadDocumentNode(doc, viewable, {
-                skipPropertyDb: true, // Skip property database for faster load
-              })
+              viewer.loadDocumentNode(doc, viewable, { skipPropertyDb: true })
               setActiveSheet(first2d.guid)
               addLog(`Loading 2D view: "${first2d.name}" (optimized)`)
             } else {
-              // Fallback — load default geometry
               const defaultGeom = root.getDefaultGeometry()
-              viewer.loadDocumentNode(doc, defaultGeom, {
-                skipPropertyDb: true,
-              })
+              viewer.loadDocumentNode(doc, defaultGeom, { skipPropertyDb: true })
               addLog('Loaded default geometry')
             }
           },
@@ -372,15 +393,12 @@ export default function ApsTestPage() {
       const Autodesk = (window as any).Autodesk
       const viewer = viewerRef.current
 
-      // Listen for geometry loaded on new sheet to fit again
       viewer.addEventListener(Autodesk.Viewing.GEOMETRY_LOADED_EVENT, () => {
         viewer.fitToView(undefined, undefined, true)
         viewer.navigation.setReverseZoomDirection(true)
       }, { once: true })
 
-      viewer.loadDocumentNode(docRef.current, target, {
-        skipPropertyDb: true,
-      })
+      viewer.loadDocumentNode(docRef.current, target, { skipPropertyDb: true })
       setActiveSheet(guid)
       const sheet = sheets.find(s => s.guid === guid)
       addLog(`Switched to: "${sheet?.name}"`)
@@ -399,287 +417,280 @@ export default function ApsTestPage() {
   }, [])
 
   const showStatusSection = !!(urn || workItemId)
-  const isDwg = file ? /\.(dwg|dxf)$/i.test(file.name) : false
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-5xl mx-auto">
         <h1 className="text-2xl font-bold text-gray-900 mb-1">Autodesk APS — 2D CAD Viewer & PDF Plot</h1>
         <p className="text-sm text-gray-500 mb-6">
-          Upload a DWG/DXF file to view 2D drawings or plot to PDF using Design Automation
+          Select a CAD project folder, then choose which drawing to open
         </p>
 
-        {/* Upload Section */}
+        {/* Step 1: Select Folder */}
         <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-          <h2 className="text-base font-semibold text-gray-900 mb-4">1. Upload CAD File</h2>
-
-          <div className="flex items-center gap-4 mb-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".dwg,.dxf,.jpg,.jpeg,.png,.pdf"
-              multiple
-              className="hidden"
-              onChange={(e) => {
-                if (e.target.files && e.target.files.length > 0) {
-                  const allFiles = Array.from(e.target.files)
-                  // Find the main DWG/DXF file (first one), rest = xrefs
-                  const mainIdx = allFiles.findIndex(f => /\.(dwg|dxf)$/i.test(f.name))
-                  if (mainIdx >= 0) {
-                    setFile(allFiles[mainIdx])
-                    setXrefFiles(allFiles.filter((_, i) => i !== mainIdx))
-                  } else {
-                    setFile(allFiles[0])
-                    setXrefFiles(allFiles.slice(1))
-                  }
-                }
-              }}
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              Choose All CAD Files
-            </button>
-            {file && (
-              <span className="text-sm text-gray-600">
-                {file.name} ({(file.size / 1024 / 1024).toFixed(1)} MB)
-                {xrefFiles.length > 0 && (
-                  <span className="text-blue-600 ml-1">+ {xrefFiles.length} xref(s)</span>
-                )}
-              </span>
-            )}
-          </div>
-          <p className="text-[11px] text-gray-400 mb-4">
-            Select ALL files from the CAD folder — main DWG + xref DWGs + referenced images (JPG, PNG).
-            They will be bundled into a ZIP so the viewer can resolve all references.
-            <br />
-            <strong>Tip:</strong> When used from Project Files, xrefs are fetched automatically from the same Dropbox folder.
+          <h2 className="text-base font-semibold text-gray-900 mb-3">1. Select Project Folder</h2>
+          <p className="text-xs text-gray-500 mb-4">
+            Choose the folder containing your DWG files and all referenced files (xrefs, images, etc.).
+            All files will be bundled together so references are resolved correctly.
           </p>
 
-          <div className="flex items-center gap-4 mb-4">
-            <label className="text-sm font-medium text-gray-700">Output:</label>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setOutputFormat('svf2')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
-                  outputFormat === 'svf2'
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
-                }`}
-              >
-                2D Viewer
-              </button>
-              <button
-                onClick={() => setOutputFormat('pdf')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
-                  outputFormat === 'pdf'
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
-                }`}
-              >
-                Plot to PDF
-              </button>
-            </div>
-          </div>
-
-          {/* ---- Xref files info ---- */}
-          {xrefFiles.length > 0 && (
-            <div className="mb-4 bg-blue-50 rounded-lg border border-blue-200 p-3">
-              <p className="text-xs font-semibold text-blue-800 mb-1">
-                Xref files detected ({xrefFiles.length})
-              </p>
-              <div className="space-y-0.5">
-                {xrefFiles.map((xf, i) => (
-                  <p key={i} className="text-[11px] text-blue-700 font-mono">{xf.name}</p>
-                ))}
-              </div>
-              <p className="text-[11px] text-blue-500 mt-1">
-                These will be uploaded alongside the main file so xrefs are resolved properly.
-              </p>
-            </div>
-          )}
-
-          {/* ---- Plot Options (PDF only) ---- */}
-          {outputFormat === 'pdf' && (
-            <div className="mb-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-amber-600">
-                  Uses AutoCAD Design Automation engine for proper plotting with plot styles.
-                </p>
-                <button
-                  onClick={() => setShowPlotOptions(v => !v)}
-                  className="text-xs text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  {showPlotOptions ? 'Hide Options' : 'Show Plot Options'}
-                </button>
-              </div>
-
-              {showPlotOptions && (
-                <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 space-y-3">
-                  <h3 className="text-sm font-semibold text-gray-800">Plot Settings</h3>
-
-                  {/* Paper Size */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Paper Size</label>
-                      <select
-                        value={plotOptions.paperSize}
-                        onChange={e => setPlotOptions(o => ({ ...o, paperSize: e.target.value }))}
-                        className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white"
-                      >
-                        {PAPER_SIZES.map(ps => (
-                          <option key={ps.value} value={ps.value}>{ps.label}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Orientation */}
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Orientation</label>
-                      <select
-                        value={plotOptions.orientation}
-                        onChange={e => setPlotOptions(o => ({ ...o, orientation: e.target.value as 'Landscape' | 'Portrait' }))}
-                        className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white"
-                      >
-                        <option value="Landscape">Landscape</option>
-                        <option value="Portrait">Portrait</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    {/* Plot Area */}
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Plot Area</label>
-                      <select
-                        value={plotOptions.plotArea}
-                        onChange={e => setPlotOptions(o => ({ ...o, plotArea: e.target.value as PlotOptions['plotArea'] }))}
-                        className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white"
-                      >
-                        <option value="Layout">Layout</option>
-                        <option value="Extents">Extents</option>
-                        <option value="Display">Display</option>
-                        <option value="Limits">Limits</option>
-                      </select>
-                    </div>
-
-                    {/* Scale */}
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Scale</label>
-                      <select
-                        value={plotOptions.scale}
-                        onChange={e => setPlotOptions(o => ({ ...o, scale: e.target.value }))}
-                        className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white"
-                      >
-                        {SCALES.map(s => (
-                          <option key={s.value} value={s.value}>{s.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Layout Name */}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Layout Name</label>
-                    <input
-                      type="text"
-                      value={plotOptions.layoutName}
-                      onChange={e => setPlotOptions(o => ({ ...o, layoutName: e.target.value }))}
-                      placeholder="Layout1"
-                      className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
-                    />
-                    <p className="text-[11px] text-gray-400 mt-0.5">Enter the layout name from your DWG (e.g. Layout1, Model)</p>
-                  </div>
-
-                  {/* Checkboxes */}
-                  <div className="flex items-center gap-6">
-                    <label className="flex items-center gap-2 text-sm text-gray-700">
-                      <input
-                        type="checkbox"
-                        checked={plotOptions.plotStyles}
-                        onChange={e => setPlotOptions(o => ({ ...o, plotStyles: e.target.checked }))}
-                        className="rounded border-gray-300"
-                      />
-                      Plot with plot styles
-                    </label>
-                    <label className="flex items-center gap-2 text-sm text-gray-700">
-                      <input
-                        type="checkbox"
-                        checked={plotOptions.lineweights}
-                        onChange={e => setPlotOptions(o => ({ ...o, lineweights: e.target.checked }))}
-                        className="rounded border-gray-300"
-                      />
-                      Plot lineweights
-                    </label>
-                  </div>
-
-                  {/* CTB File */}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">
-                      Plot Style Table (.ctb)
-                    </label>
-                    <div className="flex items-center gap-3">
-                      <input
-                        ref={ctbInputRef}
-                        type="file"
-                        accept=".ctb,.stb"
-                        className="hidden"
-                        onChange={(e) => {
-                          if (e.target.files?.[0]) {
-                            setCtbFile(e.target.files[0])
-                            setPlotOptions(o => ({ ...o, plotStyleTable: e.target.files![0].name }))
-                          }
-                        }}
-                      />
-                      <button
-                        onClick={() => ctbInputRef.current?.click()}
-                        className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                      >
-                        Choose .ctb File
-                      </button>
-                      {ctbFile ? (
-                        <span className="text-xs text-gray-600 flex items-center gap-1">
-                          {ctbFile.name}
-                          <button
-                            onClick={() => { setCtbFile(null); setPlotOptions(o => ({ ...o, plotStyleTable: '' })) }}
-                            className="text-red-400 hover:text-red-600 ml-1"
-                          >
-                            ✕
-                          </button>
-                        </span>
-                      ) : (
-                        <span className="text-xs text-gray-400">No CTB selected (will use default)</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
+          <input
+            ref={folderInputRef}
+            type="file"
+            className="hidden"
+            {...{ webkitdirectory: '', directory: '', multiple: true } as any}
+            onChange={handleFolderSelect}
+          />
           <button
-            onClick={handleUpload}
-            disabled={!file || uploading}
-            className="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            onClick={() => folderInputRef.current?.click()}
+            className="px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
           >
-            {uploading ? 'Uploading...' : outputFormat === 'pdf' ? 'Upload & Plot' : 'Upload & Process'}
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            </svg>
+            Choose Folder
           </button>
 
-          {error && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-              {error}
+          {folderName && (
+            <div className="mt-4">
+              <div className="flex items-center gap-2 mb-3">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                </svg>
+                <span className="text-sm font-medium text-gray-900">{folderName}</span>
+                <span className="text-xs text-gray-400">({folderFiles.length} files)</span>
+              </div>
+
+              {/* Files summary */}
+              <div className="grid grid-cols-4 gap-2 text-xs">
+                <div className="bg-blue-50 rounded-lg p-2 text-center">
+                  <p className="font-bold text-blue-700 text-lg">{dwgFiles.length}</p>
+                  <p className="text-blue-600">DWG/DXF</p>
+                </div>
+                <div className="bg-amber-50 rounded-lg p-2 text-center">
+                  <p className="font-bold text-amber-700 text-lg">{folderFiles.filter(f => /\.(jpg|jpeg)$/i.test(f.name)).length}</p>
+                  <p className="text-amber-600">JPG</p>
+                </div>
+                <div className="bg-green-50 rounded-lg p-2 text-center">
+                  <p className="font-bold text-green-700 text-lg">{folderFiles.filter(f => /\.png$/i.test(f.name)).length}</p>
+                  <p className="text-green-600">PNG</p>
+                </div>
+                <div className="bg-purple-50 rounded-lg p-2 text-center">
+                  <p className="font-bold text-purple-700 text-lg">{folderFiles.filter(f => /\.(ctb|stb)$/i.test(f.name)).length}</p>
+                  <p className="text-purple-600">CTB</p>
+                </div>
+              </div>
             </div>
           )}
         </div>
+
+        {/* Step 2: Choose which DWG to open */}
+        {dwgFiles.length > 0 && (
+          <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+            <h2 className="text-base font-semibold text-gray-900 mb-3">2. Choose Drawing to Open</h2>
+            <p className="text-xs text-gray-500 mb-4">
+              Select which DWG file is the main drawing. All other files in the folder will be included as xrefs.
+            </p>
+
+            <div className="space-y-1.5 mb-4 max-h-64 overflow-y-auto">
+              {dwgFiles.map((f, i) => {
+                const info = getFileTypeInfo(f.name)
+                const isSelected = selectedFile === f
+                return (
+                  <button
+                    key={i}
+                    onClick={() => setSelectedFile(f)}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-all ${
+                      isSelected
+                        ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500'
+                        : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${info.color}`}>
+                      {info.label}
+                    </span>
+                    <span className={`text-sm flex-1 truncate ${isSelected ? 'font-medium text-blue-900' : 'text-gray-700'}`}>
+                      {f.name}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      {(f.size / 1024 / 1024).toFixed(1)} MB
+                    </span>
+                    {isSelected && (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Other files (xrefs) preview */}
+            {otherFiles.length > 0 && selectedFile && (
+              <div className="bg-gray-50 rounded-lg border border-gray-200 p-3 mb-4">
+                <p className="text-xs font-medium text-gray-600 mb-2">
+                  Will include as references ({xrefFiles.length} files):
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {xrefFiles.slice(0, 15).map((f, i) => {
+                    const info = getFileTypeInfo(f.name)
+                    return (
+                      <span key={i} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium border ${info.color}`}>
+                        {info.label}: {f.name.length > 25 ? f.name.slice(0, 22) + '...' : f.name}
+                      </span>
+                    )
+                  })}
+                  {xrefFiles.length > 15 && (
+                    <span className="text-[10px] text-gray-400">+{xrefFiles.length - 15} more</span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Output format & action */}
+            {selectedFile && (
+              <>
+                <div className="flex items-center gap-4 mb-4">
+                  <label className="text-sm font-medium text-gray-700">Output:</label>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setOutputFormat('svf2')}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                        outputFormat === 'svf2'
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
+                      }`}
+                    >
+                      2D Viewer
+                    </button>
+                    <button
+                      onClick={() => setOutputFormat('pdf')}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                        outputFormat === 'pdf'
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
+                      }`}
+                    >
+                      Plot to PDF
+                    </button>
+                  </div>
+                </div>
+
+                {/* Plot Options (PDF only) */}
+                {outputFormat === 'pdf' && (
+                  <div className="mb-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-amber-600">
+                        Uses AutoCAD Design Automation engine for proper plotting with plot styles.
+                      </p>
+                      <button
+                        onClick={() => setShowPlotOptions(v => !v)}
+                        className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                      >
+                        {showPlotOptions ? 'Hide Options' : 'Show Plot Options'}
+                      </button>
+                    </div>
+
+                    {showPlotOptions && (
+                      <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 space-y-3">
+                        <h3 className="text-sm font-semibold text-gray-800">Plot Settings</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Paper Size</label>
+                            <select value={plotOptions.paperSize} onChange={e => setPlotOptions(o => ({ ...o, paperSize: e.target.value }))} className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white">
+                              {PAPER_SIZES.map(ps => <option key={ps.value} value={ps.value}>{ps.label}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Orientation</label>
+                            <select value={plotOptions.orientation} onChange={e => setPlotOptions(o => ({ ...o, orientation: e.target.value as 'Landscape' | 'Portrait' }))} className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white">
+                              <option value="Landscape">Landscape</option>
+                              <option value="Portrait">Portrait</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Plot Area</label>
+                            <select value={plotOptions.plotArea} onChange={e => setPlotOptions(o => ({ ...o, plotArea: e.target.value as PlotOptions['plotArea'] }))} className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white">
+                              <option value="Layout">Layout</option>
+                              <option value="Extents">Extents</option>
+                              <option value="Display">Display</option>
+                              <option value="Limits">Limits</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Scale</label>
+                            <select value={plotOptions.scale} onChange={e => setPlotOptions(o => ({ ...o, scale: e.target.value }))} className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white">
+                              {SCALES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Layout Name</label>
+                          <input type="text" value={plotOptions.layoutName} onChange={e => setPlotOptions(o => ({ ...o, layoutName: e.target.value }))} placeholder="Layout1" className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm" />
+                        </div>
+                        <div className="flex items-center gap-6">
+                          <label className="flex items-center gap-2 text-sm text-gray-700">
+                            <input type="checkbox" checked={plotOptions.plotStyles} onChange={e => setPlotOptions(o => ({ ...o, plotStyles: e.target.checked }))} className="rounded border-gray-300" />
+                            Plot with plot styles
+                          </label>
+                          <label className="flex items-center gap-2 text-sm text-gray-700">
+                            <input type="checkbox" checked={plotOptions.lineweights} onChange={e => setPlotOptions(o => ({ ...o, lineweights: e.target.checked }))} className="rounded border-gray-300" />
+                            Plot lineweights
+                          </label>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Plot Style Table (.ctb)</label>
+                          <div className="flex items-center gap-3">
+                            <input ref={ctbInputRef} type="file" accept=".ctb,.stb" className="hidden" onChange={(e) => {
+                              if (e.target.files?.[0]) {
+                                setCtbFile(e.target.files[0])
+                                setPlotOptions(o => ({ ...o, plotStyleTable: e.target.files![0].name }))
+                              }
+                            }} />
+                            <button onClick={() => ctbInputRef.current?.click()} className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                              Choose .ctb
+                            </button>
+                            {ctbFile ? (
+                              <span className="text-xs text-gray-600 flex items-center gap-1">
+                                {ctbFile.name}
+                                <button onClick={() => { setCtbFile(null); setPlotOptions(o => ({ ...o, plotStyleTable: '' })) }} className="text-red-400 hover:text-red-600 ml-1">✕</button>
+                              </span>
+                            ) : (
+                              <span className="text-xs text-gray-400">Auto-detected from folder or none</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <button
+                  onClick={handleUpload}
+                  disabled={uploading}
+                  className="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                >
+                  {uploading ? 'Processing...' : outputFormat === 'pdf' ? 'Upload & Plot' : 'Upload & View'}
+                </button>
+              </>
+            )}
+
+            {error && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                {error}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Status Section */}
         {showStatusSection && (
           <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
             <h2 className="text-base font-semibold text-gray-900 mb-4">
-              2. {workItemId ? 'Plot Status' : 'Translation Status'}
+              3. {workItemId ? 'Plot Status' : 'Translation Status'}
             </h2>
-
             <div className="flex items-center gap-6 mb-4">
               <div>
                 <p className="text-xs text-gray-500 uppercase tracking-wider">Status</p>
@@ -687,9 +698,7 @@ export default function ApsTestPage() {
                   status === 'success' ? 'text-green-600' :
                   status === 'failed' || status === 'timeout' ? 'text-red-600' :
                   'text-amber-600'
-                }`}>
-                  {status || 'Starting...'}
-                </p>
+                }`}>{status || 'Starting...'}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500 uppercase tracking-wider">Progress</p>
@@ -702,31 +711,20 @@ export default function ApsTestPage() {
                 </div>
               )}
             </div>
-
             {status && status !== 'success' && status !== 'failed' && status !== 'timeout' && (
               <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-blue-500 rounded-full transition-all duration-500 animate-pulse"
-                  style={{ width: progress || '10%' }}
-                />
+                <div className="h-full bg-blue-500 rounded-full transition-all duration-500 animate-pulse" style={{ width: progress || '10%' }} />
               </div>
             )}
           </div>
         )}
 
-        {/* PDF Download Section */}
+        {/* PDF Download */}
         {pdfDownloadUrl && (
           <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-            <h2 className="text-base font-semibold text-gray-900 mb-4">3. Download PDF</h2>
-            <p className="text-sm text-gray-600 mb-4">
-              Your DWG has been plotted to PDF using the AutoCAD engine with all layouts and plot styles.
-            </p>
-            <a
-              href={pdfDownloadUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-6 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
-            >
+            <h2 className="text-base font-semibold text-gray-900 mb-4">Download PDF</h2>
+            <a href={pdfDownloadUrl} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
@@ -735,39 +733,28 @@ export default function ApsTestPage() {
           </div>
         )}
 
-        {/* Viewer Section */}
+        {/* Viewer */}
         {viewerReady && (
           <div className="bg-white rounded-xl border border-gray-200 mb-6 overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50">
               <h2 className="text-sm font-semibold text-gray-900">2D Drawing Viewer</h2>
-
-              {/* Sheet/Layout switcher */}
               {sheets.length > 1 && (
                 <div className="flex items-center gap-1">
                   <span className="text-xs text-gray-500 mr-2">Layouts:</span>
                   {sheets.map((sheet) => (
-                    <button
-                      key={sheet.guid}
-                      onClick={() => switchSheet(sheet.guid)}
+                    <button key={sheet.guid} onClick={() => switchSheet(sheet.guid)}
                       className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
                         activeSheet === sheet.guid
                           ? 'bg-blue-600 text-white'
                           : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
+                      }`}>
                       {sheet.name}
                     </button>
                   ))}
                 </div>
               )}
             </div>
-
-            <div
-              ref={viewerContainerRef}
-              className="w-full bg-white"
-              style={{ height: '700px' }}
-            />
-
+            <div ref={viewerContainerRef} className="w-full bg-white" style={{ height: '700px' }} />
             <div className="px-4 py-2 border-t border-gray-200 bg-gray-50">
               <p className="text-xs text-gray-400">
                 Pan: Click + Drag &nbsp;|&nbsp; Zoom: Scroll wheel &nbsp;|&nbsp;
@@ -778,28 +765,24 @@ export default function ApsTestPage() {
           </div>
         )}
 
-        {/* Log Section */}
+        {/* Logs */}
         <div className="bg-gray-900 rounded-xl p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold text-white">Logs</h2>
             {logs.length > 0 && (
-              <button
-                onClick={() => setLogs([])}
-                className="text-xs text-gray-500 hover:text-gray-400"
-              >
-                Clear
-              </button>
+              <button onClick={() => setLogs([])} className="text-xs text-gray-500 hover:text-gray-400">Clear</button>
             )}
           </div>
           <div className="font-mono text-xs text-green-400 space-y-1 max-h-64 overflow-y-auto">
             {logs.length === 0 ? (
-              <p className="text-gray-500">No activity yet. Upload a DWG file to start.</p>
+              <p className="text-gray-500">No activity yet. Select a folder and choose a drawing to start.</p>
             ) : (
               logs.map((log, i) => (
                 <p key={i} className={
                   log.includes('ERROR') || log.includes('FAILED') ? 'text-red-400' :
                   log.includes('complete') || log.includes('success') || log.includes('ready') || log.includes('fitted') ? 'text-emerald-400' :
                   log.includes('Warning') ? 'text-yellow-400' :
+                  log.includes('Bundling') || log.includes('ZIP') ? 'text-cyan-400' :
                   ''
                 }>{log}</p>
               ))
