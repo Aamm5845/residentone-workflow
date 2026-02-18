@@ -1,8 +1,12 @@
 'use client'
 
 import { useState, useMemo, useRef, useCallback } from 'react'
+import dynamic from 'next/dynamic'
 import useSWR from 'swr'
 import { Button } from '@/components/ui/button'
+
+const PdfThumbnail = dynamic(() => import('./PdfThumbnail'), { ssr: false })
+const PdfViewer = dynamic(() => import('./PdfViewer'), { ssr: false })
 import {
   ChevronRight,
   FolderOpen,
@@ -41,6 +45,7 @@ interface DropboxFileItem {
   isFolder: boolean
   revision?: string
   thumbnailUrl?: string
+  fileType?: 'image' | 'pdf' | 'other'
 }
 
 interface BrowseResponse {
@@ -130,6 +135,7 @@ export default function AllFilesBrowser({ projectId, dropboxFolder }: AllFilesBr
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null)
   const [uploadSuccess, setUploadSuccess] = useState(false)
+  const [viewingPdf, setViewingPdf] = useState<DropboxFileItem | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dragCountRef = useRef(0)
 
@@ -236,6 +242,15 @@ export default function AllFilesBrowser({ projectId, dropboxFolder }: AllFilesBr
     }
   }
 
+  // Handle clicking a file — open PDF viewer for PDFs, download otherwise
+  const handleFileClick = (file: DropboxFileItem) => {
+    if (file.fileType === 'pdf' && file.thumbnailUrl) {
+      setViewingPdf(file)
+      return
+    }
+    handleDownload(file)
+  }
+
   // Handle download (open temp link in new tab)
   const handleDownload = async (file: DropboxFileItem) => {
     if (file.thumbnailUrl) {
@@ -318,18 +333,19 @@ export default function AllFilesBrowser({ projectId, dropboxFolder }: AllFilesBr
                 <button
                   key={folder.id}
                   onClick={() => navigateToFolder(folder.path)}
-                  className={cn(
-                    'group relative flex flex-col items-center gap-3 p-6 rounded-xl border transition-all',
-                    'hover:shadow-md hover:-translate-y-0.5',
-                    config.bgClass
-                  )}
+                  className="group relative flex items-center gap-4 p-4 rounded-xl bg-white border border-gray-200 transition-all hover:shadow-lg hover:-translate-y-0.5 hover:border-gray-300 text-left"
                 >
-                  <div className={cn('w-12 h-12 rounded-lg flex items-center justify-center bg-white/80 shadow-sm')}>
+                  <div className={cn(
+                    'w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-transform group-hover:scale-105',
+                    config.bgClass
+                  )}>
                     <Icon className={cn('w-6 h-6', config.colorClass)} />
                   </div>
-                  <div className="text-center">
-                    <p className="text-sm font-medium text-gray-900">{cleanFolderName(folder.name)}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{cleanFolderName(folder.name)}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{config.label}</p>
                   </div>
+                  <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 shrink-0 transition-colors" />
                 </button>
               )
             })}
@@ -342,10 +358,21 @@ export default function AllFilesBrowser({ projectId, dropboxFolder }: AllFilesBr
             <h3 className="text-sm font-medium text-gray-500 mb-3">Files</h3>
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
               {files.map((file) => (
-                <FileRow key={file.id} file={file} onDownload={handleDownload} />
+                <FileRow key={file.id} file={file} onDownload={handleDownload} onFileClick={handleFileClick} />
               ))}
             </div>
           </div>
+        )}
+
+        {/* PDF Viewer overlay */}
+        {viewingPdf && (
+          <PdfViewer
+            file={viewingPdf}
+            allPdfFiles={files.filter(f => f.fileType === 'pdf' && f.thumbnailUrl)}
+            onSelectFile={setViewingPdf}
+            onClose={() => setViewingPdf(null)}
+            onDownload={handleDownload}
+          />
         )}
       </div>
     )
@@ -472,6 +499,63 @@ export default function AllFilesBrowser({ projectId, dropboxFolder }: AllFilesBr
           </Button>
         </div>
       ) : (
+        <SubfolderContent
+          folders={folders}
+          files={files}
+          navigateToFolder={navigateToFolder}
+          handleDownload={handleDownload}
+          handleFileClick={handleFileClick}
+        />
+      )}
+
+      {/* PDF Viewer overlay */}
+      {viewingPdf && (
+        <PdfViewer
+          file={viewingPdf}
+          allPdfFiles={files.filter(f => f.fileType === 'pdf' && f.thumbnailUrl)}
+          onSelectFile={setViewingPdf}
+          onClose={() => setViewingPdf(null)}
+          onDownload={handleDownload}
+        />
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Subfolder Content — Visual cards + Table
+// ---------------------------------------------------------------------------
+
+function SubfolderContent({
+  folders,
+  files,
+  navigateToFolder,
+  handleDownload,
+  handleFileClick,
+}: {
+  folders: DropboxFileItem[]
+  files: DropboxFileItem[]
+  navigateToFolder: (path: string) => void
+  handleDownload: (file: DropboxFileItem) => void
+  handleFileClick: (file: DropboxFileItem) => void
+}) {
+  // Split files into visual (PDF/image with thumbnailUrl) and other
+  const visualFiles = files.filter(f => f.thumbnailUrl && (f.fileType === 'pdf' || f.fileType === 'image'))
+  const otherFiles = files.filter(f => !f.thumbnailUrl || (f.fileType !== 'pdf' && f.fileType !== 'image'))
+
+  return (
+    <div className="space-y-5">
+      {/* Visual file cards (PDFs + images) */}
+      {visualFiles.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+          {visualFiles.map((file) => (
+            <FileCard key={file.id} file={file} onDownload={handleDownload} onFileClick={handleFileClick} />
+          ))}
+        </div>
+      )}
+
+      {/* Folders + other files in table */}
+      {(folders.length > 0 || otherFiles.length > 0) && (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           {/* Header */}
           <div className="grid grid-cols-[1fr_100px_140px_80px] gap-4 px-4 py-2.5 border-b border-gray-100 text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -486,21 +570,25 @@ export default function AllFilesBrowser({ projectId, dropboxFolder }: AllFilesBr
             <button
               key={folder.id}
               onClick={() => navigateToFolder(folder.path)}
-              className="w-full grid grid-cols-[1fr_100px_140px_80px] gap-4 px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-50 text-left"
+              className="group w-full grid grid-cols-[1fr_100px_140px_80px] gap-4 px-4 py-3 hover:bg-amber-50/50 transition-colors border-b border-gray-50 text-left"
             >
               <div className="flex items-center gap-3 min-w-0">
-                <FolderOpen className="w-5 h-5 text-amber-500 shrink-0" />
-                <span className="text-sm font-medium text-gray-900 truncate">{folder.name}</span>
+                <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
+                  <FolderOpen className="w-4.5 h-4.5 text-amber-500" />
+                </div>
+                <span className="text-sm font-medium text-gray-900 truncate group-hover:text-amber-700 transition-colors">{folder.name}</span>
               </div>
               <div className="text-sm text-gray-400">—</div>
               <div className="text-sm text-gray-500">{formatDate(folder.lastModified)}</div>
-              <div />
+              <div className="flex items-center justify-end">
+                <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-amber-500 transition-colors" />
+              </div>
             </button>
           ))}
 
-          {/* Files */}
-          {files.map((file) => (
-            <FileRow key={file.id} file={file} onDownload={handleDownload} />
+          {/* Other files */}
+          {otherFiles.map((file) => (
+            <FileRow key={file.id} file={file} onDownload={handleDownload} onFileClick={handleFileClick} />
           ))}
         </div>
       )}
@@ -509,15 +597,95 @@ export default function AllFilesBrowser({ projectId, dropboxFolder }: AllFilesBr
 }
 
 // ---------------------------------------------------------------------------
+// File Card — Visual preview card for PDFs and images
+// ---------------------------------------------------------------------------
+
+function FileCard({ file, onDownload, onFileClick }: { file: DropboxFileItem; onDownload: (f: DropboxFileItem) => void; onFileClick: (f: DropboxFileItem) => void }) {
+  const isPdf = file.fileType === 'pdf'
+
+  return (
+    <div className="group relative flex flex-col bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md hover:border-gray-300 transition-all text-left">
+      {/* Preview area — clicking opens viewer for PDFs */}
+      <button
+        onClick={() => onFileClick(file)}
+        className="relative w-full aspect-[4/3] bg-gray-50 overflow-hidden"
+      >
+        {isPdf && file.thumbnailUrl ? (
+          <PdfThumbnail
+            url={file.thumbnailUrl}
+            width={280}
+            className="w-full h-full"
+          />
+        ) : file.thumbnailUrl ? (
+          <img
+            src={file.thumbnailUrl}
+            alt={file.name}
+            className="w-full h-full object-cover"
+            loading="lazy"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <FileText className="w-12 h-12 text-gray-300" />
+          </div>
+        )}
+
+        {/* Hover overlay */}
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 rounded-full p-2 shadow-lg">
+            {isPdf ? (
+              <ExternalLink className="w-5 h-5 text-gray-700" />
+            ) : (
+              <Download className="w-5 h-5 text-gray-700" />
+            )}
+          </div>
+        </div>
+
+        {/* File type badge */}
+        <div className={cn(
+          'absolute top-2 right-2 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase backdrop-blur-sm',
+          isPdf ? 'bg-red-500/90 text-white' : 'bg-teal-500/90 text-white'
+        )}>
+          {isPdf ? 'PDF' : file.name.split('.').pop()?.toUpperCase()}
+        </div>
+      </button>
+
+      {/* Info */}
+      <div className="px-3 py-2.5 min-w-0 flex items-center justify-between">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
+          <p className="text-xs text-gray-500 mt-0.5">
+            {formatFileSize(file.size)} · {formatDate(file.lastModified)}
+          </p>
+        </div>
+        <button
+          onClick={(e) => { e.stopPropagation(); onDownload(file) }}
+          className="p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors opacity-0 group-hover:opacity-100 shrink-0 ml-1"
+          title="Download"
+        >
+          <Download className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // File Row
 // ---------------------------------------------------------------------------
 
-function FileRow({ file, onDownload }: { file: DropboxFileItem; onDownload: (f: DropboxFileItem) => void }) {
+function FileRow({ file, onDownload, onFileClick }: { file: DropboxFileItem; onDownload: (f: DropboxFileItem) => void; onFileClick?: (f: DropboxFileItem) => void }) {
   const { icon: FileIcon, colorClass } = getFileIcon(file.name)
   const isImage = file.thumbnailUrl != null
+  const isPdf = file.fileType === 'pdf'
 
   return (
-    <div className="group grid grid-cols-[1fr_100px_140px_80px] gap-4 px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-50">
+    <div
+      className={cn(
+        'group grid grid-cols-[1fr_100px_140px_80px] gap-4 px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-50',
+        (isPdf || isImage) && 'cursor-pointer'
+      )}
+      onClick={() => onFileClick ? onFileClick(file) : onDownload(file)}
+    >
       <div className="flex items-center gap-3 min-w-0">
         {isImage && file.thumbnailUrl ? (
           <img
@@ -534,7 +702,7 @@ function FileRow({ file, onDownload }: { file: DropboxFileItem; onDownload: (f: 
       <div className="text-sm text-gray-500">{formatDate(file.lastModified)}</div>
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <button
-          onClick={() => onDownload(file)}
+          onClick={(e) => { e.stopPropagation(); onDownload(file) }}
           className="p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
           title="Download"
         >
@@ -553,9 +721,12 @@ function FolderCardsSkeleton() {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
       {Array.from({ length: 7 }).map((_, i) => (
-        <div key={i} className="flex flex-col items-center gap-3 p-6 rounded-xl border border-gray-200 bg-white animate-pulse">
-          <div className="w-12 h-12 bg-gray-200 rounded-lg" />
-          <div className="h-4 bg-gray-200 rounded w-20" />
+        <div key={i} className="flex items-center gap-4 p-4 rounded-xl border border-gray-200 bg-white animate-pulse">
+          <div className="w-12 h-12 bg-gray-100 rounded-xl shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="h-4 bg-gray-200 rounded w-24 mb-1.5" />
+            <div className="h-3 bg-gray-100 rounded w-16" />
+          </div>
         </div>
       ))}
     </div>
