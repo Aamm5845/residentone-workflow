@@ -351,7 +351,7 @@ export default function PdfViewer({
             </div>
           )}
 
-          {file.thumbnailUrl && (
+          {file.thumbnailUrl ? (
             <div className="flex justify-center py-6 px-4">
               <Document
                 file={file.thumbnailUrl}
@@ -374,6 +374,18 @@ export default function PdfViewer({
                   className="shadow-2xl [&_canvas]:rounded-sm"
                 />
               </Document>
+            </div>
+          ) : !loading && (
+            <div className="flex flex-col items-center justify-center h-full gap-4">
+              <FileText className="w-16 h-16 text-gray-500" />
+              <p className="text-sm text-gray-400">PDF preview not available</p>
+              <button
+                onClick={() => onDownload(file)}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                Download to view
+              </button>
             </div>
           )}
 

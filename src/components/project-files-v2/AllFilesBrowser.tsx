@@ -244,7 +244,7 @@ export default function AllFilesBrowser({ projectId, dropboxFolder }: AllFilesBr
 
   // Handle clicking a file — open PDF viewer for PDFs, download otherwise
   const handleFileClick = (file: DropboxFileItem) => {
-    if (file.fileType === 'pdf' && file.thumbnailUrl) {
+    if (file.fileType === 'pdf') {
       setViewingPdf(file)
       return
     }
@@ -333,19 +333,18 @@ export default function AllFilesBrowser({ projectId, dropboxFolder }: AllFilesBr
                 <button
                   key={folder.id}
                   onClick={() => navigateToFolder(folder.path)}
-                  className="group relative flex items-center gap-4 p-4 rounded-xl bg-white border border-gray-200 transition-all hover:shadow-lg hover:-translate-y-0.5 hover:border-gray-300 text-left"
-                >
-                  <div className={cn(
-                    'w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-transform group-hover:scale-105',
+                  className={cn(
+                    'group relative flex flex-col items-center gap-3 p-6 rounded-xl border transition-all',
+                    'hover:shadow-md hover:-translate-y-0.5',
                     config.bgClass
-                  )}>
+                  )}
+                >
+                  <div className={cn('w-12 h-12 rounded-lg flex items-center justify-center bg-white/80 shadow-sm')}>
                     <Icon className={cn('w-6 h-6', config.colorClass)} />
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{cleanFolderName(folder.name)}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{config.label}</p>
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-gray-900">{cleanFolderName(folder.name)}</p>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 shrink-0 transition-colors" />
                 </button>
               )
             })}
@@ -368,7 +367,7 @@ export default function AllFilesBrowser({ projectId, dropboxFolder }: AllFilesBr
         {viewingPdf && (
           <PdfViewer
             file={viewingPdf}
-            allPdfFiles={files.filter(f => f.fileType === 'pdf' && f.thumbnailUrl)}
+            allPdfFiles={files.filter(f => f.fileType === 'pdf')}
             onSelectFile={setViewingPdf}
             onClose={() => setViewingPdf(null)}
             onDownload={handleDownload}
@@ -512,7 +511,7 @@ export default function AllFilesBrowser({ projectId, dropboxFolder }: AllFilesBr
       {viewingPdf && (
         <PdfViewer
           file={viewingPdf}
-          allPdfFiles={files.filter(f => f.fileType === 'pdf' && f.thumbnailUrl)}
+          allPdfFiles={files.filter(f => f.fileType === 'pdf')}
           onSelectFile={setViewingPdf}
           onClose={() => setViewingPdf(null)}
           onDownload={handleDownload}
@@ -539,9 +538,9 @@ function SubfolderContent({
   handleDownload: (file: DropboxFileItem) => void
   handleFileClick: (file: DropboxFileItem) => void
 }) {
-  // Split files into visual (PDF/image with thumbnailUrl) and other
-  const visualFiles = files.filter(f => f.thumbnailUrl && (f.fileType === 'pdf' || f.fileType === 'image'))
-  const otherFiles = files.filter(f => !f.thumbnailUrl || (f.fileType !== 'pdf' && f.fileType !== 'image'))
+  // Split files: PDFs always get visual cards (rendered client-side), images need thumbnailUrl
+  const visualFiles = files.filter(f => f.fileType === 'pdf' || (f.thumbnailUrl && f.fileType === 'image'))
+  const otherFiles = files.filter(f => f.fileType !== 'pdf' && !(f.thumbnailUrl && f.fileType === 'image'))
 
   return (
     <div className="space-y-5">
@@ -616,6 +615,11 @@ function FileCard({ file, onDownload, onFileClick }: { file: DropboxFileItem; on
             width={280}
             className="w-full h-full"
           />
+        ) : isPdf ? (
+          <div className="w-full h-full flex flex-col items-center justify-center bg-red-50/50">
+            <FileText className="w-12 h-12 text-red-400" />
+            <span className="text-xs text-red-400 mt-1 font-medium">PDF</span>
+          </div>
         ) : file.thumbnailUrl ? (
           <img
             src={file.thumbnailUrl}
@@ -721,12 +725,9 @@ function FolderCardsSkeleton() {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
       {Array.from({ length: 7 }).map((_, i) => (
-        <div key={i} className="flex items-center gap-4 p-4 rounded-xl border border-gray-200 bg-white animate-pulse">
-          <div className="w-12 h-12 bg-gray-100 rounded-xl shrink-0" />
-          <div className="flex-1 min-w-0">
-            <div className="h-4 bg-gray-200 rounded w-24 mb-1.5" />
-            <div className="h-3 bg-gray-100 rounded w-16" />
-          </div>
+        <div key={i} className="flex flex-col items-center gap-3 p-6 rounded-xl border border-gray-200 bg-white animate-pulse">
+          <div className="w-12 h-12 bg-gray-200 rounded-lg" />
+          <div className="h-4 bg-gray-200 rounded w-20" />
         </div>
       ))}
     </div>
