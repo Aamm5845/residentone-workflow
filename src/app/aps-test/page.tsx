@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
+import JSZip from 'jszip'
 
 // ----- Plot option types -----
 interface PlotOptions {
@@ -160,15 +161,43 @@ export default function ApsTestPage() {
 
     try {
       const formData = new FormData()
-      formData.append('file', selectedFile)
       formData.append('outputFormat', outputFormat)
 
-      // Append ALL other files from the folder as xrefs
+      // Create ZIP on the client side — avoids body size limits for large folders
       if (xrefFiles.length > 0) {
+        addLog(`Creating ZIP bundle with ${xrefFiles.length + 1} files (client-side)...`)
+        const zip = new JSZip()
+
+        // Add main file
+        const mainBuffer = await selectedFile.arrayBuffer()
+        zip.file(selectedFile.name, mainBuffer)
+
+        // Add all xref/reference files
         for (const xf of xrefFiles) {
-          formData.append('xrefFiles', xf)
+          const xfBuffer = await xf.arrayBuffer()
+          zip.file(xf.name, xfBuffer)
         }
-        addLog(`Bundling ${xrefFiles.length} xref/reference file(s) into ZIP...`)
+
+        // Generate ZIP blob
+        const zipBlob = await zip.generateAsync({
+          type: 'blob',
+          compression: 'DEFLATE',
+          compressionOptions: { level: 3 }, // Fast compression
+        }, (metadata) => {
+          if (metadata.percent % 20 < 1) {
+            addLog(`ZIP progress: ${Math.round(metadata.percent)}%`)
+          }
+        })
+
+        const zipFileName = selectedFile.name.replace(/\.\w+$/i, '') + '_bundle.zip'
+        addLog(`ZIP created: ${zipFileName} (${(zipBlob.size / 1024 / 1024).toFixed(1)} MB)`)
+
+        formData.append('file', zipBlob, zipFileName)
+        formData.append('rootFilename', selectedFile.name)
+        formData.append('isZipBundle', 'true')
+      } else {
+        // Single file, no xrefs — upload directly
+        formData.append('file', selectedFile)
       }
 
       if (outputFormat === 'pdf') {
@@ -180,6 +209,7 @@ export default function ApsTestPage() {
         }
       }
 
+      addLog('Uploading to server...')
       const resp = await fetch('/api/aps/translate', {
         method: 'POST',
         body: formData,

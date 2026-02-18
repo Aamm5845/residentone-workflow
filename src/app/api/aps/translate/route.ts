@@ -5,6 +5,7 @@ import { apsService } from '@/lib/aps-service'
 export const runtime = 'nodejs'
 export const maxDuration = 120 // up to 2 minutes for large file uploads
 
+
 /**
  * POST /api/aps/translate
  * Upload a CAD file and start translation or plotting
@@ -46,7 +47,12 @@ export async function POST(request: NextRequest) {
 
       const bytes = await file.arrayBuffer()
       const buffer = Buffer.from(bytes)
-      const isDwg = /\.(dwg|dxf)$/i.test(file.name)
+      const isZipBundle = formData.get('isZipBundle') === 'true'
+      const rootFilename = formData.get('rootFilename') as string | null
+      // Check if this is a DWG/DXF — for ZIP bundles, check the rootFilename
+      const isDwg = isZipBundle && rootFilename
+        ? /\.(dwg|dxf)$/i.test(rootFilename)
+        : /\.(dwg|dxf)$/i.test(file.name)
 
       if (outputFormat === 'pdf' && isDwg) {
         // Use Design Automation for proper DWG → PDF plotting
@@ -71,23 +77,61 @@ export async function POST(request: NextRequest) {
           ctbBuffer = Buffer.from(await ctbFile.arrayBuffer())
         }
 
-        // Get xref files if provided
-        const xrefEntries = formData.getAll('xrefFiles') as File[]
+        // For ZIP bundles, we need to extract the main DWG for Design Automation
+        // Design Automation needs individual files, not a ZIP
+        const actualFileName = isZipBundle && rootFilename ? rootFilename : file.name
+
+        // Get xref files if provided (legacy non-ZIP mode)
         let xrefFiles: Array<{ name: string; buffer: Buffer }> | undefined
-        if (xrefEntries && xrefEntries.length > 0) {
+        if (!isZipBundle) {
+          const xrefEntries = formData.getAll('xrefFiles') as File[]
+          if (xrefEntries && xrefEntries.length > 0) {
+            xrefFiles = []
+            for (const xf of xrefEntries) {
+              if (xf && xf.name && xf.size > 0) {
+                xrefFiles.push({
+                  name: xf.name,
+                  buffer: Buffer.from(await xf.arrayBuffer()),
+                })
+              }
+            }
+            if (xrefFiles.length === 0) xrefFiles = undefined
+          }
+        } else if (isZipBundle) {
+          // For ZIP bundle: extract individual files from the ZIP for Design Automation
+          const JSZipLib = (await import('jszip')).default
+          const zipData = await JSZipLib.loadAsync(buffer)
           xrefFiles = []
-          for (const xf of xrefEntries) {
-            if (xf && xf.name && xf.size > 0) {
-              xrefFiles.push({
-                name: xf.name,
-                buffer: Buffer.from(await xf.arrayBuffer()),
-              })
+          for (const [name, entry] of Object.entries(zipData.files)) {
+            if (!entry.dir && name !== rootFilename) {
+              const fileBuffer = Buffer.from(await entry.async('nodebuffer'))
+              xrefFiles.push({ name, buffer: fileBuffer })
             }
           }
           if (xrefFiles.length === 0) xrefFiles = undefined
+
+          // Also extract the main DWG from ZIP for the upload
+          const mainEntry = zipData.file(rootFilename!)
+          if (mainEntry) {
+            const mainBuf = Buffer.from(await mainEntry.async('nodebuffer'))
+            const result = await apsService.uploadAndPlotToPdf(actualFileName, mainBuf, {
+              plotOptions,
+              ctbFileName,
+              ctbBuffer,
+              xrefFiles,
+            })
+            return NextResponse.json({
+              success: true,
+              workItemId: result.workItemId,
+              pdfObjectKey: result.pdfObjectKey,
+              status: result.status,
+              type: 'design-automation',
+              message: 'Plot job submitted from ZIP bundle.',
+            })
+          }
         }
 
-        const result = await apsService.uploadAndPlotToPdf(file.name, buffer, {
+        const result = await apsService.uploadAndPlotToPdf(actualFileName, buffer, {
           plotOptions,
           ctbFileName,
           ctbBuffer,
@@ -104,8 +148,26 @@ export async function POST(request: NextRequest) {
         })
       } else {
         // Use Model Derivative for SVF2 viewer
-        // Also parse xref files — without them, only dimensions/annotations show
-        // and the actual model from xref files would be missing
+        if (isZipBundle && rootFilename) {
+          // Client already created the ZIP bundle — upload directly and translate
+          const zipUrn = await apsService.uploadFile(file.name, buffer)
+          const is2dCad = /\.(dwg|dxf)$/i.test(rootFilename)
+          const result = await apsService.translateToSvf2Compressed(
+            zipUrn,
+            rootFilename,
+            is2dCad ? ['2d'] : ['2d', '3d']
+          )
+          return NextResponse.json({
+            success: true,
+            urn: result.urn,
+            status: result.status,
+            type: 'model-derivative',
+            xrefCount: 0, // bundled in ZIP
+            message: 'Translation started from ZIP bundle. Poll /api/aps/translate/status?urn=<urn> for progress.',
+          })
+        }
+
+        // Fallback: individual xref files (legacy or single-file upload)
         const xrefEntries = formData.getAll('xrefFiles') as File[]
         let xrefFiles: Array<{ name: string; buffer: Buffer }> | undefined
         if (xrefEntries && xrefEntries.length > 0) {
