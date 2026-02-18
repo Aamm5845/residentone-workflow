@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { sendMeetingRsvpNotification } from '@/lib/meeting-emails'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,6 +41,7 @@ export async function GET(
             date: true,
             startTime: true,
             status: true,
+            organizer: { select: { name: true, email: true } },
           }
         },
         user: { select: { name: true } },
@@ -74,7 +76,23 @@ export async function GET(
       year: 'numeric',
       month: 'long',
       day: 'numeric',
+      timeZone: 'America/Toronto',
     })
+
+    // Notify the organizer about the RSVP (fire-and-forget)
+    if (attendee.meeting.organizer?.email) {
+      sendMeetingRsvpNotification({
+        to: attendee.meeting.organizer.email,
+        organizerName: attendee.meeting.organizer.name || 'there',
+        attendeeName: String(attendeeName),
+        action: action as 'ACCEPTED' | 'DECLINED',
+        meeting: {
+          title: attendee.meeting.title,
+          date: attendee.meeting.date,
+          startTime: attendee.meeting.startTime,
+        },
+      }).catch((err) => console.error('Failed to send RSVP notification to organizer:', err))
+    }
 
     if (action === 'ACCEPTED') {
       return buildHtmlResponse(
@@ -85,7 +103,7 @@ export async function GET(
     } else {
       return buildHtmlResponse(
         'Meeting Declined',
-        `Thanks ${attendeeName}. You've declined the meeting "${attendee.meeting.title}" on ${meetingDate}. The organizer will be notified.`,
+        `Thanks ${attendeeName}. You've declined the meeting "${attendee.meeting.title}" on ${meetingDate}. The organizer has been notified.`,
         'declined'
       )
     }

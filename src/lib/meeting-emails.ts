@@ -397,3 +397,50 @@ export async function sendMeetingUpdate(options: MeetingEmailOptions) {
     html: wrapEmailHtml(body, 'Meeting Updated'),
   })
 }
+
+export async function sendMeetingRsvpNotification(options: {
+  to: string
+  organizerName: string
+  attendeeName: string
+  action: 'ACCEPTED' | 'DECLINED'
+  meeting: { title: string; date: Date | string; startTime: Date | string }
+}) {
+  const { to, organizerName, attendeeName, action, meeting } = options
+  const dateStr = formatDate(meeting.date)
+  const startStr = formatTime(meeting.startTime)
+
+  const isAccepted = action === 'ACCEPTED'
+  const statusLabel = isAccepted ? 'confirmed' : 'declined'
+  const statusIcon = isAccepted ? '✅' : '❌'
+  const statusColor = isAccepted ? '#16a34a' : '#dc2626'
+  const statusBg = isAccepted ? '#f0fdf4' : '#fef2f2'
+  const statusBorder = isAccepted ? '#bbf7d0' : '#fecaca'
+
+  const body = `
+    <p style="font-size: 16px; color: #1e293b; margin: 0 0 6px; font-weight: 600;">Hi ${organizerName},</p>
+    <p style="font-size: 15px; color: #475569; margin: 0 0 20px; line-height: 1.6;">
+      <strong style="color: #1e293b;">${attendeeName}</strong> has <strong style="color: ${statusColor};">${statusLabel}</strong> your meeting invitation.
+    </p>
+
+    <div style="background: ${statusBg}; border-radius: 12px; padding: 20px 24px; margin: 0 0 20px; border: 1px solid ${statusBorder};">
+      <div style="font-size: 24px; margin-bottom: 12px;">${statusIcon}</div>
+      <p style="margin: 0 0 8px; font-size: 18px; font-weight: 700; color: #1e293b;">${meeting.title}</p>
+      <p style="margin: 0; font-size: 14px; color: #64748b;">
+        📅 ${dateStr} &nbsp;·&nbsp; 🕐 ${startStr}
+      </p>
+      <p style="margin: 8px 0 0; font-size: 14px;">
+        <strong style="color: ${statusColor};">${attendeeName}</strong>
+        <span style="color: #64748b;"> — ${statusLabel}</span>
+      </p>
+    </div>
+
+    <p style="font-size: 13px; color: #94a3b8; margin: 0; line-height: 1.5;">
+      You can view all attendee responses in your calendar.
+    </p>`
+
+  return sendEmail({
+    to,
+    subject: `${statusIcon} ${attendeeName} ${statusLabel}: ${meeting.title}`,
+    html: wrapEmailHtml(body, `Meeting ${isAccepted ? 'Confirmed' : 'Declined'}`),
+  })
+}
