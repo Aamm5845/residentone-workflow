@@ -80,7 +80,6 @@ export default function ApsTestPage() {
   const [activeSheet, setActiveSheet] = useState<string | null>(null)
   const [plotOptions, setPlotOptions] = useState<PlotOptions>(DEFAULT_PLOT_OPTIONS)
   const [showPlotOptions, setShowPlotOptions] = useState(false)
-  const folderInputRef = useRef<HTMLInputElement>(null)
   const ctbInputRef = useRef<HTMLInputElement>(null)
   const viewerContainerRef = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<any>(null)
@@ -101,40 +100,41 @@ export default function ApsTestPage() {
     ? folderFiles.filter(f => f !== selectedFile)
     : []
 
-  // Handle folder selection
-  const handleFolderSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return
-    const files = Array.from(e.target.files)
+  // Handle folder selection using File System Access API
+  // This reads ONLY top-level files (no subfolders) and doesn't show the
+  // scary "upload N files?" browser prompt
+  const handleChooseFolder = async () => {
+    try {
+      // Use modern File System Access API — supported in Chrome/Edge
+      const dirHandle = await (window as any).showDirectoryPicker()
+      setFolderName(dirHandle.name)
 
-    // Try to get folder name from webkitRelativePath
-    const firstPath = (files[0] as any).webkitRelativePath || ''
-    const folder = firstPath ? firstPath.split('/')[0] : 'Selected folder'
-    setFolderName(folder)
+      const files: File[] = []
+      // Iterate ONLY direct children (not recursive into subfolders)
+      for await (const [name, handle] of dirHandle.entries()) {
+        if (handle.kind === 'file' && /\.(dwg|dxf|jpg|jpeg|png|ctb|stb|pdf)$/i.test(name)) {
+          const file = await handle.getFile()
+          files.push(file)
+        }
+      }
 
-    // Only include files directly in the root folder (not in subfolders)
-    // webkitRelativePath looks like "FolderName/file.dwg" for root files
-    // and "FolderName/Subfolder/file.dwg" for subfolder files
-    const rootFiles = files.filter(f => {
-      const relPath = (f as any).webkitRelativePath || ''
-      const parts = relPath.split('/')
-      // Root files have exactly 2 parts: [FolderName, filename]
-      return parts.length === 2
-    })
+      setFolderFiles(files)
+      setSelectedFile(null)
 
-    // Filter to relevant file types only
-    const relevant = rootFiles.filter(f =>
-      /\.(dwg|dxf|jpg|jpeg|png|ctb|stb|pdf)$/i.test(f.name)
-    )
-    setFolderFiles(relevant)
-    setSelectedFile(null)
-
-    // Auto-detect CTB file and auto-configure plot options
-    const ctb = relevant.find(f => /\.(ctb|stb)$/i.test(f.name))
-    if (ctb) {
-      setCtbFile(ctb)
-      setPlotOptions(o => ({ ...o, plotStyleTable: ctb.name, plotStyles: true }))
-    } else {
-      setCtbFile(null)
+      // Auto-detect CTB file and auto-configure plot options
+      const ctb = files.find(f => /\.(ctb|stb)$/i.test(f.name))
+      if (ctb) {
+        setCtbFile(ctb)
+        setPlotOptions(o => ({ ...o, plotStyleTable: ctb.name, plotStyles: true }))
+      } else {
+        setCtbFile(null)
+      }
+    } catch (err: any) {
+      // User cancelled the picker — ignore
+      if (err.name !== 'AbortError') {
+        console.error('Folder pick error:', err)
+        setError(`Could not read folder: ${err.message}`)
+      }
     }
   }
 
@@ -479,15 +479,8 @@ export default function ApsTestPage() {
             Just like AutoCAD — the engine reads the folder and automatically resolves what it needs.
           </p>
 
-          <input
-            ref={folderInputRef}
-            type="file"
-            className="hidden"
-            {...{ webkitdirectory: '', directory: '', multiple: true } as any}
-            onChange={handleFolderSelect}
-          />
           <button
-            onClick={() => folderInputRef.current?.click()}
+            onClick={handleChooseFolder}
             className="px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
