@@ -615,7 +615,79 @@ async function ensureCustomActivity(): Promise<string> {
   })
 
   if (getResp.ok) {
-    return CUSTOM_ACTIVITY_ID
+    // Verify it has the CtbFile parameter (may be missing from older versions)
+    const existing = await getResp.json()
+    if (existing.parameters && !existing.parameters.CtbFile) {
+      // Activity exists but is missing CtbFile param — create new version
+      console.log('[DA] Custom activity missing CtbFile param, creating new version...')
+      const activityId = 'PlotToPdfCustom'
+      const updateResp = await fetch(APS_BASE + `/da/us-east/v3/activities/${activityId}/versions`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          commandLine: [
+            '$(engine.path)\\accoreconsole.exe /i "$(args[HostDwg].path)" /s "$(settings[script].path)"',
+          ],
+          engine: 'Autodesk.AutoCAD+24',
+          parameters: {
+            HostDwg: {
+              verb: 'get',
+              localName: 'input.dwg',
+              required: true,
+              description: 'Input DWG file (or zip with xrefs)',
+              zip: false,
+            },
+            CtbFile: {
+              verb: 'get',
+              localName: 'custom.ctb',
+              required: false,
+              description: 'CTB plot style table file',
+            },
+            Result: {
+              verb: 'put',
+              localName: 'output.pdf',
+              required: true,
+              description: 'Output PDF file',
+            },
+          },
+          settings: {
+            script: {
+              value: buildPlotScript({
+                paperSize: 'ISO full bleed A3 (420.00 x 297.00 MM)',
+                orientation: 'Landscape',
+                plotArea: 'Layout',
+                scale: 'Fit',
+                plotStyleTable: 'custom.ctb',
+                lineweights: true,
+                plotStyles: true,
+                layoutName: 'Layout1',
+              }),
+            },
+          },
+          description: 'Plot DWG to PDF with custom settings + CTB support',
+        }),
+      })
+      if (updateResp.ok) {
+        const versionData = await updateResp.json()
+        const newVersion = versionData.version || 2
+        // Update the +prod alias to point to the new version
+        await fetch(APS_BASE + `/da/us-east/v3/activities/${activityId}/aliases/prod`, {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ version: newVersion }),
+        })
+        console.log(`[DA] Updated activity to version ${newVersion} with CtbFile param`)
+      }
+      return CUSTOM_ACTIVITY_ID
+    } else {
+      return CUSTOM_ACTIVITY_ID
+    }
   }
 
   // Create the activity
@@ -741,7 +813,7 @@ async function plotDwgToPdf(
       await ensureDaNickname()
       activityId = await ensureCustomActivity()
 
-      // If CTB file was uploaded, add it
+      // If CTB file was uploaded, add it (only for custom activity which has CtbFile param)
       if (opts.ctbObjectKey) {
         const ctbUrl = await getSignedDownloadUrl(opts.ctbObjectKey)
         workItemArgs.CtbFile = {
@@ -752,7 +824,14 @@ async function plotDwgToPdf(
     } catch (err: any) {
       console.warn('[DA] Custom activity setup failed, falling back to built-in:', err.message)
       activityId = 'AutoCAD.PlotToPDF+prod'
+      // Remove CtbFile — built-in activity doesn't support it
+      delete workItemArgs.CtbFile
     }
+  }
+
+  // Safety: if using built-in activity, ensure no unsupported args are present
+  if (activityId === 'AutoCAD.PlotToPDF+prod') {
+    delete workItemArgs.CtbFile
   }
 
   const workItemBody: Record<string, any> = {
