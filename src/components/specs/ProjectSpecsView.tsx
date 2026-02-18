@@ -4153,7 +4153,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               </div>
                               <div className="w-20 flex-shrink-0 text-right">
                                 {item.docCode ? (
-                                  <span className="text-xs font-mono font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">{item.docCode}</span>
+                                  <span className="text-[10px] font-mono font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded">{item.docCode}</span>
                                 ) : (
                                   <span className="text-xs text-gray-300">—</span>
                                 )}
@@ -4327,7 +4327,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               </div>
                               <div className="w-20 flex-shrink-0 text-right">
                                 {item.docCode ? (
-                                  <span className="text-xs font-mono font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">{item.docCode}</span>
+                                  <span className="text-[10px] font-mono font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded">{item.docCode}</span>
                                 ) : (
                                   <span className="text-xs text-gray-300">—</span>
                                 )}
@@ -4542,7 +4542,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               </div>
                               <div className="w-20 flex-shrink-0 text-right">
                                 {item.docCode ? (
-                                  <span className="text-xs font-mono font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">{item.docCode}</span>
+                                  <span className="text-[10px] font-mono font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded">{item.docCode}</span>
                                 ) : (
                                   <span className="text-xs text-gray-300">—</span>
                                 )}
@@ -4613,7 +4613,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               </div>
                               <div className="w-20 flex-shrink-0 text-right">
                                 {item.docCode ? (
-                                  <span className="text-xs font-mono font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">{item.docCode}</span>
+                                  <span className="text-[10px] font-mono font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded">{item.docCode}</span>
                                 ) : (
                                   <span className="text-xs text-gray-300">—</span>
                                 )}
@@ -5542,14 +5542,21 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                               <a
                                                 key={idx}
                                                 href={`/ffe/${ffeItem.roomId}/workspace?highlight=${ffeItem.ffeItemId}`}
-                                                className="block p-2 hover:bg-blue-50 transition-colors"
+                                                className="flex items-center justify-between gap-2 p-2 hover:bg-blue-50 transition-colors"
                                               >
-                                                <p className="text-xs font-medium text-gray-900 truncate">
-                                                  {ffeItem.ffeItemName}
-                                                </p>
-                                                <p className="text-[10px] text-gray-500 truncate">
-                                                  {ffeItem.roomName} · {ffeItem.sectionName}
-                                                </p>
+                                                <div className="min-w-0">
+                                                  <p className="text-xs font-medium text-gray-900 truncate">
+                                                    {ffeItem.ffeItemName}
+                                                  </p>
+                                                  <p className="text-[10px] text-gray-500 truncate">
+                                                    {ffeItem.roomName} · {ffeItem.sectionName}
+                                                  </p>
+                                                </div>
+                                                {ffeItem.ffeDocCode && (
+                                                  <span className="flex-shrink-0 text-[10px] font-mono font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded px-1.5 py-0.5">
+                                                    {ffeItem.ffeDocCode}
+                                                  </span>
+                                                )}
                                               </a>
                                             ))}
                                           </div>
@@ -5621,15 +5628,31 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               )}
                             </div>
                             
-                            {/* Doc Code - Shrinkable width, prefix-aware editing */}
-                            <div className="w-14 lg:w-20 min-w-[50px] h-9 flex-shrink">
+                            {/* Doc Code - Shows linked FFE doc codes with color */}
+                            <div className="w-16 lg:w-24 min-w-[60px] h-9 flex-shrink-0">
                               <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Doc Code</p>
-                              {editingField?.itemId === item.id && editingField?.field === 'docCode' ? (
-                                (() => {
-                                  // Check if doc code has prefix format (e.g., "PL-01")
-                                  const prefixMatch = (item.docCode || '').match(/^([A-Z]{1,3})-(\d+)$/)
+                              {(() => {
+                                // Derive display doc codes from linked FFE items (many-to-many) or legacy link
+                                const linkedDocCodes = (displayItem.linkedFfeItems || [])
+                                  .map((f: any) => f.ffeDocCode)
+                                  .filter(Boolean) as string[]
+                                const legacyDocCode = displayItem.ffeRequirementDocCode as string | null
+
+                                // Build unique doc codes list: prefer linked FFE doc codes, fallback to legacy, then item's own
+                                let docCodes: string[] = []
+                                if (linkedDocCodes.length > 0) {
+                                  docCodes = [...new Set(linkedDocCodes)]
+                                } else if (legacyDocCode) {
+                                  docCodes = [legacyDocCode]
+                                } else if (item.docCode) {
+                                  docCodes = [item.docCode]
+                                }
+
+                                // Editing mode
+                                if (editingField?.itemId === item.id && editingField?.field === 'docCode') {
+                                  const editDocCode = item.docCode || docCodes[0] || ''
+                                  const prefixMatch = editDocCode.match(/^([A-Z]{1,3})-(\d+)$/)
                                   if (prefixMatch) {
-                                    // Prefix mode: show prefix static, edit number only
                                     const prefix = prefixMatch[1]
                                     return (
                                       <div className="flex items-center h-6">
@@ -5638,7 +5661,6 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                           value={editValue}
                                           onChange={(e) => setEditValue(e.target.value.replace(/\D/g, '').slice(0, 3))}
                                           onBlur={() => {
-                                            // Reconstruct full doc code before saving
                                             const num = editValue.padStart(2, '0')
                                             setEditValue(`${prefix}-${num}`)
                                             setTimeout(saveInlineEdit, 0)
@@ -5659,7 +5681,6 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                       </div>
                                     )
                                   }
-                                  // No prefix: allow full editing
                                   return (
                                     <Input
                                       value={editValue}
@@ -5670,30 +5691,86 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                       autoFocus
                                     />
                                   )
-                                })()
-                              ) : (
-                                <p
-                                  className={cn(
-                                    "text-xs truncate cursor-text rounded px-1 -mx-1",
-                                    item.docCode
-                                      ? "text-gray-900 hover:bg-gray-100"
-                                      : "text-red-500 bg-red-50 hover:bg-red-100 font-medium"
-                                  )}
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    // If prefix format, start editing with just the number
-                                    const prefixMatch = (item.docCode || '').match(/^([A-Z]{1,3})-(\d+)$/)
-                                    if (prefixMatch) {
-                                      startEditing(item.id, 'docCode', prefixMatch[2])
-                                    } else {
-                                      startEditing(item.id, 'docCode', item.docCode || '')
-                                    }
-                                  }}
-                                  title={item.docCode || 'Click to add doc code'}
-                                >
-                                  {item.docCode || 'Add'}
-                                </p>
-                              )}
+                                }
+
+                                // Display mode
+                                if (docCodes.length === 0) {
+                                  return (
+                                    <p
+                                      className="text-xs text-red-500 bg-red-50 hover:bg-red-100 font-medium rounded px-1 -mx-1 cursor-text truncate"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        startEditing(item.id, 'docCode', item.docCode || '')
+                                      }}
+                                      title="Click to add doc code"
+                                    >
+                                      Add
+                                    </p>
+                                  )
+                                }
+
+                                if (docCodes.length === 1) {
+                                  return (
+                                    <span
+                                      className="inline-flex items-center text-[10px] font-mono font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded px-1.5 py-0.5 cursor-text hover:bg-indigo-100 transition-colors truncate"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        const prefixMatch = docCodes[0].match(/^([A-Z]{1,3})-(\d+)$/)
+                                        if (prefixMatch) {
+                                          startEditing(item.id, 'docCode', prefixMatch[2])
+                                        } else {
+                                          startEditing(item.id, 'docCode', item.docCode || docCodes[0])
+                                        }
+                                      }}
+                                      title={docCodes[0]}
+                                    >
+                                      {docCodes[0]}
+                                    </span>
+                                  )
+                                }
+
+                                // Multiple doc codes - show first + count
+                                return (
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <button
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="inline-flex items-center gap-0.5 text-[10px] font-mono font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded px-1.5 py-0.5 hover:bg-indigo-100 transition-colors truncate"
+                                        title={docCodes.join(', ')}
+                                      >
+                                        {docCodes[0]}
+                                        <span className="ml-0.5 px-1 py-0 bg-indigo-200 text-indigo-800 rounded-full text-[8px] font-bold">
+                                          +{docCodes.length - 1}
+                                        </span>
+                                      </button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-48 p-0" align="start" onClick={(e) => e.stopPropagation()}>
+                                      <div className="p-2 border-b bg-indigo-50">
+                                        <p className="text-xs font-medium text-indigo-800">
+                                          All Linked Doc Codes ({docCodes.length})
+                                        </p>
+                                      </div>
+                                      <div className="p-2 space-y-1">
+                                        {docCodes.map((code, idx) => {
+                                          const linkedItem = (displayItem.linkedFfeItems || []).find((f: any) => f.ffeDocCode === code)
+                                          return (
+                                            <div key={idx} className="flex items-center justify-between gap-2 py-1">
+                                              <span className="text-xs font-mono font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded px-1.5 py-0.5">
+                                                {code}
+                                              </span>
+                                              {linkedItem && (
+                                                <span className="text-[10px] text-gray-500 truncate">
+                                                  {linkedItem.roomName}
+                                                </span>
+                                              )}
+                                            </div>
+                                          )
+                                        })}
+                                      </div>
+                                    </PopoverContent>
+                                  </Popover>
+                                )
+                              })()}
                             </div>
 
                             {/* Model - Shrinkable width for longer model numbers */}

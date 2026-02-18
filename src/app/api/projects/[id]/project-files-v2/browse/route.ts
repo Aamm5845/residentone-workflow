@@ -12,6 +12,16 @@ function isImageFile(filename: string): boolean {
   return IMAGE_EXTENSIONS.some(ext => lower.endsWith(ext))
 }
 
+function isPdfFile(filename: string): boolean {
+  return filename.toLowerCase().endsWith('.pdf')
+}
+
+function getFileType(filename: string): 'image' | 'pdf' | 'other' {
+  if (isImageFile(filename)) return 'image'
+  if (isPdfFile(filename)) return 'pdf'
+  return 'other'
+}
+
 // GET - Browse Dropbox files scoped to the project's dropboxFolder
 export async function GET(
   request: NextRequest,
@@ -88,22 +98,20 @@ export async function GET(
       path: stripPrefix(f.path),
       lastModified: f.lastModified instanceof Date ? f.lastModified.toISOString() : f.lastModified,
       thumbnailUrl: undefined as string | undefined,
+      fileType: getFileType(f.name),
     }))
 
-    // If thumbnails requested, get temporary links for image files
+    // If thumbnails requested, get temporary links for image and PDF files
     if (thumbnails) {
-      const imageFiles = files.filter(f => isImageFile(f.name))
-      if (imageFiles.length > 0) {
+      const previewFiles = files.filter(f => f.fileType === 'image' || f.fileType === 'pdf')
+      if (previewFiles.length > 0) {
         // Batch get temp links (max 10 concurrent)
         const batchSize = 10
-        for (let i = 0; i < imageFiles.length; i += batchSize) {
-          const batch = imageFiles.slice(i, i + batchSize)
+        for (let i = 0; i < previewFiles.length; i += batchSize) {
+          const batch = previewFiles.slice(i, i + batchSize)
           const results = await Promise.allSettled(
             batch.map(async f => {
-              // Reconstruct absolute path for API call
-              const absPath = relativePath
-                ? project.dropboxFolder + '/' + f.path
-                : project.dropboxFolder + '/' + f.path
+              const absPath = project.dropboxFolder + '/' + f.path
               const link = await dropboxService.getTemporaryLink(absPath)
               return { path: f.path, link }
             })

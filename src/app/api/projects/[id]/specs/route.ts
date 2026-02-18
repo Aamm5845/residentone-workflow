@@ -56,6 +56,7 @@ export async function GET(
                         id: true,
                         name: true,
                         description: true,
+                        docCode: true,
                         customFields: true  // Include grouping info
                       }
                     },
@@ -68,6 +69,7 @@ export async function GET(
                             name: true,
                             description: true,
                             notes: true,
+                            docCode: true,
                             customFields: true  // Include grouping info
                           }
                         }
@@ -161,6 +163,7 @@ export async function GET(
               linkId: link.id,
               ffeItemId: link.ffeRequirementId,
               ffeItemName: link.ffeRequirement?.name || 'Unknown',
+              ffeDocCode: link.ffeRequirement?.docCode || null,
               roomId: link.roomId,
               roomName: link.roomName || 'Unknown Room',
               sectionName: link.sectionName || 'Unknown Section',
@@ -173,6 +176,7 @@ export async function GET(
           }),
           linkedFfeCount: (item.specLinks || []).length,
           // Expose FFE grouping info from legacy one-to-one link
+          ffeRequirementDocCode: item.ffeRequirement?.docCode || null,
           ffeGroupingInfo: item.ffeRequirement ? {
             isGroupedItem: (item.ffeRequirement.customFields as any)?.isLinkedItem || (item.ffeRequirement.customFields as any)?.isGroupedItem || false,
             parentName: (item.ffeRequirement.customFields as any)?.parentName || null,
