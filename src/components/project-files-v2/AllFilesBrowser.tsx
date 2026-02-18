@@ -26,6 +26,8 @@ import {
   Music,
   Archive,
   Upload,
+  HardDrive,
+  ShoppingCart,
   Loader2,
   CheckCircle,
   LayoutGrid,
@@ -75,6 +77,8 @@ const FOLDER_CONFIG: Record<string, { icon: any; colorClass: string; bgClass: st
   '5- photos':     { icon: Camera,    colorClass: 'text-teal-600',    bgClass: 'bg-teal-50 border-teal-200',    label: 'Photos' },
   '6- documents':  { icon: FileCheck, colorClass: 'text-amber-600',   bgClass: 'bg-amber-50 border-amber-200',   label: 'Documents' },
   '7- reference':  { icon: BookOpen,  colorClass: 'text-gray-600',    bgClass: 'bg-gray-50 border-gray-200',    label: 'Reference' },
+  '8- shopping':   { icon: ShoppingCart, colorClass: 'text-orange-600',  bgClass: 'bg-orange-50 border-orange-200',  label: 'Shopping' },
+  '9- software uploads': { icon: HardDrive, colorClass: 'text-indigo-600', bgClass: 'bg-indigo-50 border-indigo-200', label: 'Software Uploads' },
 }
 
 function getFolderConfig(name: string) {

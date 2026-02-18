@@ -67,14 +67,7 @@ export async function GET(
     // Fetch folder contents from Dropbox
     const result = await dropboxService.listFolder(absolutePath, undefined, cursor)
 
-    // At root level, filter out Shopping (8-) and Software Uploads (9-)
-    let filteredFolders = result.folders
-    if (!relativePath) {
-      filteredFolders = result.folders.filter(f => {
-        const lower = f.name.toLowerCase()
-        return !lower.startsWith('8-') && !lower.startsWith('9-')
-      })
-    }
+    const filteredFolders = result.folders
 
     // Strip the project dropboxFolder prefix from all paths to return relative paths
     const prefix = project.dropboxFolder.toLowerCase()
