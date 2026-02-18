@@ -481,6 +481,29 @@ async function getSignedUploadUrl(objectKey: string): Promise<{ url: string; upl
 }
 
 /**
+ * Finalize a Direct-to-S3 upload that was written externally (e.g., by Design Automation).
+ * Must be called after the file has been PUT to the signed URL so OSS can catalog it.
+ */
+async function finalizeUpload(objectKey: string, uploadKey: string): Promise<void> {
+  const token = await getToken()
+  const resp = await fetch(
+    APS_BASE + `/oss/v2/buckets/${BUCKET_KEY}/objects/${encodeURIComponent(objectKey)}/signeds3upload`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ uploadKey }),
+    }
+  )
+  if (!resp.ok) {
+    const errText = await resp.text()
+    throw new Error(`APS upload finalize failed (${resp.status}): ${errText}`)
+  }
+}
+
+/**
  * Low-level: Upload file buffer to OSS (Direct-to-S3) without returning URN.
  * Used internally for uploading DWG, xref, and CTB files.
  */
@@ -787,12 +810,12 @@ async function plotDwgToPdf(
     ctbObjectKey?: string
     useCustomActivity?: boolean
   }
-): Promise<{ workItemId: string; status: string; pdfObjectKey: string }> {
+): Promise<{ workItemId: string; status: string; pdfObjectKey: string; pdfUploadKey: string }> {
   const token = await getToken()
 
   // Get signed URLs for Design Automation
   const inputUrl = await getSignedDownloadUrl(dwgObjectKey)
-  const { url: outputUrl } = await getSignedUploadUrl(pdfObjectKey)
+  const { url: outputUrl, uploadKey: outputUploadKey } = await getSignedUploadUrl(pdfObjectKey)
 
   let activityId = 'AutoCAD.PlotToPDF+prod'
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -867,6 +890,7 @@ async function plotDwgToPdf(
     workItemId: data.id,
     status: data.status,
     pdfObjectKey,
+    pdfUploadKey: outputUploadKey,
   }
 }
 
@@ -883,7 +907,7 @@ async function uploadAndPlotToPdf(
     ctbBuffer?: Buffer
     xrefFiles?: Array<{ name: string; buffer: Buffer }>
   }
-): Promise<{ workItemId: string; status: string; pdfObjectKey: string }> {
+): Promise<{ workItemId: string; status: string; pdfObjectKey: string; pdfUploadKey: string }> {
   await ensureBucket()
 
   const timestamp = Date.now()
@@ -1058,6 +1082,7 @@ export const apsService = {
   uploadAndPlotToPdf,
   getPlottedPdfUrl,
   getSignedDownloadUrl,
+  finalizeUpload,
   uploadFromUrlAndTranslate,
   buildPlotScript,
 }

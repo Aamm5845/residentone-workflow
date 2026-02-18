@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const workItemId = searchParams.get('id')
     const pdfObjectKey = searchParams.get('pdfObjectKey')
+    const pdfUploadKey = searchParams.get('pdfUploadKey')
 
     if (!workItemId) {
       return NextResponse.json({ error: 'id parameter is required' }, { status: 400 })
@@ -39,6 +40,16 @@ export async function GET(request: NextRequest) {
     let pdfDownloadUrl: string | null = null
     if (isSuccess && pdfObjectKey) {
       try {
+        // Finalize the S3 upload first — Design Automation wrote to the signed URL
+        // but the OSS catalog doesn't know about it until we finalize
+        if (pdfUploadKey) {
+          try {
+            await apsService.finalizeUpload(pdfObjectKey, pdfUploadKey)
+          } catch (finalizeErr: any) {
+            // May already be finalized or the key expired — try download anyway
+            console.warn('[workitem/status] Finalize attempt:', finalizeErr.message)
+          }
+        }
         pdfDownloadUrl = await apsService.getPlottedPdfUrl(pdfObjectKey)
       } catch (err: any) {
         console.error('[workitem/status] Failed to get PDF URL:', err.message)

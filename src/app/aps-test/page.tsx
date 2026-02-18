@@ -322,7 +322,7 @@ export default function ApsTestPage() {
         setWorkItemId(data.workItemId)
         setPdfObjectKey(data.pdfObjectKey)
         setStatus(data.status)
-        startWorkItemPolling(data.workItemId, data.pdfObjectKey)
+        startWorkItemPolling(data.workItemId, data.pdfObjectKey, data.pdfUploadKey)
       } else {
         addLog(`Upload complete. URN: ${data.urn.slice(0, 30)}...`)
         if (data.xrefCount > 0) {
@@ -398,14 +398,14 @@ export default function ApsTestPage() {
   }
 
   // Poll for Design Automation work item status
-  const startWorkItemPolling = (itemId: string, pdfKey: string) => {
+  const startWorkItemPolling = (itemId: string, pdfKey: string, pdfUpKey?: string) => {
     if (pollingRef.current) clearInterval(pollingRef.current)
 
     pollingRef.current = setInterval(async () => {
       try {
-        const resp = await fetch(
-          `/api/aps/workitem/status?id=${encodeURIComponent(itemId)}&pdfObjectKey=${encodeURIComponent(pdfKey)}`
-        )
+        let statusUrl = `/api/aps/workitem/status?id=${encodeURIComponent(itemId)}&pdfObjectKey=${encodeURIComponent(pdfKey)}`
+        if (pdfUpKey) statusUrl += `&pdfUploadKey=${encodeURIComponent(pdfUpKey)}`
+        const resp = await fetch(statusUrl)
         const data = await resp.json()
 
         if (!resp.ok) {

@@ -25,6 +25,7 @@ export async function translateFromUrn(params: {
   type?: string
   workItemId?: string
   pdfObjectKey?: string
+  pdfUploadKey?: string
   xrefCount?: number
   error?: string
   message?: string
@@ -100,6 +101,7 @@ export async function translateFromUrn(params: {
             success: true,
             workItemId: result.workItemId,
             pdfObjectKey: result.pdfObjectKey,
+            pdfUploadKey: result.pdfUploadKey,
             status: result.status,
             type: 'design-automation',
             message: 'Plot job submitted from ZIP bundle (direct S3 upload).',
@@ -118,6 +120,7 @@ export async function translateFromUrn(params: {
         success: true,
         workItemId: result.workItemId,
         pdfObjectKey: result.pdfObjectKey,
+        pdfUploadKey: result.pdfUploadKey,
         status: result.status,
         type: 'design-automation',
         message: 'Plot job submitted (direct S3 upload).',
@@ -181,6 +184,7 @@ export async function uploadAndTranslate(formData: FormData): Promise<{
   type?: string
   workItemId?: string
   pdfObjectKey?: string
+  pdfUploadKey?: string
   xrefCount?: number
   error?: string
   message?: string
@@ -266,6 +270,7 @@ export async function uploadAndTranslate(formData: FormData): Promise<{
             success: true,
             workItemId: result.workItemId,
             pdfObjectKey: result.pdfObjectKey,
+            pdfUploadKey: result.pdfUploadKey,
             status: result.status,
             type: 'design-automation',
             message: 'Plot job submitted from ZIP bundle.',
@@ -284,6 +289,7 @@ export async function uploadAndTranslate(formData: FormData): Promise<{
         success: true,
         workItemId: result.workItemId,
         pdfObjectKey: result.pdfObjectKey,
+        pdfUploadKey: result.pdfUploadKey,
         status: result.status,
         type: 'design-automation',
         message: 'Plot job submitted.',
