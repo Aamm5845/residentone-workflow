@@ -249,6 +249,8 @@ async function sendInvitationEmails(meeting: any) {
             projectName: meeting.project?.name,
           },
           attendees: allAttendees,
+          meetingId: meeting.id,
+          attendeeId: attendee.id,
         })
       } catch (err) {
         console.error(`Failed to send invitation to ${email}:`, err)

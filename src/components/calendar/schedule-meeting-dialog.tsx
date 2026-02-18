@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
-import { CalendarPlus, Loader2, Video } from 'lucide-react'
+import { CalendarPlus, Loader2, Video, MapPin } from 'lucide-react'
 import { AttendeeCombobox, type SelectedAttendee } from './attendee-combobox'
 
 const meetingSchema = z.object({
@@ -45,6 +45,10 @@ type MeetingFormData = z.infer<typeof meetingSchema>
 interface Project {
   id: string
   name: string
+  streetAddress?: string | null
+  city?: string | null
+  province?: string | null
+  postalCode?: string | null
 }
 
 interface MeetingData {
@@ -92,6 +96,7 @@ export function ScheduleMeetingDialog({ projects, editMeeting, trigger, onSucces
   const [error, setError] = useState('')
   const [zoomConnected, setZoomConnected] = useState(false)
   const [autoCreateZoom, setAutoCreateZoom] = useState(true)
+  const [useManualAddress, setUseManualAddress] = useState(false)
 
   const isEditing = !!editMeeting
 
@@ -127,6 +132,30 @@ export function ScheduleMeetingDialog({ projects, editMeeting, trigger, onSucces
   })
 
   const locationType = watch('locationType')
+  const selectedProjectId = watch('projectId')
+
+  // Build full address string from project fields
+  const getProjectAddress = (project: Project): string => {
+    const parts = [project.streetAddress, project.city, project.province, project.postalCode].filter(Boolean)
+    return parts.join(', ')
+  }
+
+  // Auto-fill project address when ON_SITE is selected and a project is chosen
+  const selectedProject = projects.find(p => p.id === selectedProjectId)
+  const projectAddress = selectedProject ? getProjectAddress(selectedProject) : ''
+
+  useEffect(() => {
+    if (locationType === 'ON_SITE' && selectedProjectId && !useManualAddress && !isEditing) {
+      if (projectAddress) {
+        setValue('locationDetails', projectAddress)
+      }
+    }
+  }, [locationType, selectedProjectId, useManualAddress, projectAddress, setValue, isEditing])
+
+  // Reset manual address toggle when switching location type or project
+  useEffect(() => {
+    setUseManualAddress(false)
+  }, [locationType, selectedProjectId])
 
   const handleOpenChange = (isOpen: boolean) => {
     setOpen(isOpen)
@@ -350,11 +379,49 @@ export function ScheduleMeetingDialog({ projects, editMeeting, trigger, onSucces
               <Label htmlFor="meeting-location">
                 {locationType === 'IN_OFFICE' ? 'Room / Office' : 'Site Address'}
               </Label>
-              <Input
-                id="meeting-location"
-                placeholder={locationType === 'IN_OFFICE' ? 'e.g. Conference Room A' : 'e.g. 123 Main St, Suite 100'}
-                {...register('locationDetails')}
-              />
+
+              {/* Show project address auto-fill for ON_SITE when a project with an address is selected */}
+              {locationType === 'ON_SITE' && projectAddress && !useManualAddress ? (
+                <div className="space-y-2">
+                  <div className="flex items-start gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <MapPin className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-green-900">{projectAddress}</p>
+                      <p className="text-xs text-green-600 mt-0.5">From project information</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+                    onClick={() => {
+                      setUseManualAddress(true)
+                      setValue('locationDetails', '')
+                    }}
+                  >
+                    Use a different address
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Input
+                    id="meeting-location"
+                    placeholder={locationType === 'IN_OFFICE' ? 'e.g. Conference Room A' : 'e.g. 123 Main St, Suite 100'}
+                    {...register('locationDetails')}
+                  />
+                  {locationType === 'ON_SITE' && projectAddress && useManualAddress && (
+                    <button
+                      type="button"
+                      className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+                      onClick={() => {
+                        setUseManualAddress(false)
+                        setValue('locationDetails', projectAddress)
+                      }}
+                    >
+                      Use project address
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

@@ -25,6 +25,9 @@ import {
   Loader2,
   ExternalLink,
   Video,
+  CheckCircle2,
+  XCircle,
+  CircleDashed,
 } from 'lucide-react'
 
 interface MeetingAttendee {
@@ -120,6 +123,32 @@ function getTypeIcon(type: string) {
     case 'CONTRACTOR':
     case 'SUBCONTRACTOR': return <HardHat className="h-3.5 w-3.5 text-orange-400" />
     default: return <UserPlus className="h-3.5 w-3.5 text-gray-400" />
+  }
+}
+
+function getStatusBadge(status: string) {
+  switch (status) {
+    case 'ACCEPTED':
+      return (
+        <Badge variant="outline" className="text-[10px] py-0 border-green-300 text-green-600 bg-green-50 gap-0.5">
+          <CheckCircle2 className="h-2.5 w-2.5" />
+          Confirmed
+        </Badge>
+      )
+    case 'DECLINED':
+      return (
+        <Badge variant="outline" className="text-[10px] py-0 border-red-300 text-red-600 bg-red-50 gap-0.5">
+          <XCircle className="h-2.5 w-2.5" />
+          Declined
+        </Badge>
+      )
+    default:
+      return (
+        <Badge variant="outline" className="text-[10px] py-0 border-amber-300 text-amber-600 bg-amber-50 gap-0.5">
+          <CircleDashed className="h-2.5 w-2.5" />
+          Pending
+        </Badge>
+      )
   }
 }
 
@@ -240,8 +269,15 @@ export function MeetingDetailDialog({ meeting, open, onOpenChange, onEdit, onRef
           {/* Attendees */}
           {meeting.attendees.length > 0 && (
             <div>
-              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                Attendees ({meeting.attendees.length})
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Attendees ({meeting.attendees.length})
+                </div>
+                {meeting.attendees.some(a => a.status === 'ACCEPTED' || a.status === 'DECLINED') && (
+                  <div className="text-[10px] text-muted-foreground">
+                    {meeting.attendees.filter(a => a.status === 'ACCEPTED').length} confirmed
+                  </div>
+                )}
               </div>
               <div className="space-y-1.5">
                 {meeting.attendees.map((att) => {
@@ -250,9 +286,7 @@ export function MeetingDetailDialog({ meeting, open, onOpenChange, onEdit, onRef
                     <div key={att.id} className="flex items-center gap-2 text-sm">
                       {getTypeIcon(att.type)}
                       <span className="flex-1 truncate">{info.name}</span>
-                      <Badge variant="outline" className="text-[10px] py-0">
-                        {info.type}
-                      </Badge>
+                      {getStatusBadge(att.status)}
                     </div>
                   )
                 })}

@@ -24,6 +24,8 @@ interface MeetingEmailOptions {
   attendeeName: string
   meeting: MeetingEmailData
   attendees?: AttendeeInfo[]
+  meetingId?: string
+  attendeeId?: string
 }
 
 function formatDate(date: Date | string): string {
@@ -262,8 +264,32 @@ function wrapEmailHtml(body: string, headerSubtitle?: string): string {
 // =============================================
 
 export async function sendMeetingInvitation(options: MeetingEmailOptions) {
-  const { to, attendeeName, meeting, attendees } = options
+  const { to, attendeeName, meeting, attendees, meetingId, attendeeId } = options
   const dateStr = formatDate(meeting.date)
+
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.meisnerinteriors.com'
+
+  // Build RSVP buttons if we have the IDs
+  let rsvpHtml = ''
+  if (meetingId && attendeeId) {
+    const acceptUrl = `${baseUrl}/api/meetings/${meetingId}/respond?token=${attendeeId}&action=ACCEPTED`
+    const declineUrl = `${baseUrl}/api/meetings/${meetingId}/respond?token=${attendeeId}&action=DECLINED`
+
+    rsvpHtml = `
+    <div style="text-align: center; margin: 24px 0 8px;">
+      <p style="margin: 0 0 14px; font-size: 14px; color: #64748b; font-weight: 500;">Will you attend?</p>
+      <div>
+        <a href="${acceptUrl}"
+           style="display: inline-block; background: #16a34a; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-size: 14px; font-weight: 600; margin: 0 6px;">
+          ✓ Accept
+        </a>
+        <a href="${declineUrl}"
+           style="display: inline-block; background: #dc2626; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-size: 14px; font-weight: 600; margin: 0 6px;">
+          ✗ Decline
+        </a>
+      </div>
+    </div>`
+  }
 
   const body = `
     <p style="font-size: 16px; color: #1e293b; margin: 0 0 6px; font-weight: 600;">Hi ${attendeeName},</p>
@@ -271,6 +297,7 @@ export async function sendMeetingInvitation(options: MeetingEmailOptions) {
       You've been invited to a meeting by <strong style="color: #1e293b;">${meeting.organizerName || 'a team member'}</strong>.
     </p>
     ${buildMeetingDetailsHtml(meeting, attendees)}
+    ${rsvpHtml}
     <p style="font-size: 13px; color: #94a3b8; margin: 16px 0 0; line-height: 1.5;">
       If you have any questions, please contact the organizer directly.
     </p>`

@@ -113,7 +113,14 @@ export default async function CalendarPage() {
   }
 
   // Get flat project list for meeting dialog
-  const projectList = projects.map(p => ({ id: p.id, name: p.name }))
+  const projectList = projects.map(p => ({
+    id: p.id,
+    name: p.name,
+    streetAddress: p.streetAddress || null,
+    city: p.city || null,
+    province: p.province || null,
+    postalCode: p.postalCode || null,
+  }))
 
   return (
     <DashboardLayout session={session}>
