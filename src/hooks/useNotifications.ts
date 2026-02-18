@@ -108,21 +108,23 @@ export function useNotifications({
 
       const data: NotificationResponse = await response.json()
       
-      // Check for new mention notifications for desktop alerts
+      // Check for new mention/message notifications for desktop alerts
       if (enableDesktopNotifications && data.notifications.length > 0) {
         const shownIds = getShownNotificationIds()
-        const newMentions = data.notifications.filter(
-          n => n.type === 'MENTION' && !n.read && 
+        const newNotifications = data.notifications.filter(
+          n => (n.type === 'MENTION' || n.type === 'CHAT_MESSAGE') && !n.read &&
           !shownIds.has(n.id)
         )
-        
-        // Send desktop notification for each new mention
-        newMentions.forEach(mention => {
+
+        // Send desktop notification for each new mention/message
+        newNotifications.forEach(notif => {
           // Mark as shown BEFORE sending to prevent race conditions
-          addShownNotificationId(mention.id)
-          const mentionedBy = mention.title.replace(' mentioned you', '')
-          const link = mention.relatedId ? `/stages/${mention.relatedId}` : undefined
-          sendMentionNotification(mentionedBy, mention.message, link)
+          addShownNotificationId(notif.id)
+          const sender = notif.type === 'MENTION'
+            ? notif.title.replace(' mentioned you', '')
+            : notif.title.replace(' sent a message', '')
+          const link = notif.type === 'MESSAGE' ? '/messages' : (notif.relatedId ? `/stages/${notif.relatedId}` : undefined)
+          sendMentionNotification(sender, notif.message, link)
         })
       }
       
@@ -293,8 +295,14 @@ export const NotificationTypes = {
   STAGE_ASSIGNED: 'STAGE_ASSIGNED',
   STAGE_COMPLETED: 'STAGE_COMPLETED',
   MENTION: 'MENTION',
+  CHAT_MESSAGE: 'CHAT_MESSAGE',
+  MESSAGE_REACTION: 'MESSAGE_REACTION',
   DUE_DATE_REMINDER: 'DUE_DATE_REMINDER',
-  PROJECT_UPDATE: 'PROJECT_UPDATE'
+  PROJECT_UPDATE: 'PROJECT_UPDATE',
+  TASK_ASSIGNED: 'TASK_ASSIGNED',
+  TASK_COMMENT: 'TASK_COMMENT',
+  TASK_DUE_SOON: 'TASK_DUE_SOON',
+  TASK_COMPLETED: 'TASK_COMPLETED'
 } as const
 
 export type NotificationType = typeof NotificationTypes[keyof typeof NotificationTypes]

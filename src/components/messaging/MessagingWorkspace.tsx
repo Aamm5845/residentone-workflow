@@ -60,6 +60,7 @@ import { MentionTextarea } from '@/components/ui/mention-textarea'
 import { toast } from 'react-hot-toast'
 import { cn } from '@/lib/utils'
 import { getStageName } from '@/constants/workflow'
+import { useNotifications } from '@/hooks/useNotifications'
 
 // Types
 interface TeamMember {
@@ -176,6 +177,7 @@ interface ActiveConversation {
 
 export default function MessagingWorkspace() {
   const { data: session } = useSession()
+  const { notifications, markAsRead, fetchNotifications } = useNotifications({ limit: 100 })
   const [loading, setLoading] = useState(true)
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [suppliers, setSuppliers] = useState<SupplierChat[]>([])
@@ -342,6 +344,34 @@ export default function MessagingWorkspace() {
     }
   }, [])
 
+  // Mark related notifications as read when opening a conversation
+  const markConversationNotificationsRead = useCallback(async (conversation: ActiveConversation) => {
+    if (!notifications || notifications.length === 0) return
+
+    const unreadNotifications = notifications.filter(n =>
+      !n.read && (n.type === 'MENTION' || n.type === 'CHAT_MESSAGE')
+    )
+    if (unreadNotifications.length === 0) return
+
+    let idsToMark: string[] = []
+
+    if (conversation.type === 'phase' && conversation.id) {
+      // Mark notifications related to this stage (mentions in phase chat)
+      idsToMark = unreadNotifications
+        .filter(n => n.relatedId === conversation.id && n.relatedType === 'STAGE')
+        .map(n => n.id)
+    } else if (conversation.type === 'general') {
+      // Mark all MESSAGE notifications and general chat MENTION notifications as read
+      idsToMark = unreadNotifications
+        .filter(n => n.relatedType === 'MESSAGE')
+        .map(n => n.id)
+    }
+
+    if (idsToMark.length > 0) {
+      await markAsRead(idsToMark)
+    }
+  }, [notifications, markAsRead])
+
   // Load conversations on mount
   useEffect(() => {
     loadConversations()
@@ -358,7 +388,10 @@ export default function MessagingWorkspace() {
     } else if (activeConversation.type === 'supplier' && activeConversation.id) {
       loadSupplierMessages(activeConversation.id)
     }
-  }, [activeConversation, loadGeneralChat, loadUserMessages, loadPhaseMessages, loadSupplierMessages])
+
+    // Mark related notifications as read
+    markConversationNotificationsRead(activeConversation)
+  }, [activeConversation, loadGeneralChat, loadUserMessages, loadPhaseMessages, loadSupplierMessages, markConversationNotificationsRead])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])

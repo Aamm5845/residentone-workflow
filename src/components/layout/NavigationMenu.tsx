@@ -42,7 +42,10 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
   
   const mentionNotifications = getNotificationsByType('MENTION')
+  const messageNotifications = getNotificationsByType('CHAT_MESSAGE')
   const unreadMentionCount = mentionNotifications.filter(n => !n.read).length
+  const unreadMessageCount = messageNotifications.filter(n => !n.read).length
+  const totalUnreadMessages = unreadMentionCount + unreadMessageCount
   
   // Check for unseen updates
   useEffect(() => {
@@ -151,7 +154,7 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
   const isProcurementActive = pathname.startsWith('/procurement') || pathname.match(/^\/projects\/[^/]+\/procurement/)
 
   const updatesNavigation = [
-    { name: 'Messages', href: '/messages', icon: MessageSquare, color: 'text-indigo-600', badgeCount: unreadMentionCount, badgeColor: 'bg-[#6366ea]' },
+    { name: 'Messages', href: '/messages', icon: MessageSquare, color: 'text-indigo-600', badgeCount: totalUnreadMessages, badgeColor: 'bg-[#6366ea]' },
     { name: 'Activities', href: '/activities', icon: Activity, color: 'text-[#f6762e]', badgeCount: unreadActivitiesCount, badgeColor: 'bg-[#f6762e]' },
     { name: "What's New", href: '/whats-new', icon: Sparkles, color: 'text-[#e94d97]', badgeCount: unseenUpdatesCount, special: true },
   ]

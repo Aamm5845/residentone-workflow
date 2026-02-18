@@ -557,7 +557,24 @@ export async function POST(
 
     // Send notifications to assigned team member if requested
     if (notifyAssignee && stage.assignedUser && stage.assignedUser.id !== session.user.id) {
+      // Check if assigned user was already mentioned (avoid duplicate notification)
+      const assignedAlreadyMentioned = mentions.includes(stage.assignedUser.id)
+
       try {
+        // Create an in-app notification for the assigned user (if not already mentioned)
+        if (!assignedAlreadyMentioned) {
+          await prisma.notification.create({
+            data: {
+              userId: stage.assignedUser.id,
+              type: 'CHAT_MESSAGE',
+              title: `${session.user.name} sent a message`,
+              message: `New message in ${getStageName(stage.type)} - ${stage.room.name} (${stage.room.project.name}): ${content.substring(0, 100)}${content.length > 100 ? '...' : ''}`,
+              relatedId: resolvedParams.stageId,
+              relatedType: 'STAGE'
+            }
+          })
+        }
+
         // Get full user details including notification preferences
         const assignedUserDetails = await prisma.user.findUnique({
           where: { id: stage.assignedUser.id },
