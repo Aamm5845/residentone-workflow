@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useCallback } from 'react'
 import useSWR from 'swr'
 import { Button } from '@/components/ui/button'
 import {
@@ -22,6 +22,9 @@ import {
   Presentation,
   Music,
   Archive,
+  Upload,
+  Loader2,
+  CheckCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -123,8 +126,14 @@ const fetcher = (url: string) => fetch(url).then(res => res.json())
 
 export default function AllFilesBrowser({ projectId, dropboxFolder }: AllFilesBrowserProps) {
   const [currentPath, setCurrentPath] = useState('')
+  const [isDragging, setIsDragging] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null)
+  const [uploadSuccess, setUploadSuccess] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const dragCountRef = useRef(0)
 
-  const { data, isLoading, error } = useSWR<BrowseResponse>(
+  const { data, isLoading, error, mutate } = useSWR<BrowseResponse>(
     dropboxFolder
       ? '/api/projects/' + projectId + '/project-files-v2/browse?path=' + encodeURIComponent(currentPath) + '&thumbnails=true'
       : null,
@@ -136,6 +145,81 @@ export default function AllFilesBrowser({ projectId, dropboxFolder }: AllFilesBr
     if (!currentPath) return []
     return currentPath.split('/').filter(Boolean)
   }, [currentPath])
+
+  // Upload files to current folder
+  const uploadFiles = useCallback(async (files: FileList | File[]) => {
+    if (!currentPath || files.length === 0) return
+    setUploading(true)
+    setUploadProgress({ done: 0, total: files.length })
+    setUploadSuccess(false)
+
+    let done = 0
+    for (const file of Array.from(files)) {
+      try {
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('path', currentPath)
+        await fetch('/api/projects/' + projectId + '/project-files-v2/upload', {
+          method: 'POST',
+          body: formData,
+        })
+        done++
+        setUploadProgress({ done, total: files.length })
+      } catch (err) {
+        console.error('Upload error:', err)
+        done++
+        setUploadProgress({ done, total: files.length })
+      }
+    }
+
+    setUploading(false)
+    setUploadProgress(null)
+    setUploadSuccess(true)
+    mutate() // Refresh the file list
+    setTimeout(() => setUploadSuccess(false), 3000)
+  }, [currentPath, projectId, mutate])
+
+  // Drag & drop handlers
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    dragCountRef.current++
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDragging(true)
+    }
+  }, [])
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    dragCountRef.current--
+    if (dragCountRef.current === 0) {
+      setIsDragging(false)
+    }
+  }, [])
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }, [])
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    dragCountRef.current = 0
+    setIsDragging(false)
+    if (e.dataTransfer.files.length > 0) {
+      uploadFiles(e.dataTransfer.files)
+    }
+  }, [uploadFiles])
+
+  // Handle file input change
+  const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      uploadFiles(e.target.files)
+      e.target.value = '' // Reset so same file can be re-selected
+    }
+  }, [uploadFiles])
 
   // Navigate into a folder
   const navigateToFolder = (folderPath: string) => {
@@ -268,35 +352,104 @@ export default function AllFilesBrowser({ projectId, dropboxFolder }: AllFilesBr
   }
 
   // =========================================================================
-  // SUBFOLDER VIEW — Breadcrumbs + file table
+  // SUBFOLDER VIEW — Breadcrumbs + file table + upload
   // =========================================================================
   return (
-    <div>
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-1 mb-4 text-sm">
-        <button
-          onClick={() => navigateToBreadcrumb(-1)}
-          className="flex items-center gap-1 text-gray-500 hover:text-gray-900 transition-colors"
+    <div
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+      className="relative"
+    >
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={handleFileInputChange}
+      />
+
+      {/* Breadcrumb + upload button */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-1 text-sm">
+          <button
+            onClick={() => navigateToBreadcrumb(-1)}
+            className="flex items-center gap-1 text-gray-500 hover:text-gray-900 transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            All Files
+          </button>
+          {breadcrumbs.map((segment, index) => (
+            <span key={index} className="flex items-center gap-1">
+              <ChevronRight className="w-3.5 h-3.5 text-gray-300" />
+              {index === breadcrumbs.length - 1 ? (
+                <span className="font-medium text-gray-900">{cleanFolderName(segment)}</span>
+              ) : (
+                <button
+                  onClick={() => navigateToBreadcrumb(index)}
+                  className="text-gray-500 hover:text-gray-900 transition-colors"
+                >
+                  {cleanFolderName(segment)}
+                </button>
+              )}
+            </span>
+          ))}
+        </div>
+
+        {/* Upload button */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="gap-1.5"
         >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          All Files
-        </button>
-        {breadcrumbs.map((segment, index) => (
-          <span key={index} className="flex items-center gap-1">
-            <ChevronRight className="w-3.5 h-3.5 text-gray-300" />
-            {index === breadcrumbs.length - 1 ? (
-              <span className="font-medium text-gray-900">{cleanFolderName(segment)}</span>
-            ) : (
-              <button
-                onClick={() => navigateToBreadcrumb(index)}
-                className="text-gray-500 hover:text-gray-900 transition-colors"
-              >
-                {cleanFolderName(segment)}
-              </button>
-            )}
-          </span>
-        ))}
+          {uploading ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Upload className="w-3.5 h-3.5" />
+          )}
+          {uploading
+            ? `Uploading ${uploadProgress?.done ?? 0}/${uploadProgress?.total ?? 0}`
+            : 'Upload Files'}
+        </Button>
       </div>
+
+      {/* Upload success toast */}
+      {uploadSuccess && (
+        <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm animate-in fade-in slide-in-from-top-2 duration-300">
+          <CheckCircle className="w-4 h-4 shrink-0" />
+          Files uploaded successfully
+        </div>
+      )}
+
+      {/* Upload progress bar */}
+      {uploading && uploadProgress && (
+        <div className="mb-3">
+          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-teal-500 rounded-full transition-all duration-300"
+              style={{ width: `${(uploadProgress.done / uploadProgress.total) * 100}%` }}
+            />
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Uploading {uploadProgress.done} of {uploadProgress.total} files…
+          </p>
+        </div>
+      )}
+
+      {/* Drag overlay */}
+      {isDragging && (
+        <div className="absolute inset-0 z-50 bg-teal-50/90 border-2 border-dashed border-teal-400 rounded-xl flex items-center justify-center pointer-events-none">
+          <div className="text-center">
+            <Upload className="w-10 h-10 text-teal-500 mx-auto mb-2" />
+            <p className="text-sm font-medium text-teal-700">Drop files to upload</p>
+            <p className="text-xs text-teal-500 mt-1">Files will be added to the current folder</p>
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       {folders.length === 0 && files.length === 0 ? (
@@ -305,7 +458,18 @@ export default function AllFilesBrowser({ projectId, dropboxFolder }: AllFilesBr
             <FolderOpen className="w-7 h-7 text-gray-400" />
           </div>
           <h3 className="text-base font-semibold text-gray-900 mb-1">Empty folder</h3>
-          <p className="text-sm text-gray-500">No files in this folder yet.</p>
+          <p className="text-sm text-gray-500 mb-4">
+            No files in this folder yet. Upload files or drag & drop them here.
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            className="gap-1.5"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            Upload Files
+          </Button>
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">

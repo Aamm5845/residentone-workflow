@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import useSWR from 'swr'
 import { Button } from '@/components/ui/button'
 import {
@@ -13,8 +13,9 @@ import {
   ChevronRight,
   Download,
   X,
-  ZoomIn,
-  ZoomOut,
+  Upload,
+  Loader2,
+  CheckCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -88,11 +89,99 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
     return url
   }, [projectId, dropboxFolder, offset, selectedFolder])
 
-  const { data, isLoading, error } = useSWR<PhotosResponse>(apiUrl, fetcher)
+  const { data, isLoading, error, mutate } = useSWR<PhotosResponse>(apiUrl, fetcher)
 
   const photos = data?.photos ?? []
   const folders = data?.folders ?? []
   const total = data?.total ?? 0
+
+  // Upload state
+  const [isDragging, setIsDragging] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null)
+  const [uploadSuccess, setUploadSuccess] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const dragCountRef = useRef(0)
+
+  // Upload files to 5- Photos folder (optionally into subfolder)
+  const uploadFiles = useCallback(async (files: FileList | File[]) => {
+    if (files.length === 0) return
+    setUploading(true)
+    setUploadProgress({ done: 0, total: files.length })
+    setUploadSuccess(false)
+
+    // Target path: "5- Photos" or "5- Photos/{subfolder}"
+    const targetPath = selectedFolder
+      ? '5- Photos/' + selectedFolder
+      : '5- Photos'
+
+    let done = 0
+    for (const file of Array.from(files)) {
+      try {
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('path', targetPath)
+        await fetch('/api/projects/' + projectId + '/project-files-v2/upload', {
+          method: 'POST',
+          body: formData,
+        })
+        done++
+        setUploadProgress({ done, total: files.length })
+      } catch (err) {
+        console.error('Upload error:', err)
+        done++
+        setUploadProgress({ done, total: files.length })
+      }
+    }
+
+    setUploading(false)
+    setUploadProgress(null)
+    setUploadSuccess(true)
+    mutate() // Refresh photo list
+    setTimeout(() => setUploadSuccess(false), 3000)
+  }, [selectedFolder, projectId, mutate])
+
+  // Handle file input change
+  const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      uploadFiles(e.target.files)
+      e.target.value = ''
+    }
+  }, [uploadFiles])
+
+  // Drag & drop handlers
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    dragCountRef.current++
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDragging(true)
+    }
+  }, [])
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    dragCountRef.current--
+    if (dragCountRef.current === 0) {
+      setIsDragging(false)
+    }
+  }, [])
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }, [])
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    dragCountRef.current = 0
+    setIsDragging(false)
+    if (e.dataTransfer.files.length > 0) {
+      uploadFiles(e.dataTransfer.files)
+    }
+  }, [uploadFiles])
 
   // Reset page when folder filter changes
   useEffect(() => {
@@ -169,22 +258,41 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
   if (photos.length === 0 && !isLoading) {
     return (
       <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept="image/*"
+          className="hidden"
+          onChange={handleFileInputChange}
+        />
         <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <Camera className="w-7 h-7 text-gray-400" />
         </div>
         <h3 className="text-base font-semibold text-gray-900 mb-1">
           {selectedFolder ? 'No photos in this folder' : 'No photos yet'}
         </h3>
-        <p className="text-sm text-gray-500 max-w-sm mx-auto">
+        <p className="text-sm text-gray-500 max-w-sm mx-auto mb-4">
           {selectedFolder
-            ? 'Try selecting a different folder or view all photos.'
-            : 'Add photos to the "5- Photos" folder in Dropbox to see them here.'}
+            ? 'Try selecting a different folder or upload photos here.'
+            : 'Upload photos or add them to the "5- Photos" folder in Dropbox.'}
         </p>
-        {selectedFolder && (
-          <Button variant="outline" size="sm" className="mt-4" onClick={() => setSelectedFolder(null)}>
-            View All Photos
+        <div className="flex items-center justify-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            className="gap-1.5"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            Upload Photos
           </Button>
-        )}
+          {selectedFolder && (
+            <Button variant="outline" size="sm" onClick={() => setSelectedFolder(null)}>
+              View All Photos
+            </Button>
+          )}
+        </div>
       </div>
     )
   }
@@ -193,8 +301,24 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
   const lightboxPhoto = lightboxIndex !== null ? photos[lightboxIndex] : null
 
   return (
-    <div>
-      {/* Header + filter chips */}
+    <div
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+      className="relative"
+    >
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileInputChange}
+      />
+
+      {/* Header + upload button */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <h3 className="text-sm font-medium text-gray-900">
@@ -202,7 +326,59 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
             <span className="ml-1.5 text-xs text-gray-400 font-normal">({total})</span>
           </h3>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="gap-1.5"
+        >
+          {uploading ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Upload className="w-3.5 h-3.5" />
+          )}
+          {uploading
+            ? `Uploading ${uploadProgress?.done ?? 0}/${uploadProgress?.total ?? 0}`
+            : 'Upload Photos'}
+        </Button>
       </div>
+
+      {/* Upload success toast */}
+      {uploadSuccess && (
+        <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm animate-in fade-in slide-in-from-top-2 duration-300">
+          <CheckCircle className="w-4 h-4 shrink-0" />
+          Photos uploaded successfully
+        </div>
+      )}
+
+      {/* Upload progress bar */}
+      {uploading && uploadProgress && (
+        <div className="mb-3">
+          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-teal-500 rounded-full transition-all duration-300"
+              style={{ width: `${(uploadProgress.done / uploadProgress.total) * 100}%` }}
+            />
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Uploading {uploadProgress.done} of {uploadProgress.total} photos…
+          </p>
+        </div>
+      )}
+
+      {/* Drag overlay */}
+      {isDragging && (
+        <div className="absolute inset-0 z-50 bg-teal-50/90 border-2 border-dashed border-teal-400 rounded-xl flex items-center justify-center pointer-events-none">
+          <div className="text-center">
+            <Camera className="w-10 h-10 text-teal-500 mx-auto mb-2" />
+            <p className="text-sm font-medium text-teal-700">Drop photos to upload</p>
+            <p className="text-xs text-teal-500 mt-1">
+              {selectedFolder ? `Photos will be added to ${selectedFolder}` : 'Photos will be added to 5- Photos'}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Subfolder filter chips */}
       {folders.length > 0 && (
