@@ -45,11 +45,13 @@ export async function POST(request: NextRequest) {
       urn = await apsService.uploadFile(file.name, buffer)
 
       // Start translation
+      // For DWG/DXF files, only request 2D views (faster translation)
+      const is2dCad = /\.(dwg|dxf)$/i.test(file.name)
       if (outputFormat === 'pdf') {
         const result = await apsService.translateToPdf(urn)
         status = result.status
       } else {
-        const result = await apsService.translateToSvf2(urn)
+        const result = await apsService.translateToSvf2(urn, is2dCad ? ['2d'] : ['2d', '3d'])
         status = result.status
       }
     } else {

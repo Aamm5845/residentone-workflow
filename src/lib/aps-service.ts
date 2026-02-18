@@ -229,8 +229,9 @@ async function uploadFile(fileName: string, buffer: Buffer): Promise<string> {
 
 /**
  * Start a translation job (CAD → SVF2 for viewer)
+ * For 2D CAD files (DWG), only request '2d' views for faster translation
  */
-async function translateToSvf2(urn: string): Promise<{ urn: string; status: string }> {
+async function translateToSvf2(urn: string, viewsHint: ('2d' | '3d')[] = ['2d', '3d']): Promise<{ urn: string; status: string }> {
   const token = await getToken()
 
   const resp = await fetch(APS_BASE + '/modelderivative/v2/designdata/job', {
@@ -246,7 +247,7 @@ async function translateToSvf2(urn: string): Promise<{ urn: string; status: stri
         formats: [
           {
             type: 'svf2',
-            views: ['2d', '3d'],
+            views: viewsHint,
           },
         ],
       },
@@ -460,11 +461,12 @@ async function uploadFromUrlAndTranslate(
   // Upload to APS OSS
   const urn = await uploadFile(fileName, buffer)
 
-  // Start translation
+  // Start translation — 2D only for DWG/DXF
+  const is2dCad = /\.(dwg|dxf)$/i.test(fileName)
   if (outputFormat === 'pdf') {
     return translateToPdf(urn)
   }
-  return translateToSvf2(urn)
+  return translateToSvf2(urn, is2dCad ? ['2d'] : ['2d', '3d'])
 }
 
 // ---------------------------------------------------------------------------
