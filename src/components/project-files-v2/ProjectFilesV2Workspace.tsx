@@ -271,7 +271,7 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
               </TabsTrigger>
               <TabsTrigger value="transmittals" className="gap-1.5">
                 <Send className="w-4 h-4" />
-                Transmittals
+                Sent
               </TabsTrigger>
             </TabsList>
 

@@ -177,7 +177,7 @@ export default function NewTransmittalDialog({
   const [recipientType, setRecipientType] = useState<string>('contractor')
   const [selectedDrawings, setSelectedDrawings] = useState<Set<string>>(new Set())
   const [drawingConfigs, setDrawingConfigs] = useState<Record<string, DrawingItemConfig>>({})
-  const [subject, setSubject] = useState('Transmittal')
+  const [subject, setSubject] = useState('')
   const [notes, setNotes] = useState('')
   const [method, setMethod] = useState<'EMAIL' | 'MANUAL'>('EMAIL')
   const [drawingSearch, setDrawingSearch] = useState('')
@@ -260,7 +260,7 @@ export default function NewTransmittalDialog({
       setRecipientType('contractor')
       setSelectedDrawings(new Set())
       setDrawingConfigs({})
-      setSubject('Transmittal')
+      setSubject('')
       setNotes('')
       setMethod('EMAIL')
       setDrawingSearch('')
@@ -393,7 +393,7 @@ export default function NewTransmittalDialog({
 
         if (!createRes.ok) {
           const err = await createRes.json().catch(() => ({}))
-          throw new Error(err.error || 'Failed to create transmittal.')
+          throw new Error(err.error || 'Failed to create record.')
         }
 
         const created = await createRes.json()
@@ -406,7 +406,7 @@ export default function NewTransmittalDialog({
           )
           if (!sendRes.ok) {
             const err = await sendRes.json().catch(() => ({}))
-            throw new Error(err.error || 'Transmittal created but failed to send.')
+            throw new Error(err.error || 'Created but failed to send email.')
           }
         }
 
@@ -444,7 +444,7 @@ export default function NewTransmittalDialog({
         <DialogHeader className="px-6 pt-6 pb-4 border-b border-gray-100 shrink-0">
           <DialogTitle className="flex items-center gap-2 text-lg">
             <Send className="h-5 w-5 text-gray-600" />
-            New Transmittal
+            Send Drawings
           </DialogTitle>
           <DialogDescription className="text-sm text-gray-500">
             Select a recipient and choose drawings to send.
@@ -754,7 +754,7 @@ export default function NewTransmittalDialog({
               <Input
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
-                placeholder="Transmittal subject line"
+                placeholder="e.g. Updated floor plans, Revision 3..."
               />
             </div>
             <div className="space-y-1.5">
@@ -794,7 +794,7 @@ export default function NewTransmittalDialog({
                 <div className="min-w-0">
                   <div className="text-sm font-medium text-gray-900">Send via Email</div>
                   <div className="text-xs text-gray-500 mt-0.5">
-                    Send transmittal email with document list to recipient
+                    Email drawings as PDF attachments
                   </div>
                 </div>
                 {method === 'EMAIL' && (
@@ -824,7 +824,7 @@ export default function NewTransmittalDialog({
                 <div className="min-w-0">
                   <div className="text-sm font-medium text-gray-900">Log Manually</div>
                   <div className="text-xs text-gray-500 mt-0.5">
-                    Record this transmittal without sending an email
+                    Record delivery without sending an email
                   </div>
                 </div>
                 {method === 'MANUAL' && (

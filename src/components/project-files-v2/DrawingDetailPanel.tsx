@@ -569,7 +569,7 @@ export default function DrawingDetailPanel({
               {/* Transmittal History */}
               <div className="px-5 py-4">
                 <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-3">
-                  Transmittal History
+                  Sent History
                 </p>
                 {drawing.transmittalItems.length > 0 ? (
                   <div className="space-y-3">

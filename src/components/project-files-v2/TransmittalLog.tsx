@@ -188,7 +188,7 @@ export default function TransmittalLog({
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <h2 className="text-lg font-semibold text-gray-900">Transmittals</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Sent Drawings</h2>
           </div>
         </div>
         {/* Empty content */}
@@ -196,12 +196,12 @@ export default function TransmittalLog({
           <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
             <Send className="w-8 h-8 text-gray-400" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-1">No transmittals yet</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-1">Nothing sent yet</h3>
           <p className="text-sm text-gray-500 max-w-sm mb-4">
-            Create your first transmittal to start tracking document distributions.
+            Send drawings to contractors, subs, or clients and track everything here.
           </p>
           <Button onClick={onCreateNew} size="sm">
-            <Plus className="w-4 h-4 mr-1.5" /> New Transmittal
+            <Plus className="w-4 h-4 mr-1.5" /> Send Drawings
           </Button>
         </div>
       </div>
@@ -221,7 +221,7 @@ export default function TransmittalLog({
           </span>
         </div>
         <Button onClick={onCreateNew} size="sm">
-          <Plus className="w-4 h-4 mr-1.5" /> New Transmittal
+          <Plus className="w-4 h-4 mr-1.5" /> Send Drawings
         </Button>
       </div>
 
