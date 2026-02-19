@@ -189,19 +189,6 @@ export async function POST(
          </div>`
       : ''
 
-    // Logo header - matches invoice email style (dark bg + white logo box)
-    const logoHeaderHtml = org?.logoUrl
-      ? `<td style="background-color: #334155; padding: 32px 40px; text-align: center; border-radius: 12px 12px 0 0;">
-           <div style="background-color: #ffffff; display: inline-block; padding: 12px 20px; border-radius: 8px;">
-             <img src="${org.logoUrl}" alt="${companyName}" style="height: 44px; max-width: 200px; display: block;" />
-           </div>
-         </td>`
-      : (companyName
-        ? `<td style="background-color: #334155; padding: 32px 40px; text-align: center; border-radius: 12px 12px 0 0;">
-             <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700;">${companyName}</h1>
-           </td>`
-        : '')
-
     // Intro text
     const introText = itemCount === 1
       ? `Here's a drawing${purposeText ? ' ' + purposeText : ''} for <strong>${project.name}</strong>.`
@@ -210,7 +197,7 @@ export async function POST(
     // Attachment info
     const attachmentText = attachments.length > 0
       ? `${attachments.length} PDF${attachments.length !== 1 ? 's' : ''} attached`
-      : 'See drawing details below'
+      : ''
 
     const html = `<!DOCTYPE html>
 <html lang="en">
@@ -219,23 +206,23 @@ export async function POST(
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f9fafb; line-height: 1.6;">
-    <div style="max-width: 560px; margin: 40px auto; background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden;">
-        <!-- Logo Header -->
-        <table width="100%" cellpadding="0" cellspacing="0" border="0">
-          <tr>
-            ${logoHeaderHtml}
-          </tr>
-        </table>
-
-        <!-- Project Info -->
-        <div style="padding: 28px 40px 24px 40px; text-align: center; border-bottom: 1px solid #e5e7eb;">
+    <div style="max-width: 560px; margin: 40px auto; background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <!-- Header -->
+        <div style="padding: 40px 40px 32px 40px; text-align: center; border-bottom: 1px solid #e5e7eb;">
+            ${org?.logoUrl ? `
+            <img src="${org.logoUrl}"
+                 alt="${companyName}"
+                 style="max-width: 220px; max-height: 80px; height: auto; margin-bottom: 24px;" />
+            ` : `
+            <div style="color: #111827; font-size: 22px; font-weight: 700; margin-bottom: 24px;">${companyName}</div>
+            `}
             <p style="margin: 0; color: #111827; font-size: 18px; font-weight: 600;">${project.name}</p>
-            <p style="margin: 6px 0 0 0; color: #6b7280; font-size: 14px;">${attachmentText}</p>
+            ${attachmentText ? `<p style="margin: 6px 0 0 0; color: #6b7280; font-size: 14px;">${attachmentText}</p>` : ''}
         </div>
 
         <!-- Content -->
         <div style="padding: 32px 40px;">
-            <p style="margin: 0 0 24px 0; color: #4b5563; font-size: 15px;">
+            <p style="margin: 0 0 32px 0; color: #4b5563; font-size: 15px;">
                 Hi ${firstName}, ${introText}
             </p>
 
@@ -263,16 +250,16 @@ export async function POST(
 
         <!-- Footer -->
         <div style="border-top: 1px solid #e5e7eb; padding: 24px 40px; text-align: center;">
-            ${companyName ? `<p style="margin: 0 0 4px 0; color: #374151; font-size: 14px; font-weight: 500;">${companyName}</p>` : ''}
-            ${org?.businessAddress ? `<p style="margin: 0 0 2px 0; color: #9ca3af; font-size: 12px;">${org.businessAddress}${org.businessCity ? `, ${org.businessCity}` : ''}${org.businessProvince ? `, ${org.businessProvince}` : ''} ${org.businessPostal || ''}</p>` : ''}
-            ${org?.businessEmail || org?.businessPhone ? `<p style="margin: 0; color: #9ca3af; font-size: 12px;">${org.businessEmail || ''}${org.businessEmail && org.businessPhone ? ' · ' : ''}${org.businessPhone || ''}</p>` : ''}
+            <p style="margin: 0 0 4px 0; color: #374151; font-size: 14px; font-weight: 500;">${companyName}</p>
+            ${org?.businessEmail ? `<p style="margin: 0; color: #6b7280; font-size: 13px;">${org.businessEmail}</p>` : ''}
+            ${org?.businessPhone ? `<p style="margin: 0; color: #6b7280; font-size: 13px;">${org.businessPhone}</p>` : ''}
         </div>
     </div>
 
     <!-- Bottom note -->
     <div style="max-width: 560px; margin: 16px auto 40px auto; text-align: center;">
         <p style="margin: 0; color: #9ca3af; font-size: 12px;">
-            &copy; ${new Date().getFullYear()} ${companyName || 'All rights reserved'}.
+            &copy; ${new Date().getFullYear()} ${companyName}. All rights reserved.
         </p>
     </div>
 </body>
