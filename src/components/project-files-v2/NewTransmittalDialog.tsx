@@ -15,6 +15,7 @@ import {
   ChevronDown,
   User,
   Building2,
+  AlertTriangle,
 } from 'lucide-react'
 import {
   Dialog,
@@ -66,6 +67,9 @@ interface Drawing {
   discipline: string
   currentRevision: number
   floor: { id: string; name: string; shortName: string } | null
+  cadSourceLink?: {
+    cadFreshnessStatus: string
+  } | null
 }
 
 interface Recipient {
@@ -686,6 +690,36 @@ export default function NewTransmittalDialog({
               <span>{submitError}</span>
             </div>
           )}
+
+          {/* Stale CAD warning */}
+          {(() => {
+            const staleDrawings = drawings.filter(
+              (d) =>
+                selectedDrawings.has(d.id) &&
+                d.cadSourceLink &&
+                (d.cadSourceLink.cadFreshnessStatus === 'CAD_MODIFIED' ||
+                  d.cadSourceLink.cadFreshnessStatus === 'NEEDS_REPLOT')
+            )
+            if (staleDrawings.length === 0) return null
+            return (
+              <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800 flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-500" />
+                <div>
+                  <p className="font-medium">Some drawings may have outdated PDFs:</p>
+                  <ul className="mt-1 space-y-0.5">
+                    {staleDrawings.map((d) => (
+                      <li key={d.id} className="text-xs text-amber-700">
+                        {d.drawingNumber} &mdash; {d.title}
+                        {d.cadSourceLink?.cadFreshnessStatus === 'NEEDS_REPLOT' && (
+                          <span className="ml-1 text-red-600 font-medium">(needs re-plot)</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )
+          })()}
         </div>
 
         {/* ── Footer ───────────────────────────────────────────────────── */}
