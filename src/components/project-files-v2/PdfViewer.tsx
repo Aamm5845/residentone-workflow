@@ -18,6 +18,10 @@ import {
   RefreshCw,
   CheckCircle2,
   ChevronDown,
+  Plus,
+  Send,
+  Clock,
+  User,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -43,12 +47,38 @@ interface PdfFile {
   thumbnailUrl?: string
 }
 
+interface DrawingInfo {
+  id: string
+  drawingNumber: string
+  title: string
+}
+
+interface DrawingActivity {
+  revisions: Array<{
+    id: string
+    revisionNumber: number
+    notes: string | null
+    createdAt: string
+    issuedByUser?: { name: string | null } | null
+  }>
+  transmittals: Array<{
+    id: string
+    transmittalNumber: string
+    recipientName: string
+    sentAt: string | null
+  }>
+}
+
 interface PdfViewerProps {
   file: PdfFile
   allPdfFiles: PdfFile[]
   onSelectFile: (file: PdfFile) => void
   onClose: () => void
   onDownload: (file: PdfFile) => void
+  onRegisterAsDrawing?: (file: PdfFile) => void
+  onSendTransmittal?: (drawingInfo: DrawingInfo) => void
+  drawingInfo?: DrawingInfo | null
+  drawingActivity?: DrawingActivity | null
 }
 
 // ---------------------------------------------------------------------------
@@ -137,6 +167,10 @@ export default function PdfViewer({
   onSelectFile,
   onClose,
   onDownload,
+  onRegisterAsDrawing,
+  onSendTransmittal,
+  drawingInfo,
+  drawingActivity,
 }: PdfViewerProps) {
   const [numPages, setNumPages] = useState<number>(0)
   const [pageNumber, setPageNumber] = useState(1)
@@ -211,9 +245,21 @@ export default function PdfViewer({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [pageNumber, numPages, onClose, showFileDropdown])
 
-  const onDocumentLoadSuccess = useCallback(({ numPages: total }: { numPages: number }) => {
-    setNumPages(total)
+  const onDocumentLoadSuccess = useCallback(async (pdf: any) => {
+    setNumPages(pdf.numPages)
     setLoading(false)
+
+    // Auto-detect landscape orientation from first page
+    try {
+      const page = await pdf.getPage(1)
+      const viewport = page.getViewport({ scale: 1 })
+      if (viewport.width > viewport.height) {
+        // Landscape page — auto-rotate so it displays properly
+        setRotation(90)
+      }
+    } catch {
+      // Ignore errors in page dimension detection
+    }
   }, [])
 
   const handleZoomIn = () => setZoom((z) => Math.min(z + 0.25, 4))
@@ -587,11 +633,77 @@ export default function PdfViewer({
                   <label className="text-xs font-medium text-blue-600 mb-1 block">Location</label>
                   <p className="text-xs text-gray-500 break-all leading-relaxed">{file.path}</p>
                 </div>
+
+                {/* Drawing Register info */}
+                {drawingInfo && (
+                  <div className="pt-3 mt-3 border-t border-gray-100">
+                    <label className="text-xs font-medium text-emerald-600 mb-1 block">In Drawing Register</label>
+                    <p className="text-sm text-gray-900 font-medium">{drawingInfo.drawingNumber}</p>
+                    <p className="text-xs text-gray-500">{drawingInfo.title}</p>
+                  </div>
+                )}
+
+                {/* Revision History */}
+                {drawingActivity && drawingActivity.revisions.length > 0 && (
+                  <div className="pt-3 mt-3 border-t border-gray-100">
+                    <label className="text-xs font-medium text-blue-600 mb-2 block">Revisions</label>
+                    <div className="space-y-2">
+                      {drawingActivity.revisions.slice(0, 5).map((rev) => (
+                        <div key={rev.id} className="flex items-start gap-2">
+                          <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center shrink-0 mt-0.5">
+                            <span className="text-[10px] font-bold text-blue-700">{rev.revisionNumber}</span>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            {rev.notes && <p className="text-xs text-gray-700 line-clamp-1">{rev.notes}</p>}
+                            <div className="flex items-center gap-1 text-[10px] text-gray-400">
+                              <Clock className="w-3 h-3" />
+                              {formatDate(rev.createdAt)}
+                              {rev.issuedByUser?.name && (
+                                <>
+                                  <span className="mx-0.5">&middot;</span>
+                                  <User className="w-3 h-3" />
+                                  {rev.issuedByUser.name}
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Transmittal History */}
+                {drawingActivity && drawingActivity.transmittals.length > 0 && (
+                  <div className="pt-3 mt-3 border-t border-gray-100">
+                    <label className="text-xs font-medium text-blue-600 mb-2 block">Transmittals</label>
+                    <div className="space-y-2">
+                      {drawingActivity.transmittals.slice(0, 5).map((t) => (
+                        <div key={t.id} className="flex items-start gap-2">
+                          <Send className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs text-gray-700 font-medium">{t.transmittalNumber}</p>
+                            <div className="flex items-center gap-1 text-[10px] text-gray-400">
+                              <span>{t.recipientName}</span>
+                              {t.sentAt && (
+                                <>
+                                  <span className="mx-0.5">&middot;</span>
+                                  {formatDate(t.sentAt)}
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Download action */}
-            <div className="p-4 border-t border-gray-100">
+            {/* Action buttons */}
+            <div className="p-4 border-t border-gray-100 space-y-2">
+              {/* Download */}
               <button
                 onClick={() => onDownload(file)}
                 className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
@@ -599,6 +711,28 @@ export default function PdfViewer({
                 <Download className="w-4 h-4" />
                 Download PDF
               </button>
+
+              {/* Send Transmittal — only when file is in Drawing Register */}
+              {drawingInfo && onSendTransmittal && (
+                <button
+                  onClick={() => onSendTransmittal(drawingInfo)}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  <Send className="w-4 h-4" />
+                  Send Transmittal
+                </button>
+              )}
+
+              {/* Register as Drawing — only when file is NOT in Drawing Register */}
+              {!drawingInfo && onRegisterAsDrawing && (
+                <button
+                  onClick={() => onRegisterAsDrawing(file)}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors border border-emerald-200"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add to Drawing Register
+                </button>
+              )}
             </div>
           </div>
         )}

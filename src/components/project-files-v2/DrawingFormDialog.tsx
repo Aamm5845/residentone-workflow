@@ -69,6 +69,14 @@ interface Floor {
   shortName: string
 }
 
+interface PrefillData {
+  dropboxPath: string
+  fileName: string
+  fileSize?: number
+  drawingNumber?: string
+  title?: string
+}
+
 interface DrawingFormDialogProps {
   projectId: string
   open: boolean
@@ -76,6 +84,7 @@ interface DrawingFormDialogProps {
   onSuccess: () => void
   editDrawing?: EditDrawing | null
   floors: Floor[]
+  prefillData?: PrefillData | null
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -87,6 +96,7 @@ export default function DrawingFormDialog({
   onSuccess,
   editDrawing,
   floors: initialFloors,
+  prefillData,
 }: DrawingFormDialogProps) {
   const isEditing = !!editDrawing
 
@@ -133,6 +143,19 @@ export default function DrawingFormDialog({
         setFileName(editDrawing.fileName || '')
         setDescription(editDrawing.description || '')
         setInitialRevisionNotes('')
+      } else if (prefillData) {
+        // Pre-fill from All Files browser
+        setDrawingNumber(prefillData.drawingNumber || '')
+        setTitle(prefillData.title || '')
+        setDiscipline('')
+        setDrawingType('')
+        setFloorId('')
+        setScale('')
+        setPaperSize('')
+        setDropboxPath(prefillData.dropboxPath)
+        setFileName(prefillData.fileName)
+        setDescription('')
+        setInitialRevisionNotes('')
       } else {
         setDrawingNumber('')
         setTitle('')
@@ -150,7 +173,7 @@ export default function DrawingFormDialog({
       setNewFloorName('')
       setNewFloorShortName('')
     }
-  }, [open, editDrawing])
+  }, [open, editDrawing, prefillData])
 
   // Derive filename from dropbox path
   const derivedFileName = dropboxPath

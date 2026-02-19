@@ -83,6 +83,13 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
   const [transmittalPreSelectedDrawings, setTransmittalPreSelectedDrawings] = useState<any[]>([])
   const [viewTransmittal, setViewTransmittal] = useState<any | null>(null)
   const [cadLinkDrawing, setCadLinkDrawing] = useState<any | null>(null)
+  const [prefillDrawing, setPrefillDrawing] = useState<{
+    dropboxPath: string
+    fileName: string
+    fileSize?: number
+    drawingNumber?: string
+    title?: string
+  } | null>(null)
 
   // ---- Derived filter params ----
   const filterParams = useMemo(() => {
@@ -94,14 +101,19 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
     return params.toString()
   }, [filters])
 
-  // ---- SWR Data (only fetch when on relevant tabs) ----
+  // ---- SWR Data ----
+  // Always fetch drawings (needed by All Files tab for matching + Drawings tab for display)
   const { data: drawingsData, isLoading: drawingsLoading, mutate: mutateDrawings } = useSWR(
-    activeTab === 'drawings' ? `/api/projects/${project.id}/project-files-v2/drawings?${filterParams}` : null,
+    (activeTab === 'drawings' || activeTab === 'all-files')
+      ? `/api/projects/${project.id}/project-files-v2/drawings?${activeTab === 'drawings' ? filterParams : ''}`
+      : null,
     fetcher
   )
 
   const { data: floorsData, mutate: mutateFloors } = useSWR(
-    activeTab === 'drawings' ? `/api/projects/${project.id}/project-files-v2/floors` : null,
+    (activeTab === 'drawings' || activeTab === 'all-files')
+      ? `/api/projects/${project.id}/project-files-v2/floors`
+      : null,
     fetcher
   )
 
@@ -283,6 +295,32 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
             <AllFilesBrowser
               projectId={project.id}
               dropboxFolder={project.dropboxFolder}
+              drawings={drawings.map((d: any) => ({
+                id: d.id,
+                drawingNumber: d.drawingNumber,
+                title: d.title,
+                dropboxPath: d.dropboxPath,
+              }))}
+              onRegisterAsDrawing={(file) => {
+                // Extract drawing number and title from filename
+                const nameWithoutExt = file.name.replace(/\.pdf$/i, '')
+                const match = nameWithoutExt.match(/^([A-Z0-9][\w.-]*)[\s_-]+(.+)$/i)
+                setPrefillDrawing({
+                  dropboxPath: file.path,
+                  fileName: file.name,
+                  fileSize: file.size,
+                  drawingNumber: match ? match[1] : '',
+                  title: match ? match[2].replace(/_/g, ' ') : nameWithoutExt,
+                })
+                setShowAddDrawing(true)
+              }}
+              onSendTransmittal={(drawingInfo) => {
+                const found = drawings.find((d: any) => d.id === drawingInfo.id)
+                if (found) {
+                  setTransmittalPreSelectedDrawings([found])
+                  setShowNewTransmittal(true)
+                }
+              }}
             />
           </TabsContent>
 
@@ -338,6 +376,7 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
                   </div>
                 ) : viewMode === 'table' ? (
                   <DrawingRegisterTable
+                    projectId={project.id}
                     drawings={drawings}
                     onSelectDrawing={(d) => setSelectedDrawingId(d.id)}
                     onEditDrawing={(d) => { setEditDrawing(d); setShowAddDrawing(true) }}
@@ -350,6 +389,7 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
                   />
                 ) : (
                   <DrawingRegisterCards
+                    projectId={project.id}
                     drawings={drawings}
                     onSelectDrawing={(d) => setSelectedDrawingId(d.id)}
                     onEditDrawing={(d) => { setEditDrawing(d); setShowAddDrawing(true) }}
@@ -430,15 +470,20 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
         open={showAddDrawing}
         onOpenChange={(open) => {
           setShowAddDrawing(open)
-          if (!open) setEditDrawing(null)
+          if (!open) {
+            setEditDrawing(null)
+            setPrefillDrawing(null)
+          }
         }}
         onSuccess={() => {
           refreshAll()
           setShowAddDrawing(false)
           setEditDrawing(null)
+          setPrefillDrawing(null)
         }}
         editDrawing={editDrawing}
         floors={Array.isArray(floors) ? floors : []}
+        prefillData={prefillDrawing}
       />
 
       {/* New Revision Dialog */}

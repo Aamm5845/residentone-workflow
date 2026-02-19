@@ -138,6 +138,7 @@ interface Drawing {
 }
 
 interface DrawingRegisterTableProps {
+  projectId: string
   drawings: Drawing[]
   onSelectDrawing: (drawing: Drawing) => void
   onEditDrawing: (drawing: Drawing) => void
@@ -224,6 +225,7 @@ const COLUMNS: ColumnDef[] = [
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function DrawingRegisterTable({
+  projectId,
   drawings,
   onSelectDrawing,
   onEditDrawing,
@@ -303,6 +305,8 @@ export default function DrawingRegisterTable({
         {/* ── Header ──────────────────────────────────────────────────── */}
         <thead>
           <tr className="border-b border-gray-200 bg-gray-50/80">
+            {/* Thumbnail column */}
+            <th className="w-[52px] px-2 py-3" />
             {COLUMNS.map((col) => (
               <th
                 key={col.key}
@@ -343,6 +347,14 @@ export default function DrawingRegisterTable({
                     : 'hover:bg-gray-50/70'
                 )}
               >
+                {/* Thumbnail */}
+                <td className="px-2 py-2">
+                  <DrawingThumbnail
+                    projectId={projectId}
+                    dropboxPath={drawing.dropboxPath}
+                  />
+                </td>
+
                 {/* Drawing # */}
                 <td className="px-4 py-3">
                   <span className="font-mono font-bold text-gray-900">
@@ -529,6 +541,49 @@ export default function DrawingRegisterTable({
           })}
         </tbody>
       </table>
+    </div>
+  )
+}
+
+// ─── Thumbnail helper ─────────────────────────────────────────────────────────
+
+function DrawingThumbnail({ projectId, dropboxPath }: { projectId: string; dropboxPath: string | null }) {
+  const [loaded, setLoaded] = useState(false)
+  const [error, setError] = useState(false)
+
+  if (!dropboxPath) {
+    return (
+      <div className="w-10 h-10 rounded border border-gray-200 bg-gray-50 flex items-center justify-center">
+        <FileText className="w-4 h-4 text-gray-300" />
+      </div>
+    )
+  }
+
+  const src = `/api/projects/${projectId}/project-files-v2/pdf-thumbnail?path=${encodeURIComponent(dropboxPath)}`
+
+  return (
+    <div className="w-10 h-10 rounded border border-gray-200 bg-white overflow-hidden">
+      {!error ? (
+        <>
+          {!loaded && (
+            <div className="w-full h-full bg-gray-50 animate-pulse flex items-center justify-center">
+              <FileText className="w-4 h-4 text-gray-300" />
+            </div>
+          )}
+          <img
+            src={src}
+            alt="thumbnail"
+            className={cn('w-full h-full object-contain', !loaded && 'hidden')}
+            loading="lazy"
+            onLoad={() => setLoaded(true)}
+            onError={() => setError(true)}
+          />
+        </>
+      ) : (
+        <div className="w-full h-full flex items-center justify-center bg-gray-50">
+          <FileText className="w-4 h-4 text-gray-300" />
+        </div>
+      )}
     </div>
   )
 }

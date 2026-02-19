@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useRef, useCallback } from 'react'
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import useSWR from 'swr'
 import { Button } from '@/components/ui/button'
@@ -60,9 +60,19 @@ interface BrowseResponse {
   currentPath: string
 }
 
+interface RegisteredDrawing {
+  id: string
+  drawingNumber: string
+  title: string
+  dropboxPath: string | null
+}
+
 interface AllFilesBrowserProps {
   projectId: string
   dropboxFolder: string | null
+  drawings?: RegisteredDrawing[]
+  onRegisterAsDrawing?: (file: { name: string; path: string; size: number }) => void
+  onSendTransmittal?: (drawingInfo: { id: string; drawingNumber: string; title: string }) => void
 }
 
 // ---------------------------------------------------------------------------
@@ -144,7 +154,7 @@ function bufferToBase64(buffer: ArrayBuffer): string {
 // Component
 // ---------------------------------------------------------------------------
 
-export default function AllFilesBrowser({ projectId, dropboxFolder }: AllFilesBrowserProps) {
+export default function AllFilesBrowser({ projectId, dropboxFolder, drawings: registeredDrawings, onRegisterAsDrawing, onSendTransmittal }: AllFilesBrowserProps) {
   const [currentPath, setCurrentPath] = useState('')
   const [isDragging, setIsDragging] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -160,6 +170,49 @@ export default function AllFilesBrowser({ projectId, dropboxFolder }: AllFilesBr
       : null,
     fetcher
   )
+
+  // Look up whether the viewing PDF is registered in the drawing register
+  const matchedDrawing = useMemo(() => {
+    if (!viewingPdf || !registeredDrawings) return null
+    // Try exact dropboxPath match first, then match by filename
+    const viewingFileName = viewingPdf.path.split('/').pop()?.toLowerCase()
+    return registeredDrawings.find(d => {
+      if (!d.dropboxPath) return false
+      // Exact path match
+      if (d.dropboxPath === viewingPdf.path) return true
+      // Filename match (for files that may have been moved)
+      const regFileName = d.dropboxPath.split('/').pop()?.toLowerCase()
+      return regFileName && viewingFileName && regFileName === viewingFileName
+    }) || null
+  }, [viewingPdf, registeredDrawings])
+
+  // Fetch drawing activity (revisions + transmittals) when a matched drawing is found
+  const { data: drawingDetailData } = useSWR(
+    matchedDrawing
+      ? `/api/projects/${projectId}/project-files-v2/drawings/${matchedDrawing.id}`
+      : null,
+    fetcher,
+    { revalidateOnFocus: false }
+  )
+
+  const drawingActivity = useMemo(() => {
+    if (!drawingDetailData) return null
+    return {
+      revisions: (drawingDetailData.revisions || []).map((r: any) => ({
+        id: r.id,
+        revisionNumber: r.revisionNumber,
+        notes: r.notes,
+        createdAt: r.createdAt,
+        issuedByUser: r.issuedByUser,
+      })),
+      transmittals: (drawingDetailData.transmittalItems || []).map((ti: any) => ({
+        id: ti.transmittal?.id || ti.id,
+        transmittalNumber: ti.transmittal?.transmittalNumber || '',
+        recipientName: ti.transmittal?.recipientName || '',
+        sentAt: ti.transmittal?.sentAt || null,
+      })),
+    }
+  }, [drawingDetailData])
 
   // Breadcrumb segments
   const breadcrumbs = useMemo(() => {
@@ -451,6 +504,10 @@ export default function AllFilesBrowser({ projectId, dropboxFolder }: AllFilesBr
             onSelectFile={setViewingPdf}
             onClose={() => setViewingPdf(null)}
             onDownload={handleDownload}
+            onRegisterAsDrawing={onRegisterAsDrawing ? (f) => onRegisterAsDrawing({ name: f.name, path: f.path, size: f.size }) : undefined}
+            onSendTransmittal={onSendTransmittal}
+            drawingInfo={matchedDrawing ? { id: matchedDrawing.id, drawingNumber: matchedDrawing.drawingNumber, title: matchedDrawing.title } : null}
+            drawingActivity={drawingActivity}
           />
         )}
       </div>
@@ -596,6 +653,10 @@ export default function AllFilesBrowser({ projectId, dropboxFolder }: AllFilesBr
           onSelectFile={setViewingPdf}
           onClose={() => setViewingPdf(null)}
           onDownload={handleDownload}
+          onRegisterAsDrawing={onRegisterAsDrawing ? (f) => onRegisterAsDrawing({ name: f.name, path: f.path, size: f.size }) : undefined}
+          onSendTransmittal={onSendTransmittal}
+          drawingInfo={matchedDrawing ? { id: matchedDrawing.id, drawingNumber: matchedDrawing.drawingNumber, title: matchedDrawing.title } : null}
+          drawingActivity={drawingActivity}
         />
       )}
     </div>

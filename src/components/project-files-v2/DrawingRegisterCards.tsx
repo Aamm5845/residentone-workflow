@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { cn } from '@/lib/utils'
 import {
   FileText,
   MoreVertical,
@@ -21,7 +22,6 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
 import CadFreshnessBadge, { type CadFreshnessStatusType } from './CadFreshnessBadge'
 
 // ─── Discipline config ───────────────────────────────────────────────────────
@@ -149,6 +149,7 @@ interface Drawing {
 }
 
 interface DrawingRegisterCardsProps {
+  projectId: string
   drawings: Drawing[]
   onSelectDrawing: (drawing: Drawing) => void
   onEditDrawing: (drawing: Drawing) => void
@@ -179,6 +180,7 @@ interface DisciplineGroup {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function DrawingRegisterCards({
+  projectId,
   drawings,
   onSelectDrawing,
   onEditDrawing,
@@ -323,6 +325,7 @@ export default function DrawingRegisterCards({
                 {group.drawings.map((drawing) => (
                   <DrawingCard
                     key={drawing.id}
+                    projectId={projectId}
                     drawing={drawing}
                     disciplineConfig={group.config}
                     isSelected={selectedDrawingId === drawing.id}
@@ -344,6 +347,7 @@ export default function DrawingRegisterCards({
 // ─── Drawing Card ────────────────────────────────────────────────────────────
 
 interface DrawingCardProps {
+  projectId: string
   drawing: Drawing
   disciplineConfig: (typeof DISCIPLINE_CONFIG)[string] | null
   isSelected: boolean
@@ -354,6 +358,7 @@ interface DrawingCardProps {
 }
 
 function DrawingCard({
+  projectId,
   drawing,
   disciplineConfig,
   isSelected,
@@ -378,6 +383,9 @@ function DrawingCard({
     >
       {/* Top colored bar */}
       <div className={cn('h-1 w-full', barColor)} />
+
+      {/* PDF Thumbnail preview */}
+      <CardThumbnail projectId={projectId} dropboxPath={drawing.dropboxPath} />
 
       {/* Card content */}
       <div className="flex flex-col flex-1 p-4">
@@ -515,6 +523,49 @@ function DrawingCard({
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+// ─── Card Thumbnail ─────────────────────────────────────────────────────────
+
+function CardThumbnail({ projectId, dropboxPath }: { projectId: string; dropboxPath: string | null }) {
+  const [loaded, setLoaded] = useState(false)
+  const [error, setError] = useState(false)
+
+  if (!dropboxPath) {
+    return (
+      <div className="w-full aspect-[4/3] bg-gray-50 flex items-center justify-center border-b border-gray-100">
+        <FileText className="w-10 h-10 text-gray-200" />
+      </div>
+    )
+  }
+
+  const src = `/api/projects/${projectId}/project-files-v2/pdf-thumbnail?path=${encodeURIComponent(dropboxPath)}`
+
+  return (
+    <div className="w-full aspect-[4/3] bg-white overflow-hidden border-b border-gray-100 relative">
+      {!error ? (
+        <>
+          {!loaded && (
+            <div className="absolute inset-0 bg-gray-50 animate-pulse flex items-center justify-center">
+              <FileText className="w-10 h-10 text-gray-200" />
+            </div>
+          )}
+          <img
+            src={src}
+            alt="thumbnail"
+            className={cn('w-full h-full object-contain', !loaded && 'opacity-0')}
+            loading="lazy"
+            onLoad={() => setLoaded(true)}
+            onError={() => setError(true)}
+          />
+        </>
+      ) : (
+        <div className="w-full h-full flex items-center justify-center bg-gray-50">
+          <FileText className="w-10 h-10 text-gray-200" />
+        </div>
+      )}
     </div>
   )
 }
