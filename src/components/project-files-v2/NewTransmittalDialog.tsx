@@ -68,6 +68,7 @@ const CATEGORY_CONFIG: Record<string, {
   color: string
   bgColor: string
   textColor: string
+  borderColor: string
 }> = {
   CLIENT: {
     label: 'Client',
@@ -75,6 +76,7 @@ const CATEGORY_CONFIG: Record<string, {
     color: 'bg-blue-500',
     bgColor: 'bg-blue-50',
     textColor: 'text-blue-700',
+    borderColor: 'border-blue-200',
   },
   CONTRACTOR: {
     label: 'Contractors',
@@ -82,6 +84,7 @@ const CATEGORY_CONFIG: Record<string, {
     color: 'bg-orange-500',
     bgColor: 'bg-orange-50',
     textColor: 'text-orange-700',
+    borderColor: 'border-orange-200',
   },
   SUBCONTRACTOR: {
     label: 'Subcontractors',
@@ -89,6 +92,7 @@ const CATEGORY_CONFIG: Record<string, {
     color: 'bg-amber-500',
     bgColor: 'bg-amber-50',
     textColor: 'text-amber-700',
+    borderColor: 'border-amber-200',
   },
   TEAM: {
     label: 'Team',
@@ -96,17 +100,18 @@ const CATEGORY_CONFIG: Record<string, {
     color: 'bg-purple-500',
     bgColor: 'bg-purple-50',
     textColor: 'text-purple-700',
+    borderColor: 'border-purple-200',
   },
   OTHER: {
-    label: 'Previous Recipients',
+    label: 'Previous',
     icon: Clock,
     color: 'bg-gray-400',
     bgColor: 'bg-gray-50',
     textColor: 'text-gray-600',
+    borderColor: 'border-gray-200',
   },
 }
 
-// Category display order
 const CATEGORY_ORDER = ['CLIENT', 'CONTRACTOR', 'SUBCONTRACTOR', 'TEAM', 'OTHER']
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -184,7 +189,7 @@ export default function NewTransmittalDialog({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [showManualEntry, setShowManualEntry] = useState(false)
-  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set())
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null)
 
   // ── Derived data ──────────────────────────────────────────────────────
 
@@ -201,7 +206,6 @@ export default function NewTransmittalDialog({
     return groups
   }, [recipients])
 
-  // Order the groups
   const orderedGroups = useMemo(() => {
     const result: { type: string; recipients: Recipient[] }[] = []
     for (const type of CATEGORY_ORDER) {
@@ -209,7 +213,6 @@ export default function NewTransmittalDialog({
         result.push({ type, recipients: groupedRecipients[type] })
       }
     }
-    // Add any remaining types not in CATEGORY_ORDER
     for (const [type, recs] of Object.entries(groupedRecipients)) {
       if (!CATEGORY_ORDER.includes(type) && recs.length > 0) {
         result.push({ type, recipients: recs })
@@ -229,8 +232,12 @@ export default function NewTransmittalDialog({
     )
   }, [drawings, drawingSearch])
 
-  // Is a recipient selected (either from list or manual)?
   const hasRecipient = recipientName.trim().length > 0
+
+  // Is this recipient from the list?
+  const selectedRecipientKey = recipientEmail
+    ? `${recipientName}|${recipientEmail}`
+    : ''
 
   // ── Initialize pre-selected drawings ────────────────────────────────────
 
@@ -267,7 +274,7 @@ export default function NewTransmittalDialog({
       setIsSubmitting(false)
       setSubmitError(null)
       setShowManualEntry(false)
-      setCollapsedCategories(new Set())
+      setExpandedCategory(null)
     }
   }, [open])
 
@@ -287,18 +294,6 @@ export default function NewTransmittalDialog({
     setRecipientCompany('')
     setRecipientType('contractor')
     setShowManualEntry(false)
-  }, [])
-
-  const toggleCategory = useCallback((type: string) => {
-    setCollapsedCategories((prev) => {
-      const next = new Set(prev)
-      if (next.has(type)) {
-        next.delete(type)
-      } else {
-        next.add(type)
-      }
-      return next
-    })
   }, [])
 
   const toggleDrawing = useCallback(
@@ -398,7 +393,6 @@ export default function NewTransmittalDialog({
 
         const created = await createRes.json()
 
-        // If "Send Now", also call the send endpoint
         if (action === 'send' && method === 'EMAIL') {
           const sendRes = await fetch(
             `/api/projects/${projectId}/project-files-v2/transmittals/${created.id}/send`,
@@ -461,7 +455,7 @@ export default function NewTransmittalDialog({
             </h3>
 
             {/* Selected recipient card */}
-            {hasRecipient && !showManualEntry ? (
+            {hasRecipient ? (
               <div className="flex items-center gap-3 p-3 rounded-lg border-2 border-purple-200 bg-purple-50/50">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-purple-100 text-sm font-semibold text-purple-700">
                   {recipientName.charAt(0).toUpperCase()}
@@ -482,77 +476,76 @@ export default function NewTransmittalDialog({
                 </button>
               </div>
             ) : !showManualEntry ? (
-              /* Recipient category list */
-              <div className="space-y-1">
+              /* ── Category tabs + contact list ── */
+              <div className="space-y-2">
                 {orderedGroups.length === 0 ? (
                   <div className="text-center py-6 text-sm text-gray-400">
-                    No contacts found. Enter a recipient manually below.
+                    No contacts found for this project.
                   </div>
                 ) : (
-                  orderedGroups.map(({ type, recipients: recs }) => {
-                    const config = CATEGORY_CONFIG[type] || CATEGORY_CONFIG.OTHER
-                    const Icon = config.icon
-                    const isCollapsed = collapsedCategories.has(type)
+                  <>
+                    {/* Category pills */}
+                    <div className="flex flex-wrap gap-1.5">
+                      {orderedGroups.map(({ type, recipients: recs }) => {
+                        const config = CATEGORY_CONFIG[type] || CATEGORY_CONFIG.OTHER
+                        const Icon = config.icon
+                        const isActive = expandedCategory === type
 
-                    return (
-                      <div key={type} className="rounded-lg border border-gray-200 overflow-hidden">
-                        {/* Category header */}
-                        <button
-                          type="button"
-                          onClick={() => toggleCategory(type)}
-                          className="w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-gray-50 transition-colors"
-                        >
-                          {isCollapsed ? (
-                            <ChevronRight className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-                          ) : (
-                            <ChevronDown className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-                          )}
-                          <div className={cn('flex h-5 w-5 items-center justify-center rounded', config.bgColor)}>
-                            <Icon className={cn('h-3 w-3', config.textColor)} />
-                          </div>
-                          <span className="text-xs font-semibold text-gray-700 flex-1">
+                        return (
+                          <button
+                            key={type}
+                            type="button"
+                            onClick={() => setExpandedCategory(isActive ? null : type)}
+                            className={cn(
+                              'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all',
+                              isActive
+                                ? cn(config.bgColor, config.textColor, 'ring-1', config.borderColor)
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            )}
+                          >
+                            <Icon className="h-3 w-3" />
                             {config.label}
-                          </span>
-                          <span className={cn(
-                            'inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium',
-                            config.bgColor, config.textColor
-                          )}>
-                            {recs.length}
-                          </span>
-                        </button>
+                            <span className={cn(
+                              'inline-flex items-center justify-center h-4 min-w-[16px] rounded-full px-1 text-[10px] font-bold',
+                              isActive ? 'bg-white/60' : 'bg-gray-200/80'
+                            )}>
+                              {recs.length}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
 
-                        {/* Contact list */}
-                        {!isCollapsed && (
-                          <div className="border-t border-gray-100 divide-y divide-gray-50">
-                            {recs.map((r, idx) => (
-                              <button
-                                key={`${r.email}-${idx}`}
-                                type="button"
-                                onClick={() => selectRecipient(r)}
-                                className="flex w-full items-center gap-3 px-3 py-2 text-sm hover:bg-gray-50 transition-colors text-left"
-                              >
-                                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-medium text-gray-600">
-                                  {r.name.charAt(0).toUpperCase()}
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <div className="text-sm font-medium text-gray-900 truncate">{r.name}</div>
-                                  <div className="text-xs text-gray-400 truncate">
-                                    {[r.email, r.company].filter(Boolean).join(' \u00b7 ')}
-                                  </div>
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-                        )}
+                    {/* Contact list for selected category */}
+                    {expandedCategory && groupedRecipients[expandedCategory] && (
+                      <div className="rounded-lg border border-gray-200 divide-y divide-gray-50 max-h-[180px] overflow-y-auto">
+                        {groupedRecipients[expandedCategory].map((r, idx) => (
+                          <button
+                            key={`${r.email}-${idx}`}
+                            type="button"
+                            onClick={() => selectRecipient(r)}
+                            className="flex w-full items-center gap-3 px-3 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left"
+                          >
+                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-medium text-gray-600">
+                              {r.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="text-sm font-medium text-gray-900 truncate">{r.name}</div>
+                              <div className="text-xs text-gray-400 truncate">
+                                {[r.email, r.company].filter(Boolean).join(' \u00b7 ')}
+                              </div>
+                            </div>
+                          </button>
+                        ))}
                       </div>
-                    )
-                  })
+                    )}
+                  </>
                 )}
 
                 {/* Manual entry button */}
                 <button
                   type="button"
-                  onClick={() => setShowManualEntry(true)}
+                  onClick={() => { setShowManualEntry(true); setExpandedCategory(null) }}
                   className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-dashed border-gray-300 text-sm text-gray-500 hover:text-gray-700 hover:border-gray-400 hover:bg-gray-50 transition-colors"
                 >
                   <UserPlus className="h-4 w-4" />
@@ -643,7 +636,7 @@ export default function NewTransmittalDialog({
               <Input
                 value={drawingSearch}
                 onChange={(e) => setDrawingSearch(e.target.value)}
-                placeholder="Search drawings by number, title, or discipline..."
+                placeholder="Search drawings..."
                 className="pl-9"
               />
             </div>
@@ -762,74 +755,47 @@ export default function NewTransmittalDialog({
               <Textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Optional notes or cover letter message..."
-                rows={3}
+                placeholder="Optional notes or message..."
+                rows={2}
               />
             </div>
           </div>
 
           {/* ── Section 4: Send Method ───────────────────────────────── */}
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-gray-900">Send Method</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Email option */}
+            <h3 className="text-sm font-semibold text-gray-900">Method</h3>
+            <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => setMethod('EMAIL')}
                 className={cn(
-                  'flex items-start gap-3 rounded-lg border-2 p-4 text-left transition-all',
+                  'flex-1 flex items-center gap-2 rounded-lg border-2 px-3 py-2.5 text-left transition-all',
                   method === 'EMAIL'
-                    ? 'border-purple-500 bg-purple-50/50 ring-1 ring-purple-200'
-                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    ? 'border-purple-500 bg-purple-50/50'
+                    : 'border-gray-200 hover:border-gray-300'
                 )}
               >
-                <div
-                  className={cn(
-                    'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
-                    method === 'EMAIL' ? 'bg-purple-100 text-purple-600' : 'bg-gray-100 text-gray-500'
-                  )}
-                >
-                  <Mail className="h-5 w-5" />
+                <Mail className={cn('h-4 w-4', method === 'EMAIL' ? 'text-purple-600' : 'text-gray-400')} />
+                <div>
+                  <div className="text-sm font-medium text-gray-900">Email</div>
+                  <div className="text-[11px] text-gray-500">Send with PDF attached</div>
                 </div>
-                <div className="min-w-0">
-                  <div className="text-sm font-medium text-gray-900">Send via Email</div>
-                  <div className="text-xs text-gray-500 mt-0.5">
-                    Email drawings as PDF attachments
-                  </div>
-                </div>
-                {method === 'EMAIL' && (
-                  <Check className="h-5 w-5 shrink-0 text-purple-600 ml-auto" />
-                )}
               </button>
-
-              {/* Manual option */}
               <button
                 type="button"
                 onClick={() => setMethod('MANUAL')}
                 className={cn(
-                  'flex items-start gap-3 rounded-lg border-2 p-4 text-left transition-all',
+                  'flex-1 flex items-center gap-2 rounded-lg border-2 px-3 py-2.5 text-left transition-all',
                   method === 'MANUAL'
-                    ? 'border-purple-500 bg-purple-50/50 ring-1 ring-purple-200'
-                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    ? 'border-purple-500 bg-purple-50/50'
+                    : 'border-gray-200 hover:border-gray-300'
                 )}
               >
-                <div
-                  className={cn(
-                    'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
-                    method === 'MANUAL' ? 'bg-purple-100 text-purple-600' : 'bg-gray-100 text-gray-500'
-                  )}
-                >
-                  <ClipboardList className="h-5 w-5" />
+                <ClipboardList className={cn('h-4 w-4', method === 'MANUAL' ? 'text-purple-600' : 'text-gray-400')} />
+                <div>
+                  <div className="text-sm font-medium text-gray-900">Log Only</div>
+                  <div className="text-[11px] text-gray-500">Record without email</div>
                 </div>
-                <div className="min-w-0">
-                  <div className="text-sm font-medium text-gray-900">Log Manually</div>
-                  <div className="text-xs text-gray-500 mt-0.5">
-                    Record delivery without sending an email
-                  </div>
-                </div>
-                {method === 'MANUAL' && (
-                  <Check className="h-5 w-5 shrink-0 text-purple-600 ml-auto" />
-                )}
               </button>
             </div>
           </div>
