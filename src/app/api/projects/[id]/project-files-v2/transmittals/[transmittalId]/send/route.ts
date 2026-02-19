@@ -2,55 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email-service'
+import { dropboxService } from '@/lib/dropbox-service-v2'
 
 export const runtime = 'nodejs'
-
-// Download PDF from Dropbox URL and return as Buffer
-async function downloadPdfFromDropbox(dropboxUrl: string): Promise<Buffer | null> {
-  try {
-    // Convert sharing URL to direct download URL
-    let downloadUrl = dropboxUrl
-    if (downloadUrl.includes('dropbox.com')) {
-      // Try multiple URL formats for Dropbox
-      downloadUrl = downloadUrl
-        .replace(/\?dl=0/, '?dl=1')
-        .replace(/\?raw=1/, '?dl=1')
-        .replace(/&dl=0/, '&dl=1')
-        .replace(/&raw=1/, '&dl=1')
-      if (!downloadUrl.includes('dl=1')) {
-        downloadUrl += (downloadUrl.includes('?') ? '&' : '?') + 'dl=1'
-      }
-    }
-
-    console.log(`[transmittal/send] Downloading PDF from: ${downloadUrl.substring(0, 100)}...`)
-
-    const response = await fetch(downloadUrl, {
-      headers: { 'User-Agent': 'ResidentOne/1.0' },
-      redirect: 'follow'
-    })
-
-    if (!response.ok) {
-      console.error(`[transmittal/send] Failed to download PDF: ${response.status} ${response.statusText} from ${downloadUrl.substring(0, 80)}`)
-      return null
-    }
-
-    const contentType = response.headers.get('content-type') || ''
-    const arrayBuffer = await response.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
-
-    console.log(`[transmittal/send] Downloaded ${buffer.length} bytes (${contentType})`)
-
-    if (buffer.length < 100) {
-      console.error(`[transmittal/send] Downloaded file too small (${buffer.length} bytes), likely not a PDF`)
-      return null
-    }
-
-    return buffer
-  } catch (error) {
-    console.error('[transmittal/send] Error downloading PDF:', error)
-    return null
-  }
-}
 
 // POST - Send transmittal via email
 export async function POST(
@@ -103,7 +57,9 @@ export async function POST(
                 drawingNumber: true,
                 title: true,
                 discipline: true,
-                drawingType: true
+                drawingType: true,
+                dropboxPath: true,
+                dropboxUrl: true
               }
             },
             revision: {
@@ -112,6 +68,7 @@ export async function POST(
                 revisionNumber: true,
                 description: true,
                 issuedDate: true,
+                dropboxPath: true,
                 dropboxUrl: true
               }
             }
@@ -141,23 +98,26 @@ export async function POST(
       )
     }
 
-    // Download PDF attachments from Dropbox
+    // Download PDF attachments from Dropbox using the API
     const attachments: Array<{ filename: string; content: Buffer }> = []
     for (const item of transmittal.items) {
-      if (item.revision?.dropboxUrl) {
-        console.log(`[transmittal/send] Attempting to download drawing ${item.drawing.drawingNumber}: ${item.revision.dropboxUrl.substring(0, 80)}...`)
-        const pdfBuffer = await downloadPdfFromDropbox(item.revision.dropboxUrl)
-        if (pdfBuffer) {
+      // Try dropboxPath from revision first, then from drawing
+      const dbxPath = item.revision?.dropboxPath || item.drawing.dropboxPath
+
+      if (dbxPath) {
+        try {
+          console.log(`[transmittal/send] Downloading via Dropbox API: ${item.drawing.drawingNumber} → "${dbxPath}"`)
+          const pdfBuffer = await dropboxService.downloadFile(dbxPath)
           const filename = item.drawing.drawingNumber
             ? `${item.drawing.drawingNumber} - ${item.drawing.title}.pdf`
             : `${item.drawing.title}.pdf`
           attachments.push({ filename, content: pdfBuffer })
           console.log(`[transmittal/send] Attached: ${filename} (${pdfBuffer.length} bytes)`)
-        } else {
-          console.warn(`[transmittal/send] Could not download PDF for drawing ${item.drawing.drawingNumber}`)
+        } catch (err) {
+          console.error(`[transmittal/send] Failed to download ${item.drawing.drawingNumber} from "${dbxPath}":`, err)
         }
       } else {
-        console.warn(`[transmittal/send] Drawing ${item.drawing.drawingNumber} has no dropboxUrl on revision`)
+        console.warn(`[transmittal/send] Drawing ${item.drawing.drawingNumber} has no dropboxPath`)
       }
     }
 
