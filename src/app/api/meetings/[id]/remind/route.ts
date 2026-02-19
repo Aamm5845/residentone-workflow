@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { sendMeetingReminder } from '@/lib/meeting-emails'
+import { sendMeetingSMS } from '@/lib/twilio'
 
 // POST /api/meetings/[id]/remind — Manually send reminder to all attendees
 export async function POST(
@@ -20,7 +21,7 @@ export async function POST(
     include: {
       attendees: {
         include: {
-          user: { select: { id: true, name: true, email: true } },
+          user: { select: { id: true, name: true, email: true, phoneNumber: true, smsNotificationsEnabled: true } },
           client: { select: { id: true, name: true, email: true } },
           contractor: { select: { id: true, businessName: true, contactName: true, email: true } },
         },
@@ -88,6 +89,30 @@ export async function POST(
         sentCount++
       } catch (err) {
         console.error(`Failed to send reminder to ${email}:`, err)
+      }
+    }
+
+    // Send SMS reminder to team members who have SMS enabled
+    if (attendee.user?.phoneNumber && attendee.user?.smsNotificationsEnabled) {
+      try {
+        const dateStr = new Date(meeting.date).toLocaleDateString('en-US', {
+          weekday: 'long', month: 'long', day: 'numeric',
+          timeZone: 'America/Toronto',
+        })
+        const timeStr = new Date(meeting.startTime).toLocaleTimeString('en-US', {
+          hour: 'numeric', minute: '2-digit', hour12: true,
+          timeZone: 'America/Toronto',
+        })
+        await sendMeetingSMS({
+          to: attendee.user.phoneNumber,
+          attendeeName: attendee.user.name || 'there',
+          meetingTitle: meeting.title,
+          meetingDate: dateStr,
+          meetingTime: timeStr,
+          type: 'reminder',
+        })
+      } catch (smsErr) {
+        console.error(`Failed to send meeting reminder SMS to ${attendee.user.name}:`, smsErr)
       }
     }
   }

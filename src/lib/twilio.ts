@@ -116,6 +116,70 @@ export async function sendMentionSMS({
 }
 
 /**
+ * Send an SMS notification for a meeting (invitation or reminder)
+ */
+export async function sendMeetingSMS({
+  to,
+  attendeeName,
+  meetingTitle,
+  meetingDate,
+  meetingTime,
+  type = 'invitation'
+}: {
+  to: string
+  attendeeName: string
+  meetingTitle: string
+  meetingDate: string
+  meetingTime: string
+  type?: 'invitation' | 'reminder'
+}) {
+  console.log('[Twilio] sendMeetingSMS called with:', { to, attendeeName, meetingTitle, type })
+
+  const client = getTwilioClient()
+
+  if (!client || !twilioPhoneNumber) {
+    const error = 'Twilio not configured - client or phone number missing'
+    console.error(`[Twilio] ${error}`)
+    throw new Error(error)
+  }
+
+  // Format the phone number
+  let formattedPhone = to
+  if (!to.startsWith('+')) {
+    const digitsOnly = to.replace(/\D/g, '')
+    formattedPhone = `+1${digitsOnly}`
+  }
+
+  const emoji = type === 'reminder' ? '⏰' : '📅'
+  const label = type === 'reminder' ? 'Meeting Reminder' : 'Meeting Invitation'
+
+  const smsBody = `${emoji} ${label}\n\nHi ${attendeeName},\n\n"${meetingTitle}"\n${meetingDate}\n${meetingTime}\n\n— Meisner Interiors`
+
+  try {
+    const messageParams: any = {
+      body: smsBody,
+      from: twilioPhoneNumber,
+      to: formattedPhone
+    }
+
+    const appUrl = process.env.APP_URL || process.env.NEXTAUTH_URL
+    if (appUrl && appUrl.startsWith('http')) {
+      messageParams.statusCallback = `${appUrl}/api/sms/status`
+    }
+
+    const sentMessage = await client.messages.create(messageParams)
+    console.log(`[Twilio] ✅ Meeting SMS sent to ${attendeeName} (${formattedPhone}), SID: ${sentMessage.sid}`)
+    return sentMessage
+  } catch (error: any) {
+    console.error(`[Twilio] ❌ Failed to send meeting SMS to ${attendeeName}:`, {
+      code: error.code,
+      message: error.message,
+    })
+    throw error
+  }
+}
+
+/**
  * Validate a phone number format
  */
 export function validatePhoneNumber(phone: string): boolean {

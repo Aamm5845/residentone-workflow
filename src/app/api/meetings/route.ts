@@ -3,6 +3,7 @@ import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { sendMeetingInvitation } from '@/lib/meeting-emails'
 import { createZoomMeeting } from '@/lib/zoom'
+import { sendMeetingSMS } from '@/lib/twilio'
 
 // GET /api/meetings?month=2025-07
 export async function GET(req: NextRequest) {
@@ -174,7 +175,7 @@ export async function POST(req: NextRequest) {
         include: {
           attendees: {
             include: {
-              user: { select: { id: true, name: true, email: true } },
+              user: { select: { id: true, name: true, email: true, phoneNumber: true, smsNotificationsEnabled: true } },
               client: { select: { id: true, name: true, email: true } },
               contractor: { select: { id: true, businessName: true, contactName: true, email: true, type: true } },
             },
@@ -264,6 +265,30 @@ async function sendInvitationEmails(meeting: any) {
         })
       } catch (err) {
         console.error(`Failed to send invitation to ${email}:`, err)
+      }
+    }
+
+    // Send SMS to team members who have SMS enabled (e.g. Aaron)
+    if (attendee.user?.phoneNumber && attendee.user?.smsNotificationsEnabled) {
+      try {
+        const dateStr = new Date(meeting.date).toLocaleDateString('en-US', {
+          weekday: 'long', month: 'long', day: 'numeric',
+          timeZone: 'America/Toronto',
+        })
+        const timeStr = new Date(meeting.startTime).toLocaleTimeString('en-US', {
+          hour: 'numeric', minute: '2-digit', hour12: true,
+          timeZone: 'America/Toronto',
+        })
+        await sendMeetingSMS({
+          to: attendee.user.phoneNumber,
+          attendeeName: attendee.user.name || 'there',
+          meetingTitle: meeting.title,
+          meetingDate: dateStr,
+          meetingTime: timeStr,
+          type: 'invitation',
+        })
+      } catch (smsErr) {
+        console.error(`Failed to send meeting SMS to ${attendee.user.name}:`, smsErr)
       }
     }
   }
