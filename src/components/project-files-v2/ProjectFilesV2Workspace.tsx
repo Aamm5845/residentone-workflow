@@ -31,6 +31,8 @@ import TransmittalDetail from './TransmittalDetail'
 import FilterSidebar from './FilterSidebar'
 import AllFilesBrowser from './AllFilesBrowser'
 import PhotosGallery from './PhotosGallery'
+import CadFreshnessSummary from './CadFreshnessSummary'
+import CadSourceLinkDialog from './CadSourceLinkDialog'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -80,6 +82,7 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
   const [showNewTransmittal, setShowNewTransmittal] = useState(false)
   const [transmittalPreSelectedDrawings, setTransmittalPreSelectedDrawings] = useState<any[]>([])
   const [viewTransmittal, setViewTransmittal] = useState<any | null>(null)
+  const [cadLinkDrawing, setCadLinkDrawing] = useState<any | null>(null)
 
   // ---- Derived filter params ----
   const filterParams = useMemo(() => {
@@ -306,6 +309,9 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
 
               {/* Drawing register */}
               <div className="flex-1 min-w-0">
+                {/* CAD Freshness Summary */}
+                <CadFreshnessSummary projectId={project.id} />
+
                 {drawingsLoading ? (
                   <DrawingsLoadingSkeleton viewMode={viewMode} />
                 ) : drawings.length === 0 ? (
@@ -380,6 +386,10 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
                       setTransmittalPreSelectedDrawings([found])
                       setShowNewTransmittal(true)
                     }
+                  }}
+                  onLinkCadSource={() => {
+                    const found = drawings.find((d: any) => d.id === selectedDrawingId)
+                    if (found) setCadLinkDrawing(found)
                   }}
                 />
               )}
@@ -476,6 +486,27 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
           onResend={() => {
             mutateTransmittals()
             setViewTransmittal(null)
+          }}
+        />
+      )}
+
+      {/* CAD Source Link Dialog */}
+      {cadLinkDrawing && (
+        <CadSourceLinkDialog
+          projectId={project.id}
+          drawing={{
+            id: cadLinkDrawing.id,
+            drawingNumber: cadLinkDrawing.drawingNumber || '',
+            title: cadLinkDrawing.title || '',
+          }}
+          existingLink={cadLinkDrawing.cadSourceLink || null}
+          open={!!cadLinkDrawing}
+          onOpenChange={(open) => {
+            if (!open) setCadLinkDrawing(null)
+          }}
+          onSuccess={() => {
+            refreshAll()
+            setCadLinkDrawing(null)
           }}
         />
       )}

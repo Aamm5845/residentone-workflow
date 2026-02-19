@@ -68,7 +68,8 @@ export async function GET(
         },
         creator: {
           select: { id: true, name: true, image: true }
-        }
+        },
+        cadSourceLink: true
       }
     })
 

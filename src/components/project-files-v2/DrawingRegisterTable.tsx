@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import CadFreshnessBadge, { type CadFreshnessStatusType } from './CadFreshnessBadge'
 
 // ─── Discipline config ───────────────────────────────────────────────────────
 
@@ -126,6 +127,14 @@ interface Drawing {
   floor: { id: string; name: string; shortName: string } | null
   _count: { revisions: number; transmittalItems: number }
   lastTransmittal?: { sentAt: string; recipientName: string } | null
+  cadSourceLink?: {
+    id: string
+    cadDropboxPath: string
+    cadLayoutName: string | null
+    cadFreshnessStatus: CadFreshnessStatusType
+    plottedFromRevision: string | null
+    plottedAt: string | null
+  } | null
 }
 
 interface DrawingRegisterTableProps {
@@ -147,6 +156,7 @@ type SortColumn =
   | 'drawingType'
   | 'currentRevision'
   | 'status'
+  | 'cadStatus'
   | 'lastSent'
 
 type SortDirection = 'asc' | 'desc'
@@ -167,6 +177,8 @@ function getSortValue(drawing: Drawing, column: SortColumn): string | number {
       return drawing.currentRevision
     case 'status':
       return (STATUS_CONFIG[drawing.status]?.label ?? drawing.status).toLowerCase()
+    case 'cadStatus':
+      return drawing.cadSourceLink?.cadFreshnessStatus ?? 'UNKNOWN'
     case 'lastSent':
       return drawing.lastTransmittal?.sentAt ?? ''
     default:
@@ -205,6 +217,7 @@ const COLUMNS: ColumnDef[] = [
   { key: 'drawingType', label: 'Type', sortable: true, className: 'w-[140px]' },
   { key: 'currentRevision', label: 'Rev', sortable: true, className: 'w-[70px]' },
   { key: 'status', label: 'Status', sortable: true, className: 'w-[100px]' },
+  { key: 'cadStatus', label: 'CAD', sortable: true, className: 'w-[110px]' },
   { key: 'lastSent', label: 'Last Sent', sortable: true, className: 'w-[180px]' },
 ]
 
@@ -411,6 +424,18 @@ export default function DrawingRegisterTable({
                     </span>
                   ) : (
                     <span className="text-xs text-gray-400">{drawing.status}</span>
+                  )}
+                </td>
+
+                {/* CAD Status */}
+                <td className="px-4 py-3">
+                  {drawing.cadSourceLink ? (
+                    <CadFreshnessBadge
+                      status={drawing.cadSourceLink.cadFreshnessStatus}
+                      compact
+                    />
+                  ) : (
+                    <span className="text-gray-300">&mdash;</span>
                   )}
                 </td>
 

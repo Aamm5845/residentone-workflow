@@ -4884,6 +4884,14 @@ enum TransmittalMethod {
   OTHER
 }
 
+enum CadFreshnessStatus {
+  UP_TO_DATE
+  CAD_MODIFIED
+  DISMISSED
+  NEEDS_REPLOT
+  UNKNOWN
+}
+
 model ProjectFloor {
   id        String   @id @default(cuid())
   projectId String
@@ -4926,6 +4934,7 @@ model ProjectDrawing {
   creator          User               @relation("DrawingCreator", fields: [createdBy], references: [id])
   revisions        DrawingRevision[]
   transmittalItems TransmittalItem[]
+  cadSourceLink    CadSourceLink?
 
   @@index([projectId])
   @@index([projectId, discipline])
@@ -4946,6 +4955,10 @@ model DrawingRevision {
   issuedDate     DateTime @default(now())
   issuedBy       String
   createdAt      DateTime @default(now())
+
+  // CAD source tracking — which CAD file state this PDF was plotted from
+  sourceCadPath     String?
+  sourceCadRevision String?
 
   drawing          ProjectDrawing    @relation(fields: [drawingId], references: [id], onDelete: Cascade)
   issuedByUser     User              @relation("RevisionIssuedBy", fields: [issuedBy], references: [id])
@@ -5016,4 +5029,33 @@ model ProjectPhotoMeta {
 
   @@unique([projectId, dropboxPath])
   @@index([projectId])
+}
+
+model CadSourceLink {
+  id String @id @default(cuid())
+
+  // Which drawing this link belongs to
+  drawingId String @unique
+  drawing   ProjectDrawing @relation(fields: [drawingId], references: [id], onDelete: Cascade)
+
+  // Source CAD file info
+  cadDropboxPath String
+  cadLayoutName  String?
+
+  // Snapshot of CAD file state when last PDF was plotted
+  plottedFromRevision String?
+  plottedAt           DateTime?
+
+  // Freshness status
+  cadFreshnessStatus      CadFreshnessStatus @default(UNKNOWN)
+  statusDismissedAt       DateTime?
+  statusDismissedBy       String?
+  dismissedAtCadRevision  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([cadDropboxPath])
+  @@index([cadFreshnessStatus])
+  @@index([drawingId])
 }

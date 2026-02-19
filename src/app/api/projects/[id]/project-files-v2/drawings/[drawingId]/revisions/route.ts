@@ -91,7 +91,7 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { description, dropboxPath, dropboxUrl, fileName, fileSize } = body
+    const { description, dropboxPath, dropboxUrl, fileName, fileSize, sourceCadPath, sourceCadRevision } = body
 
     // Create revision and update drawing in a transaction
     const revision = await prisma.$transaction(async (tx) => {
@@ -114,7 +114,9 @@ export async function POST(
           dropboxUrl: dropboxUrl || null,
           fileName: fileName || null,
           fileSize: fileSize || null,
-          issuedBy: session.user!.id
+          issuedBy: session.user!.id,
+          sourceCadPath: sourceCadPath || null,
+          sourceCadRevision: sourceCadRevision || null
         },
         include: {
           issuedByUser: {
@@ -128,6 +130,27 @@ export async function POST(
         where: { id: drawingId },
         data: { currentRevision: newRevisionNumber }
       })
+
+      // If this drawing has a CadSourceLink, auto-update it to UP_TO_DATE
+      if (sourceCadRevision) {
+        const existingLink = await tx.cadSourceLink.findUnique({
+          where: { drawingId }
+        })
+
+        if (existingLink) {
+          await tx.cadSourceLink.update({
+            where: { drawingId },
+            data: {
+              plottedFromRevision: sourceCadRevision,
+              plottedAt: new Date(),
+              cadFreshnessStatus: 'UP_TO_DATE',
+              statusDismissedAt: null,
+              statusDismissedBy: null,
+              dismissedAtCadRevision: null
+            }
+          })
+        }
+      }
 
       return newRevision
     })

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   X,
   FileText,
@@ -12,10 +12,12 @@ import {
   User,
   Layers,
   MapPin,
+  Link2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import useSWR from 'swr'
+import CadFreshnessBadge, { type CadFreshnessStatusType } from './CadFreshnessBadge'
 
 // ─── Shared Configs ──────────────────────────────────────────────────────────
 
@@ -74,6 +76,14 @@ interface DrawingDetail {
     issuedDate: string
     issuedByUser: { id: string; name: string | null }
   }>
+  cadSourceLink?: {
+    id: string
+    cadDropboxPath: string
+    cadLayoutName: string | null
+    cadFreshnessStatus: CadFreshnessStatusType
+    plottedFromRevision: string | null
+    plottedAt: string | null
+  } | null
   transmittalItems: Array<{
     id: string
     revisionNumber: number | null
@@ -97,6 +107,7 @@ interface DrawingDetailPanelProps {
   onEdit: () => void
   onNewRevision: () => void
   onCreateTransmittal: () => void
+  onLinkCadSource?: () => void
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -176,11 +187,29 @@ export default function DrawingDetailPanel({
   onEdit,
   onNewRevision,
   onCreateTransmittal,
+  onLinkCadSource,
 }: DrawingDetailPanelProps) {
-  const { data, isLoading } = useSWR<DrawingDetail>(
+  const { data, isLoading, mutate } = useSWR<DrawingDetail>(
     `/api/projects/${projectId}/project-files-v2/drawings/${drawingId}`,
     fetcher
   )
+  const [cadActionLoading, setCadActionLoading] = useState(false)
+
+  const handleCadAction = async (action: 'dismiss' | 'needs-replot' | 'mark-plotted') => {
+    if (!data) return
+    setCadActionLoading(true)
+    try {
+      await fetch(
+        `/api/projects/${projectId}/project-files-v2/drawings/${drawingId}/cad-source/${action}`,
+        { method: 'POST' }
+      )
+      mutate()
+    } catch (err) {
+      console.error(`Failed to ${action}:`, err)
+    } finally {
+      setCadActionLoading(false)
+    }
+  }
 
   // Close on Escape key
   useEffect(() => {
@@ -356,6 +385,99 @@ export default function DrawingDetailPanel({
                   <p className="text-sm text-gray-400 italic">No file linked</p>
                 )}
               </div>
+
+              {/* CAD Source Tracking */}
+              {!drawing.cadSourceLink && onLinkCadSource && (
+                <div className="px-5 py-4">
+                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">
+                    CAD Source Tracking
+                  </p>
+                  <button
+                    onClick={onLinkCadSource}
+                    className="w-full p-3 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:text-gray-700 hover:border-gray-400 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Link2 className="w-4 h-4" />
+                    Link to Source CAD File
+                  </button>
+                </div>
+              )}
+              {drawing.cadSourceLink && (
+                <div className="px-5 py-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      CAD Source Tracking
+                    </p>
+                    {onLinkCadSource && (
+                      <button
+                        onClick={onLinkCadSource}
+                        className="text-xs text-blue-500 hover:text-blue-600 font-medium transition-colors"
+                      >
+                        Edit
+                      </button>
+                    )}
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-100 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Link2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                        <span className="text-sm text-gray-700 truncate">
+                          {drawing.cadSourceLink.cadDropboxPath.split('/').pop() || 'CAD File'}
+                        </span>
+                      </div>
+                      <CadFreshnessBadge status={drawing.cadSourceLink.cadFreshnessStatus} />
+                    </div>
+                    {drawing.cadSourceLink.cadLayoutName && (
+                      <p className="text-xs text-gray-500">
+                        Layout: {drawing.cadSourceLink.cadLayoutName}
+                      </p>
+                    )}
+                    {drawing.cadSourceLink.plottedAt && (
+                      <p className="text-xs text-gray-400">
+                        Last plotted: {formatDate(drawing.cadSourceLink.plottedAt)}
+                      </p>
+                    )}
+
+                    {/* Action buttons for CAD_MODIFIED status */}
+                    {drawing.cadSourceLink.cadFreshnessStatus === 'CAD_MODIFIED' && (
+                      <div className="flex items-center gap-2 pt-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          disabled={cadActionLoading}
+                          onClick={() => handleCadAction('dismiss')}
+                        >
+                          Still Valid
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 hover:bg-red-50"
+                          disabled={cadActionLoading}
+                          onClick={() => handleCadAction('needs-replot')}
+                        >
+                          Needs Re-plot
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Action button for NEEDS_REPLOT status */}
+                    {drawing.cadSourceLink.cadFreshnessStatus === 'NEEDS_REPLOT' && (
+                      <div className="flex items-center gap-2 pt-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          disabled={cadActionLoading}
+                          onClick={() => handleCadAction('mark-plotted')}
+                        >
+                          Mark as Plotted
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Revision History */}
               <div className="px-5 py-4">

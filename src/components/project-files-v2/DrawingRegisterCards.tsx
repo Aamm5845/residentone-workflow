@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import CadFreshnessBadge, { type CadFreshnessStatusType } from './CadFreshnessBadge'
 
 // ─── Discipline config ───────────────────────────────────────────────────────
 
@@ -137,6 +138,14 @@ interface Drawing {
   floor: { id: string; name: string; shortName: string } | null
   _count: { revisions: number; transmittalItems: number }
   lastTransmittal?: { sentAt: string; recipientName: string } | null
+  cadSourceLink?: {
+    id: string
+    cadDropboxPath: string
+    cadLayoutName: string | null
+    cadFreshnessStatus: CadFreshnessStatusType
+    plottedFromRevision: string | null
+    plottedAt: string | null
+  } | null
 }
 
 interface DrawingRegisterCardsProps {
@@ -400,6 +409,14 @@ function DrawingCard({
           <span className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
             Rev {drawing.currentRevision}
           </span>
+
+          {/* CAD freshness badge */}
+          {drawing.cadSourceLink && (
+            <CadFreshnessBadge
+              status={drawing.cadSourceLink.cadFreshnessStatus}
+              compact
+            />
+          )}
         </div>
 
         {/* Bottom row: status + actions */}

@@ -93,6 +93,16 @@ export async function GET(
           },
           orderBy: { transmittal: { createdAt: 'desc' } },
           take: 1
+        },
+        cadSourceLink: {
+          select: {
+            id: true,
+            cadDropboxPath: true,
+            cadLayoutName: true,
+            cadFreshnessStatus: true,
+            plottedFromRevision: true,
+            plottedAt: true
+          }
         }
       },
       orderBy: [
