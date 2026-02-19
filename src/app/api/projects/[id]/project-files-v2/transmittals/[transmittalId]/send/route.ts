@@ -98,8 +98,8 @@ export async function POST(
       )
     }
 
-    // Download PDF attachments from Dropbox using the API
-    const attachments: Array<{ filename: string; content: Buffer }> = []
+    // Download PDF attachments from Dropbox and convert to base64 (same format as floorplan approval emails)
+    const attachments: Array<{ filename: string; content: string; type: string; disposition: string }> = []
     for (const item of transmittal.items) {
       // Try dropboxPath from revision first, then from drawing
       const dbxPath = item.revision?.dropboxPath || item.drawing.dropboxPath
@@ -108,11 +108,17 @@ export async function POST(
         try {
           console.log(`[transmittal/send] Downloading via Dropbox API: ${item.drawing.drawingNumber} → "${dbxPath}"`)
           const pdfBuffer = await dropboxService.downloadFile(dbxPath)
+          const base64Content = pdfBuffer.toString('base64')
           const filename = item.drawing.drawingNumber
             ? `${item.drawing.drawingNumber} - ${item.drawing.title}.pdf`
             : `${item.drawing.title}.pdf`
-          attachments.push({ filename, content: pdfBuffer })
-          console.log(`[transmittal/send] Attached: ${filename} (${pdfBuffer.length} bytes)`)
+          attachments.push({
+            filename,
+            content: base64Content,
+            type: 'application/pdf',
+            disposition: 'attachment'
+          })
+          console.log(`[transmittal/send] Attached: ${filename} (${pdfBuffer.length} bytes, base64: ${base64Content.length} chars)`)
         } catch (err) {
           console.error(`[transmittal/send] Failed to download ${item.drawing.drawingNumber} from "${dbxPath}":`, err)
         }
