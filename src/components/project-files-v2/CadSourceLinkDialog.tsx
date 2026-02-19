@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { DropboxFileBrowser } from '@/components/spec-book/DropboxFileBrowser'
 
 interface CadSourceLinkDialogProps {
   projectId: string
@@ -37,22 +38,32 @@ export default function CadSourceLinkDialog({
   onSuccess,
 }: CadSourceLinkDialogProps) {
   const [cadDropboxPath, setCadDropboxPath] = useState('')
+  const [cadFileName, setCadFileName] = useState('')
   const [cadLayoutName, setCadLayoutName] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isRemoving, setIsRemoving] = useState(false)
+  const [showBrowser, setShowBrowser] = useState(false)
 
   useEffect(() => {
     if (open) {
       setCadDropboxPath(existingLink?.cadDropboxPath || '')
+      setCadFileName(existingLink?.cadDropboxPath?.split('/').pop() || '')
       setCadLayoutName(existingLink?.cadLayoutName || '')
+      setShowBrowser(!existingLink)
     }
   }, [open, existingLink])
+
+  const handleFileSelected = (file: any) => {
+    setCadDropboxPath(file.path)
+    setCadFileName(file.name)
+    setShowBrowser(false)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!cadDropboxPath.trim()) {
-      alert('Please enter the CAD file path.')
+      alert('Please select a CAD file from Dropbox.')
       return
     }
 
@@ -112,7 +123,7 @@ export default function CadSourceLinkDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[480px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Link2 className="w-5 h-5 text-blue-500" />
@@ -124,26 +135,50 @@ export default function CadSourceLinkDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
-          {/* CAD File Path */}
+          {/* Selected file display or browser */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Source CAD File Path <span className="text-red-500">*</span>
+              Source CAD File <span className="text-red-500">*</span>
             </label>
-            <div className="relative">
-              <FileCode className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                value={cadDropboxPath}
-                onChange={(e) => setCadDropboxPath(e.target.value)}
-                placeholder="e.g., /Projects/123/1- CAD/E-101.dwg"
-                className="w-full h-10 pl-9 pr-3 rounded-md border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 placeholder:text-gray-400"
-                required
-                autoFocus
-              />
-            </div>
-            <p className="text-[11px] text-gray-400 mt-1">
-              The Dropbox path to the source DWG/DXF file.
-            </p>
+
+            {cadDropboxPath && !showBrowser ? (
+              /* Selected file card */
+              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
+                  <FileCode className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {cadFileName || cadDropboxPath.split('/').pop()}
+                  </p>
+                  <p className="text-xs text-gray-400 truncate">
+                    {cadDropboxPath}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowBrowser(true)
+                  }}
+                  className="flex-shrink-0 text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                >
+                  Change
+                </button>
+              </div>
+            ) : (
+              /* Dropbox file browser */
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <DropboxFileBrowser
+                  projectId={projectId}
+                  roomId={null}
+                  onFileSelected={handleFileSelected}
+                  allowedExtensions={['.dwg', '.dxf', '.rvt', '.skp', '.3dm', '.step', '.stp', '.iges', '.igs']}
+                  mode="select"
+                  variant="settings"
+                  allowMultiple={false}
+                />
+              </div>
+            )}
           </div>
 
           {/* Layout Name */}
@@ -199,7 +234,7 @@ export default function CadSourceLinkDialog({
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting || isRemoving}>
+              <Button type="submit" disabled={isSubmitting || isRemoving || !cadDropboxPath}>
                 {isSubmitting ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
