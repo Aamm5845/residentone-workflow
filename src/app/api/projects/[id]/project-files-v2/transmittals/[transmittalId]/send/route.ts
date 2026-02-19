@@ -98,8 +98,24 @@ export async function POST(
       )
     }
 
+    // Debug: log all drawing paths to understand what data we have
+    console.log(`[transmittal/send] ===== ATTACHMENT DEBUG =====`)
+    console.log(`[transmittal/send] Transmittal has ${transmittal.items.length} items`)
+    for (const item of transmittal.items) {
+      console.log(`[transmittal/send] Item: ${item.drawing.drawingNumber} "${item.drawing.title}"`)
+      console.log(`[transmittal/send]   drawing.dropboxPath = ${JSON.stringify(item.drawing.dropboxPath)}`)
+      console.log(`[transmittal/send]   drawing.dropboxUrl  = ${JSON.stringify(item.drawing.dropboxUrl)}`)
+      console.log(`[transmittal/send]   revision = ${item.revision ? 'EXISTS' : 'NULL'}`)
+      if (item.revision) {
+        console.log(`[transmittal/send]   revision.dropboxPath = ${JSON.stringify(item.revision.dropboxPath)}`)
+        console.log(`[transmittal/send]   revision.dropboxUrl  = ${JSON.stringify(item.revision.dropboxUrl)}`)
+      }
+    }
+
     // Download PDF attachments from Dropbox and convert to base64 (same format as floorplan approval emails)
-    const attachments: Array<{ filename: string; content: string; type: string; disposition: string }> = []
+    const attachments: Array<{ filename: string; content: string; contentType: string }> = []
+    const attachmentErrors: string[] = []
+
     for (const item of transmittal.items) {
       // Try dropboxPath from revision first, then from drawing
       const dbxPath = item.revision?.dropboxPath || item.drawing.dropboxPath
@@ -108,26 +124,31 @@ export async function POST(
         try {
           console.log(`[transmittal/send] Downloading via Dropbox API: ${item.drawing.drawingNumber} → "${dbxPath}"`)
           const pdfBuffer = await dropboxService.downloadFile(dbxPath)
-          const base64Content = pdfBuffer.toString('base64')
+          console.log(`[transmittal/send] Downloaded buffer: ${pdfBuffer.length} bytes, isBuffer: ${Buffer.isBuffer(pdfBuffer)}`)
+
+          const base64Content = Buffer.from(pdfBuffer).toString('base64')
           const filename = item.drawing.drawingNumber
             ? `${item.drawing.drawingNumber} - ${item.drawing.title}.pdf`
             : `${item.drawing.title}.pdf`
           attachments.push({
             filename,
             content: base64Content,
-            type: 'application/pdf',
-            disposition: 'attachment'
+            contentType: 'application/pdf'
           })
-          console.log(`[transmittal/send] Attached: ${filename} (${pdfBuffer.length} bytes, base64: ${base64Content.length} chars)`)
-        } catch (err) {
-          console.error(`[transmittal/send] Failed to download ${item.drawing.drawingNumber} from "${dbxPath}":`, err)
+          console.log(`[transmittal/send] ✅ Attached: ${filename} (${pdfBuffer.length} bytes, base64: ${base64Content.length} chars)`)
+        } catch (err: any) {
+          const errMsg = `Failed to download ${item.drawing.drawingNumber} from "${dbxPath}": ${err?.message || err}`
+          console.error(`[transmittal/send] ❌ ${errMsg}`)
+          attachmentErrors.push(errMsg)
         }
       } else {
-        console.warn(`[transmittal/send] Drawing ${item.drawing.drawingNumber} has no dropboxPath`)
+        const msg = `Drawing ${item.drawing.drawingNumber} "${item.drawing.title}" has NO dropboxPath (revision.dropboxPath=${JSON.stringify(item.revision?.dropboxPath)}, drawing.dropboxPath=${JSON.stringify(item.drawing.dropboxPath)})`
+        console.warn(`[transmittal/send] ⚠️ ${msg}`)
+        attachmentErrors.push(msg)
       }
     }
 
-    console.log(`[transmittal/send] Total attachments: ${attachments.length}/${transmittal.items.length}`)
+    console.log(`[transmittal/send] ===== RESULT: ${attachments.length} attachments ready, ${attachmentErrors.length} errors =====`)
 
     // Build org info
     const org = project.organization
@@ -301,7 +322,19 @@ export async function POST(
       success: true,
       transmittal: updatedTransmittal,
       emailId: emailResult.messageId,
-      attachedFiles: attachments.length
+      attachedFiles: attachments.length,
+      debug: {
+        totalItems: transmittal.items.length,
+        attachmentsReady: attachments.length,
+        attachmentFilenames: attachments.map(a => a.filename),
+        errors: attachmentErrors.length > 0 ? attachmentErrors : undefined,
+        itemPaths: transmittal.items.map(item => ({
+          drawingNumber: item.drawing.drawingNumber,
+          revisionDropboxPath: item.revision?.dropboxPath || null,
+          drawingDropboxPath: item.drawing.dropboxPath || null,
+          resolvedPath: item.revision?.dropboxPath || item.drawing.dropboxPath || 'NONE'
+        }))
+      }
     })
   } catch (error) {
     console.error('[project-files-v2/transmittals/send] Error sending transmittal:', error)

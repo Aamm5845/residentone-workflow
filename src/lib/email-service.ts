@@ -12,7 +12,7 @@ if (!process.env.RESEND_API_KEY) {
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Email sending function using Resend only
-export async function sendEmail(options: { to: string; subject: string; html: string; from?: string; tags?: string[]; attachments?: Array<{filename: string; content: Buffer | string}> }) {
+export async function sendEmail(options: { to: string; subject: string; html: string; from?: string; tags?: string[]; attachments?: Array<{filename: string; content: Buffer | string; contentType?: string; type?: string; disposition?: string}> }) {
   // Get from address with multiple fallbacks
   let fromAddress = options.from || process.env.EMAIL_FROM || process.env.RESEND_FROM_EMAIL;
   
@@ -75,7 +75,15 @@ export async function sendEmail(options: { to: string; subject: string; html: st
     
     // Add attachments if provided
     if (options.attachments && options.attachments.length > 0) {
-      emailData.attachments = options.attachments;
+      emailData.attachments = options.attachments.map(att => ({
+        filename: att.filename,
+        content: att.content,
+        ...(att.contentType ? { contentType: att.contentType } : {}),
+        ...(att.type ? { contentType: att.type } : {}),  // map 'type' to 'contentType' for backwards compat
+      }));
+      console.log(`[email-service] Sending with ${emailData.attachments.length} attachments:`,
+        emailData.attachments.map((a: any) => ({ filename: a.filename, contentType: a.contentType, contentLength: typeof a.content === 'string' ? a.content.length : (a.content?.length || 0) }))
+      );
     }
     
     // TAGS CAUSE 422 VALIDATION ERROR - PERMANENTLY DISABLED
@@ -144,7 +152,9 @@ export async function sendEmail(options: { to: string; subject: string; html: st
       to: emailData.to,
       subject: emailData.subject,
       hasHtml: !!emailData.html,
-      htmlLength: emailData.html?.length
+      htmlLength: emailData.html?.length,
+      hasAttachments: !!emailData.attachments,
+      attachmentCount: emailData.attachments?.length || 0
     });
     
     const result = await resend.emails.send(emailData);
