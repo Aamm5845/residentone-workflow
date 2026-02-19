@@ -226,22 +226,57 @@ class DropboxServiceV2 {
   async downloadFile(path: string, memberId?: string): Promise<Buffer> {
     try {
       const client = this.getClient(memberId)
-      
-      console.log(`[DropboxService] Downloading file: "${path}" for member: ${memberId || 'default'}`)
 
-      const response = await client.filesDownload({ path })
+      // Normalize path - Dropbox API requires leading slash
+      const normalizedPath = path.startsWith('/') ? path : `/${path}`
 
-      if (!response?.result?.fileBinary) {
-        throw new Error('No file data received from Dropbox')
+      console.log(`[DropboxService] Downloading file: "${normalizedPath}" (original: "${path}") for member: ${memberId || 'default'}`)
+
+      const response = await client.filesDownload({ path: normalizedPath })
+
+      // Debug: log response structure to understand what Dropbox returns
+      console.log(`[DropboxService] Download response keys:`, Object.keys(response || {}))
+      if (response?.result) {
+        console.log(`[DropboxService] response.result keys:`, Object.keys(response.result))
+        console.log(`[DropboxService] response.result.fileBinary type:`, typeof (response.result as any).fileBinary)
+        console.log(`[DropboxService] response.result.fileBinary truthy:`, !!(response.result as any).fileBinary)
       }
 
-      const buffer = Buffer.from(response.result.fileBinary as any)
-      console.log(`[DropboxService] Downloaded ${buffer.length} bytes`)
-      
-      return buffer
+      // Try multiple locations where binary data might be
+      const fileBinary = (response?.result as any)?.fileBinary
+        || (response as any)?.fileBinary
+
+      if (fileBinary) {
+        const buffer = Buffer.from(fileBinary)
+        console.log(`[DropboxService] Downloaded ${buffer.length} bytes from fileBinary`)
+        return buffer
+      }
+
+      // If fileBinary not found, try to get the response as buffer directly
+      if (response instanceof Buffer) {
+        console.log(`[DropboxService] Response is Buffer: ${response.length} bytes`)
+        return response
+      }
+
+      // Last resort: try to convert the entire result
+      if (response?.result) {
+        try {
+          const buf = Buffer.from(response.result as any)
+          if (buf.length > 0) {
+            console.log(`[DropboxService] Converted result to Buffer: ${buf.length} bytes`)
+            return buf
+          }
+        } catch {
+          // ignore conversion error
+        }
+      }
+
+      // Log everything we know for debugging
+      console.error(`[DropboxService] Could not extract binary data. Response type: ${typeof response}, result type: ${typeof response?.result}`)
+      throw new Error(`No file data received from Dropbox for path: ${normalizedPath}`)
 
     } catch (error: any) {
-      console.error('[DropboxService] Error downloading file:', error)
+      console.error('[DropboxService] Error downloading file:', error?.message || error)
       throw new Error(`Failed to download file from Dropbox: ${error.message || 'Unknown error'}`)
     }
   }
