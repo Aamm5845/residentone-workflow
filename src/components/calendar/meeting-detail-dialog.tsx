@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -158,6 +158,35 @@ export function MeetingDetailDialog({ meeting, open, onOpenChange, onEdit, onRef
   const [isSendingReminder, setIsSendingReminder] = useState(false)
   const [isCancelling, setIsCancelling] = useState(false)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const [updatingAttendee, setUpdatingAttendee] = useState<string | null>(null)
+  const [localAttendees, setLocalAttendees] = useState<MeetingAttendee[]>([])
+
+  // Sync local attendees when meeting changes
+  useEffect(() => {
+    if (meeting) setLocalAttendees(meeting.attendees)
+  }, [meeting])
+
+  const handleToggleAttendeeStatus = async (attendeeId: string, currentStatus: string) => {
+    if (!meeting) return
+    const newStatus = currentStatus === 'ACCEPTED' ? 'PENDING' : 'ACCEPTED'
+    setUpdatingAttendee(attendeeId)
+    try {
+      const res = await fetch(`/api/meetings/${meeting.id}/attendees/${attendeeId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      })
+      if (res.ok) {
+        // Update local state immediately
+        setLocalAttendees(prev =>
+          prev.map(a => a.id === attendeeId ? { ...a, status: newStatus } : a)
+        )
+      }
+    } catch (err) {
+      console.error('Failed to update attendee status:', err)
+    }
+    setUpdatingAttendee(null)
+  }
 
   if (!meeting) return null
 
@@ -269,26 +298,41 @@ export function MeetingDetailDialog({ meeting, open, onOpenChange, onEdit, onRef
           )}
 
           {/* Attendees */}
-          {meeting.attendees.length > 0 && (
+          {localAttendees.length > 0 && (
             <div>
               <div className="flex items-center justify-between mb-2">
                 <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Attendees ({meeting.attendees.length})
+                  Attendees ({localAttendees.length})
                 </div>
-                {meeting.attendees.some(a => a.status === 'ACCEPTED' || a.status === 'DECLINED') && (
+                {localAttendees.some(a => a.status === 'ACCEPTED' || a.status === 'DECLINED') && (
                   <div className="text-[10px] text-muted-foreground">
-                    {meeting.attendees.filter(a => a.status === 'ACCEPTED').length} confirmed
+                    {localAttendees.filter(a => a.status === 'ACCEPTED').length} confirmed
                   </div>
                 )}
               </div>
               <div className="space-y-1.5">
-                {meeting.attendees.map((att) => {
+                {localAttendees.map((att) => {
                   const info = getAttendeeInfo(att)
+                  const isUpdating = updatingAttendee === att.id
                   return (
                     <div key={att.id} className="flex items-center gap-2 text-sm">
                       {getTypeIcon(att.type)}
                       <span className="flex-1 truncate">{info.name}</span>
-                      {getStatusBadge(att.status)}
+                      <button
+                        onClick={() => handleToggleAttendeeStatus(att.id, att.status)}
+                        disabled={isUpdating}
+                        className="cursor-pointer hover:opacity-80 transition-opacity disabled:opacity-50"
+                        title={att.status === 'ACCEPTED' ? 'Click to set as Pending' : 'Click to confirm attendance'}
+                      >
+                        {isUpdating ? (
+                          <Badge variant="outline" className="text-[10px] py-0 border-gray-300 text-gray-500 bg-gray-50 gap-0.5">
+                            <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                            Updating
+                          </Badge>
+                        ) : (
+                          getStatusBadge(att.status)
+                        )}
+                      </button>
                     </div>
                   )
                 })}

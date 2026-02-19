@@ -761,28 +761,8 @@ export default function CalendarPageClient({
 
         // Time slot hours: 9 AM to 6 PM
         const timeSlotHours = Array.from({ length: 10 }, (_, i) => i + 9) // 9, 10, 11, ... 18
-
-        // Helper: get hour from meeting time string (ISO)
-        const getMeetingHour = (timeStr: string) => {
-          const d = new Date(timeStr)
-          return d.getHours()
-        }
-
-        // Group meetings by their start hour
-        const meetingsByHour: Record<number, MeetingItem[]> = {}
-        dayMeetings.forEach(meeting => {
-          const hour = getMeetingHour(meeting.startTime)
-          if (!meetingsByHour[hour]) meetingsByHour[hour] = []
-          meetingsByHour[hour].push(meeting)
-        })
-
-        // Calculate meeting duration in hours (minimum 1 slot)
-        const getMeetingSpan = (meeting: MeetingItem) => {
-          const start = new Date(meeting.startTime)
-          const end = new Date(meeting.endTime)
-          const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60)
-          return Math.max(1, Math.round(diffHours))
-        }
+        const SLOT_HEIGHT = 52 // px per hour slot, matches min-h-[52px]
+        const GRID_START_HOUR = 9
 
         // Format hour for display
         const formatHour = (hour: number) => {
@@ -790,6 +770,17 @@ export default function CalendarPageClient({
           if (hour < 12) return `${hour} AM`
           if (hour === 12) return '12 PM'
           return `${hour - 12} PM`
+        }
+
+        // Calculate meeting position & height in pixels relative to the grid
+        const getMeetingStyle = (meeting: MeetingItem) => {
+          const start = new Date(meeting.startTime)
+          const end = new Date(meeting.endTime)
+          const startFraction = start.getHours() + start.getMinutes() / 60
+          const endFraction = end.getHours() + end.getMinutes() / 60
+          const top = (startFraction - GRID_START_HOUR) * SLOT_HEIGHT
+          const height = Math.max((endFraction - startFraction) * SLOT_HEIGHT, 40) // min 40px
+          return { top, height }
         }
 
         return (
@@ -859,97 +850,135 @@ export default function CalendarPageClient({
             )}
 
             {/* Time Slot Grid (9 AM - 6 PM) */}
-            <div className="divide-y divide-gray-100">
-              {timeSlotHours.map(hour => {
-                const hourMeetings = meetingsByHour[hour] || []
-                const isNow = todayRef.date === selectedDay &&
-                              todayRef.month === currentMonth &&
-                              todayRef.year === currentYear &&
-                              new Date().getHours() === hour
-
-                return (
-                  <div
-                    key={hour}
-                    className={`flex min-h-[52px] group ${isNow ? 'bg-blue-50/40' : 'hover:bg-gray-50/50'}`}
-                  >
-                    {/* Time label */}
-                    <div className={`w-20 flex-shrink-0 px-3 py-2 text-xs font-medium text-right border-r border-gray-100 ${
-                      isNow ? 'text-blue-600' : 'text-gray-400'
-                    }`}>
-                      {formatHour(hour)}
-                      {isNow && (
-                        <div className="mt-0.5 text-[10px] text-blue-500">Now</div>
-                      )}
+            <div className="flex">
+              {/* Time labels column */}
+              <div className="w-16 flex-shrink-0 border-r border-gray-100">
+                {timeSlotHours.map(hour => {
+                  const isNow = todayRef.date === selectedDay &&
+                                todayRef.month === currentMonth &&
+                                todayRef.year === currentYear &&
+                                new Date().getHours() === hour
+                  return (
+                    <div
+                      key={hour}
+                      className={`h-[52px] px-2 flex items-start justify-end pt-1 text-[11px] font-medium ${
+                        isNow ? 'text-blue-600' : 'text-gray-400'
+                      }`}
+                    >
+                      <div className="text-right">
+                        {formatHour(hour)}
+                        {isNow && (
+                          <div className="text-[9px] text-blue-500">Now</div>
+                        )}
+                      </div>
                     </div>
+                  )
+                })}
+              </div>
 
-                    {/* Content area */}
-                    <div className="flex-1 px-3 py-1.5 relative">
-                      {hourMeetings.length > 0 ? (
-                        <div className="space-y-1">
-                          {hourMeetings.map(meeting => {
-                            const span = getMeetingSpan(meeting)
-                            const locationIcon = meeting.locationType === 'VIRTUAL' ? (
-                              <Video className="w-3 h-3 flex-shrink-0" />
-                            ) : (
-                              <MapPin className="w-3 h-3 flex-shrink-0" />
-                            )
+              {/* Content area with absolute positioned meetings */}
+              <div className="flex-1 relative" style={{ height: timeSlotHours.length * SLOT_HEIGHT }}>
+                {/* Hour grid lines */}
+                {timeSlotHours.map((hour, idx) => {
+                  const isNow = todayRef.date === selectedDay &&
+                                todayRef.month === currentMonth &&
+                                todayRef.year === currentYear &&
+                                new Date().getHours() === hour
+                  return (
+                    <div
+                      key={hour}
+                      className={`absolute left-0 right-0 border-b border-gray-100 ${
+                        isNow ? 'bg-blue-50/40' : ''
+                      }`}
+                      style={{ top: idx * SLOT_HEIGHT, height: SLOT_HEIGHT }}
+                    />
+                  )
+                })}
 
-                            return (
-                              <div
-                                key={meeting.id}
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleMeetingClick(meeting)
-                                }}
-                                className={`flex items-start gap-2.5 p-2.5 rounded-lg cursor-pointer hover:shadow-md transition-all border ${
-                                  span > 1
-                                    ? 'bg-blue-50 border-blue-200 text-gray-900'
-                                    : 'bg-blue-50 border-blue-200 text-gray-900 hover:bg-blue-100'
-                                }`}
-                              >
-                                <div className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5 bg-blue-500 text-white">
-                                  <Video className="w-3.5 h-3.5" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-semibold truncate text-gray-900">
-                                    {meeting.title}
-                                  </p>
-                                  <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-500">
-                                    <Clock className="w-3 h-3 flex-shrink-0" />
-                                    <span>{formatMeetingTime(meeting.startTime)} — {formatMeetingTime(meeting.endTime)}</span>
-                                  </div>
-                                  <div className="flex items-center gap-1.5 mt-0.5 text-xs text-gray-500">
-                                    {locationIcon}
-                                    <span className="truncate">
-                                      {meeting.locationDetails || (meeting.locationType === 'VIRTUAL' ? 'Virtual' : meeting.locationType === 'OUR_OFFICE' ? 'Our Office' : 'On Site')}
-                                    </span>
-                                    {meeting.project && (
-                                      <span className="ml-1 text-blue-600">• {meeting.project.name}</span>
-                                    )}
-                                  </div>
-                                  {meeting.attendees.length > 0 && (
-                                    <div className="flex items-center gap-1 mt-1 text-xs text-gray-400">
-                                      <Users className="w-3 h-3" />
-                                      <span>{meeting.attendees.length} attendee{meeting.attendees.length !== 1 ? 's' : ''}</span>
-                                    </div>
-                                  )}
-                                </div>
-                                <ArrowRight className="w-4 h-4 flex-shrink-0 mt-1 text-gray-400" />
+                {/* Now indicator line */}
+                {todayRef.date === selectedDay &&
+                 todayRef.month === currentMonth &&
+                 todayRef.year === currentYear && (() => {
+                  const now = new Date()
+                  const nowFraction = now.getHours() + now.getMinutes() / 60
+                  if (nowFraction >= GRID_START_HOUR && nowFraction <= GRID_START_HOUR + timeSlotHours.length) {
+                    const top = (nowFraction - GRID_START_HOUR) * SLOT_HEIGHT
+                    return (
+                      <div
+                        className="absolute left-0 right-0 z-10 flex items-center"
+                        style={{ top }}
+                      >
+                        <div className="w-2 h-2 rounded-full bg-blue-500 -ml-1" />
+                        <div className="flex-1 h-[1.5px] bg-blue-500" />
+                      </div>
+                    )
+                  }
+                  return null
+                })()}
+
+                {/* Meetings — absolutely positioned */}
+                {dayMeetings.map(meeting => {
+                  const { top, height } = getMeetingStyle(meeting)
+                  const locationIcon = meeting.locationType === 'VIRTUAL' ? (
+                    <Video className="w-3 h-3 flex-shrink-0" />
+                  ) : (
+                    <MapPin className="w-3 h-3 flex-shrink-0" />
+                  )
+
+                  return (
+                    <div
+                      key={meeting.id}
+                      className="absolute left-2 right-2 z-20"
+                      style={{ top, height }}
+                    >
+                      <div
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleMeetingClick(meeting)
+                        }}
+                        className="h-full flex items-start gap-2.5 p-2.5 rounded-lg cursor-pointer hover:shadow-md transition-all border bg-blue-50 border-blue-200 text-gray-900 hover:bg-blue-100 overflow-hidden"
+                      >
+                        <div className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 bg-blue-500 text-white">
+                          {meeting.locationType === 'VIRTUAL' ? (
+                            <Video className="w-3.5 h-3.5" />
+                          ) : (
+                            <MapPin className="w-3.5 h-3.5" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold truncate text-gray-900">
+                            {meeting.title}
+                          </p>
+                          <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-500">
+                            <Clock className="w-3 h-3 flex-shrink-0" />
+                            <span>{formatMeetingTime(meeting.startTime)} — {formatMeetingTime(meeting.endTime)}</span>
+                          </div>
+                          {height > 50 && (
+                            <>
+                              <div className="flex items-center gap-1.5 mt-0.5 text-xs text-gray-500">
+                                {locationIcon}
+                                <span className="truncate">
+                                  {meeting.locationDetails || (meeting.locationType === 'VIRTUAL' ? 'Virtual' : meeting.locationType === 'OUR_OFFICE' ? 'Our Office' : 'On Site')}
+                                </span>
+                                {meeting.project && (
+                                  <span className="ml-1 text-blue-600">• {meeting.project.name}</span>
+                                )}
                               </div>
-                            )
-                          })}
+                              {meeting.attendees.length > 0 && (
+                                <div className="flex items-center gap-1 mt-1 text-xs text-gray-400">
+                                  <Users className="w-3 h-3" />
+                                  <span>{meeting.attendees.length} attendee{meeting.attendees.length !== 1 ? 's' : ''}</span>
+                                </div>
+                              )}
+                            </>
+                          )}
                         </div>
-                      ) : (
-                        <div className="h-full flex items-center">
-                          <span className="text-xs text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity">
-                            No meetings
-                          </span>
-                        </div>
-                      )}
+                        <ArrowRight className="w-4 h-4 flex-shrink-0 mt-1 text-gray-400" />
+                      </div>
                     </div>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
             </div>
 
             {/* Tasks section (below time grid) */}
