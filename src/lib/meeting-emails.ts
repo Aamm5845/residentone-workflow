@@ -49,6 +49,17 @@ function formatTime(date: Date | string): string {
   })
 }
 
+// Get timezone abbreviation (EST or EDT) based on the date
+function getTimezoneLabel(date: Date | string): string {
+  const d = new Date(date)
+  const parts = d.toLocaleTimeString('en-US', {
+    timeZone: 'America/Toronto',
+    timeZoneName: 'short',
+  }).split(' ')
+  // Returns "EST" or "EDT" — the last part of e.g. "1:00:00 PM EST"
+  return parts[parts.length - 1] || 'ET'
+}
+
 function getLocationLabel(type: string): string {
   switch (type) {
     case 'VIRTUAL': return 'Virtual Meeting'
@@ -123,6 +134,7 @@ function buildMeetingDetailsHtml(meeting: MeetingEmailData, attendees?: Attendee
   const dateStr = formatDate(meeting.date)
   const startStr = formatTime(meeting.startTime)
   const endStr = meeting.endTime ? formatTime(meeting.endTime) : ''
+  const tzLabel = getTimezoneLabel(meeting.startTime)
 
   let html = `
     <div style="background: #f8fafc; border-radius: 12px; padding: 24px; margin: 20px 0; border: 1px solid #e2e8f0;">
@@ -135,7 +147,7 @@ function buildMeetingDetailsHtml(meeting: MeetingEmailData, attendees?: Attendee
         </tr>
         <tr>
           <td style="padding: 6px 0; font-size: 14px; color: #64748b; vertical-align: top;">🕐 Time</td>
-          <td style="padding: 6px 0; font-size: 14px; color: #1e293b; font-weight: 500;">${startStr}${endStr ? ` — ${endStr}` : ''}</td>
+          <td style="padding: 6px 0; font-size: 14px; color: #1e293b; font-weight: 500;">${startStr}${endStr ? ` — ${endStr}` : ''} <span style="color: #64748b; font-weight: 400; font-size: 12px;">(${tzLabel} — Montreal / New York)</span></td>
         </tr>
         <tr>
           <td style="padding: 6px 0; font-size: 14px; color: #64748b; vertical-align: top;">${locationIcon} Location</td>
@@ -316,6 +328,7 @@ export async function sendMeetingInvitation(options: MeetingEmailOptions) {
 export async function sendMeetingReminder(options: MeetingEmailOptions) {
   const { to, attendeeName, meeting, attendees } = options
   const startStr = formatTime(meeting.startTime)
+  const tzLabel = getTimezoneLabel(meeting.startTime)
 
   const body = `
     <p style="font-size: 16px; color: #1e293b; margin: 0 0 6px; font-weight: 600;">Hi ${attendeeName},</p>
@@ -329,7 +342,7 @@ export async function sendMeetingReminder(options: MeetingEmailOptions) {
 
   return sendEmail({
     to,
-    subject: `Reminder: ${meeting.title} at ${startStr}`,
+    subject: `Reminder: ${meeting.title} at ${startStr} ${tzLabel}`,
     html: wrapEmailHtml(body, 'Meeting Reminder'),
   })
 }
@@ -343,6 +356,7 @@ export async function sendMeetingCancellation(options: {
   const { to, attendeeName, meeting, attendees } = options
   const dateStr = formatDate(meeting.date)
   const startStr = formatTime(meeting.startTime)
+  const tzLabel = getTimezoneLabel(meeting.startTime)
 
   // Build attendees section for cancellation
   let attendeesHtml = ''
@@ -363,7 +377,7 @@ export async function sendMeetingCancellation(options: {
     <div style="background: #fef2f2; border-radius: 12px; padding: 20px 24px; margin: 0 0 20px; border: 1px solid #fecaca;">
       <p style="margin: 0 0 8px; font-size: 18px; font-weight: 700; color: #1e293b; text-decoration: line-through;">${meeting.title}</p>
       <p style="margin: 0; font-size: 14px; color: #64748b;">
-        📅 ${dateStr} &nbsp;·&nbsp; 🕐 ${startStr}
+        📅 ${dateStr} &nbsp;·&nbsp; 🕐 ${startStr} <span style="font-size: 12px;">(${tzLabel})</span>
       </p>
       ${attendeesHtml}
     </div>
@@ -410,6 +424,7 @@ export async function sendMeetingRsvpNotification(options: {
   const { to, organizerName, attendeeName, action, meeting } = options
   const dateStr = formatDate(meeting.date)
   const startStr = formatTime(meeting.startTime)
+  const tzLabel = getTimezoneLabel(meeting.startTime)
 
   const isAccepted = action === 'ACCEPTED'
   const statusLabel = isAccepted ? 'confirmed' : 'declined'
@@ -428,7 +443,7 @@ export async function sendMeetingRsvpNotification(options: {
       <div style="font-size: 24px; margin-bottom: 12px;">${statusIcon}</div>
       <p style="margin: 0 0 8px; font-size: 18px; font-weight: 700; color: #1e293b;">${meeting.title}</p>
       <p style="margin: 0; font-size: 14px; color: #64748b;">
-        📅 ${dateStr} &nbsp;·&nbsp; 🕐 ${startStr}
+        📅 ${dateStr} &nbsp;·&nbsp; 🕐 ${startStr} <span style="font-size: 12px;">(${tzLabel})</span>
       </p>
       <p style="margin: 8px 0 0; font-size: 14px;">
         <strong style="color: ${statusColor};">${attendeeName}</strong>
