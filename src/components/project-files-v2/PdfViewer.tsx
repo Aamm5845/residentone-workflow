@@ -251,12 +251,16 @@ export default function PdfViewer({
     setNumPages(pdf.numPages)
     setLoading(false)
 
-    // Detect page dimensions for smart initial zoom
+    // Detect page dimensions and auto-rotate landscape pages
     try {
       const page = await pdf.getPage(1)
       const viewport = page.getViewport({ scale: 1 })
-      // Store whether page is landscape so we can adjust zoom
-      setIsLandscapePage(viewport.width > viewport.height)
+      const isLandscape = viewport.width > viewport.height
+      setIsLandscapePage(isLandscape)
+      if (isLandscape) {
+        // Landscape PDF — rotate 270° so title block is at bottom-right
+        setRotation(270)
+      }
     } catch {
       // Ignore errors
     }
@@ -703,35 +707,49 @@ export default function PdfViewer({
 
             {/* Action buttons */}
             <div className="p-4 border-t border-gray-100 space-y-2">
-              {/* Download */}
-              <button
-                onClick={() => onDownload(file)}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
-              >
-                <Download className="w-4 h-4" />
-                Download PDF
-              </button>
-
-              {/* Send Transmittal — only when file is in Drawing Register */}
+              {/* When file IS in Drawing Register — show Send + Download */}
               {drawingInfo && onSendTransmittal && (
                 <button
                   onClick={() => onSendTransmittal(drawingInfo)}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
                 >
                   <Send className="w-4 h-4" />
                   Send Transmittal
                 </button>
               )}
 
+              {/* Download */}
+              <button
+                onClick={() => onDownload(file)}
+                className={cn(
+                  'w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors',
+                  drawingInfo
+                    ? 'text-gray-700 bg-gray-100 hover:bg-gray-200'
+                    : 'text-white bg-blue-600 hover:bg-blue-700'
+                )}
+              >
+                <Download className="w-4 h-4" />
+                Download PDF
+              </button>
+
               {/* Register as Drawing — only when file is NOT in Drawing Register */}
               {!drawingInfo && onRegisterAsDrawing && (
-                <button
-                  onClick={() => onRegisterAsDrawing(file)}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors border border-emerald-200"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add to Drawing Register
-                </button>
+                <>
+                  <div className="relative py-2">
+                    <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
+                    <div className="relative flex justify-center"><span className="bg-white px-2 text-[10px] text-gray-400">or</span></div>
+                  </div>
+                  <button
+                    onClick={() => onRegisterAsDrawing(file)}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors border border-emerald-200"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add to Drawing Register
+                  </button>
+                  <p className="text-[10px] text-gray-400 text-center leading-tight">
+                    Register this PDF to send transmittals and track revisions
+                  </p>
+                </>
               )}
             </div>
           </div>
