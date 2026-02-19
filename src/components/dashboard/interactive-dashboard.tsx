@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import useSWR from 'swr'
-import { FolderOpen, Users, Clock, CheckCircle, AlertCircle, TrendingUp, Building, DollarSign, Calendar, ChevronDown, ChevronUp, Award, X, User, Briefcase, Layers3, Timer, Sparkles, Play, FileText, Eye, ArrowRight, CheckSquare, MessageSquare, Circle } from 'lucide-react'
+import { FolderOpen, Users, Clock, CheckCircle, AlertCircle, TrendingUp, Building, DollarSign, Calendar, ChevronDown, ChevronUp, Award, X, User, Briefcase, Layers3, Timer, Sparkles, Play, FileText, Eye, ArrowRight, CheckSquare, MessageSquare, Circle, Video, MapPin, Building2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import toast, { Toaster } from 'react-hot-toast'
@@ -94,6 +94,26 @@ interface MyTask {
   completedSubtasks: number
 }
 
+interface UpcomingMeeting {
+  id: string
+  title: string
+  date: string
+  startTime: string
+  endTime: string
+  locationType: string
+  locationDetails?: string | null
+  meetingLink?: string | null
+  project?: { id: string; name: string } | null
+  organizer?: { id: string; name: string | null; email: string } | null
+  attendeeCount: number
+  attendees: Array<{
+    id: string
+    type: string
+    status: string
+    name: string
+  }>
+}
+
 interface DashboardData {
   stats: DashboardStats | null
   tasks: Task[]
@@ -156,6 +176,12 @@ export default function InteractiveDashboard({ user }: { user: any }) {
   // Fetch my tasks (task management tasks assigned to user)
   const { data: myTasksData, error: myTasksError } = useSWR<{tasks: MyTask[]}>('/api/dashboard/my-tasks', fetcher, {
     refreshInterval: 15000,
+    revalidateOnFocus: true
+  })
+
+  // Fetch upcoming meetings (where user is an attendee)
+  const { data: meetingsData, error: meetingsError } = useSWR<{meetings: UpcomingMeeting[]}>('/api/dashboard/upcoming-meetings', fetcher, {
+    refreshInterval: 60000, // Refresh every minute
     revalidateOnFocus: true
   })
 
@@ -236,6 +262,11 @@ export default function InteractiveDashboard({ user }: { user: any }) {
           href="/projects?status=completed&timeframe=month"
         />
       </div>
+
+      {/* Upcoming Meetings */}
+      {meetingsData && meetingsData.meetings.length > 0 && (
+        <UpcomingMeetingsCard meetings={meetingsData.meetings} />
+      )}
 
       {/* My Active Stages Section */}
       <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-lg border border-gray-200">
@@ -1113,6 +1144,180 @@ function PendingApprovalsModal({ isOpen, onClose }: { isOpen: boolean, onClose: 
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+// Upcoming Meetings Card Component
+function UpcomingMeetingsCard({ meetings }: { meetings: UpcomingMeeting[] }) {
+  const formatMeetingDate = (dateStr: string) => {
+    const d = new Date(dateStr)
+    const today = new Date()
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+
+    today.setHours(0, 0, 0, 0)
+    tomorrow.setHours(0, 0, 0, 0)
+    const meetingDay = new Date(d)
+    meetingDay.setHours(0, 0, 0, 0)
+
+    if (meetingDay.getTime() === today.getTime()) return 'Today'
+    if (meetingDay.getTime() === tomorrow.getTime()) return 'Tomorrow'
+
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+  }
+
+  const formatTime = (dateStr: string) => {
+    return new Date(dateStr).toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    })
+  }
+
+  const getLocationIcon = (type: string) => {
+    switch (type) {
+      case 'VIRTUAL': return <Video className="w-3.5 h-3.5" />
+      case 'OUR_OFFICE': return <Building2 className="w-3.5 h-3.5" />
+      default: return <MapPin className="w-3.5 h-3.5" />
+    }
+  }
+
+  const getLocationLabel = (type: string, details?: string | null) => {
+    switch (type) {
+      case 'VIRTUAL': return 'Virtual'
+      case 'OUR_OFFICE': return 'Our Office'
+      case 'ON_SITE': return details || 'On Site'
+      case 'IN_OFFICE': return details || 'In Office'
+      default: return type
+    }
+  }
+
+  const nextMeeting = meetings[0]
+  const isToday = formatMeetingDate(nextMeeting.startTime) === 'Today'
+  const otherMeetings = meetings.slice(1)
+
+  return (
+    <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+      {/* Header */}
+      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-cyan-500 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/20">
+            <Calendar className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Upcoming Meetings</h2>
+            <p className="text-xs text-gray-500">{meetings.length} upcoming</p>
+          </div>
+        </div>
+        <Link
+          href="/calendar"
+          className="text-xs text-cyan-600 hover:text-cyan-700 font-medium hover:underline"
+        >
+          View Calendar
+        </Link>
+      </div>
+
+      {/* Next Meeting — Featured */}
+      <div className={`px-6 py-5 ${isToday ? 'bg-cyan-50/50' : ''}`}>
+        <div className="flex items-start gap-4">
+          {/* Date badge */}
+          <div className={`flex-shrink-0 w-14 h-14 rounded-xl flex flex-col items-center justify-center ${
+            isToday ? 'bg-cyan-500 text-white' : 'bg-gray-100 text-gray-700'
+          }`}>
+            <span className="text-[10px] font-semibold uppercase leading-none">
+              {new Date(nextMeeting.startTime).toLocaleDateString('en-US', { month: 'short' })}
+            </span>
+            <span className="text-xl font-bold leading-tight">
+              {new Date(nextMeeting.startTime).getDate()}
+            </span>
+          </div>
+
+          {/* Meeting details */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              {isToday && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-cyan-700 bg-cyan-100 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                  Today
+                </span>
+              )}
+              <span className="text-xs text-gray-500">{formatMeetingDate(nextMeeting.startTime)}</span>
+            </div>
+
+            <h3 className="text-base font-semibold text-gray-900 truncate">{nextMeeting.title}</h3>
+
+            <div className="flex items-center gap-3 mt-1.5 text-sm text-gray-500">
+              <span className="flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5" />
+                {formatTime(nextMeeting.startTime)} — {formatTime(nextMeeting.endTime)}
+              </span>
+              <span className="flex items-center gap-1">
+                {getLocationIcon(nextMeeting.locationType)}
+                <span className="truncate max-w-[120px]">{getLocationLabel(nextMeeting.locationType, nextMeeting.locationDetails)}</span>
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3 mt-1.5">
+              {nextMeeting.project && (
+                <span className="text-xs text-gray-400">{nextMeeting.project.name}</span>
+              )}
+              <span className="flex items-center gap-1 text-xs text-gray-400">
+                <Users className="w-3 h-3" />
+                {nextMeeting.attendeeCount} attendee{nextMeeting.attendeeCount !== 1 ? 's' : ''}
+              </span>
+            </div>
+          </div>
+
+          {/* Join / Arrow */}
+          {nextMeeting.meetingLink && isToday ? (
+            <a
+              href={nextMeeting.meetingLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-shrink-0 inline-flex items-center gap-1.5 px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
+            >
+              <Video className="w-4 h-4" />
+              Join
+            </a>
+          ) : (
+            <Link href="/calendar" className="flex-shrink-0">
+              <ArrowRight className="w-5 h-5 text-gray-300 hover:text-gray-500 transition-colors" />
+            </Link>
+          )}
+        </div>
+      </div>
+
+      {/* Other upcoming meetings */}
+      {otherMeetings.length > 0 && (
+        <div className="border-t border-gray-100">
+          {otherMeetings.map((meeting) => (
+            <div
+              key={meeting.id}
+              className="flex items-center gap-3 px-6 py-3 hover:bg-gray-50/50 transition-colors border-b border-gray-50 last:border-b-0"
+            >
+              <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gray-100 flex flex-col items-center justify-center">
+                <span className="text-[9px] font-medium text-gray-500 uppercase leading-none">
+                  {new Date(meeting.startTime).toLocaleDateString('en-US', { month: 'short' })}
+                </span>
+                <span className="text-sm font-bold text-gray-700 leading-tight">
+                  {new Date(meeting.startTime).getDate()}
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">{meeting.title}</p>
+                <p className="text-xs text-gray-400">
+                  {formatTime(meeting.startTime)} · {getLocationLabel(meeting.locationType, meeting.locationDetails)}
+                  {meeting.project ? ` · ${meeting.project.name}` : ''}
+                </p>
+              </div>
+              <span className="flex items-center gap-1 text-xs text-gray-400 flex-shrink-0">
+                <Users className="w-3 h-3" />
+                {meeting.attendeeCount}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

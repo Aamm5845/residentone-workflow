@@ -17,7 +17,6 @@ import {
   Star,
   CalendarDays,
   CalendarPlus,
-  Filter,
   Eye,
   Umbrella,
   Video,
@@ -335,12 +334,19 @@ export default function CalendarPageClient({
     return tasks
   }, [allTasks, viewMode, currentUser.id, selectedPhases])
 
+  // Filter meetings: only show meetings where the current user is an attendee
+  const userMeetings = useMemo(() => {
+    return meetingItems.filter(meeting =>
+      meeting.attendees.some(att => att.userId === currentUser.id)
+    )
+  }, [meetingItems, currentUser.id])
+
   // Group meetings by date
   const meetingsByDate = useMemo(() => {
     if (!showMeetings) return {}
     const grouped: { [date: string]: MeetingItem[] } = {}
 
-    meetingItems.forEach(meeting => {
+    userMeetings.forEach(meeting => {
       const d = new Date(meeting.date)
       const dateKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
       if (!grouped[dateKey]) {
@@ -350,7 +356,7 @@ export default function CalendarPageClient({
     })
 
     return grouped
-  }, [meetingItems, showMeetings])
+  }, [userMeetings, showMeetings])
 
   // Get current month and year
   const currentMonth = currentDate.getMonth()
@@ -474,16 +480,16 @@ export default function CalendarPageClient({
 
   const getHolidayColor = (holiday: Holiday) => {
     if (holiday.source === 'canadian') {
-      return 'bg-gradient-to-r from-red-500 to-red-600'
+      return 'bg-red-50 text-red-700 border border-red-200'
     }
     const hebrewHoliday = holiday as HebrewHoliday & { source: string }
     const colorMap: Record<string, string> = {
-      'major': 'bg-gradient-to-r from-purple-500 to-purple-600',
-      'minor': 'bg-gradient-to-r from-blue-400 to-blue-500',
-      'fast': 'bg-gradient-to-r from-gray-500 to-gray-600',
-      'modern': 'bg-gradient-to-r from-teal-400 to-teal-500'
+      'major': 'bg-purple-50 text-purple-700 border border-purple-200',
+      'minor': 'bg-blue-50 text-blue-700 border border-blue-200',
+      'fast': 'bg-gray-100 text-gray-600 border border-gray-200',
+      'modern': 'bg-teal-50 text-teal-700 border border-teal-200'
     }
-    return colorMap[hebrewHoliday.type] || 'bg-gradient-to-r from-gray-400 to-gray-500'
+    return colorMap[hebrewHoliday.type] || 'bg-gray-50 text-gray-600 border border-gray-200'
   }
 
   const getHolidayIcon = (holiday: Holiday) => {
@@ -515,16 +521,16 @@ export default function CalendarPageClient({
     return '\u{2721}\u{FE0F}'
   }
 
-  // Phase colors matching the brand
+  // Phase colors — soft, muted palette
   const phaseConfig: Record<string, { color: string, bgColor: string, icon: any, label: string }> = {
-    'DESIGN_CONCEPT': { color: 'bg-purple-500', bgColor: 'bg-purple-50', icon: Palette, label: 'Design' },
-    'THREE_D': { color: 'bg-blue-500', bgColor: 'bg-blue-50', icon: Box, label: '3D Rendering' },
-    'CLIENT_APPROVAL': { color: 'bg-green-500', bgColor: 'bg-green-50', icon: CheckCircle, label: 'Approval' },
-    'DRAWINGS': { color: 'bg-orange-500', bgColor: 'bg-orange-50', icon: FileText, label: 'Drawings' },
-    'FFE': { color: 'bg-pink-500', bgColor: 'bg-pink-50', icon: Package, label: 'FFE' },
-    'ROOM_START': { color: 'bg-teal-400', bgColor: 'bg-teal-50', icon: Calendar, label: 'Room Start' },
-    'ROOM_DUE': { color: 'bg-indigo-500', bgColor: 'bg-indigo-50', icon: Calendar, label: 'Room Due' },
-    'TASK': { color: 'bg-rose-500', bgColor: 'bg-rose-50', icon: CheckSquare, label: 'Tasks' }
+    'DESIGN_CONCEPT': { color: 'bg-slate-400', bgColor: 'bg-slate-50', icon: Palette, label: 'Design' },
+    'THREE_D': { color: 'bg-slate-400', bgColor: 'bg-slate-50', icon: Box, label: '3D Rendering' },
+    'CLIENT_APPROVAL': { color: 'bg-slate-400', bgColor: 'bg-slate-50', icon: CheckCircle, label: 'Approval' },
+    'DRAWINGS': { color: 'bg-slate-400', bgColor: 'bg-slate-50', icon: FileText, label: 'Drawings' },
+    'FFE': { color: 'bg-slate-400', bgColor: 'bg-slate-50', icon: Package, label: 'FFE' },
+    'ROOM_START': { color: 'bg-slate-300', bgColor: 'bg-slate-50', icon: Calendar, label: 'Room Start' },
+    'ROOM_DUE': { color: 'bg-slate-300', bgColor: 'bg-slate-50', icon: Calendar, label: 'Room Due' },
+    'TASK': { color: 'bg-slate-500', bgColor: 'bg-slate-50', icon: CheckSquare, label: 'Tasks' }
   }
 
   const getTaskColor = (task: CalendarTask) => {
@@ -536,14 +542,6 @@ export default function CalendarPageClient({
   const getPhaseIcon = (stageType?: string) => {
     const config = phaseConfig[stageType || '']
     return config?.icon || Calendar
-  }
-
-  const togglePhase = (phase: string) => {
-    setSelectedPhases(prev =>
-      prev.includes(phase)
-        ? prev.filter(p => p !== phase)
-        : [...prev, phase]
-    )
   }
 
   return (
@@ -592,12 +590,23 @@ export default function CalendarPageClient({
               </button>
             </div>
 
+            {/* Meetings Toggle */}
+            <Button
+              variant={showMeetings ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowMeetings(!showMeetings)}
+              className={showMeetings ? "bg-gray-700 hover:bg-gray-800" : ""}
+            >
+              <Video className="w-4 h-4 mr-1.5" />
+              Meetings
+            </Button>
+
             {/* Holiday Toggle */}
             <Button
               variant={showHolidays ? "default" : "outline"}
               size="sm"
               onClick={() => setShowHolidays(!showHolidays)}
-              className={showHolidays ? "bg-purple-600 hover:bg-purple-700" : ""}
+              className={showHolidays ? "bg-gray-500 hover:bg-gray-600" : ""}
             >
               <Star className="w-4 h-4 mr-1.5" />
               Holidays
@@ -608,21 +617,10 @@ export default function CalendarPageClient({
               variant={showVacations ? "default" : "outline"}
               size="sm"
               onClick={() => setShowVacations(!showVacations)}
-              className={showVacations ? "bg-amber-500 hover:bg-amber-600" : ""}
+              className={showVacations ? "bg-gray-500 hover:bg-gray-600" : ""}
             >
               <Umbrella className="w-4 h-4 mr-1.5" />
               Vacations
-            </Button>
-
-            {/* Meetings Toggle */}
-            <Button
-              variant={showMeetings ? "default" : "outline"}
-              size="sm"
-              onClick={() => setShowMeetings(!showMeetings)}
-              className={showMeetings ? "bg-cyan-600 hover:bg-cyan-700" : ""}
-            >
-              <Video className="w-4 h-4 mr-1.5" />
-              Meetings
             </Button>
           </div>
 
@@ -644,33 +642,6 @@ export default function CalendarPageClient({
             </div>
           </div>
         </div>
-
-        {/* Phase Filters */}
-        <div className="mt-3 pt-3 border-t border-gray-100">
-          <div className="flex items-center flex-wrap gap-2">
-            <Filter className="w-4 h-4 text-gray-400" />
-            <span className="text-xs text-gray-500 mr-1">Filter:</span>
-            {Object.entries(phaseConfig).filter(([key]) => !['ROOM_START', 'ROOM_DUE'].includes(key)).map(([key, config]) => {
-              const Icon = config.icon
-              const isSelected = selectedPhases.includes(key)
-              return (
-                <button
-                  key={key}
-                  onClick={() => togglePhase(key)}
-                  className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
-                    isSelected
-                      ? `${config.color} text-white shadow-sm`
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  <Icon className="w-3 h-3" />
-                  <span>{config.label}</span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
       </div>
 
       {/* Calendar Grid */}
@@ -708,26 +679,26 @@ export default function CalendarPageClient({
                 onClick={() => day && handleDayClick(day)}
                 className={`min-h-[120px] p-1.5 border-b border-r border-gray-100 transition-colors ${
                   day ? (isWeekend ? 'bg-gray-50/50' : 'bg-white') : 'bg-gray-50'
-                } ${isToday ? 'bg-cyan-50 ring-1 ring-cyan-400 ring-inset' : ''} ${
+                } ${isToday ? 'bg-blue-50/50 ring-1 ring-blue-300 ring-inset' : ''} ${
                   isSelected && !isToday ? 'bg-blue-50 ring-1 ring-blue-300 ring-inset' : ''
                 } ${day ? 'cursor-pointer hover:bg-gray-50/80' : ''}`}
               >
                 {day && (
                   <>
                     <div className={`text-xs font-medium mb-1 flex items-center justify-between ${
-                      isToday ? 'text-cyan-600' : 'text-gray-700'
+                      isToday ? 'text-blue-600' : 'text-gray-700'
                     }`}>
-                      <span className={`${isToday ? 'bg-cyan-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs' : ''}`}>
+                      <span className={`${isToday ? 'bg-blue-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs' : ''}`}>
                         {day}
                       </span>
-                      {isToday && <span className="text-[10px] text-cyan-500 font-medium">Today</span>}
+                      {isToday && <span className="text-[10px] text-blue-500 font-medium">Today</span>}
                     </div>
                     <div className="space-y-0.5">
                       {/* Holidays (Hebrew + Canadian) */}
                       {holidaysForDay.map((holiday) => (
                         <div
                           key={holiday.id}
-                          className={`text-[10px] p-1 rounded text-white ${getHolidayColor(holiday)}`}
+                          className={`text-[10px] p-1 rounded ${getHolidayColor(holiday)}`}
                           title={`${holiday.name}${holiday.source === 'hebrew' ? ` (${(holiday as HebrewHoliday).hebrewName})` : ''} - ${holiday.description}`}
                         >
                           <div className="truncate font-medium flex items-center space-x-0.5">
@@ -740,7 +711,7 @@ export default function CalendarPageClient({
                       {/* Team Off Days / Vacations */}
                       {offDaysForDay.length > 0 && (
                         <div
-                          className="text-[10px] p-1 rounded bg-amber-100 text-amber-800 border border-amber-200"
+                          className="text-[10px] p-1 rounded bg-amber-50 text-amber-700 border border-amber-200"
                           title={offDaysForDay.map(od => `${od.userName} - ${getOffDayLabel(od.reason)}${od.notes ? `: ${od.notes}` : ''}`).join('\n')}
                         >
                           <div className="truncate font-medium flex items-center space-x-0.5">
@@ -758,8 +729,11 @@ export default function CalendarPageClient({
                       {meetingsForDay.map((meeting) => (
                         <div
                           key={meeting.id}
-                          onClick={() => handleMeetingClick(meeting)}
-                          className="text-[10px] p-1 rounded cursor-pointer hover:opacity-90 transition-all bg-cyan-500 text-white"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleMeetingClick(meeting)
+                          }}
+                          className="text-[10px] p-1 rounded cursor-pointer hover:opacity-90 transition-all bg-blue-100 text-blue-800 border border-blue-200"
                           title={`${meeting.title} - ${formatMeetingTime(meeting.startTime)}${meeting.project ? ` - ${meeting.project.name}` : ''}`}
                         >
                           <div className="truncate font-medium flex items-center space-x-0.5">
@@ -767,7 +741,7 @@ export default function CalendarPageClient({
                             <span>{formatMeetingTime(meeting.startTime)} {meeting.title.length > 8 ? `${meeting.title.substring(0, 8)}...` : meeting.title}</span>
                           </div>
                           {meeting.project && (
-                            <div className="truncate text-[9px] opacity-90">
+                            <div className="truncate text-[9px] text-blue-600">
                               {meeting.project.name}
                             </div>
                           )}
@@ -794,14 +768,14 @@ export default function CalendarPageClient({
                         return (
                           <Link key={task.id} href={taskLink}>
                             <div
-                              className={`text-[10px] p-1 rounded cursor-pointer hover:opacity-90 transition-all ${getTaskColor(task)} text-white`}
+                              className="text-[10px] p-1 rounded cursor-pointer hover:bg-gray-200 transition-all bg-gray-100 text-gray-700 border border-gray-200"
                               title={`${task.title} - ${task.projectName} - Due: ${formatDate(task.dueDate)}${task.assignedUser ? ` - Assigned to: ${task.assignedUser.name}` : ''}`}
                             >
                               <div className="truncate font-medium flex items-center space-x-0.5">
-                                <PhaseIcon className="w-2.5 h-2.5 flex-shrink-0" />
+                                <PhaseIcon className="w-2.5 h-2.5 flex-shrink-0 text-gray-500" />
                                 <span>{task.title.length > 12 ? `${task.title.substring(0, 12)}...` : task.title}</span>
                               </div>
-                              <div className="truncate text-[9px] opacity-90">
+                              <div className="truncate text-[9px] text-gray-500">
                                 {task.projectName}
                               </div>
                             </div>
@@ -870,7 +844,7 @@ export default function CalendarPageClient({
         return (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 mt-4 overflow-hidden">
             {/* Panel Header */}
-            <div className="flex items-center justify-between px-5 py-3 bg-gradient-to-r from-blue-50 to-cyan-50 border-b border-gray-200">
+            <div className="flex items-center justify-between px-5 py-3 bg-gray-50 border-b border-gray-200">
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-blue-600" />
                 <h3 className="text-sm font-semibold text-gray-900">{dateStr}</h3>
@@ -945,15 +919,15 @@ export default function CalendarPageClient({
                 return (
                   <div
                     key={hour}
-                    className={`flex min-h-[52px] group ${isNow ? 'bg-cyan-50/50' : 'hover:bg-gray-50/50'}`}
+                    className={`flex min-h-[52px] group ${isNow ? 'bg-blue-50/40' : 'hover:bg-gray-50/50'}`}
                   >
                     {/* Time label */}
                     <div className={`w-20 flex-shrink-0 px-3 py-2 text-xs font-medium text-right border-r border-gray-100 ${
-                      isNow ? 'text-cyan-600' : 'text-gray-400'
+                      isNow ? 'text-blue-600' : 'text-gray-400'
                     }`}>
                       {formatHour(hour)}
                       {isNow && (
-                        <div className="mt-0.5 text-[10px] text-cyan-500">Now</div>
+                        <div className="mt-0.5 text-[10px] text-blue-500">Now</div>
                       )}
                     </div>
 
@@ -978,40 +952,38 @@ export default function CalendarPageClient({
                                 }}
                                 className={`flex items-start gap-2.5 p-2.5 rounded-lg cursor-pointer hover:shadow-md transition-all border ${
                                   span > 1
-                                    ? 'bg-gradient-to-r from-cyan-500 to-cyan-600 text-white border-cyan-600'
-                                    : 'bg-cyan-50 border-cyan-200 text-gray-900 hover:bg-cyan-100'
+                                    ? 'bg-blue-50 border-blue-200 text-gray-900'
+                                    : 'bg-blue-50 border-blue-200 text-gray-900 hover:bg-blue-100'
                                 }`}
                               >
-                                <div className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                                  span > 1 ? 'bg-white/20' : 'bg-cyan-500 text-white'
-                                }`}>
+                                <div className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5 bg-blue-500 text-white">
                                   <Video className="w-3.5 h-3.5" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className={`text-sm font-semibold truncate ${span > 1 ? 'text-white' : 'text-gray-900'}`}>
+                                  <p className="text-sm font-semibold truncate text-gray-900">
                                     {meeting.title}
                                   </p>
-                                  <div className={`flex items-center gap-2 mt-0.5 text-xs ${span > 1 ? 'text-cyan-100' : 'text-gray-500'}`}>
+                                  <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-500">
                                     <Clock className="w-3 h-3 flex-shrink-0" />
                                     <span>{formatMeetingTime(meeting.startTime)} — {formatMeetingTime(meeting.endTime)}</span>
                                   </div>
-                                  <div className={`flex items-center gap-1.5 mt-0.5 text-xs ${span > 1 ? 'text-cyan-100' : 'text-gray-500'}`}>
+                                  <div className="flex items-center gap-1.5 mt-0.5 text-xs text-gray-500">
                                     {locationIcon}
                                     <span className="truncate">
                                       {meeting.locationDetails || (meeting.locationType === 'VIRTUAL' ? 'Virtual' : meeting.locationType === 'OUR_OFFICE' ? 'Our Office' : 'On Site')}
                                     </span>
                                     {meeting.project && (
-                                      <span className={`ml-1 ${span > 1 ? 'text-cyan-200' : 'text-cyan-600'}`}>• {meeting.project.name}</span>
+                                      <span className="ml-1 text-blue-600">• {meeting.project.name}</span>
                                     )}
                                   </div>
                                   {meeting.attendees.length > 0 && (
-                                    <div className={`flex items-center gap-1 mt-1 text-xs ${span > 1 ? 'text-cyan-200' : 'text-gray-400'}`}>
+                                    <div className="flex items-center gap-1 mt-1 text-xs text-gray-400">
                                       <Users className="w-3 h-3" />
                                       <span>{meeting.attendees.length} attendee{meeting.attendees.length !== 1 ? 's' : ''}</span>
                                     </div>
                                   )}
                                 </div>
-                                <ArrowRight className={`w-4 h-4 flex-shrink-0 mt-1 ${span > 1 ? 'text-cyan-200' : 'text-gray-400'}`} />
+                                <ArrowRight className="w-4 h-4 flex-shrink-0 mt-1 text-gray-400" />
                               </div>
                             )
                           })}
