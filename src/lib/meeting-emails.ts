@@ -70,15 +70,7 @@ function getLocationLabel(type: string): string {
   }
 }
 
-function getLocationIcon(type: string): string {
-  switch (type) {
-    case 'VIRTUAL': return '💻'
-    case 'IN_OFFICE': return '🏢'
-    case 'ON_SITE': return '📍'
-    case 'OUR_OFFICE': return '🏢'
-    default: return '📅'
-  }
-}
+// Location icon removed — using clean text labels only
 
 function getAttendeeTypeLabel(type: string): string {
   switch (type) {
@@ -130,7 +122,6 @@ function buildAttendeesHtml(attendees?: AttendeeInfo[]): string {
 
 function buildMeetingDetailsHtml(meeting: MeetingEmailData, attendees?: AttendeeInfo[]): string {
   const locationLabel = getLocationLabel(meeting.locationType)
-  const locationIcon = getLocationIcon(meeting.locationType)
   const dateStr = formatDate(meeting.date)
   const startStr = formatTime(meeting.startTime)
   const endStr = meeting.endTime ? formatTime(meeting.endTime) : ''
@@ -142,22 +133,22 @@ function buildMeetingDetailsHtml(meeting: MeetingEmailData, attendees?: Attendee
 
       <table style="width: 100%; border-collapse: collapse;">
         <tr>
-          <td style="padding: 6px 0; font-size: 14px; color: #64748b; width: 90px; vertical-align: top;">📅 Date</td>
+          <td style="padding: 6px 0; font-size: 14px; color: #64748b; width: 90px; vertical-align: top;">Date</td>
           <td style="padding: 6px 0; font-size: 14px; color: #1e293b; font-weight: 500;">${dateStr}</td>
         </tr>
         <tr>
-          <td style="padding: 6px 0; font-size: 14px; color: #64748b; vertical-align: top;">🕐 Time</td>
+          <td style="padding: 6px 0; font-size: 14px; color: #64748b; vertical-align: top;">Time</td>
           <td style="padding: 6px 0; font-size: 14px; color: #1e293b; font-weight: 500;">${startStr}${endStr ? ` — ${endStr}` : ''} <span style="color: #64748b; font-weight: 400; font-size: 12px;">(${tzLabel} — Montreal / New York)</span></td>
         </tr>
         <tr>
-          <td style="padding: 6px 0; font-size: 14px; color: #64748b; vertical-align: top;">${locationIcon} Location</td>
+          <td style="padding: 6px 0; font-size: 14px; color: #64748b; vertical-align: top;">Location</td>
           <td style="padding: 6px 0; font-size: 14px; color: #1e293b; font-weight: 500;">${locationLabel}${meeting.locationDetails ? `<br><span style="color: #64748b; font-weight: 400;">${meeting.locationDetails}</span>` : ''}</td>
         </tr>`
 
   if (meeting.projectName) {
     html += `
         <tr>
-          <td style="padding: 6px 0; font-size: 14px; color: #64748b; vertical-align: top;">📁 Project</td>
+          <td style="padding: 6px 0; font-size: 14px; color: #64748b; vertical-align: top;">Project</td>
           <td style="padding: 6px 0; font-size: 14px; color: #1e293b; font-weight: 500;">${meeting.projectName}</td>
         </tr>`
   }
@@ -165,7 +156,7 @@ function buildMeetingDetailsHtml(meeting: MeetingEmailData, attendees?: Attendee
   if (meeting.organizerName) {
     html += `
         <tr>
-          <td style="padding: 6px 0; font-size: 14px; color: #64748b; vertical-align: top;">👤 Organizer</td>
+          <td style="padding: 6px 0; font-size: 14px; color: #64748b; vertical-align: top;">Organizer</td>
           <td style="padding: 6px 0; font-size: 14px; color: #1e293b; font-weight: 500;">${meeting.organizerName}</td>
         </tr>`
   }
@@ -225,7 +216,7 @@ function buildMeetingDetailsHtml(meeting: MeetingEmailData, attendees?: Attendee
     html += `
       <div style="text-align: center; margin: 24px 0 4px;">
         <a href="${meeting.meetingLink}"
-           style="display: inline-block; background: linear-gradient(135deg, #1e293b 0%, #334155 100%); color: white; text-decoration: none; padding: 14px 36px; border-radius: 8px; font-size: 15px; font-weight: 600; letter-spacing: 0.01em;">
+           style="display: inline-block; background: #1e293b; color: white; text-decoration: none; padding: 14px 36px; border-radius: 8px; font-size: 15px; font-weight: 600; letter-spacing: 0.01em;">
           Join Meeting →
         </a>
       </div>`
@@ -246,11 +237,11 @@ function wrapEmailHtml(body: string, headerSubtitle?: string): string {
   <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.06);">
 
     <!-- Header with Logo -->
-    <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); padding: 32px 32px 28px; text-align: center;">
+    <div style="background: #ffffff; padding: 28px 32px 20px; text-align: center; border-bottom: 2px solid #e2e8f0;">
       <img src="https://app.meisnerinteriors.com/meisnerinteriorlogo.png"
            alt="Meisner Interiors"
-           style="max-width: 180px; height: auto; margin-bottom: 16px; background-color: white; padding: 12px 16px; border-radius: 8px;" />
-      ${headerSubtitle ? `<p style="margin: 0; color: #94a3b8; font-size: 14px; font-weight: 400;">${headerSubtitle}</p>` : ''}
+           style="max-width: 180px; height: auto; margin-bottom: 8px;" />
+      ${headerSubtitle ? `<p style="margin: 0; color: #64748b; font-size: 13px; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;">${headerSubtitle}</p>` : ''}
     </div>
 
     <!-- Body -->
@@ -377,7 +368,7 @@ export async function sendMeetingCancellation(options: {
     <div style="background: #fef2f2; border-radius: 12px; padding: 20px 24px; margin: 0 0 20px; border: 1px solid #fecaca;">
       <p style="margin: 0 0 8px; font-size: 18px; font-weight: 700; color: #1e293b; text-decoration: line-through;">${meeting.title}</p>
       <p style="margin: 0; font-size: 14px; color: #64748b;">
-        📅 ${dateStr} &nbsp;·&nbsp; 🕐 ${startStr} <span style="font-size: 12px;">(${tzLabel})</span>
+        ${dateStr} &nbsp;·&nbsp; ${startStr} <span style="font-size: 12px;">(${tzLabel})</span>
       </p>
       ${attendeesHtml}
     </div>
@@ -428,7 +419,6 @@ export async function sendMeetingRsvpNotification(options: {
 
   const isAccepted = action === 'ACCEPTED'
   const statusLabel = isAccepted ? 'confirmed' : 'declined'
-  const statusIcon = isAccepted ? '✅' : '❌'
   const statusColor = isAccepted ? '#16a34a' : '#dc2626'
   const statusBg = isAccepted ? '#f0fdf4' : '#fef2f2'
   const statusBorder = isAccepted ? '#bbf7d0' : '#fecaca'
@@ -440,10 +430,9 @@ export async function sendMeetingRsvpNotification(options: {
     </p>
 
     <div style="background: ${statusBg}; border-radius: 12px; padding: 20px 24px; margin: 0 0 20px; border: 1px solid ${statusBorder};">
-      <div style="font-size: 24px; margin-bottom: 12px;">${statusIcon}</div>
       <p style="margin: 0 0 8px; font-size: 18px; font-weight: 700; color: #1e293b;">${meeting.title}</p>
       <p style="margin: 0; font-size: 14px; color: #64748b;">
-        📅 ${dateStr} &nbsp;·&nbsp; 🕐 ${startStr} <span style="font-size: 12px;">(${tzLabel})</span>
+        ${dateStr} &nbsp;·&nbsp; ${startStr} <span style="font-size: 12px;">(${tzLabel})</span>
       </p>
       <p style="margin: 8px 0 0; font-size: 14px;">
         <strong style="color: ${statusColor};">${attendeeName}</strong>
@@ -457,7 +446,7 @@ export async function sendMeetingRsvpNotification(options: {
 
   return sendEmail({
     to,
-    subject: `${statusIcon} ${attendeeName} ${statusLabel}: ${meeting.title}`,
+    subject: `${attendeeName} ${statusLabel}: ${meeting.title}`,
     html: wrapEmailHtml(body, `Meeting ${isAccepted ? 'Confirmed' : 'Declined'}`),
   })
 }
