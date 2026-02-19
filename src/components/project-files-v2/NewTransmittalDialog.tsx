@@ -10,12 +10,16 @@ import {
   Check,
   X,
   Send,
-  Plus,
   FileText,
   ChevronDown,
+  ChevronRight,
   User,
   Building2,
+  Users,
+  HardHat,
+  UserPlus,
   AlertTriangle,
+  Clock,
 } from 'lucide-react'
 import {
   Dialog,
@@ -34,8 +38,6 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  SelectGroup,
-  SelectLabel,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 
@@ -57,6 +59,55 @@ const PURPOSE_OPTIONS = [
   'For Review',
   'As Requested',
 ]
+
+// ─── Recipient category config ──────────────────────────────────────────────
+
+const CATEGORY_CONFIG: Record<string, {
+  label: string
+  icon: React.ElementType
+  color: string
+  bgColor: string
+  textColor: string
+}> = {
+  CLIENT: {
+    label: 'Client',
+    icon: User,
+    color: 'bg-blue-500',
+    bgColor: 'bg-blue-50',
+    textColor: 'text-blue-700',
+  },
+  CONTRACTOR: {
+    label: 'Contractors',
+    icon: HardHat,
+    color: 'bg-orange-500',
+    bgColor: 'bg-orange-50',
+    textColor: 'text-orange-700',
+  },
+  SUBCONTRACTOR: {
+    label: 'Subcontractors',
+    icon: Building2,
+    color: 'bg-amber-500',
+    bgColor: 'bg-amber-50',
+    textColor: 'text-amber-700',
+  },
+  TEAM: {
+    label: 'Team',
+    icon: Users,
+    color: 'bg-purple-500',
+    bgColor: 'bg-purple-50',
+    textColor: 'text-purple-700',
+  },
+  OTHER: {
+    label: 'Previous Recipients',
+    icon: Clock,
+    color: 'bg-gray-400',
+    bgColor: 'bg-gray-50',
+    textColor: 'text-gray-600',
+  },
+}
+
+// Category display order
+const CATEGORY_ORDER = ['CLIENT', 'CONTRACTOR', 'SUBCONTRACTOR', 'TEAM', 'OTHER']
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -113,7 +164,7 @@ export default function NewTransmittalDialog({
     fetcher
   )
 
-  const { data: recipientsData } = useSWR<{ recipients: Recipient[] }>(
+  const { data: recipientsData } = useSWR<Recipient[]>(
     open ? `/api/projects/${projectId}/project-files-v2/recipients` : null,
     fetcher
   )
@@ -132,22 +183,40 @@ export default function NewTransmittalDialog({
   const [drawingSearch, setDrawingSearch] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
-  const [showRecipientDropdown, setShowRecipientDropdown] = useState(false)
+  const [showManualEntry, setShowManualEntry] = useState(false)
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set())
 
-  // ── Derived data ────────────────────────────────────────────────────────
+  // ── Derived data ──────────────────────────────────────────────────────
 
   const drawings = drawingsData?.drawings ?? []
-  const recipients = recipientsData?.recipients ?? []
+  const recipients = recipientsData ?? []
 
   const groupedRecipients = useMemo(() => {
     const groups: Record<string, Recipient[]> = {}
     for (const r of recipients) {
-      const type = r.type || 'other'
+      const type = r.type || 'OTHER'
       if (!groups[type]) groups[type] = []
       groups[type].push(r)
     }
     return groups
   }, [recipients])
+
+  // Order the groups
+  const orderedGroups = useMemo(() => {
+    const result: { type: string; recipients: Recipient[] }[] = []
+    for (const type of CATEGORY_ORDER) {
+      if (groupedRecipients[type]?.length) {
+        result.push({ type, recipients: groupedRecipients[type] })
+      }
+    }
+    // Add any remaining types not in CATEGORY_ORDER
+    for (const [type, recs] of Object.entries(groupedRecipients)) {
+      if (!CATEGORY_ORDER.includes(type) && recs.length > 0) {
+        result.push({ type, recipients: recs })
+      }
+    }
+    return result
+  }, [groupedRecipients])
 
   const filteredDrawings = useMemo(() => {
     if (!drawingSearch.trim()) return drawings
@@ -156,9 +225,12 @@ export default function NewTransmittalDialog({
       (d) =>
         d.drawingNumber.toLowerCase().includes(q) ||
         d.title.toLowerCase().includes(q) ||
-        d.discipline.toLowerCase().includes(q)
+        (d.discipline && d.discipline.toLowerCase().includes(q))
     )
   }, [drawings, drawingSearch])
+
+  // Is a recipient selected (either from list or manual)?
+  const hasRecipient = recipientName.trim().length > 0
 
   // ── Initialize pre-selected drawings ────────────────────────────────────
 
@@ -194,7 +266,8 @@ export default function NewTransmittalDialog({
       setDrawingSearch('')
       setIsSubmitting(false)
       setSubmitError(null)
-      setShowRecipientDropdown(false)
+      setShowManualEntry(false)
+      setCollapsedCategories(new Set())
     }
   }, [open])
 
@@ -204,8 +277,28 @@ export default function NewTransmittalDialog({
     setRecipientName(r.name)
     setRecipientEmail(r.email || '')
     setRecipientCompany(r.company || '')
-    setRecipientType(r.type || 'contractor')
-    setShowRecipientDropdown(false)
+    setRecipientType(r.type?.toLowerCase() || 'contractor')
+    setShowManualEntry(false)
+  }, [])
+
+  const clearRecipient = useCallback(() => {
+    setRecipientName('')
+    setRecipientEmail('')
+    setRecipientCompany('')
+    setRecipientType('contractor')
+    setShowManualEntry(false)
+  }, [])
+
+  const toggleCategory = useCallback((type: string) => {
+    setCollapsedCategories((prev) => {
+      const next = new Set(prev)
+      if (next.has(type)) {
+        next.delete(type)
+      } else {
+        next.add(type)
+      }
+      return next
+    })
   }, [])
 
   const toggleDrawing = useCallback(
@@ -255,7 +348,7 @@ export default function NewTransmittalDialog({
   const handleSubmit = useCallback(
     async (action: 'draft' | 'send') => {
       if (!recipientName.trim()) {
-        setSubmitError('Recipient name is required.')
+        setSubmitError('Please select or enter a recipient.')
         return
       }
       if (selectedDrawings.size === 0) {
@@ -342,20 +435,7 @@ export default function NewTransmittalDialog({
     ]
   )
 
-  // ── Render ──────────────────────────────────────────────────────────────
-
-  const recipientTypeLabel = (type: string) => {
-    switch (type) {
-      case 'client':
-        return 'Clients'
-      case 'contractor':
-        return 'Contractors'
-      case 'previous':
-        return 'Previous Recipients'
-      default:
-        return type.charAt(0).toUpperCase() + type.slice(1)
-    }
-  }
+  // ── Render ────────────────────────────────────────────────────────────
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -367,7 +447,7 @@ export default function NewTransmittalDialog({
             New Transmittal
           </DialogTitle>
           <DialogDescription className="text-sm text-gray-500">
-            Create a transmittal to track document distributions.
+            Select a recipient and choose drawings to send.
           </DialogDescription>
         </DialogHeader>
 
@@ -377,101 +457,172 @@ export default function NewTransmittalDialog({
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
               <User className="h-4 w-4 text-gray-500" />
-              Recipient
+              Send To
             </h3>
 
-            {/* Recipient selector */}
-            {recipients.length > 0 && (
-              <div className="relative">
+            {/* Selected recipient card */}
+            {hasRecipient && !showManualEntry ? (
+              <div className="flex items-center gap-3 p-3 rounded-lg border-2 border-purple-200 bg-purple-50/50">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-purple-100 text-sm font-semibold text-purple-700">
+                  {recipientName.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-gray-900 text-sm">{recipientName}</div>
+                  <div className="text-xs text-gray-500 truncate">
+                    {[recipientEmail, recipientCompany].filter(Boolean).join(' \u00b7 ')}
+                  </div>
+                </div>
+                <Check className="h-4 w-4 text-purple-600 shrink-0" />
                 <button
                   type="button"
-                  onClick={() => setShowRecipientDropdown(!showRecipientDropdown)}
-                  className="flex h-9 w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-1 text-sm shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  onClick={clearRecipient}
+                  className="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-purple-100 transition-colors shrink-0"
                 >
-                  <span className="text-gray-500">
-                    {recipientName ? recipientName : 'Select from existing recipients...'}
-                  </span>
-                  <ChevronDown className="h-4 w-4 text-gray-400" />
+                  <X className="h-3.5 w-3.5" />
                 </button>
-
-                {showRecipientDropdown && (
-                  <div className="absolute z-50 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg max-h-60 overflow-y-auto">
-                    {Object.entries(groupedRecipients).map(([type, recs]) => (
-                      <div key={type}>
-                        <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400 bg-gray-50">
-                          {recipientTypeLabel(type)}
-                        </div>
-                        {recs.map((r, idx) => (
-                          <button
-                            key={`${r.email}-${idx}`}
-                            type="button"
-                            onClick={() => selectRecipient(r)}
-                            className="flex w-full items-center gap-3 px-3 py-2 text-sm hover:bg-gray-50 transition-colors text-left"
-                          >
-                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-medium text-gray-600">
-                              {r.name.charAt(0).toUpperCase()}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="font-medium text-gray-900 truncate">{r.name}</div>
-                              <div className="text-xs text-gray-500 truncate">
-                                {[r.email, r.company].filter(Boolean).join(' - ')}
-                              </div>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    ))}
+              </div>
+            ) : !showManualEntry ? (
+              /* Recipient category list */
+              <div className="space-y-1">
+                {orderedGroups.length === 0 ? (
+                  <div className="text-center py-6 text-sm text-gray-400">
+                    No contacts found. Enter a recipient manually below.
                   </div>
+                ) : (
+                  orderedGroups.map(({ type, recipients: recs }) => {
+                    const config = CATEGORY_CONFIG[type] || CATEGORY_CONFIG.OTHER
+                    const Icon = config.icon
+                    const isCollapsed = collapsedCategories.has(type)
+
+                    return (
+                      <div key={type} className="rounded-lg border border-gray-200 overflow-hidden">
+                        {/* Category header */}
+                        <button
+                          type="button"
+                          onClick={() => toggleCategory(type)}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-gray-50 transition-colors"
+                        >
+                          {isCollapsed ? (
+                            <ChevronRight className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                          ) : (
+                            <ChevronDown className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                          )}
+                          <div className={cn('flex h-5 w-5 items-center justify-center rounded', config.bgColor)}>
+                            <Icon className={cn('h-3 w-3', config.textColor)} />
+                          </div>
+                          <span className="text-xs font-semibold text-gray-700 flex-1">
+                            {config.label}
+                          </span>
+                          <span className={cn(
+                            'inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium',
+                            config.bgColor, config.textColor
+                          )}>
+                            {recs.length}
+                          </span>
+                        </button>
+
+                        {/* Contact list */}
+                        {!isCollapsed && (
+                          <div className="border-t border-gray-100 divide-y divide-gray-50">
+                            {recs.map((r, idx) => (
+                              <button
+                                key={`${r.email}-${idx}`}
+                                type="button"
+                                onClick={() => selectRecipient(r)}
+                                className="flex w-full items-center gap-3 px-3 py-2 text-sm hover:bg-gray-50 transition-colors text-left"
+                              >
+                                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-medium text-gray-600">
+                                  {r.name.charAt(0).toUpperCase()}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="text-sm font-medium text-gray-900 truncate">{r.name}</div>
+                                  <div className="text-xs text-gray-400 truncate">
+                                    {[r.email, r.company].filter(Boolean).join(' \u00b7 ')}
+                                  </div>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })
                 )}
+
+                {/* Manual entry button */}
+                <button
+                  type="button"
+                  onClick={() => setShowManualEntry(true)}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-dashed border-gray-300 text-sm text-gray-500 hover:text-gray-700 hover:border-gray-400 hover:bg-gray-50 transition-colors"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  Enter manually
+                </button>
+              </div>
+            ) : (
+              /* Manual entry form */
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-500">Enter recipient details</span>
+                  {recipients.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowManualEntry(false)}
+                      className="text-xs text-purple-600 hover:text-purple-700 font-medium"
+                    >
+                      Back to contacts
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-600">
+                      Name <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      value={recipientName}
+                      onChange={(e) => setRecipientName(e.target.value)}
+                      placeholder="Recipient name"
+                      autoFocus
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-600">Email</label>
+                    <Input
+                      type="email"
+                      value={recipientEmail}
+                      onChange={(e) => setRecipientEmail(e.target.value)}
+                      placeholder="email@example.com"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-600">Company</label>
+                    <Input
+                      value={recipientCompany}
+                      onChange={(e) => setRecipientCompany(e.target.value)}
+                      placeholder="Company name"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-600">Type</label>
+                    <Select value={recipientType} onValueChange={setRecipientType}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="client">Client</SelectItem>
+                        <SelectItem value="contractor">Contractor</SelectItem>
+                        <SelectItem value="subcontractor">Subcontractor</SelectItem>
+                        <SelectItem value="consultant">Consultant</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
             )}
-
-            {/* Manual entry fields */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-gray-600">
-                  Name <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  value={recipientName}
-                  onChange={(e) => setRecipientName(e.target.value)}
-                  placeholder="Recipient name"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-gray-600">Email</label>
-                <Input
-                  type="email"
-                  value={recipientEmail}
-                  onChange={(e) => setRecipientEmail(e.target.value)}
-                  placeholder="email@example.com"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-gray-600">Company</label>
-                <Input
-                  value={recipientCompany}
-                  onChange={(e) => setRecipientCompany(e.target.value)}
-                  placeholder="Company name"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-gray-600">Type</label>
-                <Select value={recipientType} onValueChange={setRecipientType}>
-                  <SelectTrigger className="h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="client">Client</SelectItem>
-                    <SelectItem value="contractor">Contractor</SelectItem>
-                    <SelectItem value="consultant">Consultant</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
           </div>
 
           {/* ── Section 2: Select Drawings ───────────────────────────── */}

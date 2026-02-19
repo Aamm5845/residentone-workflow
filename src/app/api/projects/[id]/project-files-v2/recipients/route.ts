@@ -22,6 +22,7 @@ export async function GET(
       where: { id, orgId: session.user.orgId || undefined },
       select: {
         id: true,
+        orgId: true,
         client: {
           select: {
             id: true,
@@ -64,7 +65,8 @@ export async function GET(
               id: true,
               businessName: true,
               contactName: true,
-              email: true
+              email: true,
+              type: true
             }
           }
         }
@@ -79,7 +81,7 @@ export async function GET(
               name: contractor.contactName || contractor.businessName,
               email: contractor.email,
               company: contractor.businessName,
-              type: 'CONTRACTOR'
+              type: contractor.type === 'SUBCONTRACTOR' ? 'SUBCONTRACTOR' : 'CONTRACTOR'
             })
           }
         }
@@ -89,7 +91,39 @@ export async function GET(
       console.warn('[project-files-v2/recipients] Could not fetch contractors:', err)
     }
 
-    // 3. Previous unique recipients from transmittals for this project
+    // 3. Team members (org users)
+    try {
+      if (project.orgId) {
+        const orgUsers = await prisma.user.findMany({
+          where: {
+            orgId: project.orgId,
+            id: { not: session.user.id } // Exclude current user
+          },
+          select: {
+            id: true,
+            name: true,
+            email: true
+          },
+          orderBy: { name: 'asc' }
+        })
+
+        for (const user of orgUsers) {
+          const key = user.email.toLowerCase()
+          if (!recipientMap.has(key)) {
+            recipientMap.set(key, {
+              name: user.name || user.email,
+              email: user.email,
+              company: null,
+              type: 'TEAM'
+            })
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[project-files-v2/recipients] Could not fetch team members:', err)
+    }
+
+    // 4. Previous unique recipients from transmittals for this project
     try {
       const previousTransmittals = await prisma.transmittal.findMany({
         where: { projectId: id },

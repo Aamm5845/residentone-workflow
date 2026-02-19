@@ -12,7 +12,7 @@ if (!process.env.RESEND_API_KEY) {
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Email sending function using Resend only
-export async function sendEmail(options: { to: string; subject: string; html: string; from?: string; tags?: string[]; attachments?: Array<{filename: string; content: string}> }) {
+export async function sendEmail(options: { to: string; subject: string; html: string; from?: string; tags?: string[]; attachments?: Array<{filename: string; content: Buffer | string}> }) {
   // Get from address with multiple fallbacks
   let fromAddress = options.from || process.env.EMAIL_FROM || process.env.RESEND_FROM_EMAIL;
   

@@ -5,6 +5,35 @@ import { sendEmail } from '@/lib/email-service'
 
 export const runtime = 'nodejs'
 
+// Download PDF from Dropbox URL and return as Buffer
+async function downloadPdfFromDropbox(dropboxUrl: string): Promise<Buffer | null> {
+  try {
+    // Convert sharing URL to direct download URL
+    let downloadUrl = dropboxUrl
+    if (downloadUrl.includes('dropbox.com')) {
+      downloadUrl = downloadUrl.replace('dl=0', 'dl=1').replace('raw=1', 'dl=1')
+      if (!downloadUrl.includes('dl=1')) {
+        downloadUrl += (downloadUrl.includes('?') ? '&' : '?') + 'dl=1'
+      }
+    }
+
+    const response = await fetch(downloadUrl, {
+      headers: { 'User-Agent': 'ResidentOne/1.0' }
+    })
+
+    if (!response.ok) {
+      console.error(`[transmittal/send] Failed to download PDF: ${response.status} ${response.statusText}`)
+      return null
+    }
+
+    const arrayBuffer = await response.arrayBuffer()
+    return Buffer.from(arrayBuffer)
+  } catch (error) {
+    console.error('[transmittal/send] Error downloading PDF:', error)
+    return null
+  }
+}
+
 // POST - Send transmittal via email
 export async function POST(
   request: NextRequest,
@@ -18,10 +47,26 @@ export async function POST(
 
     const { id, transmittalId } = await params
 
-    // Verify project access and get project name
+    // Verify project access and get project + org info
     const project = await prisma.project.findFirst({
       where: { id, orgId: session.user.orgId || undefined },
-      select: { id: true, name: true }
+      select: {
+        id: true,
+        name: true,
+        organization: {
+          select: {
+            name: true,
+            businessName: true,
+            businessPhone: true,
+            businessEmail: true,
+            businessAddress: true,
+            businessCity: true,
+            businessProvince: true,
+            businessPostal: true,
+            logoUrl: true
+          }
+        }
+      }
     })
 
     if (!project) {
@@ -78,83 +123,127 @@ export async function POST(
       )
     }
 
-    // Build professional HTML email
-    const drawingRows = transmittal.items
+    // Download PDF attachments from Dropbox
+    const attachments: Array<{ filename: string; content: Buffer }> = []
+    for (const item of transmittal.items) {
+      if (item.revision?.dropboxUrl) {
+        const pdfBuffer = await downloadPdfFromDropbox(item.revision.dropboxUrl)
+        if (pdfBuffer) {
+          const filename = item.drawing.drawingNumber
+            ? `${item.drawing.drawingNumber} - ${item.drawing.title}.pdf`
+            : `${item.drawing.title}.pdf`
+          attachments.push({ filename, content: pdfBuffer })
+        }
+      }
+    }
+
+    // Build org info
+    const org = project.organization
+    const companyName = org?.businessName || org?.name || ''
+    const senderName = session.user.name || 'Project Team'
+    const firstName = transmittal.recipientName.split(' ')[0]
+    const itemCount = transmittal.items.length
+
+    // Build company contact parts for footer
+    const addressParts = [org?.businessAddress, org?.businessCity, org?.businessProvince, org?.businessPostal].filter(Boolean)
+    const companyAddress = addressParts.join(', ')
+    const contactParts: string[] = []
+    if (org?.businessPhone) contactParts.push(org.businessPhone)
+    if (org?.businessEmail) contactParts.push(org.businessEmail)
+    const companyContact = contactParts.join(' &middot; ')
+
+    // Build drawing list for the email body
+    const drawingList = transmittal.items
       .map((item) => {
         const rev = item.revision
-          ? 'Rev ' + (item.revisionNumber ?? item.revision.revisionNumber)
-          : 'N/A'
-        const linkCell = item.revision?.dropboxUrl
-          ? '<a href="' + item.revision.dropboxUrl + '" style="color: #2563eb; text-decoration: underline;">View File</a>'
-          : '-'
-        return '<tr>' +
-          '<td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px;">' + item.drawing.drawingNumber + '</td>' +
-          '<td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px;">' + item.drawing.title + '</td>' +
-          '<td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px;">' + (item.drawing.discipline ? item.drawing.discipline.replace(/_/g, ' ') : '-') + '</td>' +
-          '<td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px; text-align: center;">' + rev + '</td>' +
-          '<td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px;">' + (item.purpose || '-') + '</td>' +
-          '<td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px; text-align: center;">' + linkCell + '</td>' +
-          '</tr>'
+          ? ' (Rev ' + (item.revisionNumber ?? item.revision.revisionNumber) + ')'
+          : ''
+        const num = item.drawing.drawingNumber ? item.drawing.drawingNumber + ' - ' : ''
+        return '<li style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; font-size: 14px; color: #374151;">' +
+          num + item.drawing.title + rev +
+          '</li>'
       })
       .join('')
 
+    // Subject line - simple and clear
     const emailSubject = transmittal.subject
-      ? 'Transmittal ' + transmittal.transmittalNumber + ': ' + transmittal.subject
-      : 'Transmittal ' + transmittal.transmittalNumber + ' - ' + project.name
+      ? project.name + ' - ' + transmittal.subject
+      : project.name + ' - Drawing' + (itemCount !== 1 ? 's' : '')
 
+    // Notes
     const notesSection = transmittal.notes
-      ? '<div style="margin: 20px 0; padding: 16px; background-color: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">' +
-        '<p style="margin: 0 0 4px; font-weight: 600; font-size: 14px; color: #374151;">Notes:</p>' +
-        '<p style="margin: 0; font-size: 14px; color: #4b5563; white-space: pre-wrap;">' + transmittal.notes + '</p>' +
-        '</div>'
+      ? '<p style="margin: 0 0 24px; font-size: 14px; color: #4b5563; white-space: pre-wrap;">' + transmittal.notes + '</p>'
       : ''
 
-    const senderName = session.user.name || 'Project Team'
-    const itemCount = transmittal.items.length
-    const itemLabel = itemCount !== 1 ? 'drawings' : 'drawing'
-    const recipientLine = transmittal.recipientCompany
-      ? transmittal.recipientName + ' - ' + transmittal.recipientCompany
-      : transmittal.recipientName
-    const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    // Logo or company name in header
+    const logoSection = org?.logoUrl
+      ? '<img src="' + org.logoUrl + '" alt="' + companyName + '" style="max-height: 44px; max-width: 180px; display: block;" />'
+      : (companyName ? '<span style="font-size: 16px; font-weight: 600; color: #ffffff; letter-spacing: 0.02em;">' + companyName + '</span>' : '')
+
+    // Footer
+    const footerLines: string[] = []
+    if (companyName) footerLines.push(companyName)
+    if (companyAddress) footerLines.push(companyAddress)
+    if (companyContact) footerLines.push(companyContact)
+
+    // Intro text
+    const purposeText = transmittal.items[0]?.purpose
+      ? ' ' + transmittal.items[0].purpose.replace(/_/g, ' ').toLowerCase()
+      : ''
+    const introText = itemCount === 1
+      ? 'Please find the attached drawing' + purposeText + ' for ' + project.name + '.'
+      : 'Please find the ' + itemCount + ' attached drawings' + purposeText + ' for ' + project.name + '.'
 
     const html = '<!DOCTYPE html>' +
       '<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>' +
       '<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif; background-color: #f3f4f6;">' +
-      '<div style="max-width: 700px; margin: 0 auto; padding: 32px 16px;">' +
+      '<div style="max-width: 600px; margin: 0 auto; padding: 32px 16px;">' +
       '<div style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">' +
-      '<div style="background-color: #1e293b; padding: 24px 32px;">' +
-      '<h1 style="margin: 0; color: #ffffff; font-size: 20px; font-weight: 600;">Drawing Transmittal</h1>' +
-      '<p style="margin: 4px 0 0; color: #94a3b8; font-size: 14px;">' + project.name + '</p>' +
-      '</div>' +
+
+      // Header
+      (logoSection
+        ? '<div style="background-color: #1e293b; padding: 20px 32px;">' + logoSection + '</div>'
+        : '') +
+
+      // Body
       '<div style="padding: 32px;">' +
-      '<table style="width: 100%; margin-bottom: 24px; font-size: 14px;">' +
-      '<tr><td style="padding: 6px 0; color: #6b7280; width: 160px;">Transmittal No:</td><td style="padding: 6px 0; color: #111827; font-weight: 600;">' + transmittal.transmittalNumber + '</td></tr>' +
-      '<tr><td style="padding: 6px 0; color: #6b7280;">Date:</td><td style="padding: 6px 0; color: #111827;">' + dateStr + '</td></tr>' +
-      '<tr><td style="padding: 6px 0; color: #6b7280;">To:</td><td style="padding: 6px 0; color: #111827;">' + recipientLine + '</td></tr>' +
-      '<tr><td style="padding: 6px 0; color: #6b7280;">From:</td><td style="padding: 6px 0; color: #111827;">' + senderName + '</td></tr>' +
-      '<tr><td style="padding: 6px 0; color: #6b7280;">Items Included:</td><td style="padding: 6px 0; color: #111827;">' + itemCount + ' ' + itemLabel + '</td></tr>' +
-      '</table>' +
+
+      // Greeting and intro
+      '<p style="margin: 0 0 16px; font-size: 15px; color: #111827;">Hi ' + firstName + ',</p>' +
+      '<p style="margin: 0 0 24px; font-size: 15px; color: #374151; line-height: 1.6;">' + introText + '</p>' +
+
       notesSection +
-      '<div style="overflow-x: auto;">' +
-      '<table style="width: 100%; border-collapse: collapse; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">' +
-      '<thead><tr style="background-color: #f8fafc;">' +
-      '<th style="padding: 10px 12px; text-align: left; font-size: 12px; font-weight: 600; color: #374151; border-bottom: 2px solid #e5e7eb; text-transform: uppercase; letter-spacing: 0.05em;">Drawing No.</th>' +
-      '<th style="padding: 10px 12px; text-align: left; font-size: 12px; font-weight: 600; color: #374151; border-bottom: 2px solid #e5e7eb; text-transform: uppercase; letter-spacing: 0.05em;">Title</th>' +
-      '<th style="padding: 10px 12px; text-align: left; font-size: 12px; font-weight: 600; color: #374151; border-bottom: 2px solid #e5e7eb; text-transform: uppercase; letter-spacing: 0.05em;">Discipline</th>' +
-      '<th style="padding: 10px 12px; text-align: center; font-size: 12px; font-weight: 600; color: #374151; border-bottom: 2px solid #e5e7eb; text-transform: uppercase; letter-spacing: 0.05em;">Rev</th>' +
-      '<th style="padding: 10px 12px; text-align: left; font-size: 12px; font-weight: 600; color: #374151; border-bottom: 2px solid #e5e7eb; text-transform: uppercase; letter-spacing: 0.05em;">Purpose</th>' +
-      '<th style="padding: 10px 12px; text-align: center; font-size: 12px; font-weight: 600; color: #374151; border-bottom: 2px solid #e5e7eb; text-transform: uppercase; letter-spacing: 0.05em;">File</th>' +
-      '</tr></thead>' +
-      '<tbody>' + drawingRows + '</tbody>' +
-      '</table></div>' +
-      '<p style="margin: 24px 0 0; font-size: 12px; color: #9ca3af; text-align: center;">This transmittal was generated automatically. Please contact the sender if you have any questions.</p>' +
-      '</div></div></div></body></html>'
+
+      // Drawing list
+      '<ul style="margin: 0 0 24px; padding: 0; list-style: none;">' +
+      drawingList +
+      '</ul>' +
+
+      // Attachments note
+      (attachments.length > 0
+        ? '<p style="margin: 0 0 24px; font-size: 13px; color: #6b7280;">' + attachments.length + ' PDF' + (attachments.length !== 1 ? 's' : '') + ' attached to this email.</p>'
+        : '') +
+
+      // Sign off
+      '<p style="margin: 0; font-size: 15px; color: #374151;">Thanks,<br/>' + senderName + '</p>' +
+
+      '</div>' +
+
+      // Footer
+      (footerLines.length > 0
+        ? '<div style="padding: 16px 32px; border-top: 1px solid #e5e7eb;">' +
+          '<p style="margin: 0; font-size: 12px; color: #9ca3af; line-height: 1.6;">' + footerLines.join(' &middot; ') + '</p>' +
+          '</div>'
+        : '') +
+
+      '</div></div></body></html>'
 
     // Send the email
     const emailResult = await sendEmail({
       to: transmittal.recipientEmail,
       subject: emailSubject,
-      html
+      html,
+      attachments: attachments.length > 0 ? attachments : undefined
     })
 
     // Update transmittal status
@@ -191,7 +280,8 @@ export async function POST(
     return NextResponse.json({
       success: true,
       transmittal: updatedTransmittal,
-      emailId: emailResult.messageId
+      emailId: emailResult.messageId,
+      attachedFiles: attachments.length
     })
   } catch (error) {
     console.error('[project-files-v2/transmittals/send] Error sending transmittal:', error)
