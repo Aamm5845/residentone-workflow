@@ -11,23 +11,41 @@ async function downloadPdfFromDropbox(dropboxUrl: string): Promise<Buffer | null
     // Convert sharing URL to direct download URL
     let downloadUrl = dropboxUrl
     if (downloadUrl.includes('dropbox.com')) {
-      downloadUrl = downloadUrl.replace('dl=0', 'dl=1').replace('raw=1', 'dl=1')
+      // Try multiple URL formats for Dropbox
+      downloadUrl = downloadUrl
+        .replace(/\?dl=0/, '?dl=1')
+        .replace(/\?raw=1/, '?dl=1')
+        .replace(/&dl=0/, '&dl=1')
+        .replace(/&raw=1/, '&dl=1')
       if (!downloadUrl.includes('dl=1')) {
         downloadUrl += (downloadUrl.includes('?') ? '&' : '?') + 'dl=1'
       }
     }
 
+    console.log(`[transmittal/send] Downloading PDF from: ${downloadUrl.substring(0, 100)}...`)
+
     const response = await fetch(downloadUrl, {
-      headers: { 'User-Agent': 'ResidentOne/1.0' }
+      headers: { 'User-Agent': 'ResidentOne/1.0' },
+      redirect: 'follow'
     })
 
     if (!response.ok) {
-      console.error(`[transmittal/send] Failed to download PDF: ${response.status} ${response.statusText}`)
+      console.error(`[transmittal/send] Failed to download PDF: ${response.status} ${response.statusText} from ${downloadUrl.substring(0, 80)}`)
       return null
     }
 
+    const contentType = response.headers.get('content-type') || ''
     const arrayBuffer = await response.arrayBuffer()
-    return Buffer.from(arrayBuffer)
+    const buffer = Buffer.from(arrayBuffer)
+
+    console.log(`[transmittal/send] Downloaded ${buffer.length} bytes (${contentType})`)
+
+    if (buffer.length < 100) {
+      console.error(`[transmittal/send] Downloaded file too small (${buffer.length} bytes), likely not a PDF`)
+      return null
+    }
+
+    return buffer
   } catch (error) {
     console.error('[transmittal/send] Error downloading PDF:', error)
     return null
@@ -118,7 +136,7 @@ export async function POST(
 
     if (transmittal.status === 'SENT') {
       return NextResponse.json(
-        { error: 'Transmittal has already been sent' },
+        { error: 'Already sent' },
         { status: 400 }
       )
     }
@@ -127,15 +145,23 @@ export async function POST(
     const attachments: Array<{ filename: string; content: Buffer }> = []
     for (const item of transmittal.items) {
       if (item.revision?.dropboxUrl) {
+        console.log(`[transmittal/send] Attempting to download drawing ${item.drawing.drawingNumber}: ${item.revision.dropboxUrl.substring(0, 80)}...`)
         const pdfBuffer = await downloadPdfFromDropbox(item.revision.dropboxUrl)
         if (pdfBuffer) {
           const filename = item.drawing.drawingNumber
             ? `${item.drawing.drawingNumber} - ${item.drawing.title}.pdf`
             : `${item.drawing.title}.pdf`
           attachments.push({ filename, content: pdfBuffer })
+          console.log(`[transmittal/send] Attached: ${filename} (${pdfBuffer.length} bytes)`)
+        } else {
+          console.warn(`[transmittal/send] Could not download PDF for drawing ${item.drawing.drawingNumber}`)
         }
+      } else {
+        console.warn(`[transmittal/send] Drawing ${item.drawing.drawingNumber} has no dropboxUrl on revision`)
       }
     }
+
+    console.log(`[transmittal/send] Total attachments: ${attachments.length}/${transmittal.items.length}`)
 
     // Build org info
     const org = project.organization
@@ -144,99 +170,113 @@ export async function POST(
     const firstName = transmittal.recipientName.split(' ')[0]
     const itemCount = transmittal.items.length
 
-    // Build company contact parts for footer
-    const addressParts = [org?.businessAddress, org?.businessCity, org?.businessProvince, org?.businessPostal].filter(Boolean)
-    const companyAddress = addressParts.join(', ')
-    const contactParts: string[] = []
-    if (org?.businessPhone) contactParts.push(org.businessPhone)
-    if (org?.businessEmail) contactParts.push(org.businessEmail)
-    const companyContact = contactParts.join(' &middot; ')
+    // Subject line - clean, no "Transmittal" word
+    const emailSubject = transmittal.subject && transmittal.subject.trim() !== ''
+      ? `${project.name} — ${transmittal.subject}`
+      : `${project.name} — Drawing${itemCount !== 1 ? 's' : ''}`
 
-    // Build drawing list for the email body
-    const drawingList = transmittal.items
+    // Purpose text
+    const purposeText = transmittal.items[0]?.purpose
+      ? transmittal.items[0].purpose.replace(/_/g, ' ').toLowerCase()
+      : ''
+
+    // Drawing list rows
+    const drawingRows = transmittal.items
       .map((item) => {
         const rev = item.revision
-          ? ' (Rev ' + (item.revisionNumber ?? item.revision.revisionNumber) + ')'
+          ? `Rev ${item.revisionNumber ?? item.revision.revisionNumber}`
           : ''
-        const num = item.drawing.drawingNumber ? item.drawing.drawingNumber + ' - ' : ''
-        return '<li style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; font-size: 14px; color: #374151;">' +
-          num + item.drawing.title + rev +
-          '</li>'
+        const num = item.drawing.drawingNumber || ''
+        return `
+          <tr>
+            <td style="padding: 10px 16px; color: #111827; font-size: 14px; font-weight: 500; border-bottom: 1px solid #f3f4f6;">${num}</td>
+            <td style="padding: 10px 16px; color: #374151; font-size: 14px; border-bottom: 1px solid #f3f4f6;">${item.drawing.title}</td>
+            <td style="padding: 10px 16px; color: #6b7280; font-size: 13px; text-align: center; border-bottom: 1px solid #f3f4f6;">${rev}</td>
+          </tr>`
       })
       .join('')
 
-    // Subject line - simple and clear
-    const emailSubject = transmittal.subject
-      ? project.name + ' - ' + transmittal.subject
-      : project.name + ' - Drawing' + (itemCount !== 1 ? 's' : '')
-
-    // Notes
-    const notesSection = transmittal.notes
-      ? '<p style="margin: 0 0 24px; font-size: 14px; color: #4b5563; white-space: pre-wrap;">' + transmittal.notes + '</p>'
+    // Notes section
+    const notesHtml = transmittal.notes
+      ? `<div style="background: #fefce8; border-left: 3px solid #eab308; padding: 12px 16px; margin-bottom: 32px; border-radius: 0 6px 6px 0;">
+           <p style="margin: 0; color: #713f12; font-size: 14px;">${transmittal.notes}</p>
+         </div>`
       : ''
 
-    // Logo or company name in header
-    const logoSection = org?.logoUrl
-      ? '<img src="' + org.logoUrl + '" alt="' + companyName + '" style="max-height: 44px; max-width: 180px; display: block;" />'
-      : (companyName ? '<span style="font-size: 16px; font-weight: 600; color: #ffffff; letter-spacing: 0.02em;">' + companyName + '</span>' : '')
-
-    // Footer
-    const footerLines: string[] = []
-    if (companyName) footerLines.push(companyName)
-    if (companyAddress) footerLines.push(companyAddress)
-    if (companyContact) footerLines.push(companyContact)
+    // Logo header
+    const logoHtml = org?.logoUrl
+      ? `<img src="${org.logoUrl}" alt="${companyName}" style="max-width: 220px; max-height: 80px; height: auto; margin-bottom: 24px;" />`
+      : (companyName ? `<div style="color: #111827; font-size: 22px; font-weight: 700; margin-bottom: 24px;">${companyName}</div>` : '')
 
     // Intro text
-    const purposeText = transmittal.items[0]?.purpose
-      ? ' ' + transmittal.items[0].purpose.replace(/_/g, ' ').toLowerCase()
-      : ''
     const introText = itemCount === 1
-      ? 'Please find the attached drawing' + purposeText + ' for ' + project.name + '.'
-      : 'Please find the ' + itemCount + ' attached drawings' + purposeText + ' for ' + project.name + '.'
+      ? `Here's a drawing${purposeText ? ' ' + purposeText : ''} for <strong>${project.name}</strong>.`
+      : `Here are ${itemCount} drawings${purposeText ? ' ' + purposeText : ''} for <strong>${project.name}</strong>.`
 
-    const html = '<!DOCTYPE html>' +
-      '<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>' +
-      '<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif; background-color: #f3f4f6;">' +
-      '<div style="max-width: 600px; margin: 0 auto; padding: 32px 16px;">' +
-      '<div style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">' +
+    // Attachment info
+    const attachmentText = attachments.length > 0
+      ? `${attachments.length} PDF${attachments.length !== 1 ? 's' : ''} attached`
+      : 'See drawing details below'
 
-      // Header
-      (logoSection
-        ? '<div style="background-color: #1e293b; padding: 20px 32px;">' + logoSection + '</div>'
-        : '') +
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f9fafb; line-height: 1.6;">
+    <div style="max-width: 560px; margin: 40px auto; background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <!-- Header -->
+        <div style="padding: 40px 40px 32px 40px; text-align: center; border-bottom: 1px solid #e5e7eb;">
+            ${logoHtml}
+            <p style="margin: 0; color: #111827; font-size: 18px; font-weight: 600;">${project.name}</p>
+            <p style="margin: 6px 0 0 0; color: #6b7280; font-size: 14px;">${attachmentText}</p>
+        </div>
 
-      // Body
-      '<div style="padding: 32px;">' +
+        <!-- Content -->
+        <div style="padding: 32px 40px;">
+            <p style="margin: 0 0 24px 0; color: #4b5563; font-size: 15px;">
+                Hi ${firstName}, ${introText}
+            </p>
 
-      // Greeting and intro
-      '<p style="margin: 0 0 16px; font-size: 15px; color: #111827;">Hi ' + firstName + ',</p>' +
-      '<p style="margin: 0 0 24px; font-size: 15px; color: #374151; line-height: 1.6;">' + introText + '</p>' +
+            ${notesHtml}
 
-      notesSection +
+            <!-- Drawings Table -->
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 32px;">
+                <thead>
+                    <tr style="border-bottom: 2px solid #e5e7eb;">
+                        <th style="padding: 8px 16px; text-align: left; color: #6b7280; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">No.</th>
+                        <th style="padding: 8px 16px; text-align: left; color: #6b7280; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Drawing</th>
+                        <th style="padding: 8px 16px; text-align: center; color: #6b7280; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Rev</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${drawingRows}
+                </tbody>
+            </table>
 
-      // Drawing list
-      '<ul style="margin: 0 0 24px; padding: 0; list-style: none;">' +
-      drawingList +
-      '</ul>' +
+            <p style="margin: 0; color: #374151; font-size: 15px;">
+                Thanks,<br/>
+                <strong>${senderName}</strong>
+            </p>
+        </div>
 
-      // Attachments note
-      (attachments.length > 0
-        ? '<p style="margin: 0 0 24px; font-size: 13px; color: #6b7280;">' + attachments.length + ' PDF' + (attachments.length !== 1 ? 's' : '') + ' attached to this email.</p>'
-        : '') +
+        <!-- Footer -->
+        <div style="border-top: 1px solid #e5e7eb; padding: 24px 40px; text-align: center;">
+            ${companyName ? `<p style="margin: 0 0 4px 0; color: #374151; font-size: 14px; font-weight: 500;">${companyName}</p>` : ''}
+            ${org?.businessEmail ? `<p style="margin: 0; color: #6b7280; font-size: 13px;">${org.businessEmail}</p>` : ''}
+            ${org?.businessPhone ? `<p style="margin: 0; color: #6b7280; font-size: 13px;">${org.businessPhone}</p>` : ''}
+        </div>
+    </div>
 
-      // Sign off
-      '<p style="margin: 0; font-size: 15px; color: #374151;">Thanks,<br/>' + senderName + '</p>' +
-
-      '</div>' +
-
-      // Footer
-      (footerLines.length > 0
-        ? '<div style="padding: 16px 32px; border-top: 1px solid #e5e7eb;">' +
-          '<p style="margin: 0; font-size: 12px; color: #9ca3af; line-height: 1.6;">' + footerLines.join(' &middot; ') + '</p>' +
-          '</div>'
-        : '') +
-
-      '</div></div></body></html>'
+    <!-- Bottom note -->
+    <div style="max-width: 560px; margin: 16px auto 40px auto; text-align: center;">
+        <p style="margin: 0; color: #9ca3af; font-size: 12px;">
+            &copy; ${new Date().getFullYear()} ${companyName || 'All rights reserved'}.
+        </p>
+    </div>
+</body>
+</html>`
 
     // Send the email
     const emailResult = await sendEmail({
@@ -287,7 +327,7 @@ export async function POST(
     console.error('[project-files-v2/transmittals/send] Error sending transmittal:', error)
     return NextResponse.json(
       {
-        error: 'Failed to send transmittal',
+        error: 'Failed to send',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
