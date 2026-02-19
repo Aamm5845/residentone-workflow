@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import useSWR from 'swr'
-import { FolderOpen, Users, Clock, CheckCircle, AlertCircle, TrendingUp, Building, DollarSign, Calendar, ChevronDown, ChevronUp, Award, X, User, Briefcase, Layers3, Timer, Sparkles, Play, FileText, Eye, ArrowRight, CheckSquare, MessageSquare, Circle, Video, MapPin, Building2 } from 'lucide-react'
+import { Users, Clock, CheckCircle, AlertCircle, TrendingUp, Calendar, ChevronDown, ChevronUp, Award, X, Briefcase, Layers3, ArrowRight, CheckSquare, Video, MapPin, Building2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import toast, { Toaster } from 'react-hot-toast'
@@ -150,7 +150,6 @@ const formatDueDate = (dueDate: string | null): string => {
 
 export default function InteractiveDashboard({ user }: { user: any }) {
   const [tasksCollapsed, setTasksCollapsed] = useState(true)
-  const [myTasksCollapsed, setMyTasksCollapsed] = useState(false)
   const [showRecentCompletions, setShowRecentCompletions] = useState(false)
   const [showPendingApprovals, setShowPendingApprovals] = useState(false)
   const [greeting, setGreeting] = useState('Hello')
@@ -263,21 +262,28 @@ export default function InteractiveDashboard({ user }: { user: any }) {
         />
       </div>
 
-      {/* Upcoming Meetings */}
-      {meetingsData && meetingsData.meetings.length > 0 && (
-        <UpcomingMeetingsCard meetings={meetingsData.meetings} />
-      )}
+      {/* Meetings & Tasks — Side by Side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Upcoming Meetings */}
+        <UpcomingMeetingsCard meetings={meetingsData?.meetings || []} />
+
+        {/* My Tasks */}
+        <MyTasksCard
+          myTasksData={myTasksData}
+          myTasksError={myTasksError}
+        />
+      </div>
 
       {/* My Active Stages Section */}
-      <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-lg border border-gray-200">
-        <div className="px-6 py-5 border-b border-gray-200 flex items-center justify-between bg-white rounded-t-2xl">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#a657f0] rounded-xl flex items-center justify-center">
-              <Layers3 className="w-5 h-5 text-white" />
+            <div className="w-9 h-9 bg-[#a657f0] rounded-lg flex items-center justify-center">
+              <Layers3 className="w-4.5 h-4.5 text-white" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">My Active Stages</h2>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <h2 className="text-base font-bold text-gray-900">My Active Stages</h2>
+              <p className="text-xs text-gray-500">
                 {tasksData?.tasks?.length || 0} active {tasksData?.tasks?.length === 1 ? 'stage' : 'stages'} assigned
               </p>
             </div>
@@ -286,44 +292,32 @@ export default function InteractiveDashboard({ user }: { user: any }) {
             variant="ghost"
             size="sm"
             onClick={() => setTasksCollapsed(!tasksCollapsed)}
-            className="h-9 px-3 hover:bg-[#a657f0]/10 transition-colors"
+            className="h-8 px-3 hover:bg-[#a657f0]/10 transition-colors text-sm"
           >
-            {tasksCollapsed ? (
-              <>
-                <span className="text-sm font-medium mr-2">Show</span>
-                <ChevronDown className="h-4 w-4" />
-              </>
-            ) : (
-              <>
-                <span className="text-sm font-medium mr-2">Hide</span>
-                <ChevronUp className="h-4 w-4" />
-              </>
-            )}
+            {tasksCollapsed ? 'Show' : 'Hide'}
+            {tasksCollapsed ? <ChevronDown className="h-4 w-4 ml-1" /> : <ChevronUp className="h-4 w-4 ml-1" />}
           </Button>
         </div>
         <div className={`transition-all duration-300 ease-in-out overflow-hidden ${
           tasksCollapsed ? 'max-h-0' : 'max-h-[2000px]'
         }`}>
-          <div className="p-6">
+          <div className="p-5">
           {isLoading ? (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {[1, 2, 3].map(i => (
                 <div key={i} className="animate-pulse">
-                  <div className="h-32 bg-gray-200 rounded-2xl"></div>
+                  <div className="h-12 bg-gray-100 rounded-lg"></div>
                 </div>
               ))}
             </div>
           ) : !tasksData?.tasks || tasksData.tasks.length === 0 ? (
-            <div className="text-center py-16 px-4">
-              <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <CheckCircle className="w-8 h-8 text-green-600" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">All caught up!</h3>
-              <p className="text-gray-600">No active stages assigned to you</p>
-              <p className="text-sm text-gray-500 mt-1">Great job staying on top of your work!</p>
+            <div className="text-center py-10 px-4">
+              <CheckCircle className="w-10 h-10 text-green-500 mx-auto mb-3" />
+              <h3 className="text-sm font-semibold text-gray-900 mb-1">All caught up!</h3>
+              <p className="text-xs text-gray-500">No active stages assigned to you</p>
             </div>
           ) : (
-            <div className="space-y-5">
+            <div className="space-y-4">
               {Object.entries(
                 tasksData.tasks.reduce((groups: Record<string, { projectName: string, clientName: string, tasks: Task[] }>, task) => {
                   if (!groups[task.projectId]) {
@@ -334,12 +328,12 @@ export default function InteractiveDashboard({ user }: { user: any }) {
                 }, {})
               ).map(([projectId, group]) => (
                 <div key={projectId}>
-                  <div className="flex items-center gap-2 mb-2 px-1">
-                    <div className="w-2 h-2 rounded-full bg-[#a657f0]" />
+                  <div className="flex items-center gap-2 mb-1.5 px-1">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#a657f0]" />
                     <h3 className="text-sm font-semibold text-gray-900">{group.projectName}</h3>
-                    <span className="text-xs text-gray-500">{group.clientName}</span>
+                    <span className="text-xs text-gray-400">{group.clientName}</span>
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
                     {group.tasks.map((task) => (
                       <TaskItem key={task.id} task={task} />
                     ))}
@@ -348,97 +342,6 @@ export default function InteractiveDashboard({ user }: { user: any }) {
               ))}
             </div>
           )}
-          </div>
-        </div>
-      </div>
-
-      {/* My Tasks Section */}
-      <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-lg border border-gray-200">
-        <div className="px-6 py-5 border-b border-gray-200 flex items-center justify-between bg-white rounded-t-2xl">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-rose-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg shadow-rose-500/20">
-              <CheckSquare className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">My Tasks</h2>
-              <p className="text-xs text-gray-500 mt-0.5">
-                {myTasksData?.tasks?.length || 0} active {myTasksData?.tasks?.length === 1 ? 'task' : 'tasks'} assigned to you
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/tasks?tab=assigned_to_me"
-              className="text-xs text-rose-600 hover:text-rose-700 font-medium hover:underline"
-            >
-              View All
-            </Link>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setMyTasksCollapsed(!myTasksCollapsed)}
-              className="h-9 px-3 hover:bg-rose-500/10 transition-colors"
-            >
-              {myTasksCollapsed ? (
-                <>
-                  <span className="text-sm font-medium mr-2">Show</span>
-                  <ChevronDown className="h-4 w-4" />
-                </>
-              ) : (
-                <>
-                  <span className="text-sm font-medium mr-2">Hide</span>
-                  <ChevronUp className="h-4 w-4" />
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-        <div className={`transition-all duration-300 ease-in-out overflow-hidden ${
-          myTasksCollapsed ? 'max-h-0' : 'max-h-[2000px]'
-        }`}>
-          <div className="p-6">
-            {!myTasksData && !myTasksError ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="animate-pulse">
-                    <div className="h-16 bg-gray-200 rounded-lg"></div>
-                  </div>
-                ))}
-              </div>
-            ) : !myTasksData?.tasks || myTasksData.tasks.length === 0 ? (
-              <div className="text-center py-16 px-4">
-                <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle className="w-8 h-8 text-green-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No open tasks!</h3>
-                <p className="text-gray-600">You don&apos;t have any tasks assigned right now</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {Object.entries(
-                  myTasksData.tasks.reduce((groups: Record<string, { projectName: string, tasks: MyTask[] }>, task) => {
-                    if (!groups[task.project.id]) {
-                      groups[task.project.id] = { projectName: task.project.name, tasks: [] }
-                    }
-                    groups[task.project.id].tasks.push(task)
-                    return groups
-                  }, {})
-                ).map(([projectId, group]) => (
-                  <div key={projectId}>
-                    <div className="flex items-center gap-2 mb-2 px-1">
-                      <div className="w-2 h-2 rounded-full bg-rose-500" />
-                      <h3 className="text-sm font-semibold text-gray-900">{group.projectName}</h3>
-                      <span className="text-xs text-gray-400">{group.tasks.length} {group.tasks.length === 1 ? 'task' : 'tasks'}</span>
-                    </div>
-                    <div className="space-y-1.5">
-                      {group.tasks.map((task) => (
-                        <MyTaskItem key={task.id} task={task} />
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -577,102 +480,6 @@ function TaskItem({ task }: { task: Task }) {
               </span>
             )}
 
-            <ChevronDown className="w-4 h-4 text-gray-400 rotate-[-90deg] opacity-0 group-hover:opacity-100 transition-opacity" />
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// My Task Item Component (for task management tasks)
-function MyTaskItem({ task }: { task: MyTask }) {
-  const isOverdue = task.dueDate ? new Date(task.dueDate) < new Date() : false
-  const isDueSoon = task.dueDate && !isOverdue &&
-    (new Date(task.dueDate).getTime() - new Date().getTime()) <= (3 * 24 * 60 * 60 * 1000)
-
-  const statusLabels: Record<string, { label: string, color: string }> = {
-    TODO: { label: 'To Do', color: 'bg-gray-100 text-gray-600' },
-    IN_PROGRESS: { label: 'In Progress', color: 'bg-blue-100 text-blue-700' },
-    REVIEW: { label: 'Review', color: 'bg-yellow-100 text-yellow-700' },
-  }
-
-  const priorityColors: Record<string, string> = {
-    URGENT: 'border-red-500',
-    HIGH: 'border-orange-500',
-    MEDIUM: 'border-gray-300',
-    LOW: 'border-green-400',
-    NORMAL: 'border-gray-300',
-  }
-
-  const statusInfo = statusLabels[task.status] || statusLabels.TODO
-  const subtaskTotal = task._count.subtasks
-  const subtaskDone = task.completedSubtasks
-
-  return (
-    <div
-      className={`group relative overflow-hidden rounded-lg cursor-pointer transition-all duration-200 ${
-        isOverdue
-          ? 'bg-red-50 hover:bg-red-100 border-l-4 border-red-500'
-          : isDueSoon
-          ? 'bg-amber-50 hover:bg-amber-100 border-l-4 border-amber-500'
-          : `bg-white hover:bg-gray-50 border-l-4 ${priorityColors[task.priority] || 'border-gray-300'} hover:border-rose-500`
-      } border border-gray-200 hover:border-gray-300 hover:shadow-md`}
-      onClick={() => window.location.href = `/tasks/${task.id}`}
-    >
-      <div className="px-4 py-3">
-        <div className="flex items-center gap-3">
-          {/* Main content */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <h3 className={`font-semibold text-sm truncate ${
-                isOverdue ? 'text-red-900' : isDueSoon ? 'text-amber-900' : 'text-gray-900'
-              }`}>{task.title}</h3>
-            </div>
-            <div className="flex items-center gap-2 mt-1">
-              <span className={`inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded ${statusInfo.color}`}>
-                {statusInfo.label}
-              </span>
-              {task.dueDate && (
-                <span className={`flex items-center gap-1 text-xs ${
-                  isOverdue ? 'text-red-600 font-medium' : isDueSoon ? 'text-amber-600 font-medium' : 'text-gray-500'
-                }`}>
-                  <Calendar className="w-3 h-3" />
-                  {formatDueDate(task.dueDate)}
-                </span>
-              )}
-              {subtaskTotal > 0 && (
-                <span className="flex items-center gap-1 text-xs text-gray-400">
-                  <CheckSquare className="w-3 h-3" />
-                  {subtaskDone}/{subtaskTotal}
-                </span>
-              )}
-              {task._count.comments > 0 && (
-                <span className="flex items-center gap-1 text-xs text-gray-400">
-                  <MessageSquare className="w-3 h-3" />
-                  {task._count.comments}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Right side badges */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {isOverdue && (
-              <span className="inline-flex items-center gap-1 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded">
-                OVERDUE
-              </span>
-            )}
-            {isDueSoon && !isOverdue && (
-              <span className="inline-flex items-center gap-1 bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded">
-                DUE SOON
-              </span>
-            )}
-            {task.priority === 'URGENT' && !isOverdue && !isDueSoon && (
-              <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 text-xs font-bold px-2 py-0.5 rounded">
-                URGENT
-              </span>
-            )}
             <ChevronDown className="w-4 h-4 text-gray-400 rotate-[-90deg] opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
         </div>
@@ -1193,129 +1000,228 @@ function UpcomingMeetingsCard({ meetings }: { meetings: UpcomingMeeting[] }) {
     }
   }
 
-  const nextMeeting = meetings[0]
-  const isToday = formatMeetingDate(nextMeeting.startTime) === 'Today'
-  const otherMeetings = meetings.slice(1)
+  const hasMeetings = meetings.length > 0
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-cyan-500 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/20">
-            <Calendar className="w-5 h-5 text-white" />
+      <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+            <Calendar className="w-4 h-4 text-white" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-gray-900">Upcoming Meetings</h2>
-            <p className="text-xs text-gray-500">{meetings.length} upcoming</p>
+            <h2 className="text-sm font-bold text-gray-900">Upcoming Meetings</h2>
+            <p className="text-[11px] text-gray-400">{meetings.length} upcoming</p>
           </div>
         </div>
         <Link
           href="/calendar"
-          className="text-xs text-cyan-600 hover:text-cyan-700 font-medium hover:underline"
+          className="text-xs text-blue-600 hover:text-blue-700 font-medium hover:underline"
         >
           View Calendar
         </Link>
       </div>
 
-      {/* Next Meeting — Featured */}
-      <div className={`px-6 py-5 ${isToday ? 'bg-cyan-50/50' : ''}`}>
-        <div className="flex items-start gap-4">
-          {/* Date badge */}
-          <div className={`flex-shrink-0 w-14 h-14 rounded-xl flex flex-col items-center justify-center ${
-            isToday ? 'bg-cyan-500 text-white' : 'bg-gray-100 text-gray-700'
-          }`}>
-            <span className="text-[10px] font-semibold uppercase leading-none">
-              {new Date(nextMeeting.startTime).toLocaleDateString('en-US', { month: 'short' })}
-            </span>
-            <span className="text-xl font-bold leading-tight">
-              {new Date(nextMeeting.startTime).getDate()}
-            </span>
-          </div>
-
-          {/* Meeting details */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              {isToday && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-cyan-700 bg-cyan-100 px-1.5 py-0.5 rounded uppercase tracking-wider">
-                  Today
-                </span>
-              )}
-              <span className="text-xs text-gray-500">{formatMeetingDate(nextMeeting.startTime)}</span>
-            </div>
-
-            <h3 className="text-base font-semibold text-gray-900 truncate">{nextMeeting.title}</h3>
-
-            <div className="flex items-center gap-3 mt-1.5 text-sm text-gray-500">
-              <span className="flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5" />
-                {formatTime(nextMeeting.startTime)} — {formatTime(nextMeeting.endTime)}
-              </span>
-              <span className="flex items-center gap-1">
-                {getLocationIcon(nextMeeting.locationType)}
-                <span className="truncate max-w-[120px]">{getLocationLabel(nextMeeting.locationType, nextMeeting.locationDetails)}</span>
-              </span>
-            </div>
-
-            <div className="flex items-center gap-3 mt-1.5">
-              {nextMeeting.project && (
-                <span className="text-xs text-gray-400">{nextMeeting.project.name}</span>
-              )}
-              <span className="flex items-center gap-1 text-xs text-gray-400">
-                <Users className="w-3 h-3" />
-                {nextMeeting.attendeeCount} attendee{nextMeeting.attendeeCount !== 1 ? 's' : ''}
-              </span>
-            </div>
-          </div>
-
-          {/* Join / Arrow */}
-          {nextMeeting.meetingLink && isToday ? (
-            <a
-              href={nextMeeting.meetingLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-shrink-0 inline-flex items-center gap-1.5 px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
-            >
-              <Video className="w-4 h-4" />
-              Join
-            </a>
-          ) : (
-            <Link href="/calendar" className="flex-shrink-0">
-              <ArrowRight className="w-5 h-5 text-gray-300 hover:text-gray-500 transition-colors" />
-            </Link>
-          )}
+      {!hasMeetings ? (
+        <div className="flex-1 flex flex-col items-center justify-center py-10 px-4">
+          <Calendar className="w-8 h-8 text-gray-300 mb-2" />
+          <p className="text-sm text-gray-500">No upcoming meetings</p>
         </div>
+      ) : (
+        <div className="flex-1">
+          {meetings.map((meeting, idx) => {
+            const isToday = formatMeetingDate(meeting.startTime) === 'Today'
+            return (
+              <div
+                key={meeting.id}
+                className={`flex items-center gap-3 px-5 py-3 transition-colors ${
+                  idx > 0 ? 'border-t border-gray-50' : ''
+                } ${isToday ? 'bg-blue-50/40' : 'hover:bg-gray-50/50'}`}
+              >
+                {/* Date badge */}
+                <div className={`flex-shrink-0 w-11 h-11 rounded-lg flex flex-col items-center justify-center ${
+                  isToday ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'
+                }`}>
+                  <span className="text-[9px] font-semibold uppercase leading-none">
+                    {new Date(meeting.startTime).toLocaleDateString('en-US', { month: 'short' })}
+                  </span>
+                  <span className="text-base font-bold leading-tight">
+                    {new Date(meeting.startTime).getDate()}
+                  </span>
+                </div>
+
+                {/* Details */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    {isToday && (
+                      <span className="text-[9px] font-bold text-blue-700 bg-blue-100 px-1 py-0.5 rounded uppercase tracking-wider">
+                        Today
+                      </span>
+                    )}
+                    <h3 className="text-sm font-semibold text-gray-900 truncate">{meeting.title}</h3>
+                  </div>
+                  <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-500">
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {formatTime(meeting.startTime)} — {formatTime(meeting.endTime)}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      {getLocationIcon(meeting.locationType)}
+                      <span className="truncate max-w-[100px]">{getLocationLabel(meeting.locationType, meeting.locationDetails)}</span>
+                    </span>
+                  </div>
+                  {meeting.project && (
+                    <p className="text-[11px] text-gray-400 mt-0.5 truncate">{meeting.project.name} · {meeting.attendeeCount} attendee{meeting.attendeeCount !== 1 ? 's' : ''}</p>
+                  )}
+                </div>
+
+                {/* Join / Arrow */}
+                {meeting.meetingLink && isToday ? (
+                  <a
+                    href={meeting.meetingLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-shrink-0 inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors"
+                  >
+                    <Video className="w-3.5 h-3.5" />
+                    Join
+                  </a>
+                ) : (
+                  <Link href="/calendar" className="flex-shrink-0">
+                    <ArrowRight className="w-4 h-4 text-gray-300 hover:text-gray-500 transition-colors" />
+                  </Link>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// My Tasks Card Component — compact, shows first task per project + count
+function MyTasksCard({ myTasksData, myTasksError }: {
+  myTasksData: { tasks: MyTask[] } | undefined
+  myTasksError: any
+}) {
+  const [expanded, setExpanded] = useState(false)
+
+  const statusLabels: Record<string, { label: string, color: string }> = {
+    TODO: { label: 'To Do', color: 'bg-gray-100 text-gray-600' },
+    IN_PROGRESS: { label: 'In Progress', color: 'bg-blue-100 text-blue-700' },
+    REVIEW: { label: 'Review', color: 'bg-yellow-100 text-yellow-700' },
+  }
+
+  const tasks = myTasksData?.tasks || []
+  const isLoading = !myTasksData && !myTasksError
+
+  // Group by project
+  const groups = tasks.reduce((acc: Record<string, { projectName: string, tasks: MyTask[] }>, task) => {
+    if (!acc[task.project.id]) {
+      acc[task.project.id] = { projectName: task.project.name, tasks: [] }
+    }
+    acc[task.project.id].tasks.push(task)
+    return acc
+  }, {})
+
+  // Collapsed view: show first 3 tasks total
+  const collapsedLimit = 3
+  const flatTasks = tasks
+  const visibleTasks = expanded ? flatTasks : flatTasks.slice(0, collapsedLimit)
+  const hiddenCount = flatTasks.length - collapsedLimit
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
+      {/* Header */}
+      <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 bg-rose-500 rounded-lg flex items-center justify-center">
+            <CheckSquare className="w-4 h-4 text-white" />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-gray-900">My Tasks</h2>
+            <p className="text-[11px] text-gray-400">{tasks.length} active {tasks.length === 1 ? 'task' : 'tasks'}</p>
+          </div>
+        </div>
+        <Link
+          href="/tasks?tab=assigned_to_me"
+          className="text-xs text-rose-600 hover:text-rose-700 font-medium hover:underline"
+        >
+          View All
+        </Link>
       </div>
 
-      {/* Other upcoming meetings */}
-      {otherMeetings.length > 0 && (
-        <div className="border-t border-gray-100">
-          {otherMeetings.map((meeting) => (
-            <div
-              key={meeting.id}
-              className="flex items-center gap-3 px-6 py-3 hover:bg-gray-50/50 transition-colors border-b border-gray-50 last:border-b-0"
-            >
-              <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gray-100 flex flex-col items-center justify-center">
-                <span className="text-[9px] font-medium text-gray-500 uppercase leading-none">
-                  {new Date(meeting.startTime).toLocaleDateString('en-US', { month: 'short' })}
-                </span>
-                <span className="text-sm font-bold text-gray-700 leading-tight">
-                  {new Date(meeting.startTime).getDate()}
-                </span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">{meeting.title}</p>
-                <p className="text-xs text-gray-400">
-                  {formatTime(meeting.startTime)} · {getLocationLabel(meeting.locationType, meeting.locationDetails)}
-                  {meeting.project ? ` · ${meeting.project.name}` : ''}
-                </p>
-              </div>
-              <span className="flex items-center gap-1 text-xs text-gray-400 flex-shrink-0">
-                <Users className="w-3 h-3" />
-                {meeting.attendeeCount}
-              </span>
+      {isLoading ? (
+        <div className="p-5 space-y-3">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="animate-pulse">
+              <div className="h-10 bg-gray-100 rounded-lg"></div>
             </div>
           ))}
+        </div>
+      ) : tasks.length === 0 ? (
+        <div className="flex-1 flex flex-col items-center justify-center py-10 px-4">
+          <CheckCircle className="w-8 h-8 text-green-500 mb-2" />
+          <p className="text-sm text-gray-500">No open tasks</p>
+        </div>
+      ) : (
+        <div className="flex-1">
+          {visibleTasks.map((task, idx) => {
+            const isOverdue = task.dueDate ? new Date(task.dueDate) < new Date() : false
+            const statusInfo = statusLabels[task.status] || statusLabels.TODO
+
+            return (
+              <div
+                key={task.id}
+                className={`flex items-center gap-3 px-5 py-2.5 cursor-pointer hover:bg-gray-50 transition-colors ${
+                  idx > 0 ? 'border-t border-gray-50' : ''
+                }`}
+                onClick={() => window.location.href = `/tasks/${task.id}`}
+              >
+                {/* Priority indicator */}
+                <div className={`w-1.5 h-8 rounded-full flex-shrink-0 ${
+                  task.priority === 'URGENT' ? 'bg-red-500' :
+                  task.priority === 'HIGH' ? 'bg-orange-400' :
+                  'bg-gray-200'
+                }`} />
+
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm font-medium text-gray-900 truncate">{task.title}</h3>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[10px] text-gray-400 truncate">{task.project.name}</span>
+                    <span className={`inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded ${statusInfo.color}`}>
+                      {statusInfo.label}
+                    </span>
+                    {task.dueDate && (
+                      <span className={`text-[10px] ${isOverdue ? 'text-red-600 font-medium' : 'text-gray-400'}`}>
+                        {formatDueDate(task.dueDate)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Arrow */}
+                <ArrowRight className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />
+              </div>
+            )
+          })}
+
+          {/* Show more / less */}
+          {hiddenCount > 0 && (
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="w-full px-5 py-2.5 border-t border-gray-100 text-xs font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-1"
+            >
+              {expanded ? (
+                <>Show less <ChevronUp className="w-3 h-3" /></>
+              ) : (
+                <>+{hiddenCount} more task{hiddenCount !== 1 ? 's' : ''} <ChevronDown className="w-3 h-3" /></>
+              )}
+            </button>
+          )}
         </div>
       )}
     </div>

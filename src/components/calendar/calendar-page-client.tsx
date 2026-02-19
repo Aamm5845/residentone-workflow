@@ -206,6 +206,7 @@ export default function CalendarPageClient({
   }, [])
 
   // Transform projects into calendar tasks
+  // Only show items with a due date on the calendar (no start dates)
   const allTasks = useMemo(() => {
     const tasks: CalendarTask[] = []
 
@@ -215,29 +216,11 @@ export default function CalendarPageClient({
           const phaseTitle = stage.type === 'THREE_D' ? '3D Rendering' :
                             stage.type.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
 
-          // Add start date entry if exists
-          if (stage.startDate && stage.status !== 'COMPLETED') {
-            tasks.push({
-              id: `${stage.id}-start`,
-              title: `${phaseTitle} Start - ${room.name || room.type.replace('_', ' ')}`,
-              projectName: project.name,
-              clientName: project.client.name,
-              dueDate: new Date(stage.startDate).toISOString(),
-              status: stage.status,
-              type: 'stage' as const,
-              stageType: stage.type,
-              assignedUser: stage.assignedUser ? {
-                id: stage.assignedUser.id,
-                name: stage.assignedUser.name || 'Unknown'
-              } : undefined
-            })
-          }
-
-          // Add due date entry if exists
+          // Only show stages with a due date
           if (stage.dueDate && stage.status !== 'COMPLETED') {
             tasks.push({
               id: stage.id,
-              title: `${phaseTitle} - ${room.name || room.type.replace('_', ' ')}`,
+              title: `${phaseTitle} Due — ${room.name || room.type.replace('_', ' ')}`,
               projectName: project.name,
               clientName: project.client.name,
               dueDate: new Date(stage.dueDate).toISOString(),
@@ -252,19 +235,7 @@ export default function CalendarPageClient({
           }
         })
 
-        // Add room-level dates
-        if (room.startDate) {
-          tasks.push({
-            id: `${room.id}-room-start`,
-            title: `Room Start: ${room.name || room.type.replace('_', ' ')}`,
-            projectName: project.name,
-            clientName: project.client.name,
-            dueDate: new Date(room.startDate).toISOString(),
-            status: 'PENDING',
-            type: 'stage' as const,
-            stageType: 'ROOM_START'
-          })
-        }
+        // Only show room due dates (not start dates)
         if (room.dueDate) {
           tasks.push({
             id: `${room.id}-room-due`,
@@ -280,27 +251,12 @@ export default function CalendarPageClient({
       })
     })
 
-    // Add user tasks with dates
+    // Only show user tasks with a due date
     taskItems.forEach(task => {
-      if (task.startDate) {
-        tasks.push({
-          id: `task-${task.id}-start`,
-          title: `Task Start: ${task.title}`,
-          projectName: task.project.name,
-          dueDate: task.startDate,
-          status: task.status,
-          type: 'task' as const,
-          stageType: 'TASK',
-          assignedUser: task.assignedTo ? {
-            id: task.assignedTo.id,
-            name: task.assignedTo.name || 'Unknown'
-          } : undefined
-        })
-      }
       if (task.dueDate) {
         tasks.push({
           id: `task-${task.id}-due`,
-          title: `Task Due: ${task.title}`,
+          title: task.title,
           projectName: task.project.name,
           dueDate: task.dueDate,
           status: task.status,
@@ -327,7 +283,7 @@ export default function CalendarPageClient({
 
     // Filter by selected phases
     tasks = tasks.filter(task => {
-      if (task.stageType === 'ROOM_START' || task.stageType === 'ROOM_DUE') return true
+      if (task.stageType === 'ROOM_DUE') return true
       return selectedPhases.includes(task.stageType || '')
     })
 
@@ -528,7 +484,6 @@ export default function CalendarPageClient({
     'CLIENT_APPROVAL': { color: 'bg-slate-400', bgColor: 'bg-slate-50', icon: CheckCircle, label: 'Approval' },
     'DRAWINGS': { color: 'bg-slate-400', bgColor: 'bg-slate-50', icon: FileText, label: 'Drawings' },
     'FFE': { color: 'bg-slate-400', bgColor: 'bg-slate-50', icon: Package, label: 'FFE' },
-    'ROOM_START': { color: 'bg-slate-300', bgColor: 'bg-slate-50', icon: Calendar, label: 'Room Start' },
     'ROOM_DUE': { color: 'bg-slate-300', bgColor: 'bg-slate-50', icon: Calendar, label: 'Room Due' },
     'TASK': { color: 'bg-slate-500', bgColor: 'bg-slate-50', icon: CheckSquare, label: 'Tasks' }
   }
@@ -752,15 +707,11 @@ export default function CalendarPageClient({
                       {tasksForDay.slice(0, maxTaskSlots).map((task) => {
                         // Build the correct link
                         let taskLink = `/stages/${task.id}`
-                        if (task.id.includes('-room-start') || task.id.includes('-room-due')) {
+                        if (task.id.includes('-room-due')) {
                           taskLink = '#'
                         } else if (task.type === 'task') {
-                          // Task items have IDs like "task-{actualId}-start" or "task-{actualId}-due"
-                          const actualId = task.id.replace(/^task-/, '').replace(/-(start|due)$/, '')
+                          const actualId = task.id.replace(/^task-/, '').replace(/-due$/, '')
                           taskLink = `/tasks/${actualId}`
-                        } else if (task.id.includes('-start')) {
-                          const stageId = task.id.replace('-start', '')
-                          taskLink = `/stages/${stageId}`
                         }
 
                         const PhaseIcon = getPhaseIcon(task.stageType)
@@ -1008,14 +959,11 @@ export default function CalendarPageClient({
                 <div className="space-y-1.5">
                   {dayTasks.map(task => {
                     let taskLink = `/stages/${task.id}`
-                    if (task.id.includes('-room-start') || task.id.includes('-room-due')) {
+                    if (task.id.includes('-room-due')) {
                       taskLink = '#'
                     } else if (task.type === 'task') {
-                      const actualId = task.id.replace(/^task-/, '').replace(/-(start|due)$/, '')
+                      const actualId = task.id.replace(/^task-/, '').replace(/-due$/, '')
                       taskLink = `/tasks/${actualId}`
-                    } else if (task.id.includes('-start')) {
-                      const stageId = task.id.replace('-start', '')
-                      taskLink = `/stages/${stageId}`
                     }
 
                     const PhaseIcon = getPhaseIcon(task.stageType)
