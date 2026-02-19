@@ -25,6 +25,7 @@ export async function POST(
       select: {
         id: true,
         name: true,
+        dropboxFolder: true,
         organization: {
           select: {
             name: true,
@@ -98,33 +99,27 @@ export async function POST(
       )
     }
 
-    // Debug: log all drawing paths to understand what data we have
-    console.log(`[transmittal/send] ===== ATTACHMENT DEBUG =====`)
+    // Build absolute Dropbox paths (same pattern as pdf-thumbnail route)
+    // drawing.dropboxPath is RELATIVE (e.g. "4- drawings/file.pdf")
+    // We need: project.dropboxFolder + "/" + relativePath (absolute path for Dropbox API)
+    const dropboxFolder = project.dropboxFolder
+    console.log(`[transmittal/send] Project dropboxFolder: ${JSON.stringify(dropboxFolder)}`)
     console.log(`[transmittal/send] Transmittal has ${transmittal.items.length} items`)
-    for (const item of transmittal.items) {
-      console.log(`[transmittal/send] Item: ${item.drawing.drawingNumber} "${item.drawing.title}"`)
-      console.log(`[transmittal/send]   drawing.dropboxPath = ${JSON.stringify(item.drawing.dropboxPath)}`)
-      console.log(`[transmittal/send]   drawing.dropboxUrl  = ${JSON.stringify(item.drawing.dropboxUrl)}`)
-      console.log(`[transmittal/send]   revision = ${item.revision ? 'EXISTS' : 'NULL'}`)
-      if (item.revision) {
-        console.log(`[transmittal/send]   revision.dropboxPath = ${JSON.stringify(item.revision.dropboxPath)}`)
-        console.log(`[transmittal/send]   revision.dropboxUrl  = ${JSON.stringify(item.revision.dropboxUrl)}`)
-      }
-    }
 
     // Download PDF attachments from Dropbox and convert to base64 (same format as floorplan approval emails)
     const attachments: Array<{ filename: string; content: string; contentType: string }> = []
     const attachmentErrors: string[] = []
 
     for (const item of transmittal.items) {
-      // Try dropboxPath from revision first, then from drawing
-      const dbxPath = item.revision?.dropboxPath || item.drawing.dropboxPath
+      // Get relative path from revision first, then from drawing
+      const relativePath = item.revision?.dropboxPath || item.drawing.dropboxPath
 
-      if (dbxPath) {
+      if (relativePath && dropboxFolder) {
+        // Build absolute path exactly like pdf-thumbnail does
+        const absolutePath = dropboxFolder + '/' + relativePath
         try {
-          console.log(`[transmittal/send] Downloading via Dropbox API: ${item.drawing.drawingNumber} → "${dbxPath}"`)
-          const pdfBuffer = await dropboxService.downloadFile(dbxPath)
-          console.log(`[transmittal/send] Downloaded buffer: ${pdfBuffer.length} bytes, isBuffer: ${Buffer.isBuffer(pdfBuffer)}`)
+          console.log(`[transmittal/send] Downloading: ${item.drawing.drawingNumber} → "${absolutePath}"`)
+          const pdfBuffer = await dropboxService.downloadFile(absolutePath)
 
           const base64Content = Buffer.from(pdfBuffer).toString('base64')
           const filename = item.drawing.drawingNumber
@@ -135,20 +130,24 @@ export async function POST(
             content: base64Content,
             contentType: 'application/pdf'
           })
-          console.log(`[transmittal/send] ✅ Attached: ${filename} (${pdfBuffer.length} bytes, base64: ${base64Content.length} chars)`)
+          console.log(`[transmittal/send] ✅ Attached: ${filename} (${pdfBuffer.length} bytes)`)
         } catch (err: any) {
-          const errMsg = `Failed to download ${item.drawing.drawingNumber} from "${dbxPath}": ${err?.message || err}`
+          const errMsg = `Failed to download ${item.drawing.drawingNumber} from "${absolutePath}": ${err?.message || err}`
           console.error(`[transmittal/send] ❌ ${errMsg}`)
           attachmentErrors.push(errMsg)
         }
-      } else {
-        const msg = `Drawing ${item.drawing.drawingNumber} "${item.drawing.title}" has NO dropboxPath (revision.dropboxPath=${JSON.stringify(item.revision?.dropboxPath)}, drawing.dropboxPath=${JSON.stringify(item.drawing.dropboxPath)})`
+      } else if (!relativePath) {
+        const msg = `Drawing ${item.drawing.drawingNumber} has no dropboxPath`
+        console.warn(`[transmittal/send] ⚠️ ${msg}`)
+        attachmentErrors.push(msg)
+      } else if (!dropboxFolder) {
+        const msg = `Project has no dropboxFolder configured — cannot resolve Dropbox path`
         console.warn(`[transmittal/send] ⚠️ ${msg}`)
         attachmentErrors.push(msg)
       }
     }
 
-    console.log(`[transmittal/send] ===== RESULT: ${attachments.length} attachments ready, ${attachmentErrors.length} errors =====`)
+    console.log(`[transmittal/send] Result: ${attachments.length} attachments ready, ${attachmentErrors.length} errors`)
 
     // Build org info
     const org = project.organization
@@ -323,18 +322,7 @@ export async function POST(
       transmittal: updatedTransmittal,
       emailId: emailResult.messageId,
       attachedFiles: attachments.length,
-      debug: {
-        totalItems: transmittal.items.length,
-        attachmentsReady: attachments.length,
-        attachmentFilenames: attachments.map(a => a.filename),
-        errors: attachmentErrors.length > 0 ? attachmentErrors : undefined,
-        itemPaths: transmittal.items.map(item => ({
-          drawingNumber: item.drawing.drawingNumber,
-          revisionDropboxPath: item.revision?.dropboxPath || null,
-          drawingDropboxPath: item.drawing.dropboxPath || null,
-          resolvedPath: item.revision?.dropboxPath || item.drawing.dropboxPath || 'NONE'
-        }))
-      }
+      attachmentErrors: attachmentErrors.length > 0 ? attachmentErrors : undefined
     })
   } catch (error) {
     console.error('[project-files-v2/transmittals/send] Error sending transmittal:', error)
