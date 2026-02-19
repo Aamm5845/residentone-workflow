@@ -58,12 +58,6 @@ export async function GET(
       return buildHtmlResponse('Meeting Cancelled', `"${attendee.meeting.title}" has been cancelled.`, 'warning')
     }
 
-    // Update the attendee status
-    await prisma.meetingAttendee.update({
-      where: { id: token },
-      data: { status: action as 'ACCEPTED' | 'DECLINED' },
-    })
-
     const attendeeName = attendee.user?.name
       || attendee.client?.name
       || attendee.contractor?.contactName
@@ -77,6 +71,30 @@ export async function GET(
       month: 'long',
       day: 'numeric',
       timeZone: 'America/Toronto',
+    })
+
+    // Check if the attendee has already responded
+    if (attendee.status === 'ACCEPTED' || attendee.status === 'DECLINED') {
+      // Already responded — show a status page without changing anything
+      if (attendee.status === 'ACCEPTED') {
+        return buildHtmlResponse(
+          'Already Confirmed',
+          `Hi ${attendeeName}! You've already confirmed your attendance for "${attendee.meeting.title}" on ${meetingDate}. No further action is needed.`,
+          'already_confirmed'
+        )
+      } else {
+        return buildHtmlResponse(
+          'Already Declined',
+          `Hi ${attendeeName}. You've already declined the meeting "${attendee.meeting.title}" on ${meetingDate}. The organizer was notified.`,
+          'already_declined'
+        )
+      }
+    }
+
+    // Update the attendee status (only if currently PENDING)
+    await prisma.meetingAttendee.update({
+      where: { id: token },
+      data: { status: action as 'ACCEPTED' | 'DECLINED' },
     })
 
     // Notify the organizer about the RSVP (fire-and-forget)
@@ -114,12 +132,14 @@ export async function GET(
   }
 }
 
-function buildHtmlResponse(title: string, message: string, type: 'success' | 'declined' | 'warning' | 'error') {
+function buildHtmlResponse(title: string, message: string, type: 'success' | 'declined' | 'warning' | 'error' | 'already_confirmed' | 'already_declined') {
   const colors = {
     success: { bg: '#f0fdf4', border: '#86efac', icon: '✅', accent: '#166534' },
     declined: { bg: '#fef2f2', border: '#fca5a5', icon: '❌', accent: '#991b1b' },
     warning: { bg: '#fffbeb', border: '#fcd34d', icon: '⚠️', accent: '#92400e' },
     error: { bg: '#fef2f2', border: '#fca5a5', icon: '❌', accent: '#991b1b' },
+    already_confirmed: { bg: '#eff6ff', border: '#93c5fd', icon: '✅', accent: '#1e40af' },
+    already_declined: { bg: '#fef2f2', border: '#fca5a5', icon: '❌', accent: '#991b1b' },
   }
   const c = colors[type]
 

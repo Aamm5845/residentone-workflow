@@ -344,32 +344,19 @@ export default function MessagingWorkspace() {
     }
   }, [])
 
-  // Mark related notifications as read when opening a conversation
-  const markConversationNotificationsRead = useCallback(async (conversation: ActiveConversation) => {
+  // Mark all message-related notifications as read when user opens any conversation
+  // The user is actively in the Messages page, so clear all message/mention badges
+  const markConversationNotificationsRead = useCallback(async () => {
     if (!notifications || notifications.length === 0) return
 
-    const unreadNotifications = notifications.filter(n =>
+    const unreadMessageNotifications = notifications.filter(n =>
       !n.read && (n.type === 'MENTION' || n.type === 'CHAT_MESSAGE')
     )
-    if (unreadNotifications.length === 0) return
 
-    let idsToMark: string[] = []
+    if (unreadMessageNotifications.length === 0) return
 
-    if (conversation.type === 'phase' && conversation.id) {
-      // Mark notifications related to this stage (mentions in phase chat)
-      idsToMark = unreadNotifications
-        .filter(n => n.relatedId === conversation.id && n.relatedType === 'STAGE')
-        .map(n => n.id)
-    } else if (conversation.type === 'general') {
-      // Mark all MESSAGE notifications and general chat MENTION notifications as read
-      idsToMark = unreadNotifications
-        .filter(n => n.relatedType === 'MESSAGE')
-        .map(n => n.id)
-    }
-
-    if (idsToMark.length > 0) {
-      await markAsRead(idsToMark)
-    }
+    const idsToMark = unreadMessageNotifications.map(n => n.id)
+    await markAsRead(idsToMark)
   }, [notifications, markAsRead])
 
   // Load conversations on mount
@@ -389,8 +376,8 @@ export default function MessagingWorkspace() {
       loadSupplierMessages(activeConversation.id)
     }
 
-    // Mark related notifications as read
-    markConversationNotificationsRead(activeConversation)
+    // Mark all message/mention notifications as read since user is in Messages page
+    markConversationNotificationsRead()
   }, [activeConversation, loadGeneralChat, loadUserMessages, loadPhaseMessages, loadSupplierMessages, markConversationNotificationsRead])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
