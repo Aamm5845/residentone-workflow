@@ -144,6 +144,7 @@ interface DrawingRegisterTableProps {
   onEditDrawing: (drawing: Drawing) => void
   onNewRevision: (drawing: Drawing) => void
   onAddToTransmittal: (drawing: Drawing) => void
+  onArchiveDrawing: (drawing: Drawing) => void
   selectedDrawingId?: string | null
 }
 
@@ -231,6 +232,7 @@ export default function DrawingRegisterTable({
   onEditDrawing,
   onNewRevision,
   onAddToTransmittal,
+  onArchiveDrawing,
   selectedDrawingId,
 }: DrawingRegisterTableProps) {
   const [sortColumn, setSortColumn] = useState<SortColumn>('drawingNumber')
@@ -527,7 +529,10 @@ export default function DrawingRegisterTable({
 
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onArchiveDrawing(drawing)
+                        }}
                         className="text-red-600 focus:text-red-600 focus:bg-red-50"
                       >
                         <Archive className="mr-2 h-4 w-4" />

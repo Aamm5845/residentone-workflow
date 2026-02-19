@@ -174,9 +174,10 @@ export default function PdfViewer({
 }: PdfViewerProps) {
   const [numPages, setNumPages] = useState<number>(0)
   const [pageNumber, setPageNumber] = useState(1)
-  const [zoom, setZoom] = useState(1)
+  const [zoom, setZoom] = useState(0.75)
   const [rotation, setRotation] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [isLandscapePage, setIsLandscapePage] = useState(false)
   const [showProperties, setShowProperties] = useState(true)
   const [showSidebar, setShowSidebar] = useState(true)
   const [sidebarSearch, setSidebarSearch] = useState('')
@@ -210,10 +211,11 @@ export default function PdfViewer({
   // Reset state when file changes
   useEffect(() => {
     setPageNumber(1)
-    setZoom(1)
+    setZoom(0.75)
     setRotation(0)
     setLoading(true)
     setNumPages(0)
+    setIsLandscapePage(false)
   }, [file.id])
 
   // Close dropdown on outside click
@@ -249,22 +251,20 @@ export default function PdfViewer({
     setNumPages(pdf.numPages)
     setLoading(false)
 
-    // Auto-detect landscape orientation from first page
+    // Detect page dimensions for smart initial zoom
     try {
       const page = await pdf.getPage(1)
       const viewport = page.getViewport({ scale: 1 })
-      if (viewport.width > viewport.height) {
-        // Landscape page — auto-rotate so it displays properly
-        setRotation(90)
-      }
+      // Store whether page is landscape so we can adjust zoom
+      setIsLandscapePage(viewport.width > viewport.height)
     } catch {
-      // Ignore errors in page dimension detection
+      // Ignore errors
     }
   }, [])
 
   const handleZoomIn = () => setZoom((z) => Math.min(z + 0.25, 4))
   const handleZoomOut = () => setZoom((z) => Math.max(z - 0.25, 0.25))
-  const resetZoom = () => setZoom(1)
+  const resetZoom = () => setZoom(0.75)
   const rotate = () => setRotation((r) => (r + 90) % 360)
 
   const handlePrint = () => {

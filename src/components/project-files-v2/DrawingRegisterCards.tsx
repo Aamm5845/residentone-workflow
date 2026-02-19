@@ -155,6 +155,7 @@ interface DrawingRegisterCardsProps {
   onEditDrawing: (drawing: Drawing) => void
   onNewRevision: (drawing: Drawing) => void
   onAddToTransmittal: (drawing: Drawing) => void
+  onArchiveDrawing: (drawing: Drawing) => void
   selectedDrawingId?: string | null
 }
 
@@ -186,6 +187,7 @@ export default function DrawingRegisterCards({
   onEditDrawing,
   onNewRevision,
   onAddToTransmittal,
+  onArchiveDrawing,
   selectedDrawingId,
 }: DrawingRegisterCardsProps) {
   // Track which discipline groups are expanded (all expanded by default)
@@ -333,6 +335,7 @@ export default function DrawingRegisterCards({
                     onEdit={() => onEditDrawing(drawing)}
                     onNewRevision={() => onNewRevision(drawing)}
                     onAddToTransmittal={() => onAddToTransmittal(drawing)}
+                    onArchive={() => onArchiveDrawing(drawing)}
                   />
                 ))}
               </div>
@@ -355,6 +358,7 @@ interface DrawingCardProps {
   onEdit: () => void
   onNewRevision: () => void
   onAddToTransmittal: () => void
+  onArchive: () => void
 }
 
 function DrawingCard({
@@ -366,6 +370,7 @@ function DrawingCard({
   onEdit,
   onNewRevision,
   onAddToTransmittal,
+  onArchive,
 }: DrawingCardProps) {
   const status = STATUS_CONFIG[drawing.status]
   const typeLabel = DRAWING_TYPE_LABELS[drawing.drawingType] ?? drawing.drawingType
@@ -503,7 +508,10 @@ function DrawingCard({
 
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onArchive()
+                }}
                 className="text-red-600 focus:text-red-600 focus:bg-red-50"
               >
                 <Archive className="mr-2 h-4 w-4" />

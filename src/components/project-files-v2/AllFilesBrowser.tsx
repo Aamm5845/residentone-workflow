@@ -6,6 +6,7 @@ import useSWR from 'swr'
 import { Button } from '@/components/ui/button'
 
 const PdfViewer = dynamic(() => import('./PdfViewer'), { ssr: false })
+const PdfThumbnail = dynamic(() => import('./PdfThumbnail'), { ssr: false })
 import {
   ChevronRight,
   FolderOpen,
@@ -843,7 +844,7 @@ function DrawingCard({ file, projectId, onDownload, onFileClick }: { file: Dropb
         <p className="text-[10px] text-gray-500 truncate leading-tight mt-0.5">{drawingTitle}</p>
       </div>
 
-      {/* Thumbnail preview — server-rendered PNG */}
+      {/* Thumbnail preview — server-rendered PNG with client-side fallback */}
       <button
         onClick={() => onFileClick(file)}
         className="relative w-full aspect-[4/3] bg-gray-50 overflow-hidden"
@@ -864,6 +865,9 @@ function DrawingCard({ file, projectId, onDownload, onFileClick }: { file: Dropb
               onError={() => setImgError(true)}
             />
           </>
+        ) : file.thumbnailUrl ? (
+          /* Client-side fallback using react-pdf via the Dropbox temp link */
+          <PdfThumbnail url={file.thumbnailUrl} className="w-full h-full" />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50">
             <FileText className="w-10 h-10 text-gray-300" />

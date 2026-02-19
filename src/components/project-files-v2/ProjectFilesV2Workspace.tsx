@@ -172,6 +172,22 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
     mutateFloors()
   }, [mutateDrawings, mutateFloors])
 
+  // Archive a drawing (soft delete via API)
+  const handleArchiveDrawing = useCallback(async (drawing: any) => {
+    if (!confirm(`Archive "${drawing.drawingNumber} — ${drawing.title}"? This will set the drawing status to Archived.`)) return
+    try {
+      const res = await fetch(`/api/projects/${project.id}/project-files-v2/drawings/${drawing.id}`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) throw new Error('Failed to archive')
+      refreshAll()
+      if (selectedDrawingId === drawing.id) setSelectedDrawingId(null)
+    } catch (err) {
+      console.error('Archive error:', err)
+      alert('Failed to archive drawing. Please try again.')
+    }
+  }, [project.id, refreshAll, selectedDrawingId])
+
   // ===================================================================
   // RENDER
   // ===================================================================
@@ -385,6 +401,7 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
                       setTransmittalPreSelectedDrawings([d])
                       setShowNewTransmittal(true)
                     }}
+                    onArchiveDrawing={handleArchiveDrawing}
                     selectedDrawingId={selectedDrawingId}
                   />
                 ) : (
@@ -398,6 +415,7 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
                       setTransmittalPreSelectedDrawings([d])
                       setShowNewTransmittal(true)
                     }}
+                    onArchiveDrawing={handleArchiveDrawing}
                     selectedDrawingId={selectedDrawingId}
                   />
                 )}
