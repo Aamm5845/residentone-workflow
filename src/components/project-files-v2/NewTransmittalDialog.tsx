@@ -64,7 +64,7 @@ interface Drawing {
   id: string
   drawingNumber: string
   title: string
-  discipline: string
+  discipline: string | null
   currentRevision: number
   floor: { id: string; name: string; shortName: string } | null
   cadSourceLink?: {
@@ -508,7 +508,7 @@ export default function NewTransmittalDialog({
               ) : (
                 filteredDrawings.map((drawing) => {
                   const isSelected = selectedDrawings.has(drawing.id)
-                  const disc = DISCIPLINE_COLORS[drawing.discipline]
+                  const disc = drawing.discipline ? DISCIPLINE_COLORS[drawing.discipline] : null
                   const config = drawingConfigs[drawing.id]
 
                   return (
@@ -532,7 +532,7 @@ export default function NewTransmittalDialog({
                         <span className="flex-1 text-sm text-gray-700 truncate min-w-0">
                           {drawing.title}
                         </span>
-                        {disc && (
+                        {disc && drawing.discipline && (
                           <span
                             className={cn(
                               'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium shrink-0',

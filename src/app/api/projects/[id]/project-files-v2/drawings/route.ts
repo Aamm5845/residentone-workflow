@@ -198,9 +198,9 @@ export async function POST(
       paperSize
     } = body
 
-    if (!drawingNumber || !title || !discipline || !drawingType) {
+    if (!drawingNumber || !title) {
       return NextResponse.json(
-        { error: 'drawingNumber, title, discipline, and drawingType are required' },
+        { error: 'drawingNumber and title are required' },
         { status: 400 }
       )
     }
@@ -212,8 +212,8 @@ export async function POST(
           projectId: id,
           drawingNumber,
           title,
-          discipline,
-          drawingType,
+          discipline: discipline || null,
+          drawingType: drawingType || null,
           floorId: floorId || null,
           description: description || null,
           dropboxPath: dropboxPath || null,

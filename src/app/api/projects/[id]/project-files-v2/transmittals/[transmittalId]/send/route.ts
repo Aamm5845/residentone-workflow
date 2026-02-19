@@ -90,7 +90,7 @@ export async function POST(
         return '<tr>' +
           '<td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px;">' + item.drawing.drawingNumber + '</td>' +
           '<td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px;">' + item.drawing.title + '</td>' +
-          '<td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px;">' + item.drawing.discipline.replace(/_/g, ' ') + '</td>' +
+          '<td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px;">' + (item.drawing.discipline ? item.drawing.discipline.replace(/_/g, ' ') : '-') + '</td>' +
           '<td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px; text-align: center;">' + rev + '</td>' +
           '<td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px;">' + (item.purpose || '-') + '</td>' +
           '<td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px; text-align: center;">' + linkCell + '</td>' +

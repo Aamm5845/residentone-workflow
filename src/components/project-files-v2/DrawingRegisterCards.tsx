@@ -123,8 +123,8 @@ interface Drawing {
   id: string
   drawingNumber: string
   title: string
-  discipline: string
-  drawingType: string
+  discipline: string | null
+  drawingType: string | null
   status: string
   currentRevision: number
   description: string | null
@@ -199,7 +199,7 @@ export default function DrawingRegisterCards({
     const groupMap = new Map<string, Drawing[]>()
 
     for (const drawing of drawings) {
-      const key = drawing.discipline
+      const key = drawing.discipline || '_UNCATEGORIZED'
       if (!groupMap.has(key)) {
         groupMap.set(key, [])
       }
@@ -227,13 +227,13 @@ export default function DrawingRegisterCards({
       }
     }
 
-    // Any remaining disciplines not in the predefined order
+    // Any remaining disciplines not in the predefined order (including uncategorized)
     Array.from(groupMap.entries()).forEach(([disciplineKey, groupDrawings]) => {
       if (groupDrawings.length > 0) {
         result.push({
           key: disciplineKey,
           config: DISCIPLINE_CONFIG[disciplineKey] ?? null,
-          label: DISCIPLINE_CONFIG[disciplineKey]?.label ?? disciplineKey,
+          label: disciplineKey === '_UNCATEGORIZED' ? 'Uncategorized' : (DISCIPLINE_CONFIG[disciplineKey]?.label ?? disciplineKey),
           drawings: groupDrawings,
         })
       }
@@ -373,7 +373,7 @@ function DrawingCard({
   onArchive,
 }: DrawingCardProps) {
   const status = STATUS_CONFIG[drawing.status]
-  const typeLabel = DRAWING_TYPE_LABELS[drawing.drawingType] ?? drawing.drawingType
+  const typeLabel = drawing.drawingType ? (DRAWING_TYPE_LABELS[drawing.drawingType] ?? drawing.drawingType) : null
   const barColor = disciplineConfig?.color ?? 'bg-gray-400'
 
   return (
@@ -414,9 +414,11 @@ function DrawingCard({
           )}
 
           {/* Type chip */}
-          <span className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-            {typeLabel}
-          </span>
+          {typeLabel && (
+            <span className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+              {typeLabel}
+            </span>
+          )}
 
           {/* Rev chip */}
           <span className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">

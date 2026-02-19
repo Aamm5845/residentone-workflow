@@ -51,8 +51,8 @@ interface DrawingDetail {
   id: string
   drawingNumber: string
   title: string
-  discipline: string
-  drawingType: string
+  discipline: string | null
+  drawingType: string | null
   status: string
   currentRevision: number
   description: string | null
@@ -229,7 +229,7 @@ export default function DrawingDetailPanel({
   }, [])
 
   const drawing = data
-  const discipline = drawing ? DISCIPLINE_CONFIG[drawing.discipline] : null
+  const discipline = drawing?.discipline ? DISCIPLINE_CONFIG[drawing.discipline] : null
   const statusStyle = drawing ? getStatusStyle(drawing.status) : null
 
   return (
@@ -322,7 +322,7 @@ export default function DrawingDetailPanel({
                   <InfoCard
                     icon={<Layers className="w-3.5 h-3.5" />}
                     label="Type"
-                    value={DRAWING_TYPE_LABELS[drawing.drawingType] || drawing.drawingType}
+                    value={drawing.drawingType ? (DRAWING_TYPE_LABELS[drawing.drawingType] || drawing.drawingType) : 'N/A'}
                   />
                   <InfoCard
                     icon={<FileText className="w-3.5 h-3.5" />}

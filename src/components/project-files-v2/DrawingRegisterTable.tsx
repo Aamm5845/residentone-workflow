@@ -112,8 +112,8 @@ interface Drawing {
   id: string
   drawingNumber: string
   title: string
-  discipline: string
-  drawingType: string
+  discipline: string | null
+  drawingType: string | null
   status: string
   currentRevision: number
   description: string | null
@@ -170,11 +170,11 @@ function getSortValue(drawing: Drawing, column: SortColumn): string | number {
     case 'title':
       return drawing.title.toLowerCase()
     case 'discipline':
-      return (DISCIPLINE_CONFIG[drawing.discipline]?.label ?? drawing.discipline).toLowerCase()
+      return drawing.discipline ? (DISCIPLINE_CONFIG[drawing.discipline]?.label ?? drawing.discipline).toLowerCase() : 'zzz'
     case 'floor':
       return (drawing.floor?.shortName ?? '').toLowerCase()
     case 'drawingType':
-      return (DRAWING_TYPE_LABELS[drawing.drawingType] ?? drawing.drawingType).toLowerCase()
+      return drawing.drawingType ? (DRAWING_TYPE_LABELS[drawing.drawingType] ?? drawing.drawingType).toLowerCase() : 'zzz'
     case 'currentRevision':
       return drawing.currentRevision
     case 'status':
@@ -333,9 +333,9 @@ export default function DrawingRegisterTable({
         {/* ── Body ────────────────────────────────────────────────────── */}
         <tbody className="divide-y divide-gray-100">
           {sortedDrawings.map((drawing) => {
-            const discipline = DISCIPLINE_CONFIG[drawing.discipline]
+            const discipline = drawing.discipline ? DISCIPLINE_CONFIG[drawing.discipline] : null
             const status = STATUS_CONFIG[drawing.status]
-            const typeLabel = DRAWING_TYPE_LABELS[drawing.drawingType] ?? drawing.drawingType
+            const typeLabel = drawing.drawingType ? (DRAWING_TYPE_LABELS[drawing.drawingType] ?? drawing.drawingType) : null
             const isSelected = selectedDrawingId === drawing.id
 
             return (
@@ -397,7 +397,7 @@ export default function DrawingRegisterTable({
                       {discipline.shortLabel}
                     </span>
                   ) : (
-                    <span className="text-xs text-gray-400">{drawing.discipline}</span>
+                    <span className="text-gray-300">&mdash;</span>
                   )}
                 </td>
 
@@ -414,7 +414,11 @@ export default function DrawingRegisterTable({
 
                 {/* Type */}
                 <td className="px-4 py-3">
-                  <span className="text-sm text-gray-600">{typeLabel}</span>
+                  {typeLabel ? (
+                    <span className="text-sm text-gray-600">{typeLabel}</span>
+                  ) : (
+                    <span className="text-gray-300">&mdash;</span>
+                  )}
                 </td>
 
                 {/* Rev */}

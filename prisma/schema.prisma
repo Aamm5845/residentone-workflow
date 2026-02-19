@@ -4914,8 +4914,8 @@ model ProjectDrawing {
   floorId         String?
   drawingNumber   String
   title           String
-  discipline      DrawingDiscipline
-  drawingType     DrawingType
+  discipline      DrawingDiscipline?
+  drawingType     DrawingType?
   status          DrawingStatus     @default(ACTIVE)
   currentRevision Int               @default(1)
   description     String?

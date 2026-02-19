@@ -76,7 +76,7 @@ interface TransmittalData {
       id: string
       drawingNumber: string
       title: string
-      discipline: string
+      discipline: string | null
     }
     revision: {
       id: string
@@ -291,7 +291,7 @@ export default function TransmittalDetail({
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {transmittal.items.map((item) => {
-                    const disc = DISCIPLINE_COLORS[item.drawing.discipline]
+                    const disc = item.drawing.discipline ? DISCIPLINE_COLORS[item.drawing.discipline] : null
                     return (
                       <tr key={item.id} className="hover:bg-gray-50/50">
                         <td className="px-4 py-2.5">
@@ -310,7 +310,7 @@ export default function TransmittalDetail({
                           </div>
                         </td>
                         <td className="px-4 py-2.5">
-                          {disc ? (
+                          {disc && item.drawing.discipline ? (
                             <span
                               className={cn(
                                 'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium',
@@ -321,9 +321,7 @@ export default function TransmittalDetail({
                               {item.drawing.discipline.replace('_', ' ')}
                             </span>
                           ) : (
-                            <span className="text-xs text-gray-400">
-                              {item.drawing.discipline}
-                            </span>
+                            <span className="text-gray-300">&mdash;</span>
                           )}
                         </td>
                         <td className="px-4 py-2.5">
