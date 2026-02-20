@@ -396,48 +396,10 @@ export default function ClientInvoicePage() {
                 </div>
               </div>
 
-              {(invoice.paymentTerms || (invoice.paymentSchedule && invoice.paymentSchedule.length > 0)) && (
-                <div className="mt-6 pt-4 border-t text-sm space-y-2">
-                  {invoice.paymentTerms && invoice.paymentTerms !== 'Custom schedule' && (
-                    <div>
-                      <span className="text-gray-400">Payment Terms:</span>
-                      <span className="ml-2 text-gray-700">{invoice.paymentTerms}</span>
-                    </div>
-                  )}
-                  {invoice.paymentSchedule && invoice.paymentSchedule.length > 0 && (
-                    <div className="mt-2">
-                      <span className="text-gray-400 text-xs uppercase tracking-wider">Payment Schedule</span>
-                      <div className="mt-1 space-y-1">
-                        {(() => {
-                          const paid = invoice.totalPaid || 0
-                          let cumulativeAmount = 0
-                          let foundCurrentDue = false
-                          return invoice.paymentSchedule.map((milestone, idx) => {
-                            const amount = Math.round(invoice.totalAmount * milestone.percent / 100 * 100) / 100
-                            cumulativeAmount += amount
-                            const isMilestonePaid = paid >= cumulativeAmount - 0.01
-                            const isCurrentDue = !isMilestonePaid && !foundCurrentDue
-                            if (isCurrentDue) foundCurrentDue = true
-                            const isFuture = !isMilestonePaid && !isCurrentDue
-                            return (
-                              <div key={idx} className={`flex justify-between text-sm ${isMilestonePaid ? 'opacity-50' : ''}`}>
-                                <span className="text-gray-600 flex items-center gap-1.5">
-                                  {isMilestonePaid && <CheckCircle className="w-3.5 h-3.5 text-green-500" />}
-                                  {isCurrentDue && <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />}
-                                  {milestone.label || 'Payment'} ({milestone.percent}%)
-                                  {isMilestonePaid && <span className="text-green-600 text-xs ml-1">Paid</span>}
-                                  {isCurrentDue && <span className="text-amber-600 text-xs ml-1 font-medium">Due now</span>}
-                                </span>
-                                <span className={`font-medium ${isMilestonePaid ? 'text-gray-400 line-through' : isFuture ? 'text-gray-400' : 'text-gray-900'}`}>
-                                  {new Intl.NumberFormat('en-CA', { style: 'currency', currency: invoice.currency || 'CAD' }).format(amount)}
-                                </span>
-                              </div>
-                            )
-                          })
-                        })()}
-                      </div>
-                    </div>
-                  )}
+              {invoice.paymentTerms && invoice.paymentTerms !== 'Custom schedule' && (
+                <div className="mt-6 pt-4 border-t text-sm">
+                  <span className="text-gray-400">Payment Terms:</span>
+                  <span className="ml-2 text-gray-700">{invoice.paymentTerms}</span>
                 </div>
               )}
             </div>
@@ -543,6 +505,42 @@ export default function ClientInvoicePage() {
                     <span className="font-semibold text-gray-900">Total Due</span>
                     <span className="text-xl font-bold text-gray-900">{formatCurrency(invoice.totalAmount)}</span>
                   </div>
+
+                  {/* Payment Schedule - below total */}
+                  {invoice.paymentSchedule && invoice.paymentSchedule.length > 0 && (
+                    <div className="mt-4 pt-3 border-t border-dashed">
+                      <span className="text-xs text-gray-400 uppercase tracking-wider">Payment Schedule</span>
+                      <div className="mt-2 space-y-1.5">
+                        {(() => {
+                          const paid = invoice.totalPaid || 0
+                          let cumulativeAmount = 0
+                          let foundCurrentDue = false
+                          return invoice.paymentSchedule.map((milestone, idx) => {
+                            const amount = Math.round(invoice.totalAmount * milestone.percent / 100 * 100) / 100
+                            cumulativeAmount += amount
+                            const isMilestonePaid = paid >= cumulativeAmount - 0.01
+                            const isCurrentDue = !isMilestonePaid && !foundCurrentDue
+                            if (isCurrentDue) foundCurrentDue = true
+                            const isFuture = !isMilestonePaid && !isCurrentDue
+                            return (
+                              <div key={idx} className={`flex justify-between text-sm ${isMilestonePaid ? 'opacity-50' : ''}`}>
+                                <span className="text-gray-600 flex items-center gap-1.5">
+                                  {isMilestonePaid && <CheckCircle className="w-3.5 h-3.5 text-green-500" />}
+                                  {isCurrentDue && <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />}
+                                  {milestone.label || 'Payment'} ({milestone.percent}%)
+                                  {isMilestonePaid && <span className="text-green-600 text-xs ml-1">Paid</span>}
+                                  {isCurrentDue && <span className="text-amber-600 text-xs ml-1 font-medium">Due now</span>}
+                                </span>
+                                <span className={`font-medium ${isMilestonePaid ? 'text-gray-400 line-through' : isFuture ? 'text-gray-400' : 'text-gray-900'}`}>
+                                  {formatCurrency(amount)}
+                                </span>
+                              </div>
+                            )
+                          })
+                        })()}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -568,14 +566,6 @@ export default function ClientInvoicePage() {
               </div>
             ) : (
               <>
-            {getCurrentMilestoneLabel() && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 mb-3">
-                <p className="text-sm text-amber-800 font-medium">
-                  Amount due: {formatCurrency(amountDue)} — {getCurrentMilestoneLabel()}
-                </p>
-              </div>
-            )}
-
             <h3 className="font-semibold text-gray-900 mb-4">Payment Options</h3>
 
             <div className="space-y-3">
