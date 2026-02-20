@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useCallback, useRef, useMemo } from 'react'
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import useSWR from 'swr'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   Loader2,
   Upload,
@@ -19,6 +20,14 @@ import {
   Clock,
   UserPlus,
   Check,
+  CheckCircle2,
+  Image,
+  FileSpreadsheet,
+  File,
+  CloudUpload,
+  Mail,
+  StickyNote,
+  ChevronDown,
 } from 'lucide-react'
 import {
   Dialog,
@@ -38,9 +47,7 @@ interface AttachedFile {
   name: string
   size: number
   source: 'upload' | 'dropbox'
-  // For uploads: base64 content
   base64?: string
-  // For dropbox: relative path
   dropboxPath?: string
 }
 
@@ -66,12 +73,13 @@ const CATEGORY_CONFIG: Record<string, {
   color: string
   bgColor: string
   textColor: string
+  borderColor: string
 }> = {
-  CLIENT: { label: 'Client', icon: User, color: 'bg-blue-500', bgColor: 'bg-blue-50', textColor: 'text-blue-700' },
-  CONTRACTOR: { label: 'Contractors', icon: HardHat, color: 'bg-orange-500', bgColor: 'bg-orange-50', textColor: 'text-orange-700' },
-  SUBCONTRACTOR: { label: 'Subs', icon: Building2, color: 'bg-amber-500', bgColor: 'bg-amber-50', textColor: 'text-amber-700' },
-  TEAM: { label: 'Team', icon: Users, color: 'bg-purple-500', bgColor: 'bg-purple-50', textColor: 'text-purple-700' },
-  OTHER: { label: 'Previous', icon: Clock, color: 'bg-gray-400', bgColor: 'bg-gray-50', textColor: 'text-gray-600' },
+  CLIENT: { label: 'Client', icon: User, color: 'bg-blue-500', bgColor: 'bg-blue-50', textColor: 'text-blue-700', borderColor: 'border-blue-200' },
+  CONTRACTOR: { label: 'Contractors', icon: HardHat, color: 'bg-orange-500', bgColor: 'bg-orange-50', textColor: 'text-orange-700', borderColor: 'border-orange-200' },
+  SUBCONTRACTOR: { label: 'Subs', icon: Building2, color: 'bg-amber-500', bgColor: 'bg-amber-50', textColor: 'text-amber-700', borderColor: 'border-amber-200' },
+  TEAM: { label: 'Team', icon: Users, color: 'bg-purple-500', bgColor: 'bg-purple-50', textColor: 'text-purple-700', borderColor: 'border-purple-200' },
+  OTHER: { label: 'Previous', icon: Clock, color: 'bg-gray-400', bgColor: 'bg-gray-50', textColor: 'text-gray-600', borderColor: 'border-gray-200' },
 }
 const CATEGORY_ORDER = ['CLIENT', 'CONTRACTOR', 'SUBCONTRACTOR', 'TEAM', 'OTHER']
 
@@ -81,6 +89,26 @@ const formatFileSize = (bytes: number) => {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+// Get icon for file type
+function getFileIcon(filename: string) {
+  const ext = filename.toLowerCase().split('.').pop() || ''
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'heic'].includes(ext)) return Image
+  if (['pdf'].includes(ext)) return FileText
+  if (['xls', 'xlsx', 'csv'].includes(ext)) return FileSpreadsheet
+  if (['doc', 'docx'].includes(ext)) return FileText
+  return File
+}
+
+function getFileColor(filename: string) {
+  const ext = filename.toLowerCase().split('.').pop() || ''
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'heic'].includes(ext)) return 'text-emerald-500 bg-emerald-50'
+  if (['pdf'].includes(ext)) return 'text-red-500 bg-red-50'
+  if (['xls', 'xlsx', 'csv'].includes(ext)) return 'text-green-600 bg-green-50'
+  if (['doc', 'docx'].includes(ext)) return 'text-blue-500 bg-blue-50'
+  if (['dwg', 'dxf'].includes(ext)) return 'text-purple-500 bg-purple-50'
+  return 'text-gray-500 bg-gray-50'
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -109,6 +137,8 @@ export default function SendFileDialog({
   const [notes, setNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [showSuccess, setShowSuccess] = useState(false)
+  const [showOptionalFields, setShowOptionalFields] = useState(false)
 
   // ── Data ──
   const { data: recipientsData } = useSWR<Recipient[]>(
@@ -149,7 +179,9 @@ export default function SendFileDialog({
     setNotes('')
     setIsSubmitting(false)
     setSubmitError(null)
+    setShowSuccess(false)
     setIsDragging(false)
+    setShowOptionalFields(false)
   }, [])
 
   // ── File handlers ──
@@ -237,9 +269,12 @@ export default function SendFileDialog({
         throw new Error(data.error || 'Failed to send')
       }
 
-      reset()
-      onOpenChange(false)
-      onSuccess?.()
+      setShowSuccess(true)
+      setTimeout(() => {
+        reset()
+        onOpenChange(false)
+        onSuccess?.()
+      }, 1800)
     } catch (err: any) {
       setSubmitError(err.message || 'Something went wrong')
     } finally {
@@ -252,356 +287,591 @@ export default function SendFileDialog({
   const browseFiles = (browseData?.files ?? []).filter((f: any) => !f.isFolder)
   const pathParts = dropboxPath ? dropboxPath.split('/') : []
 
+  // Auto-expand first category that has contacts
+  useEffect(() => {
+    if (open && !hasRecipient && !showManualEntry && !expandedCategory) {
+      const first = CATEGORY_ORDER.find(cat => groupedRecipients[cat]?.length)
+      if (first) setExpandedCategory(first)
+    }
+  }, [open, hasRecipient, showManualEntry, expandedCategory, groupedRecipients])
+
   // ─── RENDER ─────────────────────────────────────────────────────────────────
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) reset(); onOpenChange(o) }}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Send className="w-5 h-5 text-gray-500" />
-            Send Files
-          </DialogTitle>
-          <DialogDescription>Attach files and send them by email.</DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-5 mt-2">
-          {/* ── FILES SECTION ── */}
-          <div>
-            <label className="text-sm font-medium text-gray-700 mb-2 block">Files</label>
-
-            {/* Attached files list */}
-            {files.length > 0 && (
-              <div className="space-y-2 mb-3">
-                {files.map((f, i) => (
-                  <div key={i} className="flex items-center gap-3 bg-gray-50 rounded-lg px-3 py-2.5">
-                    <FileText className="w-4 h-4 text-gray-400 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{f.name}</p>
-                      <p className="text-xs text-gray-500">
-                        {formatFileSize(f.size)} · {f.source === 'dropbox' ? 'From Dropbox' : 'Uploaded'}
-                      </p>
-                    </div>
-                    <button onClick={() => removeFile(i)} className="text-gray-400 hover:text-red-500 transition-colors">
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Dropbox Picker */}
-            {showDropboxPicker ? (
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
-                {/* Breadcrumb */}
-                <div className="flex items-center gap-1 px-3 py-2 bg-gray-50 border-b border-gray-200 text-sm">
-                  <button
-                    onClick={() => setDropboxPath('')}
-                    className="text-blue-600 hover:underline font-medium"
-                  >
-                    Project Root
-                  </button>
-                  {pathParts.map((part, i) => (
-                    <span key={i} className="flex items-center gap-1">
-                      <ChevronRight className="w-3 h-3 text-gray-400" />
-                      <button
-                        onClick={() => setDropboxPath(pathParts.slice(0, i + 1).join('/'))}
-                        className={cn(
-                          i === pathParts.length - 1
-                            ? 'text-gray-900 font-medium'
-                            : 'text-blue-600 hover:underline'
-                        )}
-                      >
-                        {part}
-                      </button>
-                    </span>
-                  ))}
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden p-0">
+        <AnimatePresence mode="wait">
+          {showSuccess ? (
+            <motion.div
+              key="success"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex flex-col items-center justify-center py-16 px-6"
+            >
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0.1 }}
+              >
+                <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
+                  <CheckCircle2 className="w-8 h-8 text-green-600" />
                 </div>
+              </motion.div>
+              <motion.p
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="text-lg font-semibold text-gray-900"
+              >
+                Email Sent
+              </motion.p>
+              <motion.p
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="text-sm text-gray-500 mt-1"
+              >
+                {files.length} file{files.length !== 1 ? 's' : ''} sent to {recipientName}
+              </motion.p>
+            </motion.div>
+          ) : (
+            <motion.div key="form" initial={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              {/* ── Header ── */}
+              <div className="px-6 pt-6 pb-4">
+                <DialogHeader className="space-y-1">
+                  <DialogTitle className="text-lg font-semibold text-gray-900">
+                    Send Files
+                  </DialogTitle>
+                  <DialogDescription className="text-sm text-gray-500">
+                    Attach files and send them via email
+                  </DialogDescription>
+                </DialogHeader>
+              </div>
 
-                {/* Content */}
-                <div className="max-h-60 overflow-y-auto divide-y divide-gray-100">
-                  {browsing ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
-                    </div>
-                  ) : (
-                    <>
-                      {/* Back button */}
-                      {dropboxPath && (
-                        <button
-                          onClick={() => {
-                            const parts = dropboxPath.split('/')
-                            parts.pop()
-                            setDropboxPath(parts.join('/'))
-                          }}
-                          className="flex items-center gap-2 w-full px-3 py-2.5 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
-                        >
-                          <ArrowLeft className="w-4 h-4" />
-                          Back
-                        </button>
+              {/* ── Scrollable body ── */}
+              <div className="overflow-y-auto max-h-[calc(90vh-180px)] px-6 pb-2">
+                <div className="space-y-5">
+
+                  {/* ── 1. FILES SECTION ── */}
+                  <section>
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-6 h-6 rounded-full bg-gray-900 text-white flex items-center justify-center text-xs font-semibold">1</div>
+                      <h3 className="text-sm font-semibold text-gray-900">Attach Files</h3>
+                      {files.length > 0 && (
+                        <span className="ml-auto text-xs font-medium text-gray-400">
+                          {files.length} file{files.length !== 1 ? 's' : ''}
+                        </span>
                       )}
+                    </div>
 
-                      {/* Folders */}
-                      {folders.map((folder: any) => (
-                        <button
-                          key={folder.path}
-                          onClick={() => setDropboxPath(folder.path)}
-                          className="flex items-center gap-2 w-full px-3 py-2.5 text-sm hover:bg-blue-50 transition-colors"
+                    {/* Attached files list */}
+                    <AnimatePresence>
+                      {files.length > 0 && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="mb-3 space-y-1.5 overflow-hidden"
                         >
-                          <Folder className="w-4 h-4 text-blue-500" />
-                          <span className="text-gray-900 truncate">{folder.name}</span>
-                        </button>
-                      ))}
+                          {files.map((f, i) => {
+                            const FileIcon = getFileIcon(f.name)
+                            const colorClass = getFileColor(f.name)
+                            return (
+                              <motion.div
+                                key={`${f.name}-${i}`}
+                                initial={{ opacity: 0, x: -12 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: 12 }}
+                                transition={{ duration: 0.2 }}
+                                className="flex items-center gap-3 rounded-xl bg-white border border-gray-100 px-3 py-2.5 group hover:border-gray-200 transition-colors"
+                              >
+                                <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center shrink-0', colorClass)}>
+                                  <FileIcon className="w-4 h-4" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-gray-900 truncate">{f.name}</p>
+                                  <p className="text-xs text-gray-400">
+                                    {formatFileSize(f.size)}
+                                    <span className="mx-1.5">·</span>
+                                    {f.source === 'dropbox' ? 'Dropbox' : 'Upload'}
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={() => removeFile(i)}
+                                  className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-all p-1 rounded-lg hover:bg-red-50"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </motion.div>
+                            )
+                          })}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
 
-                      {/* Files */}
-                      {browseFiles.map((file: any) => {
-                        const alreadyAdded = files.some(f => f.dropboxPath === file.path)
-                        return (
-                          <button
-                            key={file.path}
-                            onClick={() => !alreadyAdded && addDropboxFile(file)}
-                            disabled={alreadyAdded}
+                    {/* Dropbox Picker */}
+                    <AnimatePresence mode="wait">
+                      {showDropboxPicker ? (
+                        <motion.div
+                          key="dropbox-picker"
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -8 }}
+                          className="border border-gray-200 rounded-xl overflow-hidden bg-white"
+                        >
+                          {/* Breadcrumb */}
+                          <div className="flex items-center gap-1 px-3 py-2.5 bg-gray-50/80 border-b border-gray-100 text-xs">
+                            <Folder className="w-3.5 h-3.5 text-blue-500 mr-1" />
+                            <button
+                              onClick={() => setDropboxPath('')}
+                              className="text-blue-600 hover:text-blue-800 font-medium hover:underline"
+                            >
+                              Root
+                            </button>
+                            {pathParts.map((part, i) => (
+                              <span key={i} className="flex items-center gap-1">
+                                <ChevronRight className="w-3 h-3 text-gray-300" />
+                                <button
+                                  onClick={() => setDropboxPath(pathParts.slice(0, i + 1).join('/'))}
+                                  className={cn(
+                                    'truncate max-w-[120px]',
+                                    i === pathParts.length - 1
+                                      ? 'text-gray-900 font-medium'
+                                      : 'text-blue-600 hover:text-blue-800 hover:underline'
+                                  )}
+                                >
+                                  {part}
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+
+                          {/* Content */}
+                          <div className="max-h-56 overflow-y-auto">
+                            {browsing ? (
+                              <div className="flex items-center justify-center py-10">
+                                <Loader2 className="w-5 h-5 animate-spin text-gray-300" />
+                              </div>
+                            ) : (
+                              <>
+                                {dropboxPath && (
+                                  <button
+                                    onClick={() => {
+                                      const parts = dropboxPath.split('/')
+                                      parts.pop()
+                                      setDropboxPath(parts.join('/'))
+                                    }}
+                                    className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm text-gray-500 hover:bg-gray-50 transition-colors border-b border-gray-50"
+                                  >
+                                    <ArrowLeft className="w-3.5 h-3.5" />
+                                    <span className="text-xs font-medium">Back</span>
+                                  </button>
+                                )}
+
+                                {folders.map((folder: any) => (
+                                  <button
+                                    key={folder.path}
+                                    onClick={() => setDropboxPath(folder.path)}
+                                    className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm hover:bg-blue-50/50 transition-colors"
+                                  >
+                                    <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center">
+                                      <Folder className="w-3.5 h-3.5 text-blue-500" />
+                                    </div>
+                                    <span className="text-gray-900 truncate text-[13px]">{folder.name}</span>
+                                  </button>
+                                ))}
+
+                                {browseFiles.map((file: any) => {
+                                  const alreadyAdded = files.some(f => f.dropboxPath === file.path)
+                                  const FileIcon = getFileIcon(file.name)
+                                  const colorClass = getFileColor(file.name)
+                                  return (
+                                    <button
+                                      key={file.path}
+                                      onClick={() => !alreadyAdded && addDropboxFile(file)}
+                                      disabled={alreadyAdded}
+                                      className={cn(
+                                        'flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm transition-colors',
+                                        alreadyAdded ? 'opacity-50 bg-green-50/50' : 'hover:bg-gray-50'
+                                      )}
+                                    >
+                                      <div className={cn('w-7 h-7 rounded-lg flex items-center justify-center', colorClass)}>
+                                        <FileIcon className="w-3.5 h-3.5" />
+                                      </div>
+                                      <span className="text-gray-900 truncate flex-1 text-left text-[13px]">{file.name}</span>
+                                      {alreadyAdded ? (
+                                        <Check className="w-4 h-4 text-green-500 shrink-0" />
+                                      ) : (
+                                        <span className="text-[11px] text-gray-400 shrink-0">{formatFileSize(file.size)}</span>
+                                      )}
+                                    </button>
+                                  )
+                                })}
+
+                                {folders.length === 0 && browseFiles.length === 0 && !browsing && (
+                                  <div className="py-8 text-center text-sm text-gray-400">
+                                    Empty folder
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
+
+                          {/* Close picker */}
+                          <div className="px-3 py-2 bg-gray-50/80 border-t border-gray-100 flex justify-end">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-xs h-7"
+                              onClick={() => { setShowDropboxPicker(false); setDropboxPath('') }}
+                            >
+                              Close
+                            </Button>
+                          </div>
+                        </motion.div>
+                      ) : (
+                        /* Drop zone + source buttons */
+                        <motion.div
+                          key="drop-zone"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                        >
+                          <div
+                            onDrop={handleDrop}
+                            onDragOver={handleDragOver}
+                            onDragLeave={handleDragLeave}
                             className={cn(
-                              'flex items-center gap-2 w-full px-3 py-2.5 text-sm transition-colors',
-                              alreadyAdded ? 'opacity-50 bg-green-50' : 'hover:bg-green-50'
+                              'relative border-2 border-dashed rounded-xl transition-all duration-200',
+                              isDragging
+                                ? 'border-blue-400 bg-blue-50/50 scale-[1.01]'
+                                : 'border-gray-200 hover:border-gray-300 bg-gray-50/30'
                             )}
                           >
-                            <FileText className="w-4 h-4 text-gray-400" />
-                            <span className="text-gray-900 truncate flex-1 text-left">{file.name}</span>
-                            {alreadyAdded ? (
-                              <Check className="w-4 h-4 text-green-500" />
-                            ) : (
-                              <span className="text-xs text-gray-400">{formatFileSize(file.size)}</span>
-                            )}
-                          </button>
-                        )
-                      })}
+                            <div className="py-6 px-4 flex flex-col items-center">
+                              <div className={cn(
+                                'w-10 h-10 rounded-xl flex items-center justify-center mb-3 transition-colors',
+                                isDragging ? 'bg-blue-100 text-blue-500' : 'bg-gray-100 text-gray-400'
+                              )}>
+                                <CloudUpload className="w-5 h-5" />
+                              </div>
+                              <p className="text-sm text-gray-500 mb-1">
+                                Drop files here or choose a source
+                              </p>
+                              <p className="text-xs text-gray-400 mb-4">
+                                PDF, images, documents, spreadsheets
+                              </p>
 
-                      {folders.length === 0 && browseFiles.length === 0 && !browsing && (
-                        <div className="py-6 text-center text-sm text-gray-500">
-                          This folder is empty
-                        </div>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 text-xs rounded-lg shadow-sm"
+                                  onClick={() => fileInputRef.current?.click()}
+                                >
+                                  <Upload className="w-3.5 h-3.5 mr-1.5" />
+                                  Upload
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 text-xs rounded-lg shadow-sm"
+                                  onClick={() => setShowDropboxPicker(true)}
+                                >
+                                  <Folder className="w-3.5 h-3.5 mr-1.5 text-blue-500" />
+                                  Dropbox
+                                </Button>
+                              </div>
+                            </div>
+                            <input
+                              ref={fileInputRef}
+                              type="file"
+                              multiple
+                              className="hidden"
+                              onChange={(e) => {
+                                if (e.target.files) handleFileUpload(e.target.files)
+                                e.target.value = ''
+                              }}
+                            />
+                          </div>
+                        </motion.div>
                       )}
+                    </AnimatePresence>
+                  </section>
+
+                  {/* ── 2. RECIPIENT SECTION ── */}
+                  <section>
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className={cn(
+                        'w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold transition-colors',
+                        hasRecipient ? 'bg-green-500 text-white' : 'bg-gray-900 text-white'
+                      )}>
+                        {hasRecipient ? <Check className="w-3.5 h-3.5" /> : '2'}
+                      </div>
+                      <h3 className="text-sm font-semibold text-gray-900">Recipient</h3>
+                    </div>
+
+                    {/* Selected recipient */}
+                    <AnimatePresence mode="wait">
+                      {hasRecipient && !showManualEntry ? (
+                        <motion.div
+                          key="selected"
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -4 }}
+                          className="flex items-center gap-3 rounded-xl bg-white border border-gray-100 px-3 py-2.5 group hover:border-gray-200 transition-colors"
+                        >
+                          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-sm font-semibold text-gray-600">
+                            {recipientName.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900">{recipientName}</p>
+                            <p className="text-xs text-gray-400">{recipientEmail}</p>
+                          </div>
+                          <button
+                            onClick={() => { setRecipientName(''); setRecipientEmail('') }}
+                            className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-all p-1 rounded-lg hover:bg-red-50"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </motion.div>
+                      ) : showManualEntry ? (
+                        <motion.div
+                          key="manual"
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -4 }}
+                          className="space-y-2"
+                        >
+                          <div className="grid grid-cols-2 gap-2">
+                            <Input
+                              placeholder="Name"
+                              value={recipientName}
+                              onChange={(e) => setRecipientName(e.target.value)}
+                              className="h-9 text-sm rounded-lg"
+                            />
+                            <Input
+                              placeholder="Email"
+                              type="email"
+                              value={recipientEmail}
+                              onChange={(e) => setRecipientEmail(e.target.value)}
+                              className="h-9 text-sm rounded-lg"
+                            />
+                          </div>
+                          <button
+                            onClick={() => setShowManualEntry(false)}
+                            className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                          >
+                            ← Choose from contacts
+                          </button>
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key="picker"
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -4 }}
+                          className="space-y-2"
+                        >
+                          {/* Category pills */}
+                          <div className="flex flex-wrap gap-1.5">
+                            {CATEGORY_ORDER.map(cat => {
+                              const cfg = CATEGORY_CONFIG[cat]
+                              const group = groupedRecipients[cat]
+                              if (!group || group.length === 0) return null
+                              const Icon = cfg.icon
+                              const isExpanded = expandedCategory === cat
+                              return (
+                                <button
+                                  key={cat}
+                                  onClick={() => setExpandedCategory(isExpanded ? null : cat)}
+                                  className={cn(
+                                    'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border',
+                                    isExpanded
+                                      ? `${cfg.bgColor} ${cfg.textColor} ${cfg.borderColor}`
+                                      : 'bg-white border-gray-150 text-gray-600 hover:bg-gray-50 hover:border-gray-200'
+                                  )}
+                                >
+                                  <Icon className="w-3 h-3" />
+                                  {cfg.label}
+                                  <span className="opacity-50">{group.length}</span>
+                                </button>
+                              )
+                            })}
+                            <button
+                              onClick={() => setShowManualEntry(true)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white border border-dashed border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-gray-300 transition-all"
+                            >
+                              <UserPlus className="w-3 h-3" />
+                              Manual
+                            </button>
+                          </div>
+
+                          {/* Expanded contact list */}
+                          <AnimatePresence>
+                            {expandedCategory && groupedRecipients[expandedCategory] && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.15 }}
+                                className="overflow-hidden"
+                              >
+                                <div className="rounded-xl border border-gray-100 bg-white overflow-hidden max-h-36 overflow-y-auto">
+                                  {groupedRecipients[expandedCategory].map((r, i) => (
+                                    <button
+                                      key={i}
+                                      onClick={() => selectRecipient(r)}
+                                      className="flex items-center gap-3 w-full px-3 py-2.5 text-left hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-b-0"
+                                    >
+                                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-xs font-semibold text-gray-500">
+                                        {r.name.charAt(0).toUpperCase()}
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium text-gray-900 truncate">{r.name}</p>
+                                        <p className="text-xs text-gray-400 truncate">
+                                          {r.email}
+                                          {r.company && <span className="text-gray-300"> · {r.company}</span>}
+                                        </p>
+                                      </div>
+                                      <ChevronRight className="w-3.5 h-3.5 text-gray-300 shrink-0" />
+                                    </button>
+                                  ))}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+
+                          {recipients.length === 0 && (
+                            <p className="text-xs text-gray-400 pt-1">
+                              No contacts yet.{' '}
+                              <button onClick={() => setShowManualEntry(true)} className="text-blue-600 hover:underline">
+                                Enter manually
+                              </button>
+                            </p>
+                          )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </section>
+
+                  {/* ── 3. OPTIONAL: Subject + Notes (collapsed by default) ── */}
+                  <section>
+                    <button
+                      onClick={() => setShowOptionalFields(!showOptionalFields)}
+                      className="flex items-center gap-2 w-full text-left group"
+                    >
+                      <div className="w-6 h-6 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center text-xs font-semibold">
+                        3
+                      </div>
+                      <h3 className="text-sm font-semibold text-gray-400 group-hover:text-gray-600 transition-colors">
+                        Subject & Notes
+                      </h3>
+                      <span className="text-[10px] text-gray-300 font-medium uppercase tracking-wider ml-1">Optional</span>
+                      <ChevronDown className={cn(
+                        'w-3.5 h-3.5 text-gray-300 ml-auto transition-transform',
+                        showOptionalFields && 'rotate-180'
+                      )} />
+                    </button>
+
+                    <AnimatePresence>
+                      {showOptionalFields && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.15 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="space-y-3 pt-3">
+                            <div>
+                              <label className="text-xs font-medium text-gray-500 mb-1.5 block">Subject</label>
+                              <Input
+                                placeholder="e.g. Updated floor plans"
+                                value={subject}
+                                onChange={(e) => setSubject(e.target.value)}
+                                className="h-9 text-sm rounded-lg"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs font-medium text-gray-500 mb-1.5 block">Notes</label>
+                              <Textarea
+                                placeholder="Any notes for the recipient..."
+                                value={notes}
+                                onChange={(e) => setNotes(e.target.value)}
+                                className="text-sm resize-none rounded-lg"
+                                rows={2}
+                              />
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </section>
+                </div>
+              </div>
+
+              {/* ── ERROR ── */}
+              <AnimatePresence>
+                {submitError && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="px-6 overflow-hidden"
+                  >
+                    <div className="bg-red-50 text-red-600 text-sm rounded-lg px-3 py-2 flex items-start gap-2">
+                      <X className="w-4 h-4 shrink-0 mt-0.5" />
+                      <span>{submitError}</span>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* ── Footer / Actions ── */}
+              <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between bg-gray-50/50">
+                <div className="flex items-center gap-2 text-xs text-gray-400">
+                  {files.length > 0 && (
+                    <>
+                      <Paperclip className="w-3 h-3" />
+                      <span>{files.length} file{files.length !== 1 ? 's' : ''}</span>
+                    </>
+                  )}
+                  {hasRecipient && files.length > 0 && (
+                    <>
+                      <span>→</span>
+                      <span className="truncate max-w-[140px]">{recipientName}</span>
                     </>
                   )}
                 </div>
-
-                {/* Close picker */}
-                <div className="px-3 py-2 bg-gray-50 border-t border-gray-200">
-                  <Button variant="ghost" size="sm" onClick={() => { setShowDropboxPicker(false); setDropboxPath('') }}>
-                    Done
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              /* Drop zone + buttons */
-              <div
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                className={cn(
-                  'border-2 border-dashed rounded-lg p-6 text-center transition-colors',
-                  isDragging ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
-                )}
-              >
-                <Upload className="w-8 h-8 text-gray-300 mx-auto mb-3" />
-                <p className="text-sm text-gray-600 mb-3">
-                  Drag & drop files here
-                </p>
-                <div className="flex items-center justify-center gap-2">
+                <div className="flex items-center gap-2">
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
-                    onClick={() => fileInputRef.current?.click()}
+                    className="text-xs h-8"
+                    onClick={() => { reset(); onOpenChange(false) }}
                   >
-                    <Paperclip className="w-3.5 h-3.5 mr-1.5" />
-                    Browse Files
+                    Cancel
                   </Button>
                   <Button
-                    variant="outline"
                     size="sm"
-                    onClick={() => setShowDropboxPicker(true)}
+                    className="h-8 text-xs rounded-lg px-4 shadow-sm"
+                    onClick={handleSend}
+                    disabled={!canSend}
                   >
-                    <Folder className="w-3.5 h-3.5 mr-1.5 text-blue-500" />
-                    From Dropbox
+                    {isSubmitting ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                    ) : (
+                      <Send className="w-3.5 h-3.5 mr-1.5" />
+                    )}
+                    Send Email
                   </Button>
                 </div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => {
-                    if (e.target.files) handleFileUpload(e.target.files)
-                    e.target.value = ''
-                  }}
-                />
               </div>
-            )}
-          </div>
-
-          {/* ── RECIPIENT SECTION ── */}
-          <div>
-            <label className="text-sm font-medium text-gray-700 mb-2 block">Recipient</label>
-
-            {/* Selected recipient preview */}
-            {hasRecipient && !showManualEntry ? (
-              <div className="flex items-center gap-3 bg-gray-50 rounded-lg px-3 py-2.5">
-                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-sm font-medium text-gray-600">
-                  {recipientName.charAt(0).toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900">{recipientName}</p>
-                  <p className="text-xs text-gray-500">{recipientEmail}</p>
-                </div>
-                <button
-                  onClick={() => { setRecipientName(''); setRecipientEmail('') }}
-                  className="text-gray-400 hover:text-red-500"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ) : showManualEntry ? (
-              /* Manual entry */
-              <div className="space-y-2">
-                <Input
-                  placeholder="Name"
-                  value={recipientName}
-                  onChange={(e) => setRecipientName(e.target.value)}
-                  className="h-9 text-sm"
-                />
-                <Input
-                  placeholder="Email"
-                  type="email"
-                  value={recipientEmail}
-                  onChange={(e) => setRecipientEmail(e.target.value)}
-                  className="h-9 text-sm"
-                />
-                <button
-                  onClick={() => setShowManualEntry(false)}
-                  className="text-xs text-blue-600 hover:underline"
-                >
-                  ← Choose from contacts
-                </button>
-              </div>
-            ) : (
-              /* Contact picker */
-              <div className="space-y-2">
-                {/* Category pills */}
-                <div className="flex flex-wrap gap-1.5">
-                  {CATEGORY_ORDER.map(cat => {
-                    const cfg = CATEGORY_CONFIG[cat]
-                    const group = groupedRecipients[cat]
-                    if (!group || group.length === 0) return null
-                    const Icon = cfg.icon
-                    const isExpanded = expandedCategory === cat
-                    return (
-                      <button
-                        key={cat}
-                        onClick={() => setExpandedCategory(isExpanded ? null : cat)}
-                        className={cn(
-                          'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all',
-                          isExpanded ? `${cfg.bgColor} ${cfg.textColor} ring-1 ring-inset ring-current/20` : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        )}
-                      >
-                        <Icon className="w-3 h-3" />
-                        {cfg.label}
-                        <span className="opacity-60">({group.length})</span>
-                      </button>
-                    )
-                  })}
-                  <button
-                    onClick={() => setShowManualEntry(true)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  >
-                    <UserPlus className="w-3 h-3" />
-                    Manual
-                  </button>
-                </div>
-
-                {/* Expanded list */}
-                {expandedCategory && groupedRecipients[expandedCategory] && (
-                  <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-40 overflow-y-auto">
-                    {groupedRecipients[expandedCategory].map((r, i) => (
-                      <button
-                        key={i}
-                        onClick={() => selectRecipient(r)}
-                        className="flex items-center gap-3 w-full px-3 py-2 text-left hover:bg-gray-50 transition-colors"
-                      >
-                        <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-600">
-                          {r.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">{r.name}</p>
-                          <p className="text-xs text-gray-500 truncate">{r.email}{r.company ? ` · ${r.company}` : ''}</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {recipients.length === 0 && (
-                  <p className="text-xs text-gray-500">
-                    No contacts found.{' '}
-                    <button onClick={() => setShowManualEntry(true)} className="text-blue-600 hover:underline">
-                      Enter manually
-                    </button>
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* ── SUBJECT ── */}
-          <div>
-            <label className="text-sm font-medium text-gray-700 mb-1.5 block">Subject <span className="text-gray-400 font-normal">(optional)</span></label>
-            <Input
-              placeholder="e.g. Updated floor plans"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              className="h-9 text-sm"
-            />
-          </div>
-
-          {/* ── NOTES ── */}
-          <div>
-            <label className="text-sm font-medium text-gray-700 mb-1.5 block">Notes <span className="text-gray-400 font-normal">(optional)</span></label>
-            <Textarea
-              placeholder="Any notes for the recipient..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="text-sm resize-none"
-              rows={2}
-            />
-          </div>
-
-          {/* ── ERROR ── */}
-          {submitError && (
-            <div className="bg-red-50 text-red-700 text-sm rounded-lg px-3 py-2">
-              {submitError}
-            </div>
+            </motion.div>
           )}
-
-          {/* ── ACTIONS ── */}
-          <div className="flex items-center justify-between pt-2">
-            <p className="text-xs text-gray-400">
-              {files.length} file{files.length !== 1 ? 's' : ''} attached
-            </p>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={() => { reset(); onOpenChange(false) }}>
-                Cancel
-              </Button>
-              <Button size="sm" onClick={handleSend} disabled={!canSend}>
-                {isSubmitting ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-1.5" />
-                ) : (
-                  <Send className="w-4 h-4 mr-1.5" />
-                )}
-                Send Email
-              </Button>
-            </div>
-          </div>
-        </div>
+        </AnimatePresence>
       </DialogContent>
     </Dialog>
   )

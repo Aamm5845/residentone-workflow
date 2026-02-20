@@ -17,7 +17,6 @@ import {
   Send,
   FolderTree,
   Camera,
-  Paperclip,
 } from 'lucide-react'
 
 // Components
@@ -218,9 +217,14 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
             {/* Right: actions */}
             <div className="flex items-center gap-3">
               {/* Send Files button — always visible */}
-              <Button variant="outline" size="sm" onClick={() => setShowSendFile(true)}>
-                <Paperclip className="w-4 h-4 mr-1.5" />
-                Send Files
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowSendFile(true)}
+                className="gap-2 h-9 rounded-lg border-gray-200 shadow-sm hover:shadow hover:border-gray-300 transition-all"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>Send Files</span>
               </Button>
 
               {/* Search + Add Drawing — drawings tab only */}
