@@ -152,7 +152,7 @@ export async function POST(
     // Build org info
     const org = project.organization
     const companyName = org?.businessName || org?.name || ''
-    const senderName = session.user.name || 'Project Team'
+    const companyLogo = org?.logoUrl || 'https://app.meisnerinteriors.com/meisnerinteriorlogo.png'
     const firstName = transmittal.recipientName.split(' ')[0]
     const itemCount = transmittal.items.length
 
@@ -209,13 +209,9 @@ export async function POST(
     <div style="max-width: 560px; margin: 40px auto; background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
         <!-- Header -->
         <div style="padding: 40px 40px 32px 40px; text-align: center; border-bottom: 1px solid #e5e7eb;">
-            ${org?.logoUrl ? `
-            <img src="${org.logoUrl}"
+            <img src="${companyLogo}"
                  alt="${companyName}"
                  style="max-width: 220px; max-height: 80px; height: auto; margin-bottom: 24px;" />
-            ` : `
-            <div style="color: #111827; font-size: 22px; font-weight: 700; margin-bottom: 24px;">${companyName}</div>
-            `}
             <p style="margin: 0; color: #111827; font-size: 18px; font-weight: 600;">${project.name}</p>
             ${attachmentText ? `<p style="margin: 6px 0 0 0; color: #6b7280; font-size: 14px;">${attachmentText}</p>` : ''}
         </div>
@@ -242,9 +238,8 @@ export async function POST(
                 </tbody>
             </table>
 
-            <p style="margin: 0; color: #374151; font-size: 15px;">
-                Thanks,<br/>
-                <strong>${senderName}</strong>
+            <p style="margin: 0; color: #9ca3af; font-size: 13px; text-align: center;">
+                Drawings are included as PDF attachments to this email.
             </p>
         </div>
 

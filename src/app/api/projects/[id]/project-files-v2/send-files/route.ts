@@ -98,7 +98,9 @@ export async function POST(
     // Build email
     const org = project.organization
     const companyName = org?.businessName || org?.name || ''
-    const senderName = session.user.name || 'Project Team'
+    const companyLogo = org?.logoUrl || 'https://app.meisnerinteriors.com/meisnerinteriorlogo.png'
+    const companyEmail = org?.businessEmail || ''
+    const companyPhone = org?.businessPhone || ''
     const firstName = recipientName.split(' ')[0]
 
     const emailSubject = subject
@@ -117,9 +119,10 @@ export async function POST(
       .join('')
 
     const notesHtml = notes
-      ? `<div style="background: #fefce8; border-left: 3px solid #eab308; padding: 12px 16px; margin-bottom: 32px; border-radius: 0 6px 6px 0;">
-           <p style="margin: 0; color: #713f12; font-size: 14px;">${notes}</p>
-         </div>`
+      ? `
+            <div style="background: #fefce8; border-left: 3px solid #eab308; padding: 12px 16px; margin-bottom: 32px; border-radius: 0 6px 6px 0;">
+                <p style="margin: 0; color: #713f12; font-size: 14px;">${notes}</p>
+            </div>`
       : ''
 
     const attachmentText = `${attachments.length} file${attachments.length !== 1 ? 's' : ''} attached`
@@ -134,13 +137,9 @@ export async function POST(
     <div style="max-width: 560px; margin: 40px auto; background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
         <!-- Header -->
         <div style="padding: 40px 40px 32px 40px; text-align: center; border-bottom: 1px solid #e5e7eb;">
-            ${org?.logoUrl ? `
-            <img src="${org.logoUrl}"
+            <img src="${companyLogo}"
                  alt="${companyName}"
                  style="max-width: 220px; max-height: 80px; height: auto; margin-bottom: 24px;" />
-            ` : `
-            <div style="color: #111827; font-size: 22px; font-weight: 700; margin-bottom: 24px;">${companyName}</div>
-            `}
             <p style="margin: 0; color: #111827; font-size: 18px; font-weight: 600;">${project.name}</p>
             <p style="margin: 6px 0 0 0; color: #6b7280; font-size: 14px;">${attachmentText}</p>
         </div>
@@ -165,17 +164,16 @@ export async function POST(
                 </tbody>
             </table>
 
-            <p style="margin: 0; color: #374151; font-size: 15px;">
-                Thanks,<br/>
-                <strong>${senderName}</strong>
+            <p style="margin: 0; color: #9ca3af; font-size: 13px; text-align: center;">
+                Files are included as attachments to this email.
             </p>
         </div>
 
         <!-- Footer -->
         <div style="border-top: 1px solid #e5e7eb; padding: 24px 40px; text-align: center;">
             <p style="margin: 0 0 4px 0; color: #374151; font-size: 14px; font-weight: 500;">${companyName}</p>
-            ${org?.businessEmail ? `<p style="margin: 0; color: #6b7280; font-size: 13px;">${org.businessEmail}</p>` : ''}
-            ${org?.businessPhone ? `<p style="margin: 0; color: #6b7280; font-size: 13px;">${org.businessPhone}</p>` : ''}
+            ${companyEmail ? `<p style="margin: 0; color: #6b7280; font-size: 13px;">${companyEmail}</p>` : ''}
+            ${companyPhone ? `<p style="margin: 0; color: #6b7280; font-size: 13px;">${companyPhone}</p>` : ''}
         </div>
     </div>
 
