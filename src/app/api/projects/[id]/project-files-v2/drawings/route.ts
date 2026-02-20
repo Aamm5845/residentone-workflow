@@ -114,7 +114,6 @@ export async function GET(
         }
       },
       orderBy: [
-        { section: { order: 'asc' } },
         { drawingNumber: 'asc' }
       ]
     })
