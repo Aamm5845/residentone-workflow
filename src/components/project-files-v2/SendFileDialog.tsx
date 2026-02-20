@@ -156,7 +156,7 @@ export default function SendFileDialog({
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // ── Global section (selected before uploading) ──
-  const [globalSectionId, setGlobalSectionId] = useState('')
+  const [globalSectionId, setGlobalSectionId] = useState('none')
 
   // ── Recipient state (multi-select) ──
   const [selectedRecipients, setSelectedRecipients] = useState<Recipient[]>([])
@@ -211,7 +211,7 @@ export default function SendFileDialog({
 
   const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
   const hasRecipients = selectedRecipients.length > 0
-  const allFilesValid = files.length > 0 && globalSectionId && files.every(f => f.title.trim())
+  const allFilesValid = files.length > 0 && globalSectionId && globalSectionId !== 'none' && files.every(f => f.title.trim())
   const canSend = allFilesValid && hasRecipients && !isSubmitting
 
   // ── Reset ──
@@ -219,7 +219,7 @@ export default function SendFileDialog({
     setFiles([])
     setShowDropboxPicker(false)
     setDropboxPath('')
-    setGlobalSectionId('')
+    setGlobalSectionId('none')
     setSelectedRecipients([])
     setShowManualEntry(false)
     setManualName('')
@@ -499,25 +499,28 @@ export default function SendFileDialog({
                     <div className="flex items-center gap-2 mb-3">
                       <div className={cn(
                         'w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold transition-colors',
-                        globalSectionId ? 'bg-green-500 text-white' : 'bg-gray-900 text-white'
+                        globalSectionId && globalSectionId !== 'none' ? 'bg-green-500 text-white' : 'bg-gray-900 text-white'
                       )}>
-                        {globalSectionId ? <Check className="w-3.5 h-3.5" /> : '1'}
+                        {globalSectionId && globalSectionId !== 'none' ? <Check className="w-3.5 h-3.5" /> : '1'}
                       </div>
                       <h3 className="text-sm font-semibold text-gray-900">Section</h3>
                     </div>
 
                     <Select
-                      value={globalSectionId || undefined}
+                      value={globalSectionId}
                       onValueChange={(v) => {
                         setGlobalSectionId(v)
-                        // Update all existing files with new section
-                        setFiles(prev => prev.map(f => ({ ...f, sectionId: v })))
+                        if (v !== 'none') {
+                          // Update all existing files with new section
+                          setFiles(prev => prev.map(f => ({ ...f, sectionId: v })))
+                        }
                       }}
                     >
-                      <SelectTrigger className={cn('h-9 text-sm', !globalSectionId && 'border-red-200')}>
+                      <SelectTrigger className={cn('h-9 text-sm', (!globalSectionId || globalSectionId === 'none') && 'border-red-200')}>
                         <SelectValue placeholder="Select section..." />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="none">Select a section...</SelectItem>
                         {sections.map((s) => (
                           <SelectItem key={s.id} value={s.id}>
                             <span className="flex items-center gap-2">
