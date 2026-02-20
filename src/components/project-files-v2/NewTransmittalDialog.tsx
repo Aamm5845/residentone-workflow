@@ -179,7 +179,7 @@ export default function NewTransmittalDialog({
   const [recipientName, setRecipientName] = useState('')
   const [recipientEmail, setRecipientEmail] = useState('')
   const [recipientCompany, setRecipientCompany] = useState('')
-  const [recipientType, setRecipientType] = useState<string>('contractor')
+  const [recipientType, setRecipientType] = useState<string>('CONTRACTOR')
   const [selectedDrawings, setSelectedDrawings] = useState<Set<string>>(new Set())
   const [drawingConfigs, setDrawingConfigs] = useState<Record<string, DrawingItemConfig>>({})
   const [subject, setSubject] = useState('')
@@ -264,7 +264,7 @@ export default function NewTransmittalDialog({
       setRecipientName('')
       setRecipientEmail('')
       setRecipientCompany('')
-      setRecipientType('contractor')
+      setRecipientType('CONTRACTOR')
       setSelectedDrawings(new Set())
       setDrawingConfigs({})
       setSubject('')
@@ -284,7 +284,7 @@ export default function NewTransmittalDialog({
     setRecipientName(r.name)
     setRecipientEmail(r.email || '')
     setRecipientCompany(r.company || '')
-    setRecipientType(r.type?.toLowerCase() || 'contractor')
+    setRecipientType(r.type?.toUpperCase() || 'CONTRACTOR')
     setShowManualEntry(false)
   }, [])
 
@@ -292,7 +292,7 @@ export default function NewTransmittalDialog({
     setRecipientName('')
     setRecipientEmail('')
     setRecipientCompany('')
-    setRecipientType('contractor')
+    setRecipientType('CONTRACTOR')
     setShowManualEntry(false)
   }, [])
 
@@ -605,11 +605,11 @@ export default function NewTransmittalDialog({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="client">Client</SelectItem>
-                        <SelectItem value="contractor">Contractor</SelectItem>
-                        <SelectItem value="subcontractor">Subcontractor</SelectItem>
-                        <SelectItem value="consultant">Consultant</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
+                        <SelectItem value="CLIENT">Client</SelectItem>
+                        <SelectItem value="CONTRACTOR">Contractor</SelectItem>
+                        <SelectItem value="SUBCONTRACTOR">Subcontractor</SelectItem>
+                        <SelectItem value="CONSULTANT">Consultant</SelectItem>
+                        <SelectItem value="OTHER">Other</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

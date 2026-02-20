@@ -146,7 +146,7 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
 
   // ---- Derived data ----
   const drawings = drawingsData?.drawings ?? []
-  const counts = drawingsData?.counts ?? { byDiscipline: [], byFloor: [] }
+  const counts = drawingsData?.counts ?? { byDiscipline: [], byFloor: [], byStatus: [] }
   const floors = Array.isArray(floorsData) ? floorsData : (floorsData?.floors ?? floorsData ?? [])
   const transmittals = transmittalsData?.transmittals ?? []
 
@@ -166,7 +166,13 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
     }
   }
 
+  // Build status counts map
   const statusCounts: Record<string, number> = {}
+  if (Array.isArray(counts.byStatus)) {
+    for (const c of counts.byStatus) {
+      if (c.status) statusCounts[c.status] = c.count
+    }
+  }
 
   // Refresh everything after mutations
   const refreshAll = useCallback(() => {

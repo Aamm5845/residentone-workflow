@@ -117,6 +117,7 @@ const RECIPIENT_TYPE_LABELS: Record<string, string> = {
   CLIENT: 'Client',
   CONTRACTOR: 'Contractor',
   SUBCONTRACTOR: 'Sub',
+  CONSULTANT: 'Consultant',
   TEAM: 'Team',
   OTHER: '',
 }

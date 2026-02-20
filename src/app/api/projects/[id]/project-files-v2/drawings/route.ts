@@ -111,14 +111,17 @@ export async function GET(
       ]
     })
 
-    // Transform to include revision count and latest transmittal info
+    // Transform — field names must match DrawingRegisterTable / DrawingRegisterCards interfaces
     const transformedDrawings = drawings.map((drawing) => {
       const { revisions, transmittalItems, ...rest } = drawing
-      const latestTransmittal = transmittalItems[0]?.transmittal ?? null
+      const lastTransmittal = transmittalItems[0]?.transmittal ?? null
       return {
         ...rest,
-        revisionCount: revisions.length,
-        latestTransmittal
+        _count: {
+          revisions: revisions.length,
+          transmittalItems: transmittalItems.length
+        },
+        lastTransmittal
       }
     })
 
@@ -136,6 +139,13 @@ export async function GET(
       _count: { id: true }
     })
 
+    // Fetch counts per status (for sidebar filter)
+    const statusCounts = await prisma.projectDrawing.groupBy({
+      by: ['status'],
+      where: { projectId: id },
+      _count: { id: true }
+    })
+
     return NextResponse.json({
       drawings: transformedDrawings,
       counts: {
@@ -145,6 +155,10 @@ export async function GET(
         })),
         byFloor: floorCounts.map((c) => ({
           floorId: c.floorId,
+          count: c._count.id
+        })),
+        byStatus: statusCounts.map((c) => ({
+          status: c.status,
           count: c._count.id
         }))
       },
