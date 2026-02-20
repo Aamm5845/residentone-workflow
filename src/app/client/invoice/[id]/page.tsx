@@ -211,10 +211,49 @@ export default function ClientInvoicePage() {
     })
   }
 
+  // Calculate the current amount due based on payment schedule milestones
+  const getCurrentAmountDue = () => {
+    if (!invoice) return 0
+    // If there's a payment schedule, find the next unpaid milestone
+    if (invoice.paymentSchedule && invoice.paymentSchedule.length > 0) {
+      const paid = invoice.totalPaid || 0
+      let cumulativeAmount = 0
+      for (const milestone of invoice.paymentSchedule) {
+        const milestoneAmount = Math.round(invoice.totalAmount * milestone.percent / 100 * 100) / 100
+        cumulativeAmount += milestoneAmount
+        // This milestone is the current one due if we haven't paid up to its cumulative total
+        if (paid < cumulativeAmount - 0.01) {
+          return milestoneAmount
+        }
+      }
+      // All milestones paid or remaining balance
+      return Math.max(0, invoice.totalAmount - paid)
+    }
+    // No schedule — use remaining balance or full amount
+    return invoice.remainingBalance ?? invoice.totalAmount
+  }
+
+  // Get the label for the current milestone due
+  const getCurrentMilestoneLabel = () => {
+    if (!invoice?.paymentSchedule || invoice.paymentSchedule.length === 0) return null
+    const paid = invoice.totalPaid || 0
+    let cumulativeAmount = 0
+    for (const milestone of invoice.paymentSchedule) {
+      const milestoneAmount = Math.round(invoice.totalAmount * milestone.percent / 100 * 100) / 100
+      cumulativeAmount += milestoneAmount
+      if (paid < cumulativeAmount - 0.01) {
+        return milestone.label || 'Payment'
+      }
+    }
+    return null
+  }
+
+  const amountDue = getCurrentAmountDue()
+
   const calculateCCTotal = () => {
     if (!invoice) return 0
-    const ccFee = invoice.totalAmount * (invoice.ccFeeRate / 100)
-    return invoice.totalAmount + ccFee
+    const ccFee = amountDue * (invoice.ccFeeRate / 100)
+    return amountDue + ccFee
   }
 
   const handlePayWithCard = () => {
@@ -359,7 +398,7 @@ export default function ClientInvoicePage() {
 
               {(invoice.paymentTerms || (invoice.paymentSchedule && invoice.paymentSchedule.length > 0)) && (
                 <div className="mt-6 pt-4 border-t text-sm space-y-2">
-                  {invoice.paymentTerms && (
+                  {invoice.paymentTerms && invoice.paymentTerms !== 'Custom schedule' && (
                     <div>
                       <span className="text-gray-400">Payment Terms:</span>
                       <span className="ml-2 text-gray-700">{invoice.paymentTerms}</span>
@@ -369,17 +408,30 @@ export default function ClientInvoicePage() {
                     <div className="mt-2">
                       <span className="text-gray-400 text-xs uppercase tracking-wider">Payment Schedule</span>
                       <div className="mt-1 space-y-1">
-                        {invoice.paymentSchedule.map((milestone, idx) => {
-                          const amount = Math.round(invoice.totalAmount * milestone.percent / 100 * 100) / 100
-                          return (
-                            <div key={idx} className="flex justify-between text-sm">
-                              <span className="text-gray-600">{milestone.label || 'Payment'} ({milestone.percent}%)</span>
-                              <span className="text-gray-900 font-medium">
-                                {new Intl.NumberFormat('en-CA', { style: 'currency', currency: invoice.currency || 'CAD' }).format(amount)}
-                              </span>
-                            </div>
-                          )
-                        })}
+                        {(() => {
+                          const paid = invoice.totalPaid || 0
+                          let cumulativePaid = 0
+                          return invoice.paymentSchedule.map((milestone, idx) => {
+                            const amount = Math.round(invoice.totalAmount * milestone.percent / 100 * 100) / 100
+                            cumulativePaid += amount
+                            const isMilestonePaid = paid >= cumulativePaid - 0.01
+                            const isCurrentDue = !isMilestonePaid && paid < cumulativePaid
+                            return (
+                              <div key={idx} className={`flex justify-between text-sm ${isMilestonePaid ? 'opacity-50' : ''}`}>
+                                <span className="text-gray-600 flex items-center gap-1.5">
+                                  {isMilestonePaid && <CheckCircle className="w-3.5 h-3.5 text-green-500" />}
+                                  {isCurrentDue && <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />}
+                                  {milestone.label || 'Payment'} ({milestone.percent}%)
+                                  {isMilestonePaid && <span className="text-green-600 text-xs ml-1">Paid</span>}
+                                  {isCurrentDue && <span className="text-amber-600 text-xs ml-1 font-medium">Due now</span>}
+                                </span>
+                                <span className={`font-medium ${isMilestonePaid ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                                  {new Intl.NumberFormat('en-CA', { style: 'currency', currency: invoice.currency || 'CAD' }).format(amount)}
+                                </span>
+                              </div>
+                            )
+                          })
+                        })()}
                       </div>
                     </div>
                   )}
@@ -513,6 +565,14 @@ export default function ClientInvoicePage() {
               </div>
             ) : (
               <>
+            {getCurrentMilestoneLabel() && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 mb-3">
+                <p className="text-sm text-amber-800 font-medium">
+                  Amount due: {formatCurrency(amountDue)} — {getCurrentMilestoneLabel()}
+                </p>
+              </div>
+            )}
+
             <h3 className="font-semibold text-gray-900 mb-4">Payment Options</h3>
 
             <div className="space-y-3">
@@ -532,12 +592,12 @@ export default function ClientInvoicePage() {
                   {/* Payment breakdown */}
                   <div className="bg-gray-50 rounded-lg p-3 mb-3 text-sm space-y-1">
                     <div className="flex justify-between text-gray-600">
-                      <span>Invoice Total</span>
-                      <span>{formatCurrency(invoice.totalAmount)}</span>
+                      <span>{getCurrentMilestoneLabel() ? `${getCurrentMilestoneLabel()}` : 'Amount Due'}</span>
+                      <span>{formatCurrency(amountDue)}</span>
                     </div>
                     <div className="flex justify-between text-gray-500">
                       <span>Credit Card Fee ({invoice.ccFeeRate}%)</span>
-                      <span>+{formatCurrency(invoice.totalAmount * (invoice.ccFeeRate / 100))}</span>
+                      <span>+{formatCurrency(amountDue * (invoice.ccFeeRate / 100))}</span>
                     </div>
                     <div className="flex justify-between font-medium text-gray-900 pt-1 border-t border-gray-200">
                       <span>Total to Pay</span>
@@ -578,6 +638,9 @@ export default function ClientInvoicePage() {
                         <p><span className="text-gray-400">Transit #:</span> 0006</p>
                       </div>
                     )}
+                    <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg mt-2 space-y-1">
+                      <p><span className="text-gray-400">Amount:</span> {formatCurrency(amountDue)}{getCurrentMilestoneLabel() ? ` (${getCurrentMilestoneLabel()})` : ''}</p>
+                    </div>
                     <p className="text-xs text-gray-400 mt-2">
                       Reference: {invoice.quoteNumber}
                     </p>
@@ -607,7 +670,7 @@ export default function ClientInvoicePage() {
                   <div className="px-4 pb-4 border-t pt-4">
                     <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg space-y-1">
                       <p><span className="text-gray-400">Send to:</span> {invoice.organization?.etransferEmail || 'aaron@meisnerinteriors.com'}</p>
-                      <p><span className="text-gray-400">Amount:</span> {formatCurrency(invoice.totalAmount)}</p>
+                      <p><span className="text-gray-400">Amount:</span> {formatCurrency(amountDue)}{getCurrentMilestoneLabel() ? ` (${getCurrentMilestoneLabel()})` : ''}</p>
                     </div>
                     <p className="text-xs text-gray-400 mt-2">
                       Message/Memo: {invoice.quoteNumber}
@@ -691,7 +754,7 @@ export default function ClientInvoicePage() {
               <SoloPaymentForm
                 token={id}
                 quoteId={invoice.id}
-                amount={invoice.totalAmount}
+                amount={amountDue}
                 currency={invoice.currency || 'CAD'}
                 onSuccess={handlePaymentSuccess}
                 onCancel={() => setShowPaymentDialog(false)}

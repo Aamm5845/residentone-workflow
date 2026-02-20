@@ -594,7 +594,7 @@ export default function ClientQuoteDetailView({ quoteId, user, orgId }: ClientQu
                       <p className="font-medium text-orange-600">{formatDate(quote.validUntil)}</p>
                     </div>
                   )}
-                  {quote.paymentTerms && (
+                  {quote.paymentTerms && quote.paymentTerms !== 'Custom schedule' && (
                     <div>
                       <p className="text-sm text-gray-500">Payment Terms</p>
                       <p className="font-medium">{quote.paymentTerms}</p>

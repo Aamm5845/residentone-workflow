@@ -407,8 +407,8 @@ export async function generateClientQuotePDF(data: ClientQuotePDFData): Promise<
     y -= 16
   }
 
-  // Payment terms
-  if (data.paymentTerms) {
+  // Payment terms (hide "Custom schedule" when a schedule is present)
+  if (data.paymentTerms && data.paymentTerms !== 'Custom schedule') {
     y -= 20
     page.drawText('Payment Terms:', { x: margin, y, size: 10, font: helveticaBold, color: darkColor })
     y -= 14
