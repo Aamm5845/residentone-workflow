@@ -105,6 +105,22 @@ function formatDate(date: string): string {
   })
 }
 
+function formatDateTime(date: string): { date: string; time: string } {
+  const d = new Date(date)
+  return {
+    date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    time: d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+  }
+}
+
+const RECIPIENT_TYPE_LABELS: Record<string, string> = {
+  CLIENT: 'Client',
+  CONTRACTOR: 'Contractor',
+  SUBCONTRACTOR: 'Sub',
+  TEAM: 'Team',
+  OTHER: '',
+}
+
 function getMethodIcon(method: string) {
   switch (method) {
     case 'EMAIL':
@@ -215,7 +231,7 @@ export default function TransmittalLog({
       {/* Header row */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h2 className="text-lg font-semibold text-gray-900">Transmittals</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Sent History</h2>
           <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700">
             {transmittals.length}
           </span>
@@ -239,7 +255,7 @@ export default function TransmittalLog({
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
                 Subject
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[140px]">
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[170px]">
                 Recipient
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[130px]">
@@ -343,9 +359,15 @@ function TransmittalRow({
 
         {/* Recipient */}
         <td className="px-4 py-3">
-          <span className="text-sm text-gray-700 truncate max-w-[130px] block">
-            {transmittal.recipientName}
-          </span>
+          <div className="truncate max-w-[160px]">
+            {transmittal.recipientType && RECIPIENT_TYPE_LABELS[transmittal.recipientType] ? (
+              <>
+                <span className="text-xs text-gray-400">{RECIPIENT_TYPE_LABELS[transmittal.recipientType]}</span>
+                <span className="text-xs text-gray-300 mx-1">–</span>
+              </>
+            ) : null}
+            <span className="text-sm text-gray-700">{transmittal.recipientName}</span>
+          </div>
         </td>
 
         {/* Company */}
@@ -368,20 +390,28 @@ function TransmittalRow({
           </span>
         </td>
 
-        {/* Method */}
+        {/* Method — Email = system sent, anything else = manual/logged */}
         <td className="px-4 py-3">
-          <span className="inline-flex items-center gap-1.5 text-sm text-gray-600">
-            {getMethodIcon(transmittal.method)}
-            <span className="text-xs">{METHOD_LABELS[transmittal.method] ?? transmittal.method}</span>
-          </span>
+          {transmittal.method === 'EMAIL' ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
+              <Mail className="h-3 w-3" />
+              Email
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">
+              {getMethodIcon(transmittal.method)}
+              Manual
+            </span>
+          )}
         </td>
 
-        {/* Sent date */}
+        {/* Sent date + time */}
         <td className="px-4 py-3">
           {transmittal.sentAt ? (
-            <span className="text-sm text-gray-700">
-              {formatDate(transmittal.sentAt)}
-            </span>
+            <div>
+              <span className="text-sm text-gray-700 block">{formatDateTime(transmittal.sentAt).date}</span>
+              <span className="text-[11px] text-gray-400">{formatDateTime(transmittal.sentAt).time}</span>
+            </div>
           ) : (
             <span className="text-gray-300">&mdash;</span>
           )}
