@@ -217,15 +217,13 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
             {/* Right: actions */}
             <div className="flex items-center gap-3">
               {/* Send Files button — always visible */}
-              <Button
-                size="sm"
-                variant="outline"
+              <button
                 onClick={() => setShowSendFile(true)}
-                className="gap-2 h-9 rounded-lg border-gray-200 shadow-sm hover:shadow hover:border-gray-300 transition-all"
+                className="group flex items-center gap-3 h-11 px-5 rounded-xl bg-gradient-to-r from-gray-900 to-gray-800 text-white shadow-md hover:shadow-lg hover:from-gray-800 hover:to-gray-700 active:scale-[0.98] transition-all duration-200"
               >
-                <Send className="w-3.5 h-3.5" />
-                <span>Send Files</span>
-              </Button>
+                <Send className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                <span className="text-sm font-medium">Send Files</span>
+              </button>
 
               {/* Search + Add Drawing — drawings tab only */}
               {activeTab === 'drawings' && (
