@@ -410,12 +410,15 @@ export default function ClientInvoicePage() {
                       <div className="mt-1 space-y-1">
                         {(() => {
                           const paid = invoice.totalPaid || 0
-                          let cumulativePaid = 0
+                          let cumulativeAmount = 0
+                          let foundCurrentDue = false
                           return invoice.paymentSchedule.map((milestone, idx) => {
                             const amount = Math.round(invoice.totalAmount * milestone.percent / 100 * 100) / 100
-                            cumulativePaid += amount
-                            const isMilestonePaid = paid >= cumulativePaid - 0.01
-                            const isCurrentDue = !isMilestonePaid && paid < cumulativePaid
+                            cumulativeAmount += amount
+                            const isMilestonePaid = paid >= cumulativeAmount - 0.01
+                            const isCurrentDue = !isMilestonePaid && !foundCurrentDue
+                            if (isCurrentDue) foundCurrentDue = true
+                            const isFuture = !isMilestonePaid && !isCurrentDue
                             return (
                               <div key={idx} className={`flex justify-between text-sm ${isMilestonePaid ? 'opacity-50' : ''}`}>
                                 <span className="text-gray-600 flex items-center gap-1.5">
@@ -425,7 +428,7 @@ export default function ClientInvoicePage() {
                                   {isMilestonePaid && <span className="text-green-600 text-xs ml-1">Paid</span>}
                                   {isCurrentDue && <span className="text-amber-600 text-xs ml-1 font-medium">Due now</span>}
                                 </span>
-                                <span className={`font-medium ${isMilestonePaid ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                                <span className={`font-medium ${isMilestonePaid ? 'text-gray-400 line-through' : isFuture ? 'text-gray-400' : 'text-gray-900'}`}>
                                   {new Intl.NumberFormat('en-CA', { style: 'currency', currency: invoice.currency || 'CAD' }).format(amount)}
                                 </span>
                               </div>
