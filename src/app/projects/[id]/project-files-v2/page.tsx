@@ -2,7 +2,7 @@ import { getSession } from '@/auth'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import DashboardLayout from '@/components/layout/dashboard-layout'
-import ProjectFilesV2Workspace from '@/components/project-files-v2/ProjectFilesV2Workspace'
+import ProjectFilesWorkspace from '@/components/project-files/ProjectFilesWorkspace'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -33,7 +33,7 @@ export default async function ProjectFilesV2Page({ params }: Props) {
 
   return (
     <DashboardLayout session={session as any}>
-      <ProjectFilesV2Workspace project={project} />
+      <ProjectFilesWorkspace project={project} />
     </DashboardLayout>
   )
 }
