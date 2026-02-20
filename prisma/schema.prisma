@@ -4975,6 +4975,9 @@ model ProjectDrawing {
   fileSize        Int?
   scale           String?
   paperSize       String?
+  drawnBy         String?
+  reviewNo        String?
+  pageNo          String?
   createdBy       String
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
