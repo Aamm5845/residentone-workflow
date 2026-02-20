@@ -86,7 +86,7 @@ export function ComposeTransmittal({
   }
 
   return (
-    <div className="fixed bottom-0 right-6 w-[440px] z-50 bg-white rounded-t-xl border border-b-0 border-gray-200 shadow-2xl flex flex-col max-h-[80vh]">
+    <div className="fixed bottom-0 right-6 w-[480px] z-50 bg-white rounded-t-xl border border-b-0 border-gray-200 shadow-2xl flex flex-col max-h-[80vh]">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
         <div className="flex items-center gap-2">
@@ -117,7 +117,7 @@ export function ComposeTransmittal({
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {/* Recipients */}
             <div>
-              <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5 block">
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5 block">
                 To
               </label>
               <RecipientPicker
@@ -131,27 +131,27 @@ export function ComposeTransmittal({
 
             {/* Drawings list */}
             <div>
-              <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5 block">
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5 block">
                 Drawings ({selectedDrawings.length})
               </label>
               <div className="space-y-1.5">
                 {selectedDrawings.map((d) => (
-                  <div key={d.id} className="flex items-center gap-2 p-2 rounded-lg bg-gray-50">
+                  <div key={d.id} className="flex items-center gap-2 p-2.5 rounded-lg bg-gray-50">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-mono font-semibold text-gray-900">
+                        <span className="text-sm font-mono font-semibold text-gray-900">
                           {d.drawingNumber}
                         </span>
                         <DisciplineBadge discipline={d.discipline} />
-                        <span className="text-[10px] text-gray-400">Rev {d.currentRevision}</span>
+                        <span className="text-xs text-gray-400">Rev {d.currentRevision}</span>
                       </div>
-                      <p className="text-[11px] text-gray-500 truncate">{d.title}</p>
+                      <p className="text-xs text-gray-500 truncate">{d.title}</p>
                     </div>
                     <Select
                       value={purposes[d.id] || 'FOR_INFORMATION'}
                       onValueChange={(v) => handlePurposeChange(d.id, v)}
                     >
-                      <SelectTrigger className="h-6 w-[130px] text-[10px]">
+                      <SelectTrigger className="h-7 w-[140px] text-xs">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -169,7 +169,7 @@ export function ComposeTransmittal({
 
             {/* Subject */}
             <div>
-              <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1 block">
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1 block">
                 Subject (optional)
               </label>
               <Input
@@ -182,7 +182,7 @@ export function ComposeTransmittal({
 
             {/* Notes */}
             <div>
-              <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1 block">
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1 block">
                 Note (optional)
               </label>
               <Textarea

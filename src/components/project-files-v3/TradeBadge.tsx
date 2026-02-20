@@ -12,13 +12,13 @@ export function TradeBadge({ trade, size = 'sm', showIcon = true }: TradeBadgePr
   const config = getTradeConfig(trade)
   if (!config) return null
 
-  const sizeClasses = size === 'sm' ? 'text-[10px] px-1.5 py-0.5' : 'text-xs px-2 py-0.5'
+  const sizeClasses = size === 'sm' ? 'text-xs px-2 py-0.5' : 'text-xs px-2.5 py-1'
 
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-full font-medium ${config.bgColor} ${config.textColor} ${sizeClasses}`}
     >
-      {showIcon && <span className="text-[10px]">{config.icon}</span>}
+      {showIcon && <span className="text-xs">{config.icon}</span>}
       {config.label}
     </span>
   )

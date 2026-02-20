@@ -124,7 +124,7 @@ export function RecipientPicker({
       <div className={`space-y-1 ${compact ? 'max-h-48' : 'max-h-64'} overflow-y-auto`}>
         {grouped.map((group) => (
           <div key={group.key}>
-            <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-1 pt-2 pb-1">
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-1 pt-2 pb-1">
               {group.icon} {group.label}
             </div>
             {group.items.map((r) => {
@@ -149,7 +149,7 @@ export function RecipientPicker({
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium text-gray-900 truncate">{r.name}</div>
                     {r.company && (
-                      <div className="text-[11px] text-gray-500 truncate">{r.company}</div>
+                      <div className="text-xs text-gray-500 truncate">{r.company}</div>
                     )}
                   </div>
                   {r.trade && <TradeBadge trade={r.trade} size="sm" showIcon={false} />}
@@ -178,7 +178,7 @@ export function RecipientPicker({
               placeholder="Name"
               value={manualName}
               onChange={(e) => setManualName(e.target.value)}
-              className="h-7 text-xs"
+              className="h-8 text-sm"
             />
           </div>
           <div className="flex items-center gap-2">
@@ -188,15 +188,15 @@ export function RecipientPicker({
               type="email"
               value={manualEmail}
               onChange={(e) => setManualEmail(e.target.value)}
-              className="h-7 text-xs"
+              className="h-8 text-sm"
               onKeyDown={(e) => e.key === 'Enter' && handleAddManual()}
             />
           </div>
           <div className="flex gap-2">
-            <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setShowManual(false)}>
+            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setShowManual(false)}>
               Cancel
             </Button>
-            <Button size="sm" className="h-6 text-xs" onClick={handleAddManual} disabled={!manualName.trim() || !manualEmail.trim()}>
+            <Button size="sm" className="h-7 text-xs" onClick={handleAddManual} disabled={!manualName.trim() || !manualEmail.trim()}>
               Add
             </Button>
           </div>

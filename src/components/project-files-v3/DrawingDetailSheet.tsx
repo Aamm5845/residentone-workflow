@@ -23,12 +23,12 @@ export function DrawingDetailSheet({
   const thumbnailUrl = `/api/projects/${projectId}/project-files-v2/pdf-thumbnail?path=${encodeURIComponent(drawing.dropboxPath || '')}`
 
   return (
-    <div className="fixed inset-y-0 right-0 z-40 w-[400px] bg-white border-l border-gray-200 shadow-xl flex flex-col">
+    <div className="fixed inset-y-0 right-0 z-40 w-[420px] bg-white border-l border-gray-200 shadow-xl flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-100">
         <div>
-          <h3 className="text-sm font-bold text-gray-900 font-mono">{drawing.drawingNumber}</h3>
-          <p className="text-xs text-gray-500 mt-0.5">{drawing.title}</p>
+          <h3 className="text-base font-bold text-gray-900 font-mono">{drawing.drawingNumber}</h3>
+          <p className="text-sm text-gray-500 mt-0.5">{drawing.title}</p>
         </div>
         <button
           onClick={onClose}
@@ -55,13 +55,13 @@ export function DrawingDetailSheet({
         {/* Meta info */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Discipline</span>
+            <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Discipline</span>
             <div className="mt-1">
               <DisciplineBadge discipline={drawing.discipline} size="md" />
             </div>
           </div>
           <div>
-            <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Status</span>
+            <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Status</span>
             <div className="mt-1">
               {statusConfig && (
                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${statusConfig.bgColor} ${statusConfig.textColor}`}>
@@ -71,12 +71,12 @@ export function DrawingDetailSheet({
             </div>
           </div>
           <div>
-            <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Revision</span>
+            <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Revision</span>
             <p className="text-sm font-semibold text-gray-900 mt-1">Rev {drawing.currentRevision}</p>
           </div>
           {drawing.floor && (
             <div>
-              <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Floor</span>
+              <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Floor</span>
               <p className="text-sm text-gray-700 mt-1">{drawing.floor.name}</p>
             </div>
           )}
@@ -84,15 +84,15 @@ export function DrawingDetailSheet({
 
         {/* Revisions */}
         <div>
-          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <Clock className="h-3 w-3" />
+          <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5" />
             Revision History
           </h4>
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             {drawing.revisions.map((rev) => (
               <div
                 key={rev.id}
-                className={`flex items-center gap-2 p-2 rounded-lg text-xs ${
+                className={`flex items-center gap-2 p-2.5 rounded-lg text-sm ${
                   rev.revisionNumber === drawing.currentRevision ? 'bg-blue-50 border border-blue-100' : 'bg-gray-50'
                 }`}
               >
@@ -110,12 +110,12 @@ export function DrawingDetailSheet({
 
         {/* Distribution summary */}
         <div>
-          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <Send className="h-3 w-3" />
+          <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <Send className="h-3.5 w-3.5" />
             Distribution
           </h4>
           {drawing.recipientCount > 0 ? (
-            <div className="text-xs text-gray-600">
+            <div className="text-sm text-gray-600">
               <p>Sent to <span className="font-semibold">{drawing.recipientCount}</span> recipient{drawing.recipientCount !== 1 ? 's' : ''}</p>
               {drawing.outdatedRecipientCount > 0 && (
                 <p className="text-amber-600 mt-1">
@@ -129,7 +129,7 @@ export function DrawingDetailSheet({
               )}
             </div>
           ) : (
-            <p className="text-xs text-gray-400">Not sent to anyone yet</p>
+            <p className="text-sm text-gray-400">Not sent to anyone yet</p>
           )}
         </div>
       </div>

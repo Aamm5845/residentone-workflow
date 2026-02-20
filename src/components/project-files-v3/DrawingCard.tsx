@@ -48,14 +48,14 @@ export function DrawingCard({
     >
       {/* Discipline color stripe */}
       <div
-        className="h-1"
+        className="h-1.5"
         style={{ backgroundColor: disciplineConfig?.hex || '#9CA3AF' }}
       />
 
       {/* Select checkbox on hover */}
       {(hovered || isSelected) && (
         <button
-          className={`absolute top-3 left-3 z-10 h-5 w-5 rounded border-2 flex items-center justify-center transition-colors ${
+          className={`absolute top-3 left-3 z-10 h-6 w-6 rounded border-2 flex items-center justify-center transition-colors ${
             isSelected
               ? 'bg-blue-600 border-blue-600 text-white'
               : 'bg-white/90 border-gray-300 hover:border-blue-500'
@@ -65,7 +65,7 @@ export function DrawingCard({
             onSelect(drawing.id)
           }}
         >
-          {isSelected && <Check className="h-3 w-3" />}
+          {isSelected && <Check className="h-3.5 w-3.5" />}
         </button>
       )}
 
@@ -74,10 +74,10 @@ export function DrawingCard({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className="h-6 w-6 rounded-md bg-white/80 hover:bg-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              className="h-7 w-7 rounded-md bg-white/80 hover:bg-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
               onClick={(e) => e.stopPropagation()}
             >
-              <MoreHorizontal className="h-3.5 w-3.5 text-gray-500" />
+              <MoreHorizontal className="h-4 w-4 text-gray-500" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -112,51 +112,51 @@ export function DrawingCard({
       </div>
 
       {/* Info */}
-      <div className="p-3 space-y-2">
+      <div className="p-4 space-y-2.5">
         {/* Drawing number + discipline */}
         <div className="flex items-center justify-between">
-          <span className="text-sm font-bold text-gray-900 font-mono">
+          <span className="text-lg font-bold text-gray-900 font-mono">
             {drawing.drawingNumber}
           </span>
           <DisciplineBadge discipline={drawing.discipline} />
         </div>
 
         {/* Title */}
-        <p className="text-xs text-gray-600 line-clamp-2 leading-relaxed min-h-[2rem]">
+        <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed min-h-[2.5rem]">
           {drawing.title}
         </p>
 
         {/* Rev + Status */}
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-700">
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-700">
             Rev {drawing.currentRevision}
           </span>
           {statusConfig && (
-            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${statusConfig.bgColor} ${statusConfig.textColor}`}>
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium ${statusConfig.bgColor} ${statusConfig.textColor}`}>
               {statusConfig.label}
             </span>
           )}
         </div>
 
         {/* Distribution summary */}
-        <div className="flex items-center gap-1.5 text-[11px]">
+        <div className="flex items-center gap-1.5 text-sm">
           {drawing.recipientCount > 0 ? (
             <>
-              <Check className="h-3 w-3 text-emerald-500" />
+              <Check className="h-3.5 w-3.5 text-emerald-500" />
               <span className="text-gray-600">
                 {drawing.recipientCount} received
               </span>
               {drawing.outdatedRecipientCount > 0 && (
                 <>
                   <span className="text-gray-300 mx-0.5">·</span>
-                  <AlertTriangle className="h-3 w-3 text-amber-500" />
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
                   <span className="text-amber-600">{drawing.outdatedRecipientCount} outdated</span>
                 </>
               )}
             </>
           ) : (
             <>
-              <Circle className="h-3 w-3 text-gray-300" />
+              <Circle className="h-3.5 w-3.5 text-gray-300" />
               <span className="text-gray-400">Not sent yet</span>
             </>
           )}
@@ -164,7 +164,7 @@ export function DrawingCard({
 
         {/* Last sent */}
         {drawing.lastTransmittal && (
-          <div className="text-[10px] text-gray-400 truncate">
+          <div className="text-xs text-gray-500 truncate">
             Last sent to {drawing.lastTransmittal.recipientName} · {formatDate(drawing.lastTransmittal.sentAt)}
           </div>
         )}
@@ -180,10 +180,10 @@ export function DrawingCard({
             <Button
               size="sm"
               variant="outline"
-              className="w-full h-7 text-xs gap-1.5"
+              className="w-full h-9 text-sm gap-1.5"
               onClick={(e) => e.stopPropagation()}
             >
-              <Send className="h-3 w-3" />
+              <Send className="h-3.5 w-3.5" />
               Send
             </Button>
           </QuickSendPopover>

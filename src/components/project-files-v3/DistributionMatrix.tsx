@@ -59,24 +59,24 @@ export function DistributionMatrix({ projectId, disciplineFilter }: Distribution
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-xs">
+      <table className="w-full border-collapse text-sm">
         <thead>
           <tr>
-            <th className="sticky left-0 z-20 bg-white min-w-[180px] p-2 text-left font-medium text-gray-500 border-b-2 border-gray-200">
+            <th className="sticky left-0 z-20 bg-white min-w-[220px] p-2.5 text-left font-medium text-gray-500 border-b-2 border-gray-200">
               Drawing
             </th>
             {data.recipients.map((r) => (
               <th
                 key={r.email}
-                className="p-2 text-center font-normal border-b-2 border-gray-200 min-w-[100px]"
+                className="p-2.5 text-center font-normal border-b-2 border-gray-200 min-w-[130px]"
               >
                 <div className="flex flex-col items-center gap-1">
                   <RecipientAvatar name={r.name} trade={r.trade} type={r.type || undefined} size="sm" />
-                  <span className="text-[10px] font-medium text-gray-700 truncate max-w-[90px]">
+                  <span className="text-xs font-medium text-gray-700 truncate max-w-[120px]">
                     {r.name}
                   </span>
                   {r.company && (
-                    <span className="text-[9px] text-gray-400 truncate max-w-[90px]">
+                    <span className="text-[11px] text-gray-400 truncate max-w-[120px]">
                       {r.company}
                     </span>
                   )}
@@ -95,11 +95,11 @@ export function DistributionMatrix({ projectId, disciplineFilter }: Distribution
                 <tr>
                   <td
                     colSpan={data.recipients.length + 1}
-                    className="sticky left-0 z-10 bg-gray-50 px-2 py-1.5 text-[10px] font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-100"
+                    className="sticky left-0 z-10 bg-gray-50 px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-100"
                   >
                     <span className="flex items-center gap-1.5">
                       <span
-                        className="inline-block h-2 w-2 rounded-full"
+                        className="inline-block h-2.5 w-2.5 rounded-full"
                         style={{ backgroundColor: config?.hex || '#9CA3AF' }}
                       />
                       {config?.label || 'Other'}
@@ -109,15 +109,15 @@ export function DistributionMatrix({ projectId, disciplineFilter }: Distribution
                 {/* Drawing rows */}
                 {drawings.map((drawing) => (
                   <tr key={drawing.id} className="hover:bg-gray-50/50">
-                    <td className="sticky left-0 z-10 bg-white p-2 border-b border-gray-100">
+                    <td className="sticky left-0 z-10 bg-white p-2.5 border-b border-gray-100">
                       <div className="flex items-center gap-2">
                         <span className="font-mono font-semibold text-gray-900">
                           {drawing.drawingNumber}
                         </span>
-                        <span className="text-gray-400 truncate max-w-[100px]">
+                        <span className="text-gray-400 truncate max-w-[160px]">
                           {drawing.title}
                         </span>
-                        <span className="ml-auto text-[10px] text-gray-400 font-medium shrink-0">
+                        <span className="ml-auto text-xs text-gray-400 font-medium shrink-0">
                           R{drawing.currentRevision}
                         </span>
                       </div>
@@ -127,7 +127,7 @@ export function DistributionMatrix({ projectId, disciplineFilter }: Distribution
                       return (
                         <td
                           key={r.email}
-                          className="p-2 text-center border-b border-gray-100"
+                          className="p-2.5 text-center border-b border-gray-100"
                         >
                           {cell ? (
                             <RevisionIndicator
@@ -149,16 +149,16 @@ export function DistributionMatrix({ projectId, disciplineFilter }: Distribution
       </table>
 
       {/* Legend */}
-      <div className="flex items-center gap-4 mt-4 px-2 text-[10px] text-gray-400">
-        <span className="flex items-center gap-1">
-          <span className="inline-block h-3 w-5 rounded bg-emerald-50 border border-emerald-200 text-emerald-700 text-center text-[8px] font-bold leading-[12px]">R</span>
+      <div className="flex items-center gap-5 mt-5 px-2 text-xs text-gray-500">
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block h-4 w-6 rounded bg-emerald-50 border border-emerald-200 text-emerald-700 text-center text-[10px] font-bold leading-[16px]">R</span>
           Has latest
         </span>
-        <span className="flex items-center gap-1">
-          <span className="inline-block h-3 w-5 rounded bg-amber-50 border border-amber-200 text-amber-700 text-center text-[8px] font-bold leading-[12px]">R</span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block h-4 w-6 rounded bg-amber-50 border border-amber-200 text-amber-700 text-center text-[10px] font-bold leading-[16px]">R</span>
           Outdated
         </span>
-        <span className="flex items-center gap-1">
+        <span className="flex items-center gap-1.5">
           <span className="text-gray-300">—</span>
           Never sent
         </span>

@@ -83,27 +83,27 @@ export function DrawingBoard({
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       {grouped.map(([discipline, items]) => {
         const config = DISCIPLINE_CONFIG[discipline]
         return (
           <div key={discipline}>
             {/* Discipline header */}
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-3 mb-5">
               <div
-                className="h-0.5 w-6 rounded-full"
+                className="h-8 w-1 rounded-full"
                 style={{ backgroundColor: config?.hex || '#9CA3AF' }}
               />
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
                 {config?.label || 'Other'}
               </h3>
-              <span className="text-[10px] text-gray-400">
+              <span className="text-xs text-gray-400">
                 {items.length} drawing{items.length !== 1 ? 's' : ''}
               </span>
             </div>
 
             {/* Card grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 pl-2">
               {items.map((drawing) => (
                 <DrawingCard
                   key={drawing.id}

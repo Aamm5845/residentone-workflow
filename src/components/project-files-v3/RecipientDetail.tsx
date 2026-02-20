@@ -33,15 +33,15 @@ export function RecipientDetail({ projectId, recipientEmail, onClose }: Recipien
   const recipientCompany = transmittals[0]?.recipientCompany || fileSends[0]?.recipientCompany
 
   return (
-    <div className="fixed inset-y-0 right-0 z-40 w-[400px] bg-white border-l border-gray-200 shadow-xl flex flex-col">
+    <div className="fixed inset-y-0 right-0 z-40 w-[420px] bg-white border-l border-gray-200 shadow-xl flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-100">
         <div className="flex items-center gap-3">
           <RecipientAvatar name={recipientName} size="lg" />
           <div>
-            <h3 className="text-sm font-bold text-gray-900">{recipientName}</h3>
-            {recipientCompany && <p className="text-xs text-gray-500">{recipientCompany}</p>}
-            <p className="text-[10px] text-gray-400">{recipientEmail}</p>
+            <h3 className="text-base font-bold text-gray-900">{recipientName}</h3>
+            {recipientCompany && <p className="text-sm text-gray-500">{recipientCompany}</p>}
+            <p className="text-xs text-gray-400">{recipientEmail}</p>
           </div>
         </div>
         <button
@@ -53,7 +53,7 @@ export function RecipientDetail({ projectId, recipientEmail, onClose }: Recipien
       </div>
 
       {/* Summary */}
-      <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-4 text-xs text-gray-500">
+      <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-4 text-sm text-gray-500">
         <span><span className="font-semibold text-gray-700">{transmittals.length}</span> transmittal{transmittals.length !== 1 ? 's' : ''}</span>
         <span><span className="font-semibold text-gray-700">{fileSends.length}</span> file{fileSends.length !== 1 ? 's' : ''}</span>
         {allEvents.length > 0 && (
@@ -74,19 +74,19 @@ export function RecipientDetail({ projectId, recipientEmail, onClose }: Recipien
             if (event.type === 'transmittal') {
               const t = event.data
               return (
-                <div key={`t-${t.id}`} className="bg-gray-50 rounded-lg p-3 space-y-2">
+                <div key={`t-${t.id}`} className="bg-gray-50 rounded-lg p-3.5 space-y-2">
                   <div className="flex items-center gap-2">
-                    <Send className="h-3 w-3 text-blue-500" />
-                    <span className="text-[10px] font-semibold text-gray-400">{t.transmittalNumber}</span>
-                    <span className="text-[10px] text-gray-400 ml-auto">{formatDateTime(event.date)}</span>
+                    <Send className="h-3.5 w-3.5 text-blue-500" />
+                    <span className="text-xs font-semibold text-gray-500">{t.transmittalNumber}</span>
+                    <span className="text-xs text-gray-400 ml-auto">{formatDateTime(event.date)}</span>
                   </div>
                   <div className="space-y-1">
                     {t.items?.map((item: any, j: number) => (
-                      <div key={j} className="flex items-center gap-2 text-xs">
+                      <div key={j} className="flex items-center gap-2 text-sm">
                         <span className="font-mono font-semibold text-gray-700">{item.drawing?.drawingNumber}</span>
                         <span className="text-gray-500 truncate flex-1">{item.drawing?.title}</span>
                         {item.drawing?.discipline && <DisciplineBadge discipline={item.drawing.discipline} />}
-                        <span className="text-[10px] text-gray-400">Rev {item.revisionNumber}</span>
+                        <span className="text-xs text-gray-400">Rev {item.revisionNumber}</span>
                       </div>
                     ))}
                   </div>
@@ -96,11 +96,11 @@ export function RecipientDetail({ projectId, recipientEmail, onClose }: Recipien
 
             const f = event.data
             return (
-              <div key={`f-${f.id}`} className="bg-gray-50 rounded-lg p-3">
+              <div key={`f-${f.id}`} className="bg-gray-50 rounded-lg p-3.5">
                 <div className="flex items-center gap-2">
-                  <FileText className="h-3 w-3 text-violet-500" />
-                  <span className="text-xs font-medium text-gray-700">{f.fileName}</span>
-                  <span className="text-[10px] text-gray-400 ml-auto">{formatDateTime(event.date)}</span>
+                  <FileText className="h-3.5 w-3.5 text-violet-500" />
+                  <span className="text-sm font-medium text-gray-700">{f.fileName}</span>
+                  <span className="text-xs text-gray-400 ml-auto">{formatDateTime(event.date)}</span>
                 </div>
               </div>
             )

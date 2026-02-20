@@ -68,14 +68,14 @@ export function QuickSendPopover({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
-      <PopoverContent className="w-72 p-3" align="end" sideOffset={4}>
+      <PopoverContent className="w-80 p-4" align="end" sideOffset={4}>
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold text-gray-900">
+              <p className="text-sm font-semibold text-gray-900">
                 Send {drawing.drawingNumber}
               </p>
-              <p className="text-[10px] text-gray-500">Rev {drawing.currentRevision}</p>
+              <p className="text-xs text-gray-500">Rev {drawing.currentRevision}</p>
             </div>
           </div>
 
@@ -90,17 +90,17 @@ export function QuickSendPopover({
           <Button
             onClick={handleSend}
             disabled={selected.length === 0 || sending}
-            className="w-full h-8 text-xs"
+            className="w-full h-9 text-sm"
             size="sm"
           >
             {sending ? (
               <>
-                <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                 Sending...
               </>
             ) : (
               <>
-                <Send className="h-3 w-3 mr-1.5" />
+                <Send className="h-3.5 w-3.5 mr-1.5" />
                 Send to {selected.length || '...'} recipient{selected.length !== 1 ? 's' : ''}
               </>
             )}

@@ -7,7 +7,7 @@ interface RevisionIndicatorProps {
 }
 
 export function RevisionIndicator({ revisionNumber, isLatest, size = 'sm' }: RevisionIndicatorProps) {
-  const sizeClasses = size === 'sm' ? 'text-[10px] h-5 min-w-5 px-1' : 'text-xs h-6 min-w-6 px-1.5'
+  const sizeClasses = size === 'sm' ? 'text-xs h-6 min-w-6 px-1.5' : 'text-sm h-7 min-w-7 px-2'
 
   if (isLatest) {
     return (
@@ -33,7 +33,7 @@ interface EmptyRevisionCellProps {
 }
 
 export function EmptyRevisionCell({ size = 'sm' }: EmptyRevisionCellProps) {
-  const sizeClasses = size === 'sm' ? 'text-[10px] h-5 min-w-5' : 'text-xs h-6 min-w-6'
+  const sizeClasses = size === 'sm' ? 'text-xs h-6 min-w-6' : 'text-sm h-7 min-w-7'
 
   return (
     <span className={`inline-flex items-center justify-center text-gray-300 ${sizeClasses}`}>

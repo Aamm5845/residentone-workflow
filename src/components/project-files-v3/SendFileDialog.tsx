@@ -112,7 +112,7 @@ export function SendFileDialog({
         <div className="flex-1 overflow-y-auto space-y-4 py-2">
           {/* File selection */}
           <div>
-            <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5 block">
+            <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5 block">
               File
             </label>
             {selectedFile ? (
@@ -121,7 +121,7 @@ export function SendFileDialog({
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{selectedFile.name}</p>
                   {selectedFile.size && (
-                    <p className="text-[10px] text-gray-400">{formatFileSize(selectedFile.size)}</p>
+                    <p className="text-xs text-gray-400">{formatFileSize(selectedFile.size)}</p>
                   )}
                 </div>
                 <button
@@ -140,7 +140,7 @@ export function SendFileDialog({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1 h-8 text-xs gap-1.5"
+                    className="flex-1 h-9 text-sm gap-1.5"
                     onClick={() => setMode('pick')}
                   >
                     <Folder className="h-3.5 w-3.5" />
@@ -159,7 +159,7 @@ export function SendFileDialog({
 
           {/* Recipients */}
           <div>
-            <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5 block">
+            <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5 block">
               To
             </label>
             <RecipientPicker
@@ -172,7 +172,7 @@ export function SendFileDialog({
 
           {/* Subject */}
           <div>
-            <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1 block">
+            <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1 block">
               Subject (optional)
             </label>
             <Input
@@ -185,7 +185,7 @@ export function SendFileDialog({
 
           {/* Notes */}
           <div>
-            <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1 block">
+            <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1 block">
               Note (optional)
             </label>
             <Textarea

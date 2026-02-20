@@ -114,15 +114,15 @@ export function ProjectFilesV3Workspace({ project }: ProjectFilesV3WorkspaceProp
   const detailDrawing = detailDrawingId ? drawings.find((d) => d.id === detailDrawingId) : null
 
   const tabs: Array<{ key: ViewTab; label: string; icon: React.ReactNode }> = [
-    { key: 'board', label: 'Drawings', icon: <LayoutGrid className="h-3.5 w-3.5" /> },
-    { key: 'matrix', label: 'Distribution', icon: <Grid3X3 className="h-3.5 w-3.5" /> },
-    { key: 'activity', label: 'Activity', icon: <Clock className="h-3.5 w-3.5" /> },
+    { key: 'board', label: 'Drawings', icon: <LayoutGrid className="h-4 w-4" /> },
+    { key: 'matrix', label: 'Distribution', icon: <Grid3X3 className="h-4 w-4" /> },
+    { key: 'activity', label: 'Activity', icon: <Clock className="h-4 w-4" /> },
   ]
 
   return (
     <div className="flex flex-col h-full">
       {/* Top bar */}
-      <div className="shrink-0 border-b border-gray-200 bg-white px-6 py-3">
+      <div className="shrink-0 border-b border-gray-200 bg-white px-6 py-4">
         {/* First row: back + title + actions */}
         <div className="flex items-center gap-4 mb-3">
           <Link
@@ -133,7 +133,7 @@ export function ProjectFilesV3Workspace({ project }: ProjectFilesV3WorkspaceProp
           </Link>
 
           <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-bold text-gray-900 truncate">{project.name}</h1>
+            <h1 className="text-2xl font-bold text-gray-900 truncate">{project.name}</h1>
             <StatusSummaryBar drawings={drawings} />
           </div>
 
@@ -141,20 +141,20 @@ export function ProjectFilesV3Workspace({ project }: ProjectFilesV3WorkspaceProp
             <Button
               variant="outline"
               size="sm"
-              className="h-8 text-xs gap-1.5"
+              className="h-9 text-sm gap-1.5"
               onClick={() => setSendFileOpen(true)}
             >
-              <FileUp className="h-3.5 w-3.5" />
+              <FileUp className="h-4 w-4" />
               Send File
             </Button>
 
             {selectedIds.size > 0 && (
               <Button
                 size="sm"
-                className="h-8 text-xs gap-1.5"
+                className="h-9 text-sm gap-1.5"
                 onClick={handleComposeFromSelection}
               >
-                <Send className="h-3.5 w-3.5" />
+                <Send className="h-4 w-4" />
                 Send {selectedIds.size} Drawing{selectedIds.size !== 1 ? 's' : ''}
               </Button>
             )}
@@ -164,12 +164,12 @@ export function ProjectFilesV3Workspace({ project }: ProjectFilesV3WorkspaceProp
         {/* Second row: tabs + filters */}
         <div className="flex items-center gap-4">
           {/* Tabs */}
-          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
+          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
             {tabs.map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setActiveView(tab.key)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                   activeView === tab.key
                     ? 'bg-white text-gray-900 shadow-sm'
                     : 'text-gray-500 hover:text-gray-700'
@@ -185,13 +185,13 @@ export function ProjectFilesV3Workspace({ project }: ProjectFilesV3WorkspaceProp
 
           {/* Search (board view only) */}
           {activeView === 'board' && (
-            <div className="relative w-56">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+            <div className="relative w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 placeholder="Search drawings..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-8 h-8 text-sm"
+                className="pl-9 h-9 text-sm"
               />
             </div>
           )}
@@ -202,13 +202,13 @@ export function ProjectFilesV3Workspace({ project }: ProjectFilesV3WorkspaceProp
               value={disciplineFilter || '_all'}
               onValueChange={(v) => setDisciplineFilter(v === '_all' ? null : v)}
             >
-              <SelectTrigger className="h-8 w-[160px] text-xs">
+              <SelectTrigger className="h-9 w-[180px] text-sm">
                 <SelectValue placeholder="All Disciplines" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="_all" className="text-xs">All Disciplines</SelectItem>
+                <SelectItem value="_all" className="text-sm">All Disciplines</SelectItem>
                 {Object.entries(DISCIPLINE_CONFIG).map(([key, config]) => (
-                  <SelectItem key={key} value={key} className="text-xs">
+                  <SelectItem key={key} value={key} className="text-sm">
                     <span className="flex items-center gap-1.5">
                       <span
                         className="inline-block h-2 w-2 rounded-full"
