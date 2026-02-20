@@ -266,6 +266,7 @@ model User {
   issuedRevisions             DrawingRevision[]           @relation("RevisionIssuedBy")
   createdTransmittals         Transmittal[]               @relation("TransmittalCreator")
   sentTransmittals            Transmittal[]               @relation("TransmittalSentBy")
+  fileSends                   FileSend[]                  @relation("FileSendSentBy")
 }
 
 model Client {
@@ -311,6 +312,7 @@ model Contractor {
   projectContractors ProjectContractor[]
   projectUpdateTasks ProjectUpdateTask[]
   meetingAttendances MeetingAttendee[]
+  trade              ContractorTrade?
 
   @@unique([orgId, email])
   @@index([orgId, type])
@@ -403,6 +405,7 @@ model Project {
   drawings                  ProjectDrawing[]
   transmittals              Transmittal[]
   photoMeta                 ProjectPhotoMeta[]
+  fileSends                 FileSend[]
 }
 
 // Client Sources - files received from clients (measurements, architect plans, etc.)
@@ -4892,6 +4895,33 @@ enum CadFreshnessStatus {
   UNKNOWN
 }
 
+enum ContractorTrade {
+  GENERAL_CONTRACTOR
+  ELECTRICIAN
+  PLUMBER
+  HVAC
+  CARPENTER
+  PAINTER
+  FLOORING
+  TILE
+  CABINETRY
+  MILLWORK
+  GLAZIER
+  ROOFER
+  MASON
+  STEEL_FABRICATOR
+  DRYWALL
+  INSULATION
+  FIRE_PROTECTION
+  LANDSCAPE
+  DEMOLITION
+  AUDIOVISUAL
+  SECURITY_SYSTEMS
+  LIGHTING
+  WINDOW_TREATMENT
+  OTHER
+}
+
 model ProjectFloor {
   id        String   @id @default(cuid())
   projectId String
@@ -4996,6 +5026,8 @@ model Transmittal {
 
   @@index([projectId])
   @@index([projectId, transmittalNumber])
+  @@index([projectId, recipientEmail])
+  @@index([projectId, sentAt])
   @@unique([projectId, transmittalNumber])
 }
 
@@ -5058,4 +5090,31 @@ model CadSourceLink {
   @@index([cadDropboxPath])
   @@index([cadFreshnessStatus])
   @@index([drawingId])
+}
+
+// Project Files V3 - Ad-hoc file sends (non-drawing files)
+model FileSend {
+  id               String   @id @default(cuid())
+  projectId        String
+  recipientName    String
+  recipientEmail   String
+  recipientCompany String?
+  subject          String?
+  notes            String?
+  fileName         String
+  filePath         String
+  fileSize         Int?
+  mimeType         String?
+  sentAt           DateTime?
+  sentBy           String?
+  emailId          String?
+  orgId            String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  project    Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sentByUser User?   @relation("FileSendSentBy", fields: [sentBy], references: [id])
+
+  @@index([projectId, sentAt])
+  @@index([projectId, recipientEmail])
 }
