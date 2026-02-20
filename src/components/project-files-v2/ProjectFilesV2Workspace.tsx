@@ -17,6 +17,7 @@ import {
   Send,
   FolderTree,
   Camera,
+  Paperclip,
 } from 'lucide-react'
 
 // Components
@@ -33,6 +34,7 @@ import AllFilesBrowser from './AllFilesBrowser'
 import PhotosGallery from './PhotosGallery'
 import CadFreshnessSummary from './CadFreshnessSummary'
 import CadSourceLinkDialog from './CadSourceLinkDialog'
+import SendFileDialog from './SendFileDialog'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -83,6 +85,7 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
   const [transmittalPreSelectedDrawings, setTransmittalPreSelectedDrawings] = useState<any[]>([])
   const [viewTransmittal, setViewTransmittal] = useState<any | null>(null)
   const [cadLinkDrawing, setCadLinkDrawing] = useState<any | null>(null)
+  const [showSendFile, setShowSendFile] = useState(false)
   const [prefillDrawing, setPrefillDrawing] = useState<{
     dropboxPath: string
     fileName: string
@@ -212,36 +215,45 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
               </div>
             </div>
 
-            {/* Right: search + add drawing (only on drawings tab) */}
-            {activeTab === 'drawings' && (
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input
-                    placeholder="Search drawings..."
-                    value={searchInput}
-                    onChange={(e) => setSearchInput(e.target.value)}
-                    onKeyDown={handleSearchKeyDown}
-                    className="pl-9 w-64 h-9 text-sm"
-                  />
-                  {searchInput && (
-                    <button
-                      onClick={() => {
-                        setSearchInput('')
-                        setFilters((prev) => ({ ...prev, search: '' }))
-                      }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-                <Button size="sm" onClick={() => setShowAddDrawing(true)}>
-                  <Plus className="w-4 h-4 mr-1.5" />
-                  Add Drawing
-                </Button>
-              </div>
-            )}
+            {/* Right: actions */}
+            <div className="flex items-center gap-3">
+              {/* Send Files button — always visible */}
+              <Button variant="outline" size="sm" onClick={() => setShowSendFile(true)}>
+                <Paperclip className="w-4 h-4 mr-1.5" />
+                Send Files
+              </Button>
+
+              {/* Search + Add Drawing — drawings tab only */}
+              {activeTab === 'drawings' && (
+                <>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Input
+                      placeholder="Search drawings..."
+                      value={searchInput}
+                      onChange={(e) => setSearchInput(e.target.value)}
+                      onKeyDown={handleSearchKeyDown}
+                      className="pl-9 w-64 h-9 text-sm"
+                    />
+                    {searchInput && (
+                      <button
+                        onClick={() => {
+                          setSearchInput('')
+                          setFilters((prev) => ({ ...prev, search: '' }))
+                        }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  <Button size="sm" onClick={() => setShowAddDrawing(true)}>
+                    <Plus className="w-4 h-4 mr-1.5" />
+                    Add Drawing
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -552,6 +564,14 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
           }}
         />
       )}
+
+      {/* Send File Dialog */}
+      <SendFileDialog
+        projectId={project.id}
+        open={showSendFile}
+        onOpenChange={setShowSendFile}
+        onSuccess={() => setShowSendFile(false)}
+      />
 
       {/* CAD Source Link Dialog */}
       {cadLinkDrawing && (
