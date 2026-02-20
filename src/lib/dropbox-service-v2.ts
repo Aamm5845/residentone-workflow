@@ -224,60 +224,59 @@ class DropboxServiceV2 {
    * Download a file from Dropbox
    */
   async downloadFile(path: string, memberId?: string): Promise<Buffer> {
+    // Normalize path - Dropbox API requires leading slash
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`
+
+    console.log(`[DropboxService] Downloading file: "${normalizedPath}" for member: ${memberId || 'default'}`)
+
+    // Method 1: Try filesDownload SDK call (works in some runtimes)
     try {
       const client = this.getClient(memberId)
-
-      // Normalize path - Dropbox API requires leading slash
-      const normalizedPath = path.startsWith('/') ? path : `/${path}`
-
-      console.log(`[DropboxService] Downloading file: "${normalizedPath}" (original: "${path}") for member: ${memberId || 'default'}`)
-
       const response = await client.filesDownload({ path: normalizedPath })
 
-      // Debug: log response structure to understand what Dropbox returns
-      console.log(`[DropboxService] Download response keys:`, Object.keys(response || {}))
-      if (response?.result) {
-        console.log(`[DropboxService] response.result keys:`, Object.keys(response.result))
-        console.log(`[DropboxService] response.result.fileBinary type:`, typeof (response.result as any).fileBinary)
-        console.log(`[DropboxService] response.result.fileBinary truthy:`, !!(response.result as any).fileBinary)
-      }
-
-      // Try multiple locations where binary data might be
       const fileBinary = (response?.result as any)?.fileBinary
         || (response as any)?.fileBinary
 
       if (fileBinary) {
         const buffer = Buffer.from(fileBinary)
-        console.log(`[DropboxService] Downloaded ${buffer.length} bytes from fileBinary`)
+        console.log(`[DropboxService] Downloaded ${buffer.length} bytes via filesDownload`)
         return buffer
       }
 
-      // If fileBinary not found, try to get the response as buffer directly
       if (response instanceof Buffer) {
         console.log(`[DropboxService] Response is Buffer: ${response.length} bytes`)
         return response
       }
 
-      // Last resort: try to convert the entire result
-      if (response?.result) {
-        try {
-          const buf = Buffer.from(response.result as any)
-          if (buf.length > 0) {
-            console.log(`[DropboxService] Converted result to Buffer: ${buf.length} bytes`)
-            return buf
-          }
-        } catch {
-          // ignore conversion error
-        }
+      console.warn(`[DropboxService] filesDownload returned no fileBinary, falling back to temporary link`)
+    } catch (sdkError: any) {
+      console.warn(`[DropboxService] filesDownload failed: ${sdkError?.message}, falling back to temporary link`)
+    }
+
+    // Method 2: Get a temporary download link and fetch via HTTP (works on all runtimes)
+    try {
+      const client = this.getClient(memberId)
+      const linkResponse = await client.filesGetTemporaryLink({ path: normalizedPath })
+      const downloadUrl = linkResponse?.result?.link
+
+      if (!downloadUrl) {
+        throw new Error('Could not get temporary download link')
       }
 
-      // Log everything we know for debugging
-      console.error(`[DropboxService] Could not extract binary data. Response type: ${typeof response}, result type: ${typeof response?.result}`)
-      throw new Error(`No file data received from Dropbox for path: ${normalizedPath}`)
+      console.log(`[DropboxService] Downloading via temporary link for: ${normalizedPath}`)
+      const httpResponse = await fetch(downloadUrl)
 
-    } catch (error: any) {
-      console.error('[DropboxService] Error downloading file:', error?.message || error)
-      throw new Error(`Failed to download file from Dropbox: ${error.message || 'Unknown error'}`)
+      if (!httpResponse.ok) {
+        throw new Error(`HTTP download failed: ${httpResponse.status} ${httpResponse.statusText}`)
+      }
+
+      const arrayBuffer = await httpResponse.arrayBuffer()
+      const buffer = Buffer.from(arrayBuffer)
+      console.log(`[DropboxService] Downloaded ${buffer.length} bytes via temporary link`)
+      return buffer
+    } catch (linkError: any) {
+      console.error('[DropboxService] Temporary link download also failed:', linkError?.message)
+      throw new Error(`Failed to download file from Dropbox: ${linkError.message || 'Unknown error'}`)
     }
   }
 
