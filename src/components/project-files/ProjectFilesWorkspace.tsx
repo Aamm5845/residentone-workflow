@@ -5,13 +5,14 @@ import Link from 'next/link'
 import useSWR from 'swr'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, FileText, Camera, Send } from 'lucide-react'
+import { ArrowLeft, FileText, Camera, Send, FolderTree } from 'lucide-react'
 
 // New components
 import FilesTabContent from './FilesTabContent'
 import SentTabContent from './SentTabContent'
 
 // Reuse from v2
+import AllFilesBrowser from '../project-files-v2/AllFilesBrowser'
 import DrawingFormDialog from '../project-files-v2/DrawingFormDialog'
 import NewRevisionDialog from '../project-files-v2/NewRevisionDialog'
 import NewTransmittalDialog from '../project-files-v2/NewTransmittalDialog'
@@ -29,7 +30,7 @@ interface Project {
   client?: { id: string; name: string; email: string } | null
 }
 
-type TabValue = 'files' | 'photos' | 'sent'
+type TabValue = 'all-files' | 'files' | 'photos' | 'sent'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -39,7 +40,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
 export default function ProjectFilesWorkspace({ project }: { project: Project }) {
   // ---- Tab state ----
-  const [activeTab, setActiveTab] = useState<TabValue>('files')
+  const [activeTab, setActiveTab] = useState<TabValue>('all-files')
 
   // ---- Filter state ----
   const [filters, setFilters] = useState<{
@@ -80,21 +81,21 @@ export default function ProjectFilesWorkspace({ project }: { project: Project })
 
   // ---- SWR Data ----
   const { data: drawingsData, isLoading: drawingsLoading, mutate: mutateDrawings } = useSWR(
-    activeTab === 'files'
-      ? `/api/projects/${project.id}/project-files-v2/drawings?${filterParams}`
+    (activeTab === 'files' || activeTab === 'all-files')
+      ? `/api/projects/${project.id}/project-files-v2/drawings?${activeTab === 'files' ? filterParams : ''}`
       : null,
     fetcher
   )
 
   const { data: floorsData, mutate: mutateFloors } = useSWR(
-    activeTab === 'files'
+    (activeTab === 'files' || activeTab === 'all-files')
       ? `/api/projects/${project.id}/project-files-v2/floors`
       : null,
     fetcher
   )
 
   const { data: sectionsData, mutate: mutateSections } = useSWR(
-    activeTab === 'files'
+    (activeTab === 'files' || activeTab === 'all-files')
       ? `/api/projects/${project.id}/project-files-v2/sections`
       : null,
     fetcher
@@ -211,6 +212,17 @@ export default function ProjectFilesWorkspace({ project }: { project: Project })
           <div className="border-b border-gray-200 mb-6">
             <TabsList className="bg-transparent rounded-none p-0 h-auto gap-0">
               <TabsTrigger
+                value="all-files"
+                className="rounded-none border-b-2 border-transparent px-4 pb-2.5 pt-1
+                  text-sm font-medium text-gray-500 hover:text-gray-700
+                  data-[state=active]:border-gray-900 data-[state=active]:text-gray-900
+                  data-[state=active]:bg-transparent data-[state=active]:shadow-none
+                  transition-colors gap-1.5"
+              >
+                <FolderTree className="w-4 h-4" />
+                All Files
+              </TabsTrigger>
+              <TabsTrigger
                 value="files"
                 className="rounded-none border-b-2 border-transparent px-4 pb-2.5 pt-1
                   text-sm font-medium text-gray-500 hover:text-gray-700
@@ -219,7 +231,7 @@ export default function ProjectFilesWorkspace({ project }: { project: Project })
                   transition-colors gap-1.5"
               >
                 <FileText className="w-4 h-4" />
-                Files
+                Drawings
               </TabsTrigger>
               <TabsTrigger
                 value="photos"
@@ -246,11 +258,43 @@ export default function ProjectFilesWorkspace({ project }: { project: Project })
             </TabsList>
           </div>
 
-          {/* ── FILES TAB ────────────────────────────────────────── */}
+          {/* ── ALL FILES TAB ────────────────────────────────────── */}
+          <TabsContent value="all-files" className="mt-0">
+            <AllFilesBrowser
+              projectId={project.id}
+              dropboxFolder={project.dropboxFolder}
+              drawings={drawings.map((d: any) => ({
+                id: d.id,
+                drawingNumber: d.drawingNumber,
+                title: d.title,
+                dropboxPath: d.dropboxPath,
+              }))}
+              onRegisterAsDrawing={(file) => {
+                const nameWithoutExt = file.name.replace(/\.pdf$/i, '')
+                const match = nameWithoutExt.match(/^([A-Z0-9][\w.-]*)[\s_-]+(.+)$/i)
+                setPrefillDrawing({
+                  dropboxPath: file.path,
+                  fileName: file.name,
+                  fileSize: file.size,
+                  drawingNumber: match ? match[1] : '',
+                  title: match ? match[2].replace(/_/g, ' ') : nameWithoutExt,
+                })
+                setShowAddDrawing(true)
+              }}
+              onSendTransmittal={(drawingInfo) => {
+                const found = drawings.find((d: any) => d.id === drawingInfo.id)
+                if (found) {
+                  setTransmittalPreSelectedDrawings([found])
+                  setShowNewTransmittal(true)
+                }
+              }}
+            />
+          </TabsContent>
+
+          {/* ── DRAWINGS TAB ─────────────────────────────────────── */}
           <TabsContent value="files" className="mt-0">
             <FilesTabContent
               projectId={project.id}
-              dropboxFolder={project.dropboxFolder}
               drawings={drawings}
               isLoading={drawingsLoading}
               sections={Array.isArray(sections) ? sections.map((s: any) => ({
@@ -282,18 +326,6 @@ export default function ProjectFilesWorkspace({ project }: { project: Project })
                 setShowNewTransmittal(true)
               }}
               onLinkCadSource={(d) => setCadLinkDrawing(d)}
-              onRegisterAsDrawing={(file) => {
-                const nameWithoutExt = file.name.replace(/\.pdf$/i, '')
-                const match = nameWithoutExt.match(/^([A-Z0-9][\w.-]*)[\s_-]+(.+)$/i)
-                setPrefillDrawing({
-                  dropboxPath: file.path,
-                  fileName: file.name,
-                  fileSize: file.size,
-                  drawingNumber: match ? match[1] : '',
-                  title: match ? match[2].replace(/_/g, ' ') : nameWithoutExt,
-                })
-                setShowAddDrawing(true)
-              }}
             />
           </TabsContent>
 

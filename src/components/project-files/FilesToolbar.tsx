@@ -1,6 +1,6 @@
 'use client'
 
-import { Search, X, FolderTree, List, LayoutGrid, Plus } from 'lucide-react'
+import { Search, X, List, LayoutGrid, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import FilterPill, { type FilterOption } from './FilterPill'
 
@@ -29,10 +29,6 @@ interface FilesToolbarProps {
   hasActiveFilters: boolean
   onClearFilters: () => void
 
-  // File tree
-  showFileTree: boolean
-  onToggleFileTree: () => void
-
   // View mode
   viewMode: 'table' | 'cards'
   onViewModeChange: (mode: 'table' | 'cards') => void
@@ -59,8 +55,6 @@ export default function FilesToolbar({
   onStatusChange,
   hasActiveFilters,
   onClearFilters,
-  showFileTree,
-  onToggleFileTree,
   viewMode,
   onViewModeChange,
   onAddDrawing,
@@ -130,19 +124,6 @@ export default function FilesToolbar({
 
       {/* Spacer */}
       <div className="flex-1" />
-
-      {/* File tree toggle */}
-      <button
-        onClick={onToggleFileTree}
-        className={`p-1.5 rounded-md transition-colors ${
-          showFileTree
-            ? 'bg-gray-100 text-gray-900'
-            : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
-        }`}
-        title={showFileTree ? 'Hide Dropbox files' : 'Show Dropbox files'}
-      >
-        <FolderTree className="w-4 h-4" />
-      </button>
 
       {/* View mode toggle */}
       <div className="flex items-center bg-white border border-gray-200 rounded-lg p-0.5">

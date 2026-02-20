@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { FileText, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
@@ -8,7 +8,6 @@ import * as VisuallyHidden from '@radix-ui/react-visually-hidden'
 import FilesToolbar from './FilesToolbar'
 import DrawingTable from './DrawingTable'
 import DrawingCards from './DrawingCards'
-import FileTreeSidebar from './FileTreeSidebar'
 import type { FilterOption } from './FilterPill'
 
 // Reuse from v2
@@ -43,7 +42,6 @@ interface Drawing {
 
 interface FilesTabContentProps {
   projectId: string
-  dropboxFolder: string | null
   drawings: Drawing[]
   isLoading: boolean
   sections: Section[]
@@ -74,9 +72,6 @@ interface FilesTabContentProps {
   onArchiveDrawing: (drawing: any) => void
   onCreateTransmittal: (drawing: any) => void
   onLinkCadSource: (drawing: any) => void
-
-  // File tree actions
-  onRegisterAsDrawing?: (file: { name: string; path: string; size: number }) => void
 }
 
 // ─── Status options ─────────────────────────────────────────────────────────
@@ -92,7 +87,6 @@ const STATUS_OPTIONS: FilterOption[] = [
 
 export default function FilesTabContent({
   projectId,
-  dropboxFolder,
   drawings,
   isLoading,
   sections,
@@ -114,10 +108,8 @@ export default function FilesTabContent({
   onArchiveDrawing,
   onCreateTransmittal,
   onLinkCadSource,
-  onRegisterAsDrawing,
 }: FilesTabContentProps) {
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table')
-  const [showFileTree, setShowFileTree] = useState(false)
   const [selectedDrawingId, setSelectedDrawingId] = useState<string | null>(null)
 
   // Build filter options
@@ -151,15 +143,6 @@ export default function FilesTabContent({
     })).filter((s) => s.count > 0),
     [statusCounts]
   )
-
-  // Registered paths for file tree
-  const registeredPaths = useMemo(() => {
-    const paths = new Set<string>()
-    for (const d of drawings) {
-      if (d.dropboxPath) paths.add(d.dropboxPath.toLowerCase())
-    }
-    return paths
-  }, [drawings])
 
   // ── Loading ───────────────────────────────────────────────────────────
   if (isLoading) {
@@ -209,36 +192,13 @@ export default function FilesTabContent({
         onStatusChange={(v) => onFiltersChange({ ...filters, status: v })}
         hasActiveFilters={hasActiveFilters}
         onClearFilters={onClearFilters}
-        showFileTree={showFileTree}
-        onToggleFileTree={() => setShowFileTree(!showFileTree)}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         onAddDrawing={onAddDrawing}
       />
 
-      {/* Two-pane body */}
-      <div className="flex gap-0">
-        {/* Collapsible file tree */}
-        {showFileTree && (
-          <FileTreeSidebar
-            projectId={projectId}
-            dropboxFolder={dropboxFolder}
-            onCollapse={() => setShowFileTree(false)}
-            onFileClick={(file) => {
-              // Check if it's a registered drawing
-              if (registeredPaths.has(file.path.toLowerCase())) {
-                const d = drawings.find((d) => d.dropboxPath?.toLowerCase() === file.path.toLowerCase())
-                if (d) setSelectedDrawingId(d.id)
-              } else if (onRegisterAsDrawing) {
-                onRegisterAsDrawing(file)
-              }
-            }}
-            registeredPaths={registeredPaths}
-          />
-        )}
-
-        {/* Main content */}
-        <div className="flex-1 min-w-0">
+      {/* Main content */}
+      <div>
           {drawings.length === 0 && !hasActiveFilters ? (
             <div className="rounded-xl border border-gray-200 bg-white p-12 text-center">
               <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -273,7 +233,6 @@ export default function FilesTabContent({
               selectedDrawingId={selectedDrawingId}
             />
           )}
-        </div>
       </div>
 
       {/* Detail Sheet */}
