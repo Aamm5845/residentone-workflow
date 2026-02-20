@@ -155,11 +155,16 @@ export default function SendFileDialog({
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // ── Global section (selected before uploading) ──
+  const [globalSectionId, setGlobalSectionId] = useState('')
+
   // ── Recipient state (multi-select) ──
   const [selectedRecipients, setSelectedRecipients] = useState<Recipient[]>([])
   const [showManualEntry, setShowManualEntry] = useState(false)
   const [manualName, setManualName] = useState('')
   const [manualEmail, setManualEmail] = useState('')
+  const [manualProfession, setManualProfession] = useState('')
+  const [manualCompany, setManualCompany] = useState('')
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null)
 
   // ── Section creation ──
@@ -170,12 +175,10 @@ export default function SendFileDialog({
   const [isCreatingSection, setIsCreatingSection] = useState(false)
 
   // ── Form state ──
-  const [subject, setSubject] = useState('')
   const [notes, setNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [showSuccess, setShowSuccess] = useState(false)
-  const [showOptionalFields, setShowOptionalFields] = useState(false)
 
   // ── Data ──
   const { data: recipientsData } = useSWR<Recipient[]>(
@@ -206,8 +209,9 @@ export default function SendFileDialog({
     return groups
   }, [recipients])
 
+  const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
   const hasRecipients = selectedRecipients.length > 0
-  const allFilesValid = files.length > 0 && files.every(f => f.sectionId && f.title.trim())
+  const allFilesValid = files.length > 0 && globalSectionId && files.every(f => f.title.trim())
   const canSend = allFilesValid && hasRecipients && !isSubmitting
 
   // ── Reset ──
@@ -215,22 +219,23 @@ export default function SendFileDialog({
     setFiles([])
     setShowDropboxPicker(false)
     setDropboxPath('')
+    setGlobalSectionId('')
     setSelectedRecipients([])
     setShowManualEntry(false)
     setManualName('')
     setManualEmail('')
+    setManualProfession('')
+    setManualCompany('')
     setExpandedCategory(null)
     setShowAddSection(false)
     setNewSectionName('')
     setNewSectionShortName('')
     setNewSectionColor(SECTION_COLORS[0])
-    setSubject('')
     setNotes('')
     setIsSubmitting(false)
     setSubmitError(null)
     setShowSuccess(false)
     setIsDragging(false)
-    setShowOptionalFields(false)
   }, [])
 
   // ── File handlers ──
@@ -245,17 +250,17 @@ export default function SendFileDialog({
         size: file.size,
         source: 'upload',
         base64,
-        sectionId: '',
+        sectionId: globalSectionId,
         title: stripExtension(file.name),
         drawnBy: '',
         reviewNo: '',
         pageNo: '',
         fileNotes: '',
-        showDetails: false,
+        showDetails: true,
       })
     }
     setFiles(prev => [...prev, ...newFiles])
-  }, [])
+  }, [globalSectionId])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -290,15 +295,15 @@ export default function SendFileDialog({
       size: file.size,
       source: 'dropbox',
       dropboxPath: file.path,
-      sectionId: '',
+      sectionId: globalSectionId,
       title: stripExtension(file.name),
       drawnBy: '',
       reviewNo: '',
       pageNo: '',
       fileNotes: '',
-      showDetails: false,
+      showDetails: true,
     }])
-  }, [])
+  }, [globalSectionId])
 
   // ── Recipient handlers (multi-select) ──
   const toggleRecipient = useCallback((r: Recipient) => {
@@ -314,19 +319,21 @@ export default function SendFileDialog({
   }, [])
 
   const addManualRecipient = useCallback(() => {
-    if (!manualName.trim() || !manualEmail.trim()) return
+    if (!manualName.trim() || !manualEmail.trim() || !isValidEmail(manualEmail.trim())) return
     const already = selectedRecipients.some(r => r.email.toLowerCase() === manualEmail.trim().toLowerCase())
     if (already) return
     setSelectedRecipients(prev => [...prev, {
       name: manualName.trim(),
       email: manualEmail.trim(),
-      company: null,
+      company: manualCompany.trim() || null,
       type: 'OTHER',
     }])
     setManualName('')
     setManualEmail('')
+    setManualProfession('')
+    setManualCompany('')
     setShowManualEntry(false)
-  }, [manualName, manualEmail, selectedRecipients])
+  }, [manualName, manualEmail, manualCompany, selectedRecipients])
 
   const isRecipientSelected = useCallback((email: string) => {
     return selectedRecipients.some(r => r.email.toLowerCase() === email.toLowerCase())
@@ -353,8 +360,9 @@ export default function SendFileDialog({
       setNewSectionName('')
       setNewSectionShortName('')
       setNewSectionColor(SECTION_COLORS[0])
-      // Auto-select for all files that don't have a section yet
-      setFiles(prev => prev.map(f => f.sectionId ? f : { ...f, sectionId: created.id }))
+      // Auto-select global section and update all files
+      setGlobalSectionId(created.id)
+      setFiles(prev => prev.map(f => ({ ...f, sectionId: created.id })))
     } catch (err) {
       console.error('Failed to create section:', err)
     } finally {
@@ -379,7 +387,7 @@ export default function SendFileDialog({
             company: r.company || null,
             type: r.type || 'OTHER',
           })),
-          subject: subject.trim() || null,
+          subject: null,
           notes: notes.trim() || null,
           files: files.map(f => ({
             name: f.name,
@@ -387,7 +395,7 @@ export default function SendFileDialog({
             source: f.source,
             base64: f.base64 || null,
             dropboxPath: f.dropboxPath || null,
-            sectionId: f.sectionId,
+            sectionId: globalSectionId,
             title: f.title.trim(),
             drawnBy: f.drawnBy.trim() || null,
             reviewNo: f.reviewNo.trim() || null,
@@ -413,7 +421,7 @@ export default function SendFileDialog({
     } finally {
       setIsSubmitting(false)
     }
-  }, [canSend, projectId, selectedRecipients, subject, notes, files, reset, onOpenChange, onSuccess])
+  }, [canSend, projectId, selectedRecipients, globalSectionId, notes, files, reset, onOpenChange, onSuccess])
 
   // ── Dropbox browser ──
   const folders = browseData?.folders ?? []
@@ -486,14 +494,135 @@ export default function SendFileDialog({
               <div className="overflow-y-auto max-h-[calc(90vh-180px)] px-6 pb-2">
                 <div className="space-y-5">
 
-                  {/* ══════════ 1. FILES SECTION ══════════ */}
+                  {/* ══════════ 1. SECTION SELECTION ══════════ */}
                   <section>
                     <div className="flex items-center gap-2 mb-3">
                       <div className={cn(
                         'w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold transition-colors',
-                        allFilesValid ? 'bg-green-500 text-white' : 'bg-gray-900 text-white'
+                        globalSectionId ? 'bg-green-500 text-white' : 'bg-gray-900 text-white'
                       )}>
-                        {allFilesValid ? <Check className="w-3.5 h-3.5" /> : '1'}
+                        {globalSectionId ? <Check className="w-3.5 h-3.5" /> : '1'}
+                      </div>
+                      <h3 className="text-sm font-semibold text-gray-900">Section</h3>
+                    </div>
+
+                    <Select
+                      value={globalSectionId || undefined}
+                      onValueChange={(v) => {
+                        setGlobalSectionId(v)
+                        // Update all existing files with new section
+                        setFiles(prev => prev.map(f => ({ ...f, sectionId: v })))
+                      }}
+                    >
+                      <SelectTrigger className={cn('h-9 text-sm', !globalSectionId && 'border-red-200')}>
+                        <SelectValue placeholder="Select section..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {sections.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            <span className="flex items-center gap-2">
+                              <span className={cn('inline-block w-2 h-2 rounded-full', s.color || 'bg-gray-400')} />
+                              {s.name}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {!showAddSection && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAddSection(true)}
+                        className="inline-flex items-center gap-1 mt-1.5 text-[11px] text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                      >
+                        <Plus className="w-3 h-3" />
+                        Add Section
+                      </button>
+                    )}
+
+                    {/* Inline section creation */}
+                    <AnimatePresence>
+                      {showAddSection && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="mt-2 p-3 bg-gray-50 rounded-xl border border-gray-200 space-y-2">
+                            <p className="text-xs font-semibold text-gray-700">New Section</p>
+                            <div className="grid grid-cols-2 gap-2">
+                              <input
+                                type="text"
+                                value={newSectionName}
+                                onChange={(e) => setNewSectionName(e.target.value)}
+                                placeholder="Section name (e.g. Floorplan)"
+                                className="h-8 px-2.5 rounded-md border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-gray-900/10 placeholder:text-gray-400"
+                              />
+                              <input
+                                type="text"
+                                value={newSectionShortName}
+                                onChange={(e) => setNewSectionShortName(e.target.value)}
+                                placeholder="Short name (e.g. FP)"
+                                className="h-8 px-2.5 rounded-md border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-gray-900/10 placeholder:text-gray-400"
+                              />
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              {SECTION_COLORS.map((color) => (
+                                <button
+                                  key={color}
+                                  type="button"
+                                  onClick={() => setNewSectionColor(color)}
+                                  className={cn(
+                                    'w-5 h-5 rounded-full transition-all',
+                                    color,
+                                    newSectionColor === color
+                                      ? 'ring-2 ring-offset-1 ring-gray-700 scale-110'
+                                      : 'opacity-60 hover:opacity-100'
+                                  )}
+                                />
+                              ))}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={handleCreateSection}
+                                disabled={isCreatingSection || !newSectionName.trim() || !newSectionShortName.trim()}
+                                className="h-7 text-xs"
+                              >
+                                {isCreatingSection ? (
+                                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                ) : (
+                                  <Plus className="w-3 h-3 mr-1" />
+                                )}
+                                Save
+                              </Button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShowAddSection(false)
+                                  setNewSectionName('')
+                                  setNewSectionShortName('')
+                                }}
+                                className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </section>
+
+                  {/* ══════════ 2. FILES SECTION ══════════ */}
+                  <section>
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className={cn(
+                        'w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold transition-colors',
+                        files.length > 0 && files.every(f => f.title.trim()) ? 'bg-green-500 text-white' : 'bg-gray-900 text-white'
+                      )}>
+                        {files.length > 0 && files.every(f => f.title.trim()) ? <Check className="w-3.5 h-3.5" /> : '2'}
                       </div>
                       <h3 className="text-sm font-semibold text-gray-900">Attach Files</h3>
                       {files.length > 0 && (
@@ -703,7 +832,6 @@ export default function SendFileDialog({
                           {files.map((f) => {
                             const FileIcon = getFileIcon(f.name)
                             const colorClass = getFileColor(f.name)
-                            const missingSection = !f.sectionId
                             const missingTitle = !f.title.trim()
                             return (
                               <motion.div
@@ -735,74 +863,37 @@ export default function SendFileDialog({
                                   </button>
                                 </div>
 
-                                {/* Required fields */}
+                                {/* Per-file metadata */}
                                 <div className="px-3 pb-3 space-y-2 border-t border-gray-100 pt-2.5">
-                                  <div className="grid grid-cols-2 gap-2">
-                                    {/* Section dropdown */}
-                                    <div>
-                                      <label className="block text-[11px] font-medium text-gray-500 mb-1">
-                                        Section <span className="text-red-400">*</span>
-                                      </label>
-                                      <Select
-                                        value={f.sectionId || undefined}
-                                        onValueChange={(v) => updateFile(f.id, { sectionId: v })}
-                                      >
-                                        <SelectTrigger className={cn('h-8 text-xs', missingSection && 'border-red-200')}>
-                                          <SelectValue placeholder="Select section..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {sections.map((s) => (
-                                            <SelectItem key={s.id} value={s.id}>
-                                              <span className="flex items-center gap-2">
-                                                <span className={cn('inline-block w-2 h-2 rounded-full', s.color || 'bg-gray-400')} />
-                                                {s.name}
-                                              </span>
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                      {!showAddSection && (
-                                        <button
-                                          type="button"
-                                          onClick={() => setShowAddSection(true)}
-                                          className="inline-flex items-center gap-1 mt-1 text-[11px] text-blue-600 hover:text-blue-700 font-medium transition-colors"
-                                        >
-                                          <Plus className="w-3 h-3" />
-                                          Add Section
-                                        </button>
+                                  {/* Title (required) */}
+                                  <div>
+                                    <label className="block text-[11px] font-medium text-gray-500 mb-1">
+                                      Title <span className="text-red-400">*</span>
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={f.title}
+                                      onChange={(e) => updateFile(f.id, { title: e.target.value })}
+                                      placeholder="Drawing title"
+                                      className={cn(
+                                        'w-full h-8 px-2.5 rounded-md border text-xs focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-300 placeholder:text-gray-400',
+                                        missingTitle ? 'border-red-200' : 'border-gray-200'
                                       )}
-                                    </div>
-
-                                    {/* Title */}
-                                    <div>
-                                      <label className="block text-[11px] font-medium text-gray-500 mb-1">
-                                        Title <span className="text-red-400">*</span>
-                                      </label>
-                                      <input
-                                        type="text"
-                                        value={f.title}
-                                        onChange={(e) => updateFile(f.id, { title: e.target.value })}
-                                        placeholder="Drawing title"
-                                        className={cn(
-                                          'w-full h-8 px-2.5 rounded-md border text-xs focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-300 placeholder:text-gray-400',
-                                          missingTitle ? 'border-red-200' : 'border-gray-200'
-                                        )}
-                                      />
-                                    </div>
+                                    />
                                   </div>
 
-                                  {/* Optional fields toggle */}
+                                  {/* Details toggle */}
                                   <button
                                     type="button"
                                     onClick={() => updateFile(f.id, { showDetails: !f.showDetails })}
                                     className="flex items-center gap-1 text-[11px] text-gray-400 hover:text-gray-600 transition-colors"
                                   >
                                     <ChevronDown className={cn('w-3 h-3 transition-transform', f.showDetails && 'rotate-180')} />
-                                    More details
+                                    {f.showDetails ? 'Less details' : 'More details'}
                                   </button>
 
-                                  {/* Optional fields */}
-                                  <AnimatePresence>
+                                  {/* Optional fields (open by default) */}
+                                  <AnimatePresence initial={false}>
                                     {f.showDetails && (
                                       <motion.div
                                         initial={{ height: 0, opacity: 0 }}
@@ -883,90 +974,16 @@ export default function SendFileDialog({
                       )}
                     </AnimatePresence>
 
-                    {/* Inline section creation (shared for all files) */}
-                    <AnimatePresence>
-                      {showAddSection && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          className="overflow-hidden"
-                        >
-                          <div className="mt-3 p-3 bg-gray-50 rounded-xl border border-gray-200 space-y-2">
-                            <p className="text-xs font-semibold text-gray-700">New Section</p>
-                            <div className="grid grid-cols-2 gap-2">
-                              <input
-                                type="text"
-                                value={newSectionName}
-                                onChange={(e) => setNewSectionName(e.target.value)}
-                                placeholder="Section name (e.g. Floorplan)"
-                                className="h-8 px-2.5 rounded-md border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-gray-900/10 placeholder:text-gray-400"
-                              />
-                              <input
-                                type="text"
-                                value={newSectionShortName}
-                                onChange={(e) => setNewSectionShortName(e.target.value)}
-                                placeholder="Short name (e.g. FP)"
-                                className="h-8 px-2.5 rounded-md border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-gray-900/10 placeholder:text-gray-400"
-                              />
-                            </div>
-                            <div className="flex flex-wrap gap-1">
-                              {SECTION_COLORS.map((color) => (
-                                <button
-                                  key={color}
-                                  type="button"
-                                  onClick={() => setNewSectionColor(color)}
-                                  className={cn(
-                                    'w-5 h-5 rounded-full transition-all',
-                                    color,
-                                    newSectionColor === color
-                                      ? 'ring-2 ring-offset-1 ring-gray-700 scale-110'
-                                      : 'opacity-60 hover:opacity-100'
-                                  )}
-                                />
-                              ))}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                type="button"
-                                size="sm"
-                                onClick={handleCreateSection}
-                                disabled={isCreatingSection || !newSectionName.trim() || !newSectionShortName.trim()}
-                                className="h-7 text-xs"
-                              >
-                                {isCreatingSection ? (
-                                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                                ) : (
-                                  <Plus className="w-3 h-3 mr-1" />
-                                )}
-                                Save
-                              </Button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setShowAddSection(false)
-                                  setNewSectionName('')
-                                  setNewSectionShortName('')
-                                }}
-                                className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
                   </section>
 
-                  {/* ══════════ 2. RECIPIENTS SECTION (multi-select) ══════════ */}
+                  {/* ══════════ 3. RECIPIENTS SECTION (multi-select) ══════════ */}
                   <section>
                     <div className="flex items-center gap-2 mb-3">
                       <div className={cn(
                         'w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold transition-colors',
                         hasRecipients ? 'bg-green-500 text-white' : 'bg-gray-900 text-white'
                       )}>
-                        {hasRecipients ? <Check className="w-3.5 h-3.5" /> : '2'}
+                        {hasRecipients ? <Check className="w-3.5 h-3.5" /> : '3'}
                       </div>
                       <h3 className="text-sm font-semibold text-gray-900">Recipients</h3>
                       {selectedRecipients.length > 0 && (
@@ -1049,18 +1066,41 @@ export default function SendFileDialog({
                           className="overflow-hidden"
                         >
                           <div className="mt-2 space-y-2">
-                            <div className="grid grid-cols-5 gap-2">
+                            <div className="grid grid-cols-2 gap-2">
                               <Input
                                 placeholder="Name"
                                 value={manualName}
                                 onChange={(e) => setManualName(e.target.value)}
-                                className="h-8 text-xs rounded-lg col-span-2"
+                                className="h-8 text-xs rounded-lg"
                               />
                               <Input
-                                placeholder="Email"
-                                type="email"
-                                value={manualEmail}
-                                onChange={(e) => setManualEmail(e.target.value)}
+                                placeholder="Profession"
+                                value={manualProfession}
+                                onChange={(e) => setManualProfession(e.target.value)}
+                                className="h-8 text-xs rounded-lg"
+                              />
+                            </div>
+                            <div className="grid grid-cols-5 gap-2">
+                              <div className="col-span-2">
+                                <Input
+                                  placeholder="Email"
+                                  type="email"
+                                  value={manualEmail}
+                                  onChange={(e) => setManualEmail(e.target.value)}
+                                  className={cn(
+                                    'h-8 text-xs rounded-lg',
+                                    manualEmail.trim() && !isValidEmail(manualEmail.trim()) && 'border-red-300 focus-visible:ring-red-200'
+                                  )}
+                                  onKeyDown={(e) => e.key === 'Enter' && addManualRecipient()}
+                                />
+                                {manualEmail.trim() && !isValidEmail(manualEmail.trim()) && (
+                                  <p className="text-[10px] text-red-500 mt-0.5">Invalid email</p>
+                                )}
+                              </div>
+                              <Input
+                                placeholder="Company"
+                                value={manualCompany}
+                                onChange={(e) => setManualCompany(e.target.value)}
                                 className="h-8 text-xs rounded-lg col-span-2"
                                 onKeyDown={(e) => e.key === 'Enter' && addManualRecipient()}
                               />
@@ -1068,7 +1108,7 @@ export default function SendFileDialog({
                                 size="sm"
                                 className="h-8 text-xs"
                                 onClick={addManualRecipient}
-                                disabled={!manualName.trim() || !manualEmail.trim()}
+                                disabled={!manualName.trim() || !manualEmail.trim() || !isValidEmail(manualEmail.trim())}
                               >
                                 <Plus className="w-3 h-3" />
                               </Button>
@@ -1135,58 +1175,16 @@ export default function SendFileDialog({
                     )}
                   </section>
 
-                  {/* ══════════ 3. OPTIONAL: Subject + Notes ══════════ */}
+                  {/* ══════════ 4. NOTES (optional) ══════════ */}
                   <section>
-                    <button
-                      onClick={() => setShowOptionalFields(!showOptionalFields)}
-                      className="flex items-center gap-2 w-full text-left group"
-                    >
-                      <div className="w-6 h-6 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center text-xs font-semibold">
-                        3
-                      </div>
-                      <h3 className="text-sm font-semibold text-gray-400 group-hover:text-gray-600 transition-colors">
-                        Subject & Notes
-                      </h3>
-                      <span className="text-[10px] text-gray-300 font-medium uppercase tracking-wider ml-1">Optional</span>
-                      <ChevronDown className={cn(
-                        'w-3.5 h-3.5 text-gray-300 ml-auto transition-transform',
-                        showOptionalFields && 'rotate-180'
-                      )} />
-                    </button>
-
-                    <AnimatePresence>
-                      {showOptionalFields && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.15 }}
-                          className="overflow-hidden"
-                        >
-                          <div className="space-y-3 pt-3">
-                            <div>
-                              <label className="text-xs font-medium text-gray-500 mb-1.5 block">Subject</label>
-                              <Input
-                                placeholder="e.g. Updated floor plans"
-                                value={subject}
-                                onChange={(e) => setSubject(e.target.value)}
-                                className="h-9 text-sm rounded-lg"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-xs font-medium text-gray-500 mb-1.5 block">Notes</label>
-                              <Textarea
-                                placeholder="Any notes for the recipient..."
-                                value={notes}
-                                onChange={(e) => setNotes(e.target.value)}
-                                className="text-sm resize-none rounded-lg"
-                                rows={2}
-                              />
-                            </div>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                    <label className="text-xs font-medium text-gray-500 mb-1.5 block">Notes <span className="text-[10px] text-gray-300 font-medium uppercase tracking-wider ml-1">Optional</span></label>
+                    <Textarea
+                      placeholder="Any notes for the recipient..."
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      className="text-sm resize-none rounded-lg"
+                      rows={2}
+                    />
                   </section>
                 </div>
               </div>
