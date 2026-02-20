@@ -200,10 +200,10 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
     setPendingFiles(null)
 
     const doUpload = async () => {
-      // Auto date folder — surveys go to a separate "6- Surveys" folder
+      // Auto date folder — surveys go to a subfolder inside 5- Photos so they appear in the gallery
       const dateFolder = getTodayDateFolder()
       const targetPath = uploadType === 'survey'
-        ? '6- Surveys/' + dateFolder
+        ? '5- Photos/Survey ' + dateFolder
         : '5- Photos/' + dateFolder
 
       const MAX_DIRECT_SIZE = 4 * 1024 * 1024 // 4MB — Vercel serverless limit
@@ -757,7 +757,7 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
       {uploadSuccess && (
         <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm animate-in fade-in slide-in-from-top-2 duration-300">
           <CheckCircle className="w-4 h-4 shrink-0" />
-          {uploadType === 'survey' ? 'Survey photos uploaded to 6- Surveys' : 'Photos uploaded successfully'}
+          {uploadType === 'survey' ? 'Survey uploaded to Photos/Survey ' + getTodayDateFolder() : 'Photos uploaded successfully'}
         </div>
       )}
 
@@ -783,7 +783,7 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
             <Camera className="w-10 h-10 text-teal-500 mx-auto mb-2" />
             <p className="text-sm font-medium text-teal-700">Drop photos to upload</p>
             <p className="text-xs text-teal-500 mt-1">
-              Photos will be saved to {uploadType === 'survey' ? '6- Surveys' : '5- Photos'}/{dateFolder}
+              Photos will be saved to {uploadType === 'survey' ? `5- Photos/Survey ${dateFolder}` : `5- Photos/${dateFolder}`}
             </p>
           </div>
         </div>
