@@ -24,68 +24,7 @@ import {
 import { Button } from '@/components/ui/button'
 import CadFreshnessBadge, { type CadFreshnessStatusType } from './CadFreshnessBadge'
 
-// ─── Discipline config ───────────────────────────────────────────────────────
-
-const DISCIPLINE_CONFIG: Record<
-  string,
-  {
-    label: string
-    shortLabel: string
-    color: string
-    bgColor: string
-    textColor: string
-    borderColor: string
-  }
-> = {
-  ARCHITECTURAL: {
-    label: 'Architectural',
-    shortLabel: 'ARCH',
-    color: 'bg-blue-500',
-    bgColor: 'bg-blue-50',
-    textColor: 'text-blue-700',
-    borderColor: 'border-blue-200',
-  },
-  ELECTRICAL: {
-    label: 'Electrical',
-    shortLabel: 'ELEC',
-    color: 'bg-amber-500',
-    bgColor: 'bg-amber-50',
-    textColor: 'text-amber-700',
-    borderColor: 'border-amber-200',
-  },
-  RCP: {
-    label: 'RCP',
-    shortLabel: 'RCP',
-    color: 'bg-purple-500',
-    bgColor: 'bg-purple-50',
-    textColor: 'text-purple-700',
-    borderColor: 'border-purple-200',
-  },
-  PLUMBING: {
-    label: 'Plumbing',
-    shortLabel: 'PLMB',
-    color: 'bg-green-500',
-    bgColor: 'bg-green-50',
-    textColor: 'text-green-700',
-    borderColor: 'border-green-200',
-  },
-  MECHANICAL: {
-    label: 'Mechanical',
-    shortLabel: 'MECH',
-    color: 'bg-orange-500',
-    bgColor: 'bg-orange-50',
-    textColor: 'text-orange-700',
-    borderColor: 'border-orange-200',
-  },
-  INTERIOR_DESIGN: {
-    label: 'Interior Design',
-    shortLabel: 'INT',
-    color: 'bg-pink-500',
-    bgColor: 'bg-pink-50',
-    textColor: 'text-pink-700',
-    borderColor: 'border-pink-200',
-  },
-}
+// ─── Shared Configs ─────────────────────────────────────────────────────────
 
 const DRAWING_TYPE_LABELS: Record<string, string> = {
   FLOOR_PLAN: 'Floor Plan',
@@ -106,17 +45,6 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: str
   ARCHIVED: { label: 'Archived', color: 'text-red-600', bgColor: 'bg-red-50' },
 }
 
-// ─── Discipline display order ────────────────────────────────────────────────
-
-const DISCIPLINE_ORDER: string[] = [
-  'ARCHITECTURAL',
-  'INTERIOR_DESIGN',
-  'ELECTRICAL',
-  'RCP',
-  'PLUMBING',
-  'MECHANICAL',
-]
-
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface Drawing {
@@ -136,6 +64,7 @@ interface Drawing {
   paperSize: string | null
   createdAt: string
   floor: { id: string; name: string; shortName: string } | null
+  section: { id: string; name: string; shortName: string; color: string } | null
   _count: { revisions: number; transmittalItems: number }
   lastTransmittal?: { sentAt: string; recipientName: string } | null
   cadSourceLink?: {
@@ -171,10 +100,10 @@ function formatDate(date: string): string {
 
 // ─── Grouped data type ───────────────────────────────────────────────────────
 
-interface DisciplineGroup {
+interface SectionGroup {
   key: string
-  config: (typeof DISCIPLINE_CONFIG)[string] | null
   label: string
+  color: string
   drawings: Drawing[]
 }
 
@@ -190,16 +119,16 @@ export default function DrawingRegisterCards({
   onArchiveDrawing,
   selectedDrawingId,
 }: DrawingRegisterCardsProps) {
-  // Track which discipline groups are expanded (all expanded by default)
+  // Track which section groups are expanded (all expanded by default)
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
 
-  // ── Group drawings by discipline ─────────────────────────────────────────
+  // ── Group drawings by section ─────────────────────────────────────────
 
-  const groups: DisciplineGroup[] = useMemo(() => {
+  const groups: SectionGroup[] = useMemo(() => {
     const groupMap = new Map<string, Drawing[]>()
 
     for (const drawing of drawings) {
-      const key = drawing.discipline || '_UNCATEGORIZED'
+      const key = drawing.section?.id || '_UNCATEGORIZED'
       if (!groupMap.has(key)) {
         groupMap.set(key, [])
       }
@@ -211,33 +140,32 @@ export default function DrawingRegisterCards({
       groupDrawings.sort((a, b) => a.drawingNumber.localeCompare(b.drawingNumber))
     })
 
-    // Build ordered group list: known disciplines first, then unknown
-    const result: DisciplineGroup[] = []
+    // Build ordered group list: sections first (by their data), then uncategorized last
+    const result: SectionGroup[] = []
 
-    for (const disciplineKey of DISCIPLINE_ORDER) {
-      const groupDrawings = groupMap.get(disciplineKey)
-      if (groupDrawings && groupDrawings.length > 0) {
-        result.push({
-          key: disciplineKey,
-          config: DISCIPLINE_CONFIG[disciplineKey] ?? null,
-          label: DISCIPLINE_CONFIG[disciplineKey]?.label ?? disciplineKey,
-          drawings: groupDrawings,
-        })
-        groupMap.delete(disciplineKey)
-      }
-    }
-
-    // Any remaining disciplines not in the predefined order (including uncategorized)
-    Array.from(groupMap.entries()).forEach(([disciplineKey, groupDrawings]) => {
+    Array.from(groupMap.entries()).forEach(([sectionKey, groupDrawings]) => {
+      if (sectionKey === '_UNCATEGORIZED') return // handle last
       if (groupDrawings.length > 0) {
+        const section = groupDrawings[0].section
         result.push({
-          key: disciplineKey,
-          config: DISCIPLINE_CONFIG[disciplineKey] ?? null,
-          label: disciplineKey === '_UNCATEGORIZED' ? 'Uncategorized' : (DISCIPLINE_CONFIG[disciplineKey]?.label ?? disciplineKey),
+          key: sectionKey,
+          label: section?.name ?? sectionKey,
+          color: section?.color ?? 'bg-gray-400',
           drawings: groupDrawings,
         })
       }
     })
+
+    // Add uncategorized at the end
+    const uncategorized = groupMap.get('_UNCATEGORIZED')
+    if (uncategorized && uncategorized.length > 0) {
+      result.push({
+        key: '_UNCATEGORIZED',
+        label: 'Uncategorized',
+        color: 'bg-gray-400',
+        drawings: uncategorized,
+      })
+    }
 
     return result
   }, [drawings])
@@ -278,9 +206,6 @@ export default function DrawingRegisterCards({
     <div className="space-y-6">
       {groups.map((group) => {
         const isCollapsed = collapsedGroups.has(group.key)
-        const barColor = group.config?.color ?? 'bg-gray-400'
-        const bgColor = group.config?.bgColor ?? 'bg-gray-50'
-        const textColor = group.config?.textColor ?? 'text-gray-700'
 
         return (
           <div key={group.key} className="space-y-3">
@@ -291,22 +216,16 @@ export default function DrawingRegisterCards({
               className="flex w-full items-center gap-3 group"
             >
               {/* Colored bar accent */}
-              <div className={cn('h-8 w-1 rounded-full', barColor)} />
+              <div className={cn('h-8 w-1 rounded-full', group.color)} />
 
-              <Layers className={cn('h-4 w-4', textColor)} />
+              <Layers className="h-4 w-4 text-gray-600" />
 
-              <span className={cn('text-sm font-semibold', textColor)}>
+              <span className="text-sm font-semibold text-gray-700">
                 {group.label}
               </span>
 
               {/* Count badge */}
-              <span
-                className={cn(
-                  'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-                  bgColor,
-                  textColor
-                )}
-              >
+              <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600">
                 {group.drawings.length}
               </span>
 
@@ -329,7 +248,7 @@ export default function DrawingRegisterCards({
                     key={drawing.id}
                     projectId={projectId}
                     drawing={drawing}
-                    disciplineConfig={group.config}
+                    sectionColor={group.color}
                     isSelected={selectedDrawingId === drawing.id}
                     onSelect={() => onSelectDrawing(drawing)}
                     onEdit={() => onEditDrawing(drawing)}
@@ -352,7 +271,7 @@ export default function DrawingRegisterCards({
 interface DrawingCardProps {
   projectId: string
   drawing: Drawing
-  disciplineConfig: (typeof DISCIPLINE_CONFIG)[string] | null
+  sectionColor: string
   isSelected: boolean
   onSelect: () => void
   onEdit: () => void
@@ -364,7 +283,7 @@ interface DrawingCardProps {
 function DrawingCard({
   projectId,
   drawing,
-  disciplineConfig,
+  sectionColor,
   isSelected,
   onSelect,
   onEdit,
@@ -374,7 +293,6 @@ function DrawingCard({
 }: DrawingCardProps) {
   const status = STATUS_CONFIG[drawing.status]
   const typeLabel = drawing.drawingType ? (DRAWING_TYPE_LABELS[drawing.drawingType] ?? drawing.drawingType) : null
-  const barColor = disciplineConfig?.color ?? 'bg-gray-400'
 
   return (
     <div
@@ -387,7 +305,7 @@ function DrawingCard({
       )}
     >
       {/* Top colored bar */}
-      <div className={cn('h-1 w-full', barColor)} />
+      <div className={cn('h-1 w-full', sectionColor)} />
 
       {/* PDF Thumbnail preview */}
       <CardThumbnail projectId={projectId} dropboxPath={drawing.dropboxPath} />

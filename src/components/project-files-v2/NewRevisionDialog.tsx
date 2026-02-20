@@ -11,32 +11,6 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 
-// ─── Shared Configs ──────────────────────────────────────────────────────────
-
-const DISCIPLINE_CONFIG: Record<
-  string,
-  { label: string; shortLabel: string; color: string; bgColor: string; textColor: string }
-> = {
-  ARCHITECTURAL: { label: 'Architectural', shortLabel: 'ARCH', color: 'bg-blue-500', bgColor: 'bg-blue-50', textColor: 'text-blue-700' },
-  ELECTRICAL: { label: 'Electrical', shortLabel: 'ELEC', color: 'bg-amber-500', bgColor: 'bg-amber-50', textColor: 'text-amber-700' },
-  RCP: { label: 'RCP', shortLabel: 'RCP', color: 'bg-purple-500', bgColor: 'bg-purple-50', textColor: 'text-purple-700' },
-  PLUMBING: { label: 'Plumbing', shortLabel: 'PLMB', color: 'bg-green-500', bgColor: 'bg-green-50', textColor: 'text-green-700' },
-  MECHANICAL: { label: 'Mechanical', shortLabel: 'MECH', color: 'bg-orange-500', bgColor: 'bg-orange-50', textColor: 'text-orange-700' },
-  INTERIOR_DESIGN: { label: 'Interior Design', shortLabel: 'INT', color: 'bg-pink-500', bgColor: 'bg-pink-50', textColor: 'text-pink-700' },
-}
-
-const DRAWING_TYPE_LABELS: Record<string, string> = {
-  FLOOR_PLAN: 'Floor Plan',
-  REFLECTED_CEILING: 'Reflected Ceiling',
-  ELEVATION: 'Elevation',
-  DETAIL: 'Detail',
-  SECTION: 'Section',
-  TITLE_BLOCK: 'Title Block',
-  XREF: 'XREF',
-  SCHEDULE: 'Schedule',
-  OTHER: 'Other',
-}
-
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface NewRevisionDialogProps {

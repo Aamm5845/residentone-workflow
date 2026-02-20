@@ -24,68 +24,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import CadFreshnessBadge, { type CadFreshnessStatusType } from './CadFreshnessBadge'
 
-// ─── Discipline config ───────────────────────────────────────────────────────
-
-const DISCIPLINE_CONFIG: Record<
-  string,
-  {
-    label: string
-    shortLabel: string
-    color: string
-    bgColor: string
-    textColor: string
-    borderColor: string
-  }
-> = {
-  ARCHITECTURAL: {
-    label: 'Architectural',
-    shortLabel: 'ARCH',
-    color: 'bg-blue-500',
-    bgColor: 'bg-blue-50',
-    textColor: 'text-blue-700',
-    borderColor: 'border-blue-200',
-  },
-  ELECTRICAL: {
-    label: 'Electrical',
-    shortLabel: 'ELEC',
-    color: 'bg-amber-500',
-    bgColor: 'bg-amber-50',
-    textColor: 'text-amber-700',
-    borderColor: 'border-amber-200',
-  },
-  RCP: {
-    label: 'RCP',
-    shortLabel: 'RCP',
-    color: 'bg-purple-500',
-    bgColor: 'bg-purple-50',
-    textColor: 'text-purple-700',
-    borderColor: 'border-purple-200',
-  },
-  PLUMBING: {
-    label: 'Plumbing',
-    shortLabel: 'PLMB',
-    color: 'bg-green-500',
-    bgColor: 'bg-green-50',
-    textColor: 'text-green-700',
-    borderColor: 'border-green-200',
-  },
-  MECHANICAL: {
-    label: 'Mechanical',
-    shortLabel: 'MECH',
-    color: 'bg-orange-500',
-    bgColor: 'bg-orange-50',
-    textColor: 'text-orange-700',
-    borderColor: 'border-orange-200',
-  },
-  INTERIOR_DESIGN: {
-    label: 'Interior Design',
-    shortLabel: 'INT',
-    color: 'bg-pink-500',
-    bgColor: 'bg-pink-50',
-    textColor: 'text-pink-700',
-    borderColor: 'border-pink-200',
-  },
-}
+// ─── Shared Configs ─────────────────────────────────────────────────────────
 
 const DRAWING_TYPE_LABELS: Record<string, string> = {
   FLOOR_PLAN: 'Floor Plan',
@@ -125,6 +64,7 @@ interface Drawing {
   paperSize: string | null
   createdAt: string
   floor: { id: string; name: string; shortName: string } | null
+  section: { id: string; name: string; shortName: string; color: string } | null
   _count: { revisions: number; transmittalItems: number }
   lastTransmittal?: { sentAt: string; recipientName: string } | null
   cadSourceLink?: {
@@ -153,7 +93,7 @@ interface DrawingRegisterTableProps {
 type SortColumn =
   | 'drawingNumber'
   | 'title'
-  | 'discipline'
+  | 'section'
   | 'floor'
   | 'drawingType'
   | 'currentRevision'
@@ -169,8 +109,8 @@ function getSortValue(drawing: Drawing, column: SortColumn): string | number {
       return drawing.drawingNumber.toLowerCase()
     case 'title':
       return drawing.title.toLowerCase()
-    case 'discipline':
-      return drawing.discipline ? (DISCIPLINE_CONFIG[drawing.discipline]?.label ?? drawing.discipline).toLowerCase() : 'zzz'
+    case 'section':
+      return (drawing.section?.name ?? '').toLowerCase() || 'zzz'
     case 'floor':
       return (drawing.floor?.shortName ?? '').toLowerCase()
     case 'drawingType':
@@ -214,7 +154,7 @@ interface ColumnDef {
 const COLUMNS: ColumnDef[] = [
   { key: 'drawingNumber', label: 'Drawing #', sortable: true, className: 'w-[120px]' },
   { key: 'title', label: 'Title', sortable: true },
-  { key: 'discipline', label: 'Discipline', sortable: true, className: 'w-[140px]' },
+  { key: 'section', label: 'Section', sortable: true, className: 'w-[140px]' },
   { key: 'floor', label: 'Floor', sortable: true, className: 'w-[80px]' },
   { key: 'drawingType', label: 'Type', sortable: true, className: 'w-[140px]' },
   { key: 'currentRevision', label: 'Rev', sortable: true, className: 'w-[70px]' },
@@ -333,7 +273,7 @@ export default function DrawingRegisterTable({
         {/* ── Body ────────────────────────────────────────────────────── */}
         <tbody className="divide-y divide-gray-100">
           {sortedDrawings.map((drawing) => {
-            const discipline = drawing.discipline ? DISCIPLINE_CONFIG[drawing.discipline] : null
+            const section = drawing.section
             const status = STATUS_CONFIG[drawing.status]
             const typeLabel = drawing.drawingType ? (DRAWING_TYPE_LABELS[drawing.drawingType] ?? drawing.drawingType) : null
             const isSelected = selectedDrawingId === drawing.id
@@ -379,22 +319,19 @@ export default function DrawingRegisterTable({
                   </div>
                 </td>
 
-                {/* Discipline */}
+                {/* Section */}
                 <td className="px-4 py-3">
-                  {discipline ? (
+                  {section ? (
                     <span
                       className={cn(
                         'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium',
-                        discipline.bgColor,
-                        discipline.textColor,
-                        'border',
-                        discipline.borderColor
+                        'bg-gray-50 text-gray-700 border border-gray-200'
                       )}
                     >
                       <span
-                        className={cn('h-1.5 w-1.5 rounded-full', discipline.color)}
+                        className={cn('h-1.5 w-1.5 rounded-full', section.color || 'bg-gray-400')}
                       />
-                      {discipline.shortLabel}
+                      {section.shortName}
                     </span>
                   ) : (
                     <span className="text-gray-300">&mdash;</span>

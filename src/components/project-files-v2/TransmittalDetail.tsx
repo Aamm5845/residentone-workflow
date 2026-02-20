@@ -26,15 +26,6 @@ import { cn } from '@/lib/utils'
 
 // ─── Shared config ──────────────────────────────────────────────────────────
 
-const DISCIPLINE_COLORS: Record<string, { bgColor: string; textColor: string }> = {
-  ARCHITECTURAL: { bgColor: 'bg-blue-50', textColor: 'text-blue-700' },
-  ELECTRICAL: { bgColor: 'bg-amber-50', textColor: 'text-amber-700' },
-  RCP: { bgColor: 'bg-purple-50', textColor: 'text-purple-700' },
-  PLUMBING: { bgColor: 'bg-green-50', textColor: 'text-green-700' },
-  MECHANICAL: { bgColor: 'bg-orange-50', textColor: 'text-orange-700' },
-  INTERIOR_DESIGN: { bgColor: 'bg-pink-50', textColor: 'text-pink-700' },
-}
-
 const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {
   DRAFT: { label: 'Draft', color: 'text-gray-600', bgColor: 'bg-gray-100' },
   SENT: { label: 'Sent', color: 'text-emerald-700', bgColor: 'bg-emerald-50' },
@@ -291,7 +282,6 @@ export default function TransmittalDetail({
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {transmittal.items.map((item) => {
-                    const disc = item.drawing.discipline ? DISCIPLINE_COLORS[item.drawing.discipline] : null
                     return (
                       <tr key={item.id} className="hover:bg-gray-50/50">
                         <td className="px-4 py-2.5">
@@ -310,14 +300,8 @@ export default function TransmittalDetail({
                           </div>
                         </td>
                         <td className="px-4 py-2.5">
-                          {disc && item.drawing.discipline ? (
-                            <span
-                              className={cn(
-                                'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium',
-                                disc.bgColor,
-                                disc.textColor
-                              )}
-                            >
+                          {item.drawing.discipline ? (
+                            <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-gray-100 text-gray-600">
                               {item.drawing.discipline.replace('_', ' ')}
                             </span>
                           ) : (

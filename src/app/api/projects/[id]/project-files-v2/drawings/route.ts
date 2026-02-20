@@ -28,7 +28,7 @@ export async function GET(
     }
 
     const { searchParams } = new URL(request.url)
-    const discipline = searchParams.get('discipline')
+    const sectionId = searchParams.get('sectionId')
     const floorId = searchParams.get('floorId')
     const type = searchParams.get('type')
     const status = searchParams.get('status')
@@ -37,8 +37,8 @@ export async function GET(
     // Build where clause
     const where: any = { projectId: id }
 
-    if (discipline) {
-      where.discipline = discipline
+    if (sectionId) {
+      where.sectionId = sectionId
     }
 
     if (floorId) {
@@ -75,6 +75,14 @@ export async function GET(
             shortName: true
           }
         },
+        section: {
+          select: {
+            id: true,
+            name: true,
+            shortName: true,
+            color: true
+          }
+        },
         revisions: {
           select: { id: true },
           orderBy: { revisionNumber: 'desc' }
@@ -106,7 +114,7 @@ export async function GET(
         }
       },
       orderBy: [
-        { discipline: 'asc' },
+        { section: { order: 'asc' } },
         { drawingNumber: 'asc' }
       ]
     })
@@ -125,9 +133,9 @@ export async function GET(
       }
     })
 
-    // Fetch counts per discipline (for sidebar filter), excluding ARCHIVED
-    const disciplineCounts = await prisma.projectDrawing.groupBy({
-      by: ['discipline'],
+    // Fetch counts per section (for sidebar filter), excluding ARCHIVED
+    const sectionCounts = await prisma.projectDrawing.groupBy({
+      by: ['sectionId'],
       where: { projectId: id, status: { not: 'ARCHIVED' } },
       _count: { id: true }
     })
@@ -149,8 +157,8 @@ export async function GET(
     return NextResponse.json({
       drawings: transformedDrawings,
       counts: {
-        byDiscipline: disciplineCounts.map((c) => ({
-          discipline: c.discipline,
+        bySection: sectionCounts.map((c) => ({
+          sectionId: c.sectionId,
           count: c._count.id
         })),
         byFloor: floorCounts.map((c) => ({
@@ -200,7 +208,7 @@ export async function POST(
     const {
       drawingNumber,
       title,
-      discipline,
+      sectionId,
       drawingType,
       floorId,
       description,
@@ -226,7 +234,7 @@ export async function POST(
           projectId: id,
           drawingNumber,
           title,
-          discipline: discipline || null,
+          sectionId: sectionId || null,
           drawingType: drawingType || null,
           floorId: floorId || null,
           description: description || null,
@@ -261,6 +269,9 @@ export async function POST(
         include: {
           floor: {
             select: { id: true, name: true, shortName: true }
+          },
+          section: {
+            select: { id: true, name: true, shortName: true, color: true }
           },
           revisions: true
         }

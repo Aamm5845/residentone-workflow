@@ -63,12 +63,12 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
   const [activeTab, setActiveTab] = useState<TabValue>('all-files')
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table')
   const [filters, setFilters] = useState<{
-    discipline: string | null
+    sectionId: string | null
     floorId: string | null
     status: string | null
     search: string
   }>({
-    discipline: null,
+    sectionId: null,
     floorId: null,
     status: null,
     search: '',
@@ -96,7 +96,7 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
   // ---- Derived filter params ----
   const filterParams = useMemo(() => {
     const params = new URLSearchParams()
-    if (filters.discipline) params.set('discipline', filters.discipline)
+    if (filters.sectionId) params.set('sectionId', filters.sectionId)
     if (filters.floorId) params.set('floorId', filters.floorId)
     if (filters.status) params.set('status', filters.status)
     if (filters.search) params.set('search', filters.search)
@@ -115,6 +115,13 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
   const { data: floorsData, mutate: mutateFloors } = useSWR(
     (activeTab === 'drawings' || activeTab === 'all-files')
       ? `/api/projects/${project.id}/project-files-v2/floors`
+      : null,
+    fetcher
+  )
+
+  const { data: sectionsData, mutate: mutateSections } = useSWR(
+    (activeTab === 'drawings' || activeTab === 'all-files')
+      ? `/api/projects/${project.id}/project-files-v2/sections`
       : null,
     fetcher
   )
@@ -138,23 +145,24 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
   )
 
   const clearFilters = useCallback(() => {
-    setFilters({ discipline: null, floorId: null, status: null, search: '' })
+    setFilters({ sectionId: null, floorId: null, status: null, search: '' })
     setSearchInput('')
   }, [])
 
-  const hasActiveFilters = filters.discipline || filters.floorId || filters.status || filters.search
+  const hasActiveFilters = filters.sectionId || filters.floorId || filters.status || filters.search
 
   // ---- Derived data ----
   const drawings = drawingsData?.drawings ?? []
-  const counts = drawingsData?.counts ?? { byDiscipline: [], byFloor: [], byStatus: [] }
+  const counts = drawingsData?.counts ?? { bySection: [], byFloor: [], byStatus: [] }
   const floors = Array.isArray(floorsData) ? floorsData : (floorsData?.floors ?? floorsData ?? [])
+  const sections = Array.isArray(sectionsData) ? sectionsData : (sectionsData?.sections ?? sectionsData ?? [])
   const transmittals = transmittalsData?.transmittals ?? []
 
-  // Build discipline counts map
-  const disciplineCounts: Record<string, number> = {}
-  if (Array.isArray(counts.byDiscipline)) {
-    for (const c of counts.byDiscipline) {
-      disciplineCounts[c.discipline] = c.count
+  // Build section counts map
+  const sectionCounts: Record<string, number> = {}
+  if (Array.isArray(counts.bySection)) {
+    for (const c of counts.bySection) {
+      if (c.sectionId) sectionCounts[c.sectionId] = c.count
     }
   }
 
@@ -178,7 +186,8 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
   const refreshAll = useCallback(() => {
     mutateDrawings()
     mutateFloors()
-  }, [mutateDrawings, mutateFloors])
+    mutateSections()
+  }, [mutateDrawings, mutateFloors, mutateSections])
 
   // Archive a drawing (soft delete via API)
   const handleArchiveDrawing = useCallback(async (drawing: any) => {
@@ -367,9 +376,10 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
             <div className="flex gap-6">
               {/* Filter Sidebar */}
               <FilterSidebar
-                selectedDiscipline={filters.discipline}
-                onDisciplineChange={(d) => setFilters((prev) => ({ ...prev, discipline: d }))}
-                disciplineCounts={disciplineCounts}
+                selectedSectionId={filters.sectionId}
+                onSectionChange={(s) => setFilters((prev) => ({ ...prev, sectionId: s }))}
+                sections={Array.isArray(sections) ? sections.map((s: any) => ({ id: s.id, name: s.name, shortName: s.shortName || '', color: s.color || 'bg-gray-500' })) : []}
+                sectionCounts={sectionCounts}
                 selectedFloorId={filters.floorId}
                 onFloorChange={(f) => setFilters((prev) => ({ ...prev, floorId: f }))}
                 floors={Array.isArray(floors) ? floors.map((f: any) => ({ id: f.id, name: f.name, shortName: f.shortName || f.name?.substring(0, 3)?.toUpperCase() || '' })) : []}
@@ -379,6 +389,7 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
                 statusCounts={statusCounts}
                 projectId={project.id}
                 onFloorAdded={() => mutateFloors()}
+                onSectionAdded={() => mutateSections()}
               />
 
               {/* Drawing register */}
@@ -521,6 +532,7 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
         }}
         editDrawing={editDrawing}
         floors={Array.isArray(floors) ? floors : []}
+        sections={Array.isArray(sections) ? sections : []}
         prefillData={prefillDrawing}
       />
 

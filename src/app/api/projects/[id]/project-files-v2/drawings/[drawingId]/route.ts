@@ -37,6 +37,14 @@ export async function GET(
             shortName: true
           }
         },
+        section: {
+          select: {
+            id: true,
+            name: true,
+            shortName: true,
+            color: true
+          }
+        },
         revisions: {
           orderBy: { revisionNumber: 'desc' },
           include: {
@@ -125,7 +133,7 @@ export async function PATCH(
     // Only allow updating specific fields
     const allowedFields = [
       'title',
-      'discipline',
+      'sectionId',
       'drawingType',
       'floorId',
       'description',
@@ -158,6 +166,9 @@ export async function PATCH(
       include: {
         floor: {
           select: { id: true, name: true, shortName: true }
+        },
+        section: {
+          select: { id: true, name: true, shortName: true, color: true }
         }
       }
     })

@@ -11,10 +11,11 @@ import { cn } from '@/lib/utils'
 // ---------------------------------------------------------------------------
 
 interface FilterSidebarProps {
-  // Discipline filter
-  selectedDiscipline: string | null
-  onDisciplineChange: (discipline: string | null) => void
-  disciplineCounts: Record<string, number>
+  // Section filter
+  selectedSectionId: string | null
+  onSectionChange: (sectionId: string | null) => void
+  sections: Array<{ id: string; name: string; shortName: string; color: string }>
+  sectionCounts: Record<string, number>
 
   // Floor filter
   selectedFloorId: string | null
@@ -30,20 +31,14 @@ interface FilterSidebarProps {
   // Floor management
   projectId: string
   onFloorAdded: () => void
+
+  // Section management
+  onSectionAdded: () => void
 }
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-
-const DISCIPLINES = [
-  { value: 'ARCHITECTURAL', label: 'Architectural', shortLabel: 'ARCH', dotColor: 'bg-blue-500' },
-  { value: 'ELECTRICAL', label: 'Electrical', shortLabel: 'ELEC', dotColor: 'bg-amber-500' },
-  { value: 'RCP', label: 'RCP', shortLabel: 'RCP', dotColor: 'bg-purple-500' },
-  { value: 'PLUMBING', label: 'Plumbing', shortLabel: 'PLMB', dotColor: 'bg-green-500' },
-  { value: 'MECHANICAL', label: 'Mechanical', shortLabel: 'MECH', dotColor: 'bg-orange-500' },
-  { value: 'INTERIOR_DESIGN', label: 'Interior Design', shortLabel: 'INT', dotColor: 'bg-pink-500' },
-]
 
 const STATUSES = [
   { value: 'ACTIVE', label: 'Active', dotColor: 'bg-emerald-500' },
@@ -52,14 +47,29 @@ const STATUSES = [
   { value: 'ARCHIVED', label: 'Archived', dotColor: 'bg-red-400' },
 ]
 
+// Color options for section creation
+const SECTION_COLORS = [
+  'bg-blue-500',
+  'bg-amber-500',
+  'bg-green-500',
+  'bg-purple-500',
+  'bg-orange-500',
+  'bg-pink-500',
+  'bg-teal-500',
+  'bg-red-500',
+  'bg-indigo-500',
+  'bg-cyan-500',
+]
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 export default function FilterSidebar({
-  selectedDiscipline,
-  onDisciplineChange,
-  disciplineCounts,
+  selectedSectionId,
+  onSectionChange,
+  sections,
+  sectionCounts,
   selectedFloorId,
   onFloorChange,
   floors,
@@ -69,30 +79,38 @@ export default function FilterSidebar({
   statusCounts,
   projectId,
   onFloorAdded,
+  onSectionAdded,
 }: FilterSidebarProps) {
   // ---- Local state for inline add floor form ----
   const [addFloorExpanded, setAddFloorExpanded] = useState(false)
   const [floorName, setFloorName] = useState('')
   const [floorShortName, setFloorShortName] = useState('')
-  const [saving, setSaving] = useState(false)
+  const [savingFloor, setSavingFloor] = useState(false)
+
+  // ---- Local state for inline add section form ----
+  const [addSectionExpanded, setAddSectionExpanded] = useState(false)
+  const [sectionName, setSectionName] = useState('')
+  const [sectionShortName, setSectionShortName] = useState('')
+  const [sectionColor, setSectionColor] = useState(SECTION_COLORS[0])
+  const [savingSection, setSavingSection] = useState(false)
 
   // ---- Derived ----
   const hasActiveFilters =
-    selectedDiscipline !== null || selectedFloorId !== null || selectedStatus !== null
+    selectedSectionId !== null || selectedFloorId !== null || selectedStatus !== null
 
-  const totalCount = Object.values(disciplineCounts).reduce((sum, c) => sum + c, 0)
+  const totalSectionCount = Object.values(sectionCounts).reduce((sum, c) => sum + c, 0)
   const totalStatusCount = Object.values(statusCounts).reduce((sum, c) => sum + c, 0)
 
   // ---- Handlers ----
   const clearFilters = () => {
-    onDisciplineChange(null)
+    onSectionChange(null)
     onFloorChange(null)
     onStatusChange(null)
   }
 
   const handleSaveFloor = async () => {
     if (!floorName.trim() || !floorShortName.trim()) return
-    setSaving(true)
+    setSavingFloor(true)
     try {
       const res = await fetch(`/api/projects/${projectId}/project-files-v2/floors`, {
         method: 'POST',
@@ -111,7 +129,7 @@ export default function FilterSidebar({
     } catch (err) {
       console.error('Failed to add floor:', err)
     } finally {
-      setSaving(false)
+      setSavingFloor(false)
     }
   }
 
@@ -119,6 +137,39 @@ export default function FilterSidebar({
     setAddFloorExpanded(false)
     setFloorName('')
     setFloorShortName('')
+  }
+
+  const handleSaveSection = async () => {
+    if (!sectionName.trim() || !sectionShortName.trim()) return
+    setSavingSection(true)
+    try {
+      const res = await fetch(`/api/projects/${projectId}/project-files-v2/sections`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: sectionName.trim(),
+          shortName: sectionShortName.trim(),
+          color: sectionColor,
+        }),
+      })
+      if (res.ok) {
+        setSectionName('')
+        setSectionShortName('')
+        setSectionColor(SECTION_COLORS[Math.floor(Math.random() * SECTION_COLORS.length)])
+        setAddSectionExpanded(false)
+        onSectionAdded()
+      }
+    } catch (err) {
+      console.error('Failed to add section:', err)
+    } finally {
+      setSavingSection(false)
+    }
+  }
+
+  const handleCancelSection = () => {
+    setAddSectionExpanded(false)
+    setSectionName('')
+    setSectionShortName('')
   }
 
   // ---- Render ----
@@ -145,36 +196,113 @@ export default function FilterSidebar({
         </div>
 
         {/* ---------------------------------------------------------------- */}
-        {/* DISCIPLINE                                                       */}
+        {/* SECTION                                                          */}
         {/* ---------------------------------------------------------------- */}
         <div className="mb-6">
           <h4 className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-3">
-            Discipline
+            Section
           </h4>
           <div className="space-y-0.5">
             {/* All option */}
             <RadioFilterItem
               label="All"
               dotColor="bg-gray-400"
-              count={totalCount}
-              isSelected={selectedDiscipline === null}
-              onClick={() => onDisciplineChange(null)}
+              count={totalSectionCount}
+              isSelected={selectedSectionId === null}
+              onClick={() => onSectionChange(null)}
             />
 
-            {DISCIPLINES.map((disc) => (
-              <RadioFilterItem
-                key={disc.value}
-                label={disc.label}
-                dotColor={disc.dotColor}
-                count={disciplineCounts[disc.value] ?? 0}
-                isSelected={selectedDiscipline === disc.value}
-                onClick={() =>
-                  onDisciplineChange(
-                    selectedDiscipline === disc.value ? null : disc.value
-                  )
-                }
-              />
-            ))}
+            {sections.map((section) => {
+              const count = sectionCounts[section.id] ?? 0
+              // Only show sections that have drawings (or is selected)
+              if (count === 0 && selectedSectionId !== section.id) return null
+              return (
+                <RadioFilterItem
+                  key={section.id}
+                  label={section.name}
+                  dotColor={section.color || 'bg-gray-400'}
+                  count={count}
+                  isSelected={selectedSectionId === section.id}
+                  onClick={() =>
+                    onSectionChange(
+                      selectedSectionId === section.id ? null : section.id
+                    )
+                  }
+                />
+              )
+            })}
+          </div>
+
+          {/* Add Section */}
+          <div className="mt-2">
+            {!addSectionExpanded ? (
+              <button
+                onClick={() => setAddSectionExpanded(true)}
+                className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors px-2.5 py-1"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add Section
+              </button>
+            ) : (
+              <div className="space-y-2 px-2.5 pt-2 pb-1 bg-gray-50 rounded-lg border border-gray-200 animate-in fade-in slide-in-from-top-1 duration-150">
+                <Input
+                  placeholder="Section name"
+                  value={sectionName}
+                  onChange={(e) => setSectionName(e.target.value)}
+                  className="h-7 text-xs"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') handleCancelSection()
+                  }}
+                />
+                <Input
+                  placeholder="Short name (e.g. FP, MW)"
+                  value={sectionShortName}
+                  onChange={(e) => setSectionShortName(e.target.value)}
+                  className="h-7 text-xs"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSaveSection()
+                    if (e.key === 'Escape') handleCancelSection()
+                  }}
+                />
+                {/* Color picker */}
+                <div className="flex flex-wrap gap-1">
+                  {SECTION_COLORS.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => setSectionColor(color)}
+                      className={cn(
+                        'w-5 h-5 rounded-full transition-all',
+                        color,
+                        sectionColor === color
+                          ? 'ring-2 ring-offset-1 ring-gray-700 scale-110'
+                          : 'opacity-60 hover:opacity-100'
+                      )}
+                    />
+                  ))}
+                </div>
+                <div className="flex gap-1.5">
+                  <Button
+                    size="sm"
+                    className="h-7 text-xs flex-1"
+                    onClick={handleSaveSection}
+                    disabled={savingSection || !sectionName.trim() || !sectionShortName.trim()}
+                  >
+                    {savingSection ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save'}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-xs"
+                    onClick={handleCancelSection}
+                    disabled={savingSection}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -269,16 +397,16 @@ export default function FilterSidebar({
                     size="sm"
                     className="h-7 text-xs flex-1"
                     onClick={handleSaveFloor}
-                    disabled={saving || !floorName.trim() || !floorShortName.trim()}
+                    disabled={savingFloor || !floorName.trim() || !floorShortName.trim()}
                   >
-                    {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save'}
+                    {savingFloor ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save'}
                   </Button>
                   <Button
                     size="sm"
                     variant="ghost"
                     className="h-7 text-xs"
                     onClick={handleCancelFloor}
-                    disabled={saving}
+                    disabled={savingFloor}
                   >
                     Cancel
                   </Button>

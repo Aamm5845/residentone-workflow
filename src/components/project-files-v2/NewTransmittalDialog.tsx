@@ -43,15 +43,6 @@ import { cn } from '@/lib/utils'
 
 // ─── Shared config ──────────────────────────────────────────────────────────
 
-const DISCIPLINE_COLORS: Record<string, { bgColor: string; textColor: string }> = {
-  ARCHITECTURAL: { bgColor: 'bg-blue-50', textColor: 'text-blue-700' },
-  ELECTRICAL: { bgColor: 'bg-amber-50', textColor: 'text-amber-700' },
-  RCP: { bgColor: 'bg-purple-50', textColor: 'text-purple-700' },
-  PLUMBING: { bgColor: 'bg-green-50', textColor: 'text-green-700' },
-  MECHANICAL: { bgColor: 'bg-orange-50', textColor: 'text-orange-700' },
-  INTERIOR_DESIGN: { bgColor: 'bg-pink-50', textColor: 'text-pink-700' },
-}
-
 const PURPOSE_OPTIONS = [
   'For Approval',
   'For Construction',
@@ -121,6 +112,7 @@ interface Drawing {
   drawingNumber: string
   title: string
   discipline: string | null
+  section: { id: string; name: string; shortName: string; color: string } | null
   currentRevision: number
   floor: { id: string; name: string; shortName: string } | null
   cadSourceLink?: {
@@ -228,7 +220,7 @@ export default function NewTransmittalDialog({
       (d) =>
         d.drawingNumber.toLowerCase().includes(q) ||
         d.title.toLowerCase().includes(q) ||
-        (d.discipline && d.discipline.toLowerCase().includes(q))
+        (d.section?.name && d.section.name.toLowerCase().includes(q))
     )
   }, [drawings, drawingSearch])
 
@@ -652,7 +644,7 @@ export default function NewTransmittalDialog({
               ) : (
                 filteredDrawings.map((drawing) => {
                   const isSelected = selectedDrawings.has(drawing.id)
-                  const disc = drawing.discipline ? DISCIPLINE_COLORS[drawing.discipline] : null
+                  const section = drawing.section
                   const config = drawingConfigs[drawing.id]
 
                   return (
@@ -676,15 +668,10 @@ export default function NewTransmittalDialog({
                         <span className="flex-1 text-sm text-gray-700 truncate min-w-0">
                           {drawing.title}
                         </span>
-                        {disc && drawing.discipline && (
-                          <span
-                            className={cn(
-                              'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium shrink-0',
-                              disc.bgColor,
-                              disc.textColor
-                            )}
-                          >
-                            {drawing.discipline.replace('_', ' ')}
+                        {section && (
+                          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium bg-gray-100 text-gray-600 shrink-0">
+                            <span className={cn('h-1.5 w-1.5 rounded-full', section.color || 'bg-gray-400')} />
+                            {section.shortName}
                           </span>
                         )}
                         <span className="inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-500 shrink-0">

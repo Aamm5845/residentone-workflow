@@ -402,6 +402,7 @@ model Project {
   meetings                  Meeting[]
   // Project Files V2 relations
   floors                    ProjectFloor[]
+  sections                  ProjectSection[]
   drawings                  ProjectDrawing[]
   transmittals              Transmittal[]
   photoMeta                 ProjectPhotoMeta[]
@@ -4938,10 +4939,28 @@ model ProjectFloor {
   @@index([projectId, order])
 }
 
+model ProjectSection {
+  id        String   @id @default(cuid())
+  projectId String
+  name      String
+  shortName String
+  color     String   @default("bg-gray-500")
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project  Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  drawings ProjectDrawing[]
+
+  @@index([projectId])
+  @@index([projectId, order])
+}
+
 model ProjectDrawing {
   id              String            @id @default(cuid())
   projectId       String
   floorId         String?
+  sectionId       String?
   drawingNumber   String
   title           String
   discipline      DrawingDiscipline?
@@ -4961,6 +4980,7 @@ model ProjectDrawing {
 
   project          Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
   floor            ProjectFloor?      @relation(fields: [floorId], references: [id], onDelete: SetNull)
+  section          ProjectSection?    @relation(fields: [sectionId], references: [id], onDelete: SetNull)
   creator          User               @relation("DrawingCreator", fields: [createdBy], references: [id])
   revisions        DrawingRevision[]
   transmittalItems TransmittalItem[]
@@ -4968,6 +4988,7 @@ model ProjectDrawing {
 
   @@index([projectId])
   @@index([projectId, discipline])
+  @@index([projectId, sectionId])
   @@index([projectId, floorId])
   @@index([drawingNumber])
   @@unique([projectId, drawingNumber])

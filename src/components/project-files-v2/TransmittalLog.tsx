@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import {
   Send,
   Plus,
@@ -15,6 +15,10 @@ import {
   Clock,
   ClipboardList,
   Package,
+  Search,
+  X,
+  Calendar,
+  Filter,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -24,18 +28,10 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
 // ─── Shared config ──────────────────────────────────────────────────────────
-
-const DISCIPLINE_COLORS: Record<string, { bgColor: string; textColor: string }> = {
-  ARCHITECTURAL: { bgColor: 'bg-blue-50', textColor: 'text-blue-700' },
-  ELECTRICAL: { bgColor: 'bg-amber-50', textColor: 'text-amber-700' },
-  RCP: { bgColor: 'bg-purple-50', textColor: 'text-purple-700' },
-  PLUMBING: { bgColor: 'bg-green-50', textColor: 'text-green-700' },
-  MECHANICAL: { bgColor: 'bg-orange-50', textColor: 'text-orange-700' },
-  INTERIOR_DESIGN: { bgColor: 'bg-pink-50', textColor: 'text-pink-700' },
-}
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {
   DRAFT: { label: 'Draft', color: 'text-gray-600', bgColor: 'bg-gray-100' },
@@ -156,6 +152,65 @@ export default function TransmittalLog({
 }: TransmittalLogProps) {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
 
+  // ── Filter state ────────────────────────────────────────────────────────
+  const [filterStatus, setFilterStatus] = useState<string | null>(null)
+  const [filterRecipient, setFilterRecipient] = useState('')
+  const [filterDateFrom, setFilterDateFrom] = useState('')
+  const [filterDateTo, setFilterDateTo] = useState('')
+
+  const hasActiveFilters = filterStatus !== null || filterRecipient !== '' || filterDateFrom !== '' || filterDateTo !== ''
+
+  const clearAllFilters = useCallback(() => {
+    setFilterStatus(null)
+    setFilterRecipient('')
+    setFilterDateFrom('')
+    setFilterDateTo('')
+  }, [])
+
+  // ── Unique recipient names/companies for the dropdown ───────────────────
+  const uniqueRecipients = useMemo(() => {
+    const names = new Map<string, { name: string; company: string | null }>()
+    for (const t of transmittals) {
+      if (!names.has(t.recipientName)) {
+        names.set(t.recipientName, { name: t.recipientName, company: t.recipientCompany })
+      }
+    }
+    return Array.from(names.values()).sort((a, b) => a.name.localeCompare(b.name))
+  }, [transmittals])
+
+  // ── Filter transmittals ─────────────────────────────────────────────────
+  const filteredTransmittals = useMemo(() => {
+    return transmittals.filter((t) => {
+      // Status filter
+      if (filterStatus && t.status !== filterStatus) return false
+
+      // Recipient filter (search across name and company)
+      if (filterRecipient) {
+        const q = filterRecipient.toLowerCase()
+        const nameMatch = t.recipientName.toLowerCase().includes(q)
+        const companyMatch = t.recipientCompany?.toLowerCase().includes(q) ?? false
+        if (!nameMatch && !companyMatch) return false
+      }
+
+      // Date from filter
+      if (filterDateFrom) {
+        const from = new Date(filterDateFrom)
+        const sentDate = t.sentAt ? new Date(t.sentAt) : new Date(t.createdAt)
+        if (sentDate < from) return false
+      }
+
+      // Date to filter
+      if (filterDateTo) {
+        const to = new Date(filterDateTo)
+        to.setHours(23, 59, 59, 999)
+        const sentDate = t.sentAt ? new Date(t.sentAt) : new Date(t.createdAt)
+        if (sentDate > to) return false
+      }
+
+      return true
+    })
+  }, [transmittals, filterStatus, filterRecipient, filterDateFrom, filterDateTo])
+
   const toggleExpand = useCallback((id: string, e: React.MouseEvent) => {
     e.stopPropagation()
     setExpandedRows((prev) => {
@@ -234,7 +289,7 @@ export default function TransmittalLog({
         <div className="flex items-center gap-3">
           <h2 className="text-lg font-semibold text-gray-900">Sent History</h2>
           <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700">
-            {transmittals.length}
+            {filteredTransmittals.length}{hasActiveFilters ? ` / ${transmittals.length}` : ''}
           </span>
         </div>
         <Button onClick={onCreateNew} size="sm">
@@ -242,7 +297,103 @@ export default function TransmittalLog({
         </Button>
       </div>
 
+      {/* ── Filter bar ──────────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3">
+        <Filter className="w-4 h-4 text-gray-400 shrink-0" />
+
+        {/* Status filter */}
+        <select
+          value={filterStatus ?? ''}
+          onChange={(e) => setFilterStatus(e.target.value || null)}
+          className="h-8 rounded-md border border-gray-200 bg-white px-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-300"
+        >
+          <option value="">All Status</option>
+          {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+            <option key={key} value={key}>{cfg.label}</option>
+          ))}
+        </select>
+
+        {/* Sent To filter - search input with datalist for autocomplete */}
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Sent to..."
+            value={filterRecipient}
+            onChange={(e) => setFilterRecipient(e.target.value)}
+            list="recipient-suggestions"
+            className="h-8 w-44 rounded-md border border-gray-200 bg-white pl-8 pr-7 text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-300"
+          />
+          <datalist id="recipient-suggestions">
+            {uniqueRecipients.map((r) => (
+              <option key={r.name} value={r.name}>
+                {r.company ? `${r.name} — ${r.company}` : r.name}
+              </option>
+            ))}
+          </datalist>
+          {filterRecipient && (
+            <button
+              onClick={() => setFilterRecipient('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* Separator */}
+        <div className="w-px h-5 bg-gray-200" />
+
+        {/* Date from */}
+        <div className="flex items-center gap-1.5">
+          <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+          <input
+            type="date"
+            value={filterDateFrom}
+            onChange={(e) => setFilterDateFrom(e.target.value)}
+            className="h-8 rounded-md border border-gray-200 bg-white px-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-300"
+            title="From date"
+          />
+          <span className="text-xs text-gray-400">to</span>
+          <input
+            type="date"
+            value={filterDateTo}
+            onChange={(e) => setFilterDateTo(e.target.value)}
+            className="h-8 rounded-md border border-gray-200 bg-white px-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-300"
+            title="To date"
+          />
+        </div>
+
+        {/* Clear all */}
+        {hasActiveFilters && (
+          <button
+            onClick={clearAllFilters}
+            className="ml-auto flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800 transition-colors"
+          >
+            <X className="w-3 h-3" />
+            Clear
+          </button>
+        )}
+      </div>
+
+      {/* ── Filtered empty state ───────────────────────────────────── */}
+      {filteredTransmittals.length === 0 && hasActiveFilters && (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mb-3">
+            <Filter className="w-6 h-6 text-gray-400" />
+          </div>
+          <h3 className="text-sm font-semibold text-gray-900 mb-1">No results found</h3>
+          <p className="text-sm text-gray-500 max-w-sm mb-3">
+            No transmittals match your current filters.
+          </p>
+          <Button variant="outline" size="sm" onClick={clearAllFilters}>
+            Clear Filters
+          </Button>
+        </div>
+      )}
+
       {/* Table */}
+      {filteredTransmittals.length > 0 && (
       <div className="w-full overflow-x-auto rounded-lg border border-gray-200 bg-white">
         <table className="w-full border-collapse text-sm">
           {/* ── Header ──────────────────────────────────────────────── */}
@@ -280,7 +431,7 @@ export default function TransmittalLog({
 
           {/* ── Body ────────────────────────────────────────────────── */}
           <tbody className="divide-y divide-gray-100">
-            {transmittals.map((transmittal) => {
+            {filteredTransmittals.map((transmittal) => {
               const status = STATUS_CONFIG[transmittal.status]
               const isExpanded = expandedRows.has(transmittal.id)
               const drawingCount = transmittal.items.length
@@ -300,6 +451,7 @@ export default function TransmittalLog({
           </tbody>
         </table>
       </div>
+      )}
     </div>
   )
 }
@@ -500,7 +652,6 @@ function TransmittalRow({
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {transmittal.items.map((item) => {
-                    const disc = item.drawing.discipline ? DISCIPLINE_COLORS[item.drawing.discipline] : null
                     return (
                       <tr key={item.id}>
                         <td className="py-2 pr-4">
@@ -512,14 +663,8 @@ function TransmittalRow({
                           <span className="text-gray-700">{item.drawing.title}</span>
                         </td>
                         <td className="py-2 pr-4">
-                          {disc && item.drawing.discipline ? (
-                            <span
-                              className={cn(
-                                'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium',
-                                disc.bgColor,
-                                disc.textColor
-                              )}
-                            >
+                          {item.drawing.discipline ? (
+                            <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-gray-100 text-gray-600">
                               {item.drawing.discipline.replace('_', ' ')}
                             </span>
                           ) : (

@@ -21,18 +21,6 @@ import CadFreshnessBadge, { type CadFreshnessStatusType } from './CadFreshnessBa
 
 // ─── Shared Configs ──────────────────────────────────────────────────────────
 
-const DISCIPLINE_CONFIG: Record<
-  string,
-  { label: string; shortLabel: string; color: string; bgColor: string; textColor: string }
-> = {
-  ARCHITECTURAL: { label: 'Architectural', shortLabel: 'ARCH', color: 'bg-blue-500', bgColor: 'bg-blue-50', textColor: 'text-blue-700' },
-  ELECTRICAL: { label: 'Electrical', shortLabel: 'ELEC', color: 'bg-amber-500', bgColor: 'bg-amber-50', textColor: 'text-amber-700' },
-  RCP: { label: 'RCP', shortLabel: 'RCP', color: 'bg-purple-500', bgColor: 'bg-purple-50', textColor: 'text-purple-700' },
-  PLUMBING: { label: 'Plumbing', shortLabel: 'PLMB', color: 'bg-green-500', bgColor: 'bg-green-50', textColor: 'text-green-700' },
-  MECHANICAL: { label: 'Mechanical', shortLabel: 'MECH', color: 'bg-orange-500', bgColor: 'bg-orange-50', textColor: 'text-orange-700' },
-  INTERIOR_DESIGN: { label: 'Interior Design', shortLabel: 'INT', color: 'bg-pink-500', bgColor: 'bg-pink-50', textColor: 'text-pink-700' },
-}
-
 const DRAWING_TYPE_LABELS: Record<string, string> = {
   FLOOR_PLAN: 'Floor Plan',
   REFLECTED_CEILING: 'Reflected Ceiling',
@@ -53,6 +41,7 @@ interface DrawingDetail {
   title: string
   discipline: string | null
   drawingType: string | null
+  section: { id: string; name: string; shortName: string; color: string } | null
   status: string
   currentRevision: number
   description: string | null
@@ -229,7 +218,7 @@ export default function DrawingDetailPanel({
   }, [])
 
   const drawing = data
-  const discipline = drawing?.discipline ? DISCIPLINE_CONFIG[drawing.discipline] : null
+  const section = drawing?.section ?? null
   const statusStyle = drawing ? getStatusStyle(drawing.status) : null
 
   return (
@@ -266,15 +255,10 @@ export default function DrawingDetailPanel({
                     {drawing.title}
                   </h2>
                   <div className="flex items-center gap-2 mt-2">
-                    {discipline && (
-                      <span
-                        className={cn(
-                          'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
-                          discipline.bgColor,
-                          discipline.textColor
-                        )}
-                      >
-                        {discipline.shortLabel}
+                    {section && (
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                        <span className={cn('h-1.5 w-1.5 rounded-full', section.color || 'bg-gray-400')} />
+                        {section.shortName}
                       </span>
                     )}
                     {statusStyle && (

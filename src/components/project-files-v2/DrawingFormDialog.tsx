@@ -21,18 +21,6 @@ import { cn } from '@/lib/utils'
 
 // ─── Shared Configs ──────────────────────────────────────────────────────────
 
-export const DISCIPLINE_CONFIG: Record<
-  string,
-  { label: string; shortLabel: string; color: string; bgColor: string; textColor: string }
-> = {
-  ARCHITECTURAL: { label: 'Architectural', shortLabel: 'ARCH', color: 'bg-blue-500', bgColor: 'bg-blue-50', textColor: 'text-blue-700' },
-  ELECTRICAL: { label: 'Electrical', shortLabel: 'ELEC', color: 'bg-amber-500', bgColor: 'bg-amber-50', textColor: 'text-amber-700' },
-  RCP: { label: 'RCP', shortLabel: 'RCP', color: 'bg-purple-500', bgColor: 'bg-purple-50', textColor: 'text-purple-700' },
-  PLUMBING: { label: 'Plumbing', shortLabel: 'PLMB', color: 'bg-green-500', bgColor: 'bg-green-50', textColor: 'text-green-700' },
-  MECHANICAL: { label: 'Mechanical', shortLabel: 'MECH', color: 'bg-orange-500', bgColor: 'bg-orange-50', textColor: 'text-orange-700' },
-  INTERIOR_DESIGN: { label: 'Interior Design', shortLabel: 'INT', color: 'bg-pink-500', bgColor: 'bg-pink-50', textColor: 'text-pink-700' },
-}
-
 export const DRAWING_TYPE_LABELS: Record<string, string> = {
   FLOOR_PLAN: 'Floor Plan',
   REFLECTED_CEILING: 'Reflected Ceiling',
@@ -51,7 +39,7 @@ interface EditDrawing {
   id: string
   drawingNumber: string
   title: string
-  discipline: string | null
+  sectionId: string | null
   drawingType: string | null
   floorId: string | null
   description: string | null
@@ -69,6 +57,13 @@ interface Floor {
   shortName: string
 }
 
+interface Section {
+  id: string
+  name: string
+  shortName: string
+  color: string
+}
+
 interface PrefillData {
   dropboxPath: string
   fileName: string
@@ -84,6 +79,7 @@ interface DrawingFormDialogProps {
   onSuccess: () => void
   editDrawing?: EditDrawing | null
   floors: Floor[]
+  sections: Section[]
   prefillData?: PrefillData | null
 }
 
@@ -95,6 +91,18 @@ function formatFileSize(bytes: number): string {
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
 }
 
+// Color options for section creation
+const SECTION_COLORS = [
+  'bg-blue-500',
+  'bg-amber-500',
+  'bg-green-500',
+  'bg-purple-500',
+  'bg-orange-500',
+  'bg-pink-500',
+  'bg-teal-500',
+  'bg-red-500',
+]
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function DrawingFormDialog({
@@ -104,6 +112,7 @@ export default function DrawingFormDialog({
   onSuccess,
   editDrawing,
   floors: initialFloors,
+  sections: initialSections,
   prefillData,
 }: DrawingFormDialogProps) {
   const isEditing = !!editDrawing
@@ -112,7 +121,7 @@ export default function DrawingFormDialog({
   // Form state
   const [drawingNumber, setDrawingNumber] = useState('')
   const [title, setTitle] = useState('')
-  const [discipline, setDiscipline] = useState('')
+  const [sectionId, setSectionId] = useState<string>('')
   const [drawingType, setDrawingType] = useState('')
   const [floorId, setFloorId] = useState<string>('')
   const [scale, setScale] = useState('')
@@ -133,13 +142,25 @@ export default function DrawingFormDialog({
   const [isCreatingFloor, setIsCreatingFloor] = useState(false)
   const [localFloors, setLocalFloors] = useState<Floor[]>(initialFloors)
 
+  // Inline section creation
+  const [showAddSection, setShowAddSection] = useState(false)
+  const [newSectionName, setNewSectionName] = useState('')
+  const [newSectionShortName, setNewSectionShortName] = useState('')
+  const [newSectionColor, setNewSectionColor] = useState(SECTION_COLORS[0])
+  const [isCreatingSection, setIsCreatingSection] = useState(false)
+  const [localSections, setLocalSections] = useState<Section[]>(initialSections)
+
   // Submission
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Sync floors from prop
+  // Sync floors and sections from props
   useEffect(() => {
     setLocalFloors(initialFloors)
   }, [initialFloors])
+
+  useEffect(() => {
+    setLocalSections(initialSections)
+  }, [initialSections])
 
   // Initialize form from editDrawing, prefillData, or reset
   useEffect(() => {
@@ -147,7 +168,7 @@ export default function DrawingFormDialog({
       if (editDrawing) {
         setDrawingNumber(editDrawing.drawingNumber)
         setTitle(editDrawing.title)
-        setDiscipline(editDrawing.discipline || '')
+        setSectionId(editDrawing.sectionId || '')
         setDrawingType(editDrawing.drawingType || '')
         setFloorId(editDrawing.floorId || '')
         setScale(editDrawing.scale || '')
@@ -159,14 +180,14 @@ export default function DrawingFormDialog({
         setInitialRevisionNotes('')
         // When editing, show details if any optional fields are populated
         setShowDetails(
-          !!(editDrawing.discipline || editDrawing.drawingType || editDrawing.floorId ||
+          !!(editDrawing.sectionId || editDrawing.drawingType || editDrawing.floorId ||
             editDrawing.scale || editDrawing.paperSize || editDrawing.description)
         )
       } else if (prefillData) {
         // Pre-fill from All Files browser
         setDrawingNumber(prefillData.drawingNumber || '')
         setTitle(prefillData.title || '')
-        setDiscipline('')
+        setSectionId('')
         setDrawingType('')
         setFloorId('')
         setScale('')
@@ -180,7 +201,7 @@ export default function DrawingFormDialog({
       } else {
         setDrawingNumber('')
         setTitle('')
-        setDiscipline('')
+        setSectionId('')
         setDrawingType('')
         setFloorId('')
         setScale('')
@@ -195,6 +216,9 @@ export default function DrawingFormDialog({
       setShowAddFloor(false)
       setNewFloorName('')
       setNewFloorShortName('')
+      setShowAddSection(false)
+      setNewSectionName('')
+      setNewSectionShortName('')
     }
   }, [open, editDrawing, prefillData])
 
@@ -247,6 +271,43 @@ export default function DrawingFormDialog({
     }
   }
 
+  const handleCreateSection = async () => {
+    if (!newSectionName.trim() || !newSectionShortName.trim()) return
+
+    setIsCreatingSection(true)
+    try {
+      const res = await fetch(
+        `/api/projects/${projectId}/project-files-v2/sections`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: newSectionName.trim(),
+            shortName: newSectionShortName.trim(),
+            color: newSectionColor,
+          }),
+        }
+      )
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null)
+        throw new Error(errorData?.error || 'Failed to create section')
+      }
+
+      const newSection: Section = await res.json()
+      setLocalSections((prev) => [...prev, newSection])
+      setSectionId(newSection.id)
+      setNewSectionName('')
+      setNewSectionShortName('')
+      setShowAddSection(false)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to create section'
+      alert(message)
+    } finally {
+      setIsCreatingSection(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -260,7 +321,7 @@ export default function DrawingFormDialog({
     const body: Record<string, unknown> = {
       drawingNumber: drawingNumber.trim(),
       title: title.trim(),
-      discipline: discipline || null,
+      sectionId: sectionId || null,
       drawingType: drawingType || null,
       floorId: floorId || null,
       scale: scale.trim() || null,
@@ -391,38 +452,116 @@ export default function DrawingFormDialog({
               )}
               <span className="font-medium">More Details</span>
               <span className="text-xs text-gray-400 ml-1">
-                Discipline, type, floor, etc. (optional)
+                Section, type, floor, etc. (optional)
               </span>
             </button>
 
             {showDetails && (
               <div className="px-3 pb-3 space-y-3 border-t border-gray-100 pt-3">
-                {/* Row: Discipline + Drawing Type */}
+                {/* Row: Section + Drawing Type */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">
-                      Discipline
+                      Section
                     </label>
-                    <Select value={discipline} onValueChange={setDiscipline}>
+                    <Select value={sectionId} onValueChange={setSectionId}>
                       <SelectTrigger className="h-9">
                         <SelectValue placeholder="Select..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {Object.entries(DISCIPLINE_CONFIG).map(([key, cfg]) => (
-                          <SelectItem key={key} value={key}>
+                        <SelectItem value="none">None</SelectItem>
+                        {localSections.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
                             <span className="flex items-center gap-2">
                               <span
                                 className={cn(
                                   'inline-block w-2 h-2 rounded-full',
-                                  cfg.color
+                                  s.color || 'bg-gray-400'
                                 )}
                               />
-                              {cfg.label}
+                              {s.name}
                             </span>
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+
+                    {!showAddSection ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowAddSection(true)}
+                        className="inline-flex items-center gap-1 mt-1 text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                      >
+                        <Plus className="w-3 h-3" />
+                        Add Section
+                      </button>
+                    ) : (
+                      <div className="mt-2 p-2.5 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
+                        <input
+                          type="text"
+                          value={newSectionName}
+                          onChange={(e) => setNewSectionName(e.target.value)}
+                          placeholder="Section name"
+                          className="w-full h-8 px-2.5 rounded-md border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 placeholder:text-gray-400"
+                        />
+                        <input
+                          type="text"
+                          value={newSectionShortName}
+                          onChange={(e) => setNewSectionShortName(e.target.value)}
+                          placeholder="Short name (e.g., FP)"
+                          className="w-full h-8 px-2.5 rounded-md border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 placeholder:text-gray-400"
+                        />
+                        {/* Color picker */}
+                        <div className="flex flex-wrap gap-1">
+                          {SECTION_COLORS.map((color) => (
+                            <button
+                              key={color}
+                              type="button"
+                              onClick={() => setNewSectionColor(color)}
+                              className={cn(
+                                'w-4 h-4 rounded-full transition-all',
+                                color,
+                                newSectionColor === color
+                                  ? 'ring-2 ring-offset-1 ring-gray-700 scale-110'
+                                  : 'opacity-60 hover:opacity-100'
+                              )}
+                            />
+                          ))}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="default"
+                            onClick={handleCreateSection}
+                            disabled={
+                              isCreatingSection ||
+                              !newSectionName.trim() ||
+                              !newSectionShortName.trim()
+                            }
+                            className="h-7 text-xs"
+                          >
+                            {isCreatingSection ? (
+                              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                            ) : (
+                              <Plus className="w-3 h-3 mr-1" />
+                            )}
+                            Save
+                          </Button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowAddSection(false)
+                              setNewSectionName('')
+                              setNewSectionShortName('')
+                            }}
+                            className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">
