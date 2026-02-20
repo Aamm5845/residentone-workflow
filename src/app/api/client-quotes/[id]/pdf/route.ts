@@ -73,6 +73,7 @@ export async function GET(
       paymentTerms: quote.paymentTerms,
       depositRequired: quote.depositRequired,
       depositAmount: quote.depositAmount ? parseFloat(quote.depositAmount.toString()) : undefined,
+      paymentSchedule: quote.paymentSchedule as { label: string; percent: number }[] | undefined,
       lineItems: quote.lineItems.map(item => ({
         itemName: item.displayName,
         itemDescription: item.displayDescription,
@@ -186,6 +187,7 @@ export async function POST(
       paymentTerms: quote.paymentTerms,
       depositRequired: quote.depositRequired,
       depositAmount: quote.depositAmount ? parseFloat(quote.depositAmount.toString()) : undefined,
+      paymentSchedule: quote.paymentSchedule as { label: string; percent: number }[] | undefined,
       lineItems: quote.lineItems.map(item => ({
         itemName: item.displayName,
         itemDescription: item.displayDescription,

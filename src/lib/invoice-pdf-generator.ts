@@ -40,6 +40,7 @@ interface InvoiceData {
   paymentTerms?: string | null
   depositRequired?: number | null
   depositAmount?: number | null
+  paymentSchedule?: { label: string; percent: number }[] | null
 }
 
 interface OrganizationData {
@@ -616,8 +617,40 @@ function drawTotals(
   })
   yPos -= LINE_HEIGHT + 10
 
-  // Deposit required
-  if (invoice.depositRequired && invoice.depositAmount) {
+  // Payment schedule breakdown
+  if (invoice.paymentSchedule && invoice.paymentSchedule.length > 0) {
+    yPos -= 5
+    page.drawText('PAYMENT SCHEDULE', {
+      x: rightX,
+      y: yPos,
+      size: 9,
+      font: boldFont,
+      color: COLORS.secondary,
+    })
+    yPos -= LINE_HEIGHT
+    for (const milestone of invoice.paymentSchedule) {
+      const milestoneAmount = Math.round(invoice.totalAmount * milestone.percent / 100 * 100) / 100
+      const label = `${milestone.label || 'Payment'} (${milestone.percent}%):`
+      page.drawText(label, {
+        x: rightX,
+        y: yPos,
+        size: 9,
+        font: font,
+        color: COLORS.primary,
+      })
+      const amountText = formatCurrency(milestoneAmount)
+      const amountWidth = font.widthOfTextAtSize(amountText, 9)
+      page.drawText(amountText, {
+        x: valueX - amountWidth,
+        y: yPos,
+        size: 9,
+        font: font,
+        color: COLORS.primary,
+      })
+      yPos -= LINE_HEIGHT
+    }
+  } else if (invoice.depositRequired && invoice.depositAmount) {
+    // Fallback: simple deposit display for legacy invoices
     yPos -= 5
     page.drawText(`Deposit Required (${invoice.depositRequired}%):`, {
       x: rightX,

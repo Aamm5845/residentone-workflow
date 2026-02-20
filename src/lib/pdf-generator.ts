@@ -17,6 +17,7 @@ interface ClientQuotePDFData {
   paymentTerms?: string | null
   depositRequired?: string | null
   depositAmount?: number | null
+  paymentSchedule?: { label: string; percent: number }[] | null
   lineItems: {
     itemName: string
     itemDescription?: string | null
@@ -378,8 +379,24 @@ export async function generateClientQuotePDF(data: ClientQuotePDFData): Promise<
   })
   y -= 45
 
-  // Deposit info
-  if (data.depositRequired && data.depositAmount) {
+  // Payment schedule breakdown
+  if (data.paymentSchedule && data.paymentSchedule.length > 0) {
+    page.drawText('Payment Schedule:', { x: totalsX, y, size: 10, font: helveticaBold, color: darkColor })
+    y -= 16
+    for (const milestone of data.paymentSchedule) {
+      const milestoneAmount = Math.round(totalAmount * milestone.percent / 100 * 100) / 100
+      const label = `${milestone.label || 'Payment'} (${milestone.percent}%): ${formatCurrency(milestoneAmount)}`
+      page.drawText(label, {
+        x: totalsX,
+        y,
+        size: 9,
+        font: helvetica,
+        color: lightGray
+      })
+      y -= 14
+    }
+  } else if (data.depositRequired && data.depositAmount) {
+    // Fallback: simple deposit for legacy invoices
     page.drawText(`Deposit Required: ${formatCurrency(data.depositAmount)}`, {
       x: totalsX,
       y,

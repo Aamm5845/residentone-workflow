@@ -170,6 +170,15 @@ export default function CreateClientQuoteDialog({
   const [paymentTerms, setPaymentTerms] = useState('100% upfront')
   const [depositRequired, setDepositRequired] = useState<number | undefined>(undefined)
 
+  // Payment schedule milestones
+  interface PaymentMilestone {
+    id: string
+    label: string
+    percent: number
+  }
+  const [paymentSchedule, setPaymentSchedule] = useState<PaymentMilestone[]>([])
+  const [useCustomSchedule, setUseCustomSchedule] = useState(false)
+
   // Additional charges (delivery, duties, custom)
   interface AdditionalCharge {
     id: string
@@ -447,6 +456,12 @@ export default function CreateClientQuoteDialog({
     const grossProfit = itemsSubtotal - totalCost
     const marginPercent = itemsSubtotal > 0 ? (grossProfit / itemsSubtotal) * 100 : 0
 
+    // Calculate payment schedule amounts
+    const scheduleWithAmounts = paymentSchedule.map(m => ({
+      ...m,
+      amount: Math.round(totalRevenue * m.percent / 100 * 100) / 100
+    }))
+
     return {
       totalCost,
       itemsSubtotal,
@@ -457,9 +472,10 @@ export default function CreateClientQuoteDialog({
       totalRevenue,
       grossProfit,
       marginPercent,
-      depositAmount: depositRequired ? (totalRevenue * depositRequired / 100) : 0
+      depositAmount: depositRequired ? (totalRevenue * depositRequired / 100) : 0,
+      scheduleWithAmounts
     }
-  }, [lineItems, additionalCharges, depositRequired, gstRate, qstRate])
+  }, [lineItems, additionalCharges, depositRequired, gstRate, qstRate, paymentSchedule])
 
   // === ITEM SELECTION HELPERS (Step 0) ===
 
@@ -622,7 +638,11 @@ export default function CreateClientQuoteDialog({
           defaultMarkupPercent: 0, // No markup - using RRP directly
           validUntil: validUntil || null,
           paymentTerms: paymentTerms || null,
-          depositRequired: depositRequired || null,
+          depositRequired: depositRequired || (paymentSchedule.length > 0 ? paymentSchedule[0].percent : null),
+          paymentSchedule: paymentSchedule.length > 0 ? paymentSchedule.map(m => ({
+            label: m.label,
+            percent: m.percent,
+          })) : null,
           groupingType: 'category',
           // Bill To information
           clientName: clientName || null,
@@ -1311,13 +1331,42 @@ export default function CreateClientQuoteDialog({
 
                 <div className="space-y-2">
                   <Label>Payment Terms</Label>
-                  <Select value={paymentTerms} onValueChange={setPaymentTerms}>
+                  <Select value={paymentTerms} onValueChange={(val) => {
+                    setPaymentTerms(val)
+                    // Set payment schedule based on preset
+                    if (val === '100% upfront') {
+                      setUseCustomSchedule(false)
+                      setPaymentSchedule([])
+                      setDepositRequired(undefined)
+                    } else if (val === '50% deposit, 50% on delivery') {
+                      setUseCustomSchedule(false)
+                      setPaymentSchedule([
+                        { id: '1', label: 'Deposit', percent: 50 },
+                        { id: '2', label: 'On delivery', percent: 50 }
+                      ])
+                      setDepositRequired(50)
+                    } else if (val === 'Custom schedule') {
+                      setUseCustomSchedule(true)
+                      if (paymentSchedule.length === 0) {
+                        setPaymentSchedule([
+                          { id: '1', label: 'Deposit', percent: 50 },
+                          { id: '2', label: '', percent: 50 }
+                        ])
+                      }
+                      setDepositRequired(undefined)
+                    } else {
+                      setUseCustomSchedule(false)
+                      setPaymentSchedule([])
+                      setDepositRequired(undefined)
+                    }
+                  }}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="100% upfront">100% upfront</SelectItem>
                       <SelectItem value="50% deposit, 50% on delivery">50% deposit, 50% on delivery</SelectItem>
+                      <SelectItem value="Custom schedule">Custom schedule</SelectItem>
                       <SelectItem value="Net 30">Net 30</SelectItem>
                       <SelectItem value="Net 15">Net 15</SelectItem>
                       <SelectItem value="Due on receipt">Due on receipt</SelectItem>
@@ -1325,6 +1374,100 @@ export default function CreateClientQuoteDialog({
                   </Select>
                 </div>
               </div>
+
+              {/* Payment Schedule */}
+              {(useCustomSchedule || paymentSchedule.length > 0) && (
+                <div className="border rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="w-4 h-4 text-gray-500" />
+                      <h4 className="font-medium text-gray-700">Payment Schedule</h4>
+                    </div>
+                    {useCustomSchedule && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setPaymentSchedule(prev => [
+                            ...prev,
+                            { id: Date.now().toString(), label: '', percent: 0 }
+                          ])
+                        }}
+                        className="text-xs h-7"
+                      >
+                        <Plus className="w-3 h-3 mr-1" />
+                        Add Milestone
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    {paymentSchedule.map((milestone, idx) => (
+                      <div key={milestone.id} className="flex items-center gap-2">
+                        <Input
+                          value={milestone.percent}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value) || 0
+                            setPaymentSchedule(prev => prev.map(m =>
+                              m.id === milestone.id ? { ...m, percent: val } : m
+                            ))
+                          }}
+                          type="number"
+                          min={0}
+                          max={100}
+                          className="w-20 text-right"
+                          disabled={!useCustomSchedule}
+                        />
+                        <span className="text-sm text-gray-500 w-4">%</span>
+                        <Input
+                          value={milestone.label}
+                          onChange={(e) => {
+                            setPaymentSchedule(prev => prev.map(m =>
+                              m.id === milestone.id ? { ...m, label: e.target.value } : m
+                            ))
+                          }}
+                          placeholder={idx === 0 ? 'e.g. Deposit' : 'e.g. Production ready'}
+                          className="flex-1"
+                          disabled={!useCustomSchedule}
+                        />
+                        {totals.totalRevenue > 0 && (
+                          <span className="text-sm text-gray-500 w-28 text-right">
+                            ${(totals.totalRevenue * milestone.percent / 100).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        )}
+                        {useCustomSchedule && paymentSchedule.length > 2 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setPaymentSchedule(prev => prev.filter(m => m.id !== milestone.id))
+                            }}
+                            className="h-7 w-7 p-0 text-gray-400 hover:text-red-500"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Total percentage validation */}
+                  {(() => {
+                    const totalPercent = paymentSchedule.reduce((sum, m) => sum + m.percent, 0)
+                    if (totalPercent !== 100 && paymentSchedule.length > 0) {
+                      return (
+                        <div className="flex items-center gap-1.5 text-xs text-amber-600">
+                          <AlertTriangle className="w-3 h-3" />
+                          Total is {totalPercent}% — must equal 100%
+                        </div>
+                      )
+                    }
+                    return null
+                  })()}
+                </div>
+              )}
 
               {/* Additional Charges & Credits Section */}
               <div className="border rounded-lg p-4">

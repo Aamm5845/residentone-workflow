@@ -3587,6 +3587,7 @@ model ClientQuote {
   paymentTerms    String?
   depositRequired Decimal?
   depositAmount   Decimal?
+  paymentSchedule Json? // Array of {label: string, percent: number, amount: number}
 
   // Client Info Snapshot (for invoice)
   clientName    String?

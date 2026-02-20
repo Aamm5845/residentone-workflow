@@ -227,6 +227,8 @@ export async function GET(
       description: quote.description,
       validUntil: quote.validUntil,
       paymentTerms: quote.paymentTerms,
+      paymentSchedule: quote.paymentSchedule as { label: string; percent: number }[] | null,
+      depositRequired: quote.depositRequired ? parseFloat(quote.depositRequired.toString()) : null,
       subtotal: parseFloat(quote.subtotal?.toString() || '0'),
       // Additional fees
       shippingCost: quote.shippingCost ? parseFloat(quote.shippingCost.toString()) : undefined,

@@ -106,6 +106,7 @@ export async function POST(request: NextRequest) {
       validUntil,
       paymentTerms,
       depositRequired,
+      paymentSchedule,
       // Bill To information
       clientName,
       clientEmail,
@@ -352,6 +353,7 @@ export async function POST(request: NextRequest) {
         validUntil: validUntil ? new Date(validUntil) : null,
         paymentTerms: paymentTerms || null,
         depositRequired: depositRequired || null,
+        paymentSchedule: paymentSchedule && paymentSchedule.length > 0 ? paymentSchedule : undefined,
         // Bill To information
         clientName: clientName || null,
         clientEmail: clientEmail || null,

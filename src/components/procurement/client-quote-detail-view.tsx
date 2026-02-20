@@ -93,6 +93,7 @@ interface ClientQuote {
   paymentTerms?: string
   depositRequired?: number
   depositAmount?: number
+  paymentSchedule?: { label: string; percent: number }[] | null
   clientDecision?: string
   clientMessage?: string
   project: {
@@ -600,12 +601,27 @@ export default function ClientQuoteDetailView({ quoteId, user, orgId }: ClientQu
                     </div>
                   )}
                 </div>
-                {quote.depositRequired && (
+                {quote.paymentSchedule && (quote.paymentSchedule as any[]).length > 0 ? (
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Payment Schedule</p>
+                    <div className="space-y-1">
+                      {(quote.paymentSchedule as { label: string; percent: number }[]).map((milestone, idx) => {
+                        const amount = quote.totalAmount ? parseFloat(quote.totalAmount.toString()) * milestone.percent / 100 : 0
+                        return (
+                          <div key={idx} className="flex justify-between text-sm">
+                            <span className="text-gray-600">{milestone.label || 'Payment'} ({milestone.percent}%)</span>
+                            <span className="font-medium">{formatCurrency(amount)}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ) : quote.depositRequired ? (
                   <div>
                     <p className="text-sm text-gray-500">Deposit Required</p>
                     <p className="font-medium">{quote.depositRequired}% ({formatCurrency(quote.depositAmount)})</p>
                   </div>
-                )}
+                ) : null}
               </CardContent>
             </Card>
 

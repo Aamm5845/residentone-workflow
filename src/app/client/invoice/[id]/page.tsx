@@ -87,6 +87,8 @@ interface InvoiceData {
   description?: string
   validUntil?: string
   paymentTerms?: string
+  paymentSchedule?: { label: string; percent: number }[] | null
+  depositRequired?: number | null
   subtotal: number
   shippingCost?: number
   customFees?: { name: string; amount: number }[]
@@ -355,10 +357,32 @@ export default function ClientInvoicePage() {
                 </div>
               </div>
 
-              {invoice.paymentTerms && (
-                <div className="mt-6 pt-4 border-t text-sm">
-                  <span className="text-gray-400">Payment Terms:</span>
-                  <span className="ml-2 text-gray-700">{invoice.paymentTerms}</span>
+              {(invoice.paymentTerms || (invoice.paymentSchedule && invoice.paymentSchedule.length > 0)) && (
+                <div className="mt-6 pt-4 border-t text-sm space-y-2">
+                  {invoice.paymentTerms && (
+                    <div>
+                      <span className="text-gray-400">Payment Terms:</span>
+                      <span className="ml-2 text-gray-700">{invoice.paymentTerms}</span>
+                    </div>
+                  )}
+                  {invoice.paymentSchedule && invoice.paymentSchedule.length > 0 && (
+                    <div className="mt-2">
+                      <span className="text-gray-400 text-xs uppercase tracking-wider">Payment Schedule</span>
+                      <div className="mt-1 space-y-1">
+                        {invoice.paymentSchedule.map((milestone, idx) => {
+                          const amount = Math.round(invoice.totalAmount * milestone.percent / 100 * 100) / 100
+                          return (
+                            <div key={idx} className="flex justify-between text-sm">
+                              <span className="text-gray-600">{milestone.label || 'Payment'} ({milestone.percent}%)</span>
+                              <span className="text-gray-900 font-medium">
+                                {new Intl.NumberFormat('en-CA', { style: 'currency', currency: invoice.currency || 'CAD' }).format(amount)}
+                              </span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
