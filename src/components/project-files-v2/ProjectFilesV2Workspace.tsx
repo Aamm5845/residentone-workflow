@@ -219,9 +219,9 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
               {/* Send Files button — always visible */}
               <button
                 onClick={() => setShowSendFile(true)}
-                className="group flex items-center gap-3 h-11 px-5 rounded-xl bg-gradient-to-r from-gray-900 to-gray-800 text-white shadow-md hover:shadow-lg hover:from-gray-800 hover:to-gray-700 active:scale-[0.98] transition-all duration-200"
+                className="group flex items-center gap-2.5 h-10 px-4 rounded-lg border border-gray-900 text-gray-900 hover:bg-gray-900 hover:text-white active:scale-[0.98] transition-all duration-200"
               >
-                <Send className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                <Send className="w-4 h-4" />
                 <span className="text-sm font-medium">Send Files</span>
               </button>
 
