@@ -38,13 +38,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+// Select components no longer used — custom section picker replaces them
 import { cn } from '@/lib/utils'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -109,6 +103,17 @@ const SECTION_COLORS = [
   'bg-orange-500', 'bg-pink-500', 'bg-teal-500', 'bg-red-500',
 ]
 
+const PRESET_SECTIONS = [
+  { name: 'Floor Plan', shortName: 'FP', color: 'bg-blue-500' },
+  { name: 'Electric Plan', shortName: 'EP', color: 'bg-amber-500' },
+  { name: 'Plumbing Plan', shortName: 'PP', color: 'bg-green-500' },
+  { name: 'Tiles Plan', shortName: 'TP', color: 'bg-purple-500' },
+  { name: 'RCP Plan', shortName: 'RCP', color: 'bg-orange-500' },
+  { name: 'Mechanical Plan', shortName: 'MP', color: 'bg-pink-500' },
+  { name: 'Millwork', shortName: 'MW', color: 'bg-teal-500' },
+  { name: 'Details', shortName: 'DET', color: 'bg-red-500' },
+]
+
 const fetcher = (url: string) => fetch(url).then(r => r.json())
 
 const formatFileSize = (bytes: number) => {
@@ -157,6 +162,8 @@ export default function SendFileDialog({
 
   // ── Global section (selected before uploading) ──
   const [globalSectionId, setGlobalSectionId] = useState('none')
+  const [showSectionPicker, setShowSectionPicker] = useState(false)
+  const [creatingPreset, setCreatingPreset] = useState<string | null>(null)
 
   // ── Recipient state (multi-select) ──
   const [selectedRecipients, setSelectedRecipients] = useState<Recipient[]>([])
@@ -214,12 +221,21 @@ export default function SendFileDialog({
   const allFilesValid = files.length > 0 && globalSectionId && globalSectionId !== 'none' && files.every(f => f.title.trim())
   const canSend = allFilesValid && hasRecipients && !isSubmitting
 
+  // Presets that haven't been created yet for this project
+  const availablePresets = useMemo(() =>
+    PRESET_SECTIONS.filter(p => !sections.some(s => s.name.toLowerCase() === p.name.toLowerCase())),
+    [sections]
+  )
+  const selectedSection = sections.find(s => s.id === globalSectionId)
+
   // ── Reset ──
   const reset = useCallback(() => {
     setFiles([])
     setShowDropboxPicker(false)
     setDropboxPath('')
     setGlobalSectionId('none')
+    setShowSectionPicker(false)
+    setCreatingPreset(null)
     setSelectedRecipients([])
     setShowManualEntry(false)
     setManualName('')
@@ -370,6 +386,35 @@ export default function SendFileDialog({
     }
   }, [projectId, newSectionName, newSectionShortName, newSectionColor, mutateSections])
 
+  // ── Select existing section ──
+  const handleSelectSection = useCallback((sectionId: string) => {
+    setGlobalSectionId(sectionId)
+    setFiles(prev => prev.map(f => ({ ...f, sectionId })))
+    setShowSectionPicker(false)
+  }, [])
+
+  // ── Select a preset (auto-create then select) ──
+  const handleSelectPreset = useCallback(async (preset: typeof PRESET_SECTIONS[0]) => {
+    setCreatingPreset(preset.name)
+    try {
+      const res = await fetch(`/api/projects/${projectId}/project-files-v2/sections`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(preset),
+      })
+      if (!res.ok) throw new Error('Failed to create section')
+      const created = await res.json()
+      mutateSections()
+      setGlobalSectionId(created.id)
+      setFiles(prev => prev.map(f => ({ ...f, sectionId: created.id })))
+      setShowSectionPicker(false)
+    } catch (err) {
+      console.error('Failed to create preset section:', err)
+    } finally {
+      setCreatingPreset(null)
+    }
+  }, [projectId, mutateSections])
+
   // ── Submit ──
   const handleSend = useCallback(async () => {
     if (!canSend) return
@@ -506,43 +551,104 @@ export default function SendFileDialog({
                       <h3 className="text-sm font-semibold text-gray-900">Section</h3>
                     </div>
 
-                    <Select
-                      value={globalSectionId}
-                      onValueChange={(v) => {
-                        setGlobalSectionId(v)
-                        if (v !== 'none') {
-                          // Update all existing files with new section
-                          setFiles(prev => prev.map(f => ({ ...f, sectionId: v })))
-                        }
-                      }}
-                    >
-                      <SelectTrigger className={cn('h-9 text-sm', (!globalSectionId || globalSectionId === 'none') && 'border-red-200')}>
-                        <SelectValue placeholder="Select section..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Select a section...</SelectItem>
-                        {sections.map((s) => (
-                          <SelectItem key={s.id} value={s.id}>
-                            <span className="flex items-center gap-2">
-                              <span className={cn('inline-block w-2 h-2 rounded-full', s.color || 'bg-gray-400')} />
-                              {s.name}
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {!showAddSection && (
+                    {/* Section picker button */}
+                    <div className="relative">
                       <button
                         type="button"
-                        onClick={() => setShowAddSection(true)}
-                        className="inline-flex items-center gap-1 mt-1.5 text-[11px] text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                        onClick={() => setShowSectionPicker(!showSectionPicker)}
+                        className={cn(
+                          'w-full h-9 px-3 rounded-lg border text-sm text-left flex items-center gap-2 transition-colors',
+                          (!globalSectionId || globalSectionId === 'none')
+                            ? 'border-red-200 text-gray-400'
+                            : 'border-gray-200 text-gray-900',
+                          'hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-900/10'
+                        )}
                       >
-                        <Plus className="w-3 h-3" />
-                        Add Section
+                        {selectedSection ? (
+                          <>
+                            <span className={cn('inline-block w-2.5 h-2.5 rounded-full shrink-0', selectedSection.color || 'bg-gray-400')} />
+                            {selectedSection.name}
+                          </>
+                        ) : (
+                          'Select section...'
+                        )}
+                        <ChevronDown className={cn('w-4 h-4 ml-auto text-gray-400 transition-transform', showSectionPicker && 'rotate-180')} />
                       </button>
-                    )}
 
-                    {/* Inline section creation */}
+                      {/* Dropdown panel */}
+                      <AnimatePresence>
+                        {showSectionPicker && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -4 }}
+                            transition={{ duration: 0.12 }}
+                            className="absolute z-50 mt-1 w-full rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden"
+                          >
+                            <div className="max-h-64 overflow-y-auto">
+                              {/* Existing project sections */}
+                              {sections.length > 0 && (
+                                <>
+                                  <p className="px-3 pt-2.5 pb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Your Sections</p>
+                                  {sections.map((s) => (
+                                    <button
+                                      key={s.id}
+                                      type="button"
+                                      onClick={() => handleSelectSection(s.id)}
+                                      className={cn(
+                                        'flex items-center gap-2.5 w-full px-3 py-2 text-sm transition-colors',
+                                        globalSectionId === s.id ? 'bg-gray-50 font-medium' : 'hover:bg-gray-50'
+                                      )}
+                                    >
+                                      <span className={cn('w-2.5 h-2.5 rounded-full shrink-0', s.color || 'bg-gray-400')} />
+                                      <span className="text-gray-900">{s.name}</span>
+                                      {globalSectionId === s.id && <Check className="w-3.5 h-3.5 text-green-500 ml-auto" />}
+                                    </button>
+                                  ))}
+                                </>
+                              )}
+
+                              {/* Preset sections */}
+                              {availablePresets.length > 0 && (
+                                <>
+                                  {sections.length > 0 && <div className="border-t border-gray-100 my-1" />}
+                                  <p className="px-3 pt-2 pb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Presets</p>
+                                  {availablePresets.map((p) => (
+                                    <button
+                                      key={p.name}
+                                      type="button"
+                                      onClick={() => handleSelectPreset(p)}
+                                      disabled={!!creatingPreset}
+                                      className="flex items-center gap-2.5 w-full px-3 py-2 text-sm hover:bg-gray-50 transition-colors"
+                                    >
+                                      <span className={cn('w-2.5 h-2.5 rounded-full shrink-0 opacity-60', p.color)} />
+                                      <span className="text-gray-600">{p.name}</span>
+                                      {creatingPreset === p.name && <Loader2 className="w-3 h-3 animate-spin text-gray-400 ml-auto" />}
+                                    </button>
+                                  ))}
+                                </>
+                              )}
+
+                              {/* Add custom section */}
+                              <div className="border-t border-gray-100 my-1" />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShowSectionPicker(false)
+                                  setShowAddSection(true)
+                                }}
+                                className="flex items-center gap-2 w-full px-3 py-2 text-sm text-blue-600 hover:bg-blue-50/50 transition-colors"
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                                Add Custom Section
+                              </button>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+
+                    {/* Inline custom section creation */}
                     <AnimatePresence>
                       {showAddSection && (
                         <motion.div
