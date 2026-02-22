@@ -562,6 +562,7 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
           <TabsContent value="transmittals">
             <TransmittalLog
               projectId={project.id}
+              dropboxFolder={project.dropboxFolder}
               transmittals={transmittals}
               isLoading={transmittalsLoading}
               onCreateNew={() => setShowNewTransmittal(true)}

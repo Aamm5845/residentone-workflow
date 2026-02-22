@@ -5,17 +5,14 @@ import {
   Send,
   Plus,
   Mail,
-  Truck,
-  Globe,
-  Package,
-  ClipboardList,
   Search,
   X,
   Calendar,
   Filter,
   ExternalLink,
   FileText,
-  Loader2,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -89,8 +86,12 @@ interface SentFileRow {
   dropboxPath: string | null
 }
 
+type SortField = 'sent' | 'recipient' | 'section' | 'title'
+type SortDir = 'asc' | 'desc'
+
 interface TransmittalLogProps {
   projectId: string
+  dropboxFolder: string | null
   transmittals: TransmittalData[]
   isLoading: boolean
   onCreateNew: () => void
@@ -119,6 +120,7 @@ const RECIPIENT_TYPE_LABELS: Record<string, string> = {
 
 export default function TransmittalLog({
   projectId,
+  dropboxFolder,
   transmittals,
   isLoading,
   onCreateNew,
@@ -128,7 +130,20 @@ export default function TransmittalLog({
   const [filterDateFrom, setFilterDateFrom] = useState('')
   const [filterDateTo, setFilterDateTo] = useState('')
 
-  const [openingFileId, setOpeningFileId] = useState<string | null>(null)
+  // ── Sort state ────────────────────────────────────────────────────────
+  const [sortField, setSortField] = useState<SortField>('sent')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
+
+  const handleSort = useCallback((field: SortField) => {
+    setSortField((prev) => {
+      if (prev === field) {
+        setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+        return prev
+      }
+      setSortDir(field === 'sent' ? 'desc' : 'asc')
+      return field
+    })
+  }, [])
 
   const hasActiveFilters = filterSearch !== '' || filterDateFrom !== '' || filterDateTo !== ''
 
@@ -138,31 +153,16 @@ export default function TransmittalLog({
     setFilterDateTo('')
   }, [])
 
-  const handleOpenFile = useCallback(async (row: SentFileRow) => {
-    // If we already have a direct URL, use it
-    if (row.fileUrl) {
-      window.open(row.fileUrl, '_blank')
-      return
-    }
-    // Otherwise generate a temporary link from the dropboxPath
-    if (!row.dropboxPath) return
-    setOpeningFileId(row.id)
-    try {
-      const res = await fetch(
-        `/api/projects/${projectId}/project-files-v2/file-link?path=${encodeURIComponent(row.dropboxPath)}`
-      )
-      if (res.ok) {
-        const data = await res.json()
-        if (data.url) {
-          window.open(data.url, '_blank')
-        }
-      }
-    } catch {
-      // silently fail
-    } finally {
-      setOpeningFileId(null)
-    }
-  }, [projectId])
+  /** Open the file's parent folder in Dropbox web UI */
+  const handleOpenFile = useCallback((row: SentFileRow) => {
+    if (!row.dropboxPath || !dropboxFolder) return
+    // Build the folder path by removing the filename
+    const parts = row.dropboxPath.split('/')
+    parts.pop() // remove filename
+    const folderRelative = parts.join('/')
+    const fullPath = `${dropboxFolder}/${folderRelative}`
+    window.open(`https://www.dropbox.com/home${fullPath}`, '_blank')
+  }, [dropboxFolder])
 
   // ── Flatten: one row per file sent ────────────────────────────────────
   const allRows = useMemo(() => {
@@ -187,14 +187,30 @@ export default function TransmittalLog({
         })
       }
     }
-    // Sort by sent date descending (newest first)
+    // Sort rows
+    const dir = sortDir === 'asc' ? 1 : -1
     rows.sort((a, b) => {
-      const dateA = a.sentAt ? new Date(a.sentAt).getTime() : 0
-      const dateB = b.sentAt ? new Date(b.sentAt).getTime() : 0
-      return dateB - dateA
+      switch (sortField) {
+        case 'sent': {
+          const dateA = a.sentAt ? new Date(a.sentAt).getTime() : 0
+          const dateB = b.sentAt ? new Date(b.sentAt).getTime() : 0
+          return (dateA - dateB) * dir
+        }
+        case 'recipient':
+          return a.recipientName.localeCompare(b.recipientName) * dir
+        case 'section': {
+          const secA = a.section?.name ?? ''
+          const secB = b.section?.name ?? ''
+          return secA.localeCompare(secB) * dir
+        }
+        case 'title':
+          return a.title.localeCompare(b.title) * dir
+        default:
+          return 0
+      }
     })
     return rows
-  }, [transmittals])
+  }, [transmittals, sortField, sortDir])
 
   // ── Filter rows ───────────────────────────────────────────────────────
   const filteredRows = useMemo(() => {
@@ -372,8 +388,11 @@ export default function TransmittalLog({
             </colgroup>
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50/80">
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  Title
+                <th className="px-4 py-3 text-left">
+                  <button onClick={() => handleSort('title')} className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-gray-500 hover:text-gray-900 transition-colors">
+                    Title
+                    {sortField === 'title' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : null}
+                  </button>
                 </th>
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-500">
                   Rev
@@ -381,17 +400,26 @@ export default function TransmittalLog({
                 <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
                   Page No
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  Section
+                <th className="px-4 py-3 text-left">
+                  <button onClick={() => handleSort('section')} className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-gray-500 hover:text-gray-900 transition-colors">
+                    Section
+                    {sortField === 'section' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : null}
+                  </button>
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  Recipient
+                <th className="px-4 py-3 text-left">
+                  <button onClick={() => handleSort('recipient')} className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-gray-500 hover:text-gray-900 transition-colors">
+                    Recipient
+                    {sortField === 'recipient' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : null}
+                  </button>
                 </th>
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-500">
                   Method
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  Sent
+                <th className="px-4 py-3 text-left">
+                  <button onClick={() => handleSort('sent')} className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-gray-500 hover:text-gray-900 transition-colors">
+                    Sent
+                    {sortField === 'sent' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : null}
+                  </button>
                 </th>
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-500">
                   File
@@ -483,19 +511,14 @@ export default function TransmittalLog({
                     )}
                   </td>
 
-                  {/* File link */}
+                  {/* File link — opens in Dropbox */}
                   <td className="px-3 py-3 text-center">
-                    {(row.fileUrl || row.dropboxPath) ? (
+                    {(row.dropboxPath && dropboxFolder) ? (
                       <button
                         onClick={() => handleOpenFile(row)}
-                        disabled={openingFileId === row.id}
-                        className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition-colors disabled:opacity-50"
+                        className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition-colors"
                       >
-                        {openingFileId === row.id ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <ExternalLink className="h-3 w-3" />
-                        )}
+                        <ExternalLink className="h-3 w-3" />
                         Open
                       </button>
                     ) : (
