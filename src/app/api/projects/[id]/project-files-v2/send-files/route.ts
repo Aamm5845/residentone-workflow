@@ -161,10 +161,11 @@ export async function POST(
       const file = files[i]
       try {
         if (file.source === 'upload' && file.base64) {
-          // Upload to Dropbox in section subfolder: 4- drawings/{SectionName}/{filename}
+          // Upload to Dropbox: 4- drawings/{SectionName}/{YYYY-MM-DD}/{filename}
           const sectionName = sectionsMap.get(file.sectionId) || 'Unsorted'
           const sanitizedName = file.name.replace(/[<>:"|?*]/g, '_')
-          const relativePath = `4- drawings/${sectionName}/${sanitizedName}`
+          const dateStr = new Date().toISOString().split('T')[0]
+          const relativePath = `4- drawings/${sectionName}/${dateStr}/${sanitizedName}`
 
           if (project.dropboxFolder) {
             const absolutePath = `${project.dropboxFolder}/${relativePath}`
