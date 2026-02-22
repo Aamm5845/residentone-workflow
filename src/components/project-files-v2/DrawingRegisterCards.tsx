@@ -62,6 +62,10 @@ interface Drawing {
   fileSize: number | null
   scale: string | null
   paperSize: string | null
+  drawnBy: string | null
+  reviewNo: string | null
+  pageNo: string | null
+  sectionId: string | null
   createdAt: string
   floor: { id: string; name: string; shortName: string } | null
   section: { id: string; name: string; shortName: string; color: string } | null
@@ -321,6 +325,17 @@ function DrawingCard({
         <p className="mt-1 text-sm text-gray-600 line-clamp-2 min-h-[2.5rem]">
           {drawing.title}
         </p>
+
+        {/* Metadata line */}
+        {(drawing.drawnBy || drawing.pageNo || drawing.reviewNo) && (
+          <p className="mt-1.5 text-[11px] text-gray-400 truncate">
+            {[
+              drawing.drawnBy ? `By: ${drawing.drawnBy}` : '',
+              drawing.pageNo ? `Pg: ${drawing.pageNo}` : '',
+              drawing.reviewNo ? `Rev: ${drawing.reviewNo}` : '',
+            ].filter(Boolean).join(' · ')}
+          </p>
+        )}
 
         {/* Chips row */}
         <div className="mt-3 flex flex-wrap items-center gap-1.5">

@@ -62,6 +62,10 @@ interface Drawing {
   fileSize: number | null
   scale: string | null
   paperSize: string | null
+  drawnBy: string | null
+  reviewNo: string | null
+  pageNo: string | null
+  sectionId: string | null
   createdAt: string
   floor: { id: string; name: string; shortName: string } | null
   section: { id: string; name: string; shortName: string; color: string } | null
@@ -93,6 +97,9 @@ interface DrawingRegisterTableProps {
 type SortColumn =
   | 'drawingNumber'
   | 'title'
+  | 'drawnBy'
+  | 'pageNo'
+  | 'reviewNo'
   | 'section'
   | 'floor'
   | 'drawingType'
@@ -109,6 +116,12 @@ function getSortValue(drawing: Drawing, column: SortColumn): string | number {
       return drawing.drawingNumber.toLowerCase()
     case 'title':
       return drawing.title.toLowerCase()
+    case 'drawnBy':
+      return (drawing.drawnBy ?? '').toLowerCase() || 'zzz'
+    case 'pageNo':
+      return (drawing.pageNo ?? '').toLowerCase() || 'zzz'
+    case 'reviewNo':
+      return (drawing.reviewNo ?? '').toLowerCase() || 'zzz'
     case 'section':
       return (drawing.section?.name ?? '').toLowerCase() || 'zzz'
     case 'floor':
@@ -154,6 +167,9 @@ interface ColumnDef {
 const COLUMNS: ColumnDef[] = [
   { key: 'drawingNumber', label: 'Drawing #', sortable: true, className: 'w-[120px]' },
   { key: 'title', label: 'Title', sortable: true },
+  { key: 'drawnBy', label: 'Drawn By', sortable: true, className: 'w-[100px]' },
+  { key: 'pageNo', label: 'Page', sortable: true, className: 'w-[70px]' },
+  { key: 'reviewNo', label: 'Review', sortable: true, className: 'w-[80px]' },
   { key: 'section', label: 'Section', sortable: true, className: 'w-[140px]' },
   { key: 'floor', label: 'Floor', sortable: true, className: 'w-[80px]' },
   { key: 'drawingType', label: 'Type', sortable: true, className: 'w-[140px]' },
@@ -317,6 +333,33 @@ export default function DrawingRegisterTable({
                       </span>
                     )}
                   </div>
+                </td>
+
+                {/* Drawn By */}
+                <td className="px-4 py-3">
+                  {drawing.drawnBy ? (
+                    <span className="text-sm text-gray-600 truncate max-w-[90px] block">{drawing.drawnBy}</span>
+                  ) : (
+                    <span className="text-gray-300">&mdash;</span>
+                  )}
+                </td>
+
+                {/* Page */}
+                <td className="px-4 py-3">
+                  {drawing.pageNo ? (
+                    <span className="text-sm text-gray-600">{drawing.pageNo}</span>
+                  ) : (
+                    <span className="text-gray-300">&mdash;</span>
+                  )}
+                </td>
+
+                {/* Review */}
+                <td className="px-4 py-3">
+                  {drawing.reviewNo ? (
+                    <span className="text-sm text-gray-600">{drawing.reviewNo}</span>
+                  ) : (
+                    <span className="text-gray-300">&mdash;</span>
+                  )}
                 </td>
 
                 {/* Section */}

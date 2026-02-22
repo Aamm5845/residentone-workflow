@@ -51,6 +51,9 @@ interface DrawingDetail {
   fileSize: number | null
   scale: string | null
   paperSize: string | null
+  drawnBy: string | null
+  reviewNo: string | null
+  pageNo: string | null
   createdAt: string
   floor: { id: string; name: string; shortName: string } | null
   creator: { id: string; name: string | null }
@@ -317,6 +320,21 @@ export default function DrawingDetailPanel({
                     icon={<FileText className="w-3.5 h-3.5" />}
                     label="Paper Size"
                     value={drawing.paperSize || 'N/A'}
+                  />
+                  <InfoCard
+                    icon={<User className="w-3.5 h-3.5" />}
+                    label="Drawn By"
+                    value={drawing.drawnBy || 'N/A'}
+                  />
+                  <InfoCard
+                    icon={<FileText className="w-3.5 h-3.5" />}
+                    label="Page"
+                    value={drawing.pageNo || 'N/A'}
+                  />
+                  <InfoCard
+                    icon={<FileText className="w-3.5 h-3.5" />}
+                    label="Review"
+                    value={drawing.reviewNo || 'N/A'}
                   />
                 </div>
               </div>

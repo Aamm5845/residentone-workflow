@@ -56,6 +56,11 @@ interface FileWithMetadata {
   pageNo: string
   fileNotes: string
   showDetails: boolean
+  // Duplicate detection
+  matchedDrawingId?: string | null
+  matchedDrawingNumber?: string | null
+  matchedCurrentRevision?: number | null
+  action: 'create_new' | 'add_revision'
 }
 
 interface Recipient {
@@ -191,6 +196,7 @@ export default function SendFileDialog({
   const [isCreatingSection, setIsCreatingSection] = useState(false)
 
   // ── Form state ──
+  const [subject, setSubject] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [showSuccess, setShowSuccess] = useState(false)
@@ -255,6 +261,7 @@ export default function SendFileDialog({
     setNewSectionName('')
     setNewSectionShortName('')
     setNewSectionColor(SECTION_COLORS[0])
+    setSubject('')
     setIsSubmitting(false)
     setSubmitError(null)
     setShowSuccess(false)
@@ -280,6 +287,7 @@ export default function SendFileDialog({
         pageNo: '',
         fileNotes: '',
         showDetails: true,
+        action: 'create_new',
       })
     }
     setFiles(prev => [...prev, ...newFiles])
@@ -325,6 +333,7 @@ export default function SendFileDialog({
       pageNo: '',
       fileNotes: '',
       showDetails: true,
+      action: 'create_new',
     }])
   }, [globalSectionId])
 
@@ -439,7 +448,7 @@ export default function SendFileDialog({
             company: r.company || null,
             type: r.type || 'OTHER',
           })),
-          subject: null,
+          subject: subject.trim() || null,
           notes: null,
           files: files.map(f => ({
             name: f.name,
@@ -453,6 +462,8 @@ export default function SendFileDialog({
             reviewNo: f.reviewNo.trim() || null,
             pageNo: f.pageNo.trim() || null,
             fileNotes: f.fileNotes.trim() || null,
+            action: f.action || 'create_new',
+            existingDrawingId: f.action === 'add_revision' ? f.matchedDrawingId : null,
           })),
         }),
       })
@@ -473,7 +484,7 @@ export default function SendFileDialog({
     } finally {
       setIsSubmitting(false)
     }
-  }, [canSend, projectId, selectedRecipients, globalSectionId, files, reset, onOpenChange, onSuccess])
+  }, [canSend, projectId, selectedRecipients, globalSectionId, subject, files, reset, onOpenChange, onSuccess])
 
   // ── Dropbox browser ──
   const folders = browseData?.folders ?? []
@@ -504,6 +515,7 @@ export default function SendFileDialog({
         pageNo: '',
         fileNotes: '',
         showDetails: true,
+        action: 'create_new',
       }))
       setFiles(prefilled)
       // If the initial file has a sectionId, auto-select it
@@ -512,6 +524,63 @@ export default function SendFileDialog({
       }
     }
   }, [open, initialFiles]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Debounced duplicate detection
+  useEffect(() => {
+    if (!open || files.length === 0) return
+    // Build a check key from titles + sectionIds + pageNos
+    const filesToCheck = files
+      .filter(f => f.title.trim() && f.sectionId && f.sectionId !== 'none')
+      .map(f => ({ title: f.title.trim(), sectionId: f.sectionId, pageNo: f.pageNo || null }))
+    if (filesToCheck.length === 0) return
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/projects/${projectId}/project-files-v2/check-duplicates`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ files: filesToCheck }),
+        })
+        if (!res.ok) return
+        const data = await res.json()
+        const results = data.results as Array<{
+          fileIndex: number
+          existingDrawing: { id: string; drawingNumber: string; title: string; currentRevision: number } | null
+        }>
+
+        setFiles(prev => {
+          const validFiles = prev.filter(f => f.title.trim() && f.sectionId && f.sectionId !== 'none')
+          // Map from valid file index back to the full files array index
+          let validIdx = 0
+          return prev.map(f => {
+            if (!f.title.trim() || !f.sectionId || f.sectionId === 'none') return f
+            const result = results.find(r => r.fileIndex === validIdx)
+            validIdx++
+            if (result?.existingDrawing) {
+              return {
+                ...f,
+                matchedDrawingId: result.existingDrawing.id,
+                matchedDrawingNumber: result.existingDrawing.drawingNumber,
+                matchedCurrentRevision: result.existingDrawing.currentRevision,
+                action: f.action === 'create_new' && !f.matchedDrawingId ? 'add_revision' as const : f.action,
+              }
+            }
+            return {
+              ...f,
+              matchedDrawingId: null,
+              matchedDrawingNumber: null,
+              matchedCurrentRevision: null,
+              action: 'create_new' as const,
+            }
+          })
+        })
+      } catch {
+        // Silently fail — not critical
+      }
+    }, 600)
+
+    return () => clearTimeout(timer)
+  }, [open, files.map(f => `${f.title}|${f.sectionId}|${f.pageNo}`).join(','), projectId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── RENDER ─────────────────────────────────────────────────────────────────
 
@@ -1023,6 +1092,46 @@ export default function SendFileDialog({
                                     />
                                   </div>
 
+                                  {/* Duplicate detection warning */}
+                                  {f.matchedDrawingId && (
+                                    <div className="flex items-start gap-2 rounded-md bg-amber-50 border border-amber-200 px-2.5 py-2">
+                                      <span className="text-amber-600 text-xs mt-0.5 shrink-0">&#9888;</span>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-[11px] text-amber-800 leading-snug">
+                                          <span className="font-medium">&quot;{f.title}&quot;</span> already exists as{' '}
+                                          <span className="font-mono font-medium">{f.matchedDrawingNumber}</span>{' '}
+                                          (Rev {f.matchedCurrentRevision})
+                                        </p>
+                                        <div className="flex items-center gap-1.5 mt-1.5">
+                                          <button
+                                            type="button"
+                                            onClick={() => updateFile(f.id, { action: 'add_revision' })}
+                                            className={cn(
+                                              'px-2 py-0.5 rounded text-[10px] font-medium transition-colors',
+                                              f.action === 'add_revision'
+                                                ? 'bg-amber-600 text-white'
+                                                : 'bg-white text-amber-700 border border-amber-300 hover:bg-amber-100'
+                                            )}
+                                          >
+                                            Add as Rev {(f.matchedCurrentRevision || 0) + 1}
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => updateFile(f.id, { action: 'create_new' })}
+                                            className={cn(
+                                              'px-2 py-0.5 rounded text-[10px] font-medium transition-colors',
+                                              f.action === 'create_new'
+                                                ? 'bg-gray-700 text-white'
+                                                : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-100'
+                                            )}
+                                          >
+                                            New Drawing
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+
                                   {/* Details toggle */}
                                   <button
                                     type="button"
@@ -1296,6 +1405,20 @@ export default function SendFileDialog({
                         </button>
                       </p>
                     )}
+                  </section>
+
+                  {/* ══════════ 4. SUBJECT (optional) ══════════ */}
+                  <section>
+                    <label className="text-xs font-medium text-gray-500 mb-1.5 block">
+                      Subject
+                      <span className="text-[10px] text-gray-300 font-medium uppercase tracking-wider ml-1">Optional</span>
+                    </label>
+                    <Input
+                      placeholder="e.g. Revised floor plans, Shop drawings for review..."
+                      value={subject}
+                      onChange={(e) => setSubject(e.target.value)}
+                      className="text-sm rounded-lg"
+                    />
                   </section>
 
                 </div>

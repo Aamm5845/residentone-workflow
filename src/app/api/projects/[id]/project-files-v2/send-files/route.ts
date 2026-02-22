@@ -20,6 +20,8 @@ interface FilePayload {
   reviewNo?: string | null
   pageNo?: string | null
   fileNotes?: string | null
+  action?: 'create_new' | 'add_revision'
+  existingDrawingId?: string | null
 }
 
 interface RecipientPayload {
@@ -212,14 +214,61 @@ export async function POST(
 
     // ── Step 2: Create drawings + transmittals in a transaction ──
     const createdDrawingIds: string[] = []
+    const createdRevisionIds: string[] = []
+    const createdRevisionNumbers: number[] = []
     const createdTransmittalIds: string[] = []
 
     await prisma.$transaction(async (tx) => {
-      // 2a. Create ProjectDrawing + DrawingRevision for each file
+      // 2a. Create or update ProjectDrawing + DrawingRevision for each file
       for (let i = 0; i < files.length; i++) {
         const file = files[i]
         const dropboxPathForDrawing = fileDropboxPaths.get(i) || null
 
+        // ── Add revision to existing drawing ──
+        if (file.action === 'add_revision' && file.existingDrawingId) {
+          const existing = await tx.projectDrawing.findUnique({
+            where: { id: file.existingDrawingId },
+            select: { id: true, currentRevision: true },
+          })
+
+          if (existing) {
+            const nextRev = existing.currentRevision + 1
+
+            await tx.projectDrawing.update({
+              where: { id: existing.id },
+              data: {
+                currentRevision: nextRev,
+                dropboxPath: dropboxPathForDrawing,
+                fileName: file.name,
+                fileSize: file.size,
+                // Update metadata if provided
+                ...(file.drawnBy ? { drawnBy: file.drawnBy } : {}),
+                ...(file.reviewNo ? { reviewNo: file.reviewNo } : {}),
+                ...(file.pageNo ? { pageNo: file.pageNo } : {}),
+              },
+            })
+
+            const revision = await tx.drawingRevision.create({
+              data: {
+                drawingId: existing.id,
+                revisionNumber: nextRev,
+                description: `Revision ${nextRev}`,
+                dropboxPath: dropboxPathForDrawing,
+                fileName: file.name,
+                fileSize: file.size,
+                issuedBy: session.user!.id,
+                issuedDate: new Date(),
+              },
+            })
+
+            createdDrawingIds.push(existing.id)
+            createdRevisionIds.push(revision.id)
+            createdRevisionNumbers.push(nextRev)
+            continue
+          }
+        }
+
+        // ── Create new drawing (default) ──
         const baseNumber = generateDrawingNumber(file.name, i)
         const drawingNumber = await ensureUniqueDrawingNumber(id, baseNumber)
 
@@ -241,7 +290,7 @@ export async function POST(
           },
         })
 
-        await tx.drawingRevision.create({
+        const revision = await tx.drawingRevision.create({
           data: {
             drawingId: drawing.id,
             revisionNumber: 1,
@@ -255,6 +304,8 @@ export async function POST(
         })
 
         createdDrawingIds.push(drawing.id)
+        createdRevisionIds.push(revision.id)
+        createdRevisionNumbers.push(1)
       }
 
       // 2b. Create one Transmittal per recipient
@@ -285,8 +336,9 @@ export async function POST(
             data: {
               transmittalId: transmittal.id,
               drawingId: createdDrawingIds[d],
-              revisionNumber: 1,
-              purpose: 'FOR_INFORMATION',
+              revisionId: createdRevisionIds[d],
+              revisionNumber: createdRevisionNumbers[d],
+              purpose: files[d]?.fileNotes ? 'FOR_INFORMATION' : 'FOR_INFORMATION',
               notes: files[d].fileNotes || null,
             },
           })
@@ -311,20 +363,24 @@ export async function POST(
       orderBy: { drawingNumber: 'asc' },
     })
 
+    // Build a map from drawing ID to original file payload for reliable lookup
+    const drawingIdToFile = new Map<string, FilePayload>()
+    for (let i = 0; i < createdDrawingIds.length; i++) {
+      drawingIdToFile.set(createdDrawingIds[i], files[i])
+    }
+
     // Build drawing rows for email
     const drawingRows = createdDrawings
       .map((d) => {
-        const fileNotes = d.drawnBy || d.reviewNo || d.pageNo
-          ? [
-              d.drawnBy ? `Drawn by: ${d.drawnBy}` : '',
-              d.reviewNo ? `Review: ${d.reviewNo}` : '',
-              d.pageNo ? `Page: ${d.pageNo}` : '',
-            ].filter(Boolean).join(' · ')
-          : ''
-        // Find matching file notes from the original payload
-        const matchingFile = files.find(f => f.title?.trim() === d.title)
+        const metaChips = [
+          d.drawnBy ? `Drawn by: ${d.drawnBy}` : '',
+          d.reviewNo ? `Review: ${d.reviewNo}` : '',
+          d.pageNo ? `Page: ${d.pageNo}` : '',
+        ].filter(Boolean).join(' · ')
+
+        const matchingFile = drawingIdToFile.get(d.id)
         const itemNotes = matchingFile?.fileNotes || ''
-        const detailLine = [fileNotes, itemNotes].filter(Boolean).join(' — ')
+        const detailLine = [metaChips, itemNotes].filter(Boolean).join(' — ')
 
         return `
         <tr>
@@ -333,7 +389,7 @@ export async function POST(
             ${detailLine ? `<br/><span style="color: #9ca3af; font-size: 12px;">${detailLine}</span>` : ''}
           </td>
           <td style="padding: 10px 16px; color: #6b7280; font-size: 13px; border-bottom: 1px solid #f3f4f6;">${d.section?.shortName || d.section?.name || ''}</td>
-          <td style="padding: 10px 16px; color: #6b7280; font-size: 13px; text-align: center; border-bottom: 1px solid #f3f4f6;">Rev 1</td>
+          <td style="padding: 10px 16px; color: #6b7280; font-size: 13px; text-align: center; border-bottom: 1px solid #f3f4f6;">Rev ${d.currentRevision}</td>
         </tr>`
       })
       .join('')

@@ -50,6 +50,25 @@ const METHOD_LABELS: Record<string, string> = {
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
+interface DrawingTransmittalGroup {
+  drawingId: string
+  drawingNumber: string
+  title: string
+  discipline: string | null
+  recipients: Array<{
+    transmittalId: string
+    transmittalNumber: string
+    recipientName: string
+    recipientCompany: string | null
+    recipientType: string | null
+    revisionNumber: number | null
+    purpose: string | null
+    sentAt: string | null
+    status: string
+    method: string
+  }>
+}
+
 interface TransmittalData {
   id: string
   transmittalNumber: string
@@ -151,6 +170,7 @@ export default function TransmittalLog({
   onCreateNew,
 }: TransmittalLogProps) {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+  const [viewMode, setViewMode] = useState<'by-recipient' | 'by-drawing'>('by-recipient')
 
   // ── Filter state ────────────────────────────────────────────────────────
   const [filterStatus, setFilterStatus] = useState<string | null>(null)
@@ -210,6 +230,40 @@ export default function TransmittalLog({
       return true
     })
   }, [transmittals, filterStatus, filterRecipient, filterDateFrom, filterDateTo])
+
+  // ── "By Drawing" grouped data ─────────────────────────────────────────
+  const byDrawingGroups = useMemo(() => {
+    const groups = new Map<string, DrawingTransmittalGroup>()
+    for (const t of filteredTransmittals) {
+      for (const item of t.items) {
+        const key = item.drawing.id
+        if (!groups.has(key)) {
+          groups.set(key, {
+            drawingId: item.drawing.id,
+            drawingNumber: item.drawing.drawingNumber,
+            title: item.drawing.title,
+            discipline: item.drawing.discipline,
+            recipients: [],
+          })
+        }
+        groups.get(key)!.recipients.push({
+          transmittalId: t.id,
+          transmittalNumber: t.transmittalNumber,
+          recipientName: t.recipientName,
+          recipientCompany: t.recipientCompany,
+          recipientType: t.recipientType,
+          revisionNumber: item.revisionNumber ?? item.revision?.revisionNumber ?? null,
+          purpose: item.purpose,
+          sentAt: t.sentAt,
+          status: t.status,
+          method: t.method,
+        })
+      }
+    }
+    return Array.from(groups.values()).sort((a, b) =>
+      a.drawingNumber.localeCompare(b.drawingNumber)
+    )
+  }, [filteredTransmittals])
 
   const toggleExpand = useCallback((id: string, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -289,12 +343,36 @@ export default function TransmittalLog({
         <div className="flex items-center gap-3">
           <h2 className="text-lg font-semibold text-gray-900">Sent History</h2>
           <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700">
-            {filteredTransmittals.length}{hasActiveFilters ? ` / ${transmittals.length}` : ''}
+            {viewMode === 'by-recipient'
+              ? `${filteredTransmittals.length}${hasActiveFilters ? ` / ${transmittals.length}` : ''}`
+              : `${byDrawingGroups.length} drawing${byDrawingGroups.length !== 1 ? 's' : ''}`
+            }
           </span>
         </div>
-        <Button onClick={onCreateNew} size="sm">
-          <Plus className="w-4 h-4 mr-1.5" /> Send Drawings
-        </Button>
+        <div className="flex items-center gap-3">
+          {/* View toggle */}
+          <div className="flex items-center bg-white border border-gray-200 rounded-lg p-0.5">
+            <button
+              onClick={() => setViewMode('by-recipient')}
+              className={cn('px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
+                viewMode === 'by-recipient' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-700'
+              )}
+            >
+              By Recipient
+            </button>
+            <button
+              onClick={() => setViewMode('by-drawing')}
+              className={cn('px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
+                viewMode === 'by-drawing' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-700'
+              )}
+            >
+              By Drawing
+            </button>
+          </div>
+          <Button onClick={onCreateNew} size="sm">
+            <Plus className="w-4 h-4 mr-1.5" /> Send Drawings
+          </Button>
+        </div>
       </div>
 
       {/* ── Filter bar ──────────────────────────────────────────────── */}
@@ -392,14 +470,12 @@ export default function TransmittalLog({
         </div>
       )}
 
-      {/* Table */}
-      {filteredTransmittals.length > 0 && (
+      {/* ── By Recipient table (default) ─────────────────────────── */}
+      {viewMode === 'by-recipient' && filteredTransmittals.length > 0 && (
       <div className="w-full overflow-x-auto rounded-lg border border-gray-200 bg-white">
         <table className="w-full border-collapse text-sm">
-          {/* ── Header ──────────────────────────────────────────────── */}
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50/80">
-              {/* Expand toggle */}
               <th className="w-[40px] px-2 py-3" />
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[90px]">
                 T#
@@ -428,8 +504,6 @@ export default function TransmittalLog({
               <th className="w-[52px] px-2 py-3" />
             </tr>
           </thead>
-
-          {/* ── Body ────────────────────────────────────────────────── */}
           <tbody className="divide-y divide-gray-100">
             {filteredTransmittals.map((transmittal) => {
               const status = STATUS_CONFIG[transmittal.status]
@@ -451,6 +525,72 @@ export default function TransmittalLog({
           </tbody>
         </table>
       </div>
+      )}
+
+      {/* ── By Drawing table ──────────────────────────────────────── */}
+      {viewMode === 'by-drawing' && byDrawingGroups.length > 0 && (
+      <div className="w-full overflow-x-auto rounded-lg border border-gray-200 bg-white">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-gray-200 bg-gray-50/80">
+              <th className="w-[40px] px-2 py-3" />
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[120px]">
+                Drawing #
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                Title
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[130px]">
+                Recipients
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[100px]">
+                Latest Rev
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[130px]">
+                Last Sent
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {byDrawingGroups.map((group) => {
+              const isExpanded = expandedRows.has(group.drawingId)
+              const uniqueRecipientCount = new Set(group.recipients.map(r => r.recipientName)).size
+              const latestRev = Math.max(...group.recipients.map(r => r.revisionNumber ?? 0))
+              const latestSent = group.recipients
+                .filter(r => r.sentAt)
+                .sort((a, b) => new Date(b.sentAt!).getTime() - new Date(a.sentAt!).getTime())[0]
+
+              return (
+                <DrawingGroupRow
+                  key={group.drawingId}
+                  group={group}
+                  isExpanded={isExpanded}
+                  uniqueRecipientCount={uniqueRecipientCount}
+                  latestRev={latestRev}
+                  latestSent={latestSent?.sentAt ?? null}
+                  onToggleExpand={toggleExpand}
+                />
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      )}
+
+      {/* ── By Drawing empty state ────────────────────────────────── */}
+      {viewMode === 'by-drawing' && byDrawingGroups.length === 0 && hasActiveFilters && (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mb-3">
+            <Filter className="w-6 h-6 text-gray-400" />
+          </div>
+          <h3 className="text-sm font-semibold text-gray-900 mb-1">No results found</h3>
+          <p className="text-sm text-gray-500 max-w-sm mb-3">
+            No drawings match your current filters.
+          </p>
+          <Button variant="outline" size="sm" onClick={clearAllFilters}>
+            Clear Filters
+          </Button>
+        </div>
       )}
     </div>
   )
@@ -506,7 +646,7 @@ function TransmittalRow({
         {/* Subject */}
         <td className="px-4 py-3">
           <span className="font-medium text-gray-900 truncate max-w-[260px] block">
-            {transmittal.subject || 'No subject'}
+            {transmittal.subject || <span className="text-gray-300">&mdash;</span>}
           </span>
         </td>
 
@@ -694,6 +834,175 @@ function TransmittalRow({
                       </tr>
                     )
                   })}
+                </tbody>
+              </table>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  )
+}
+
+// ─── "By Drawing" row sub-component ─────────────────────────────────────────
+
+function DrawingGroupRow({
+  group,
+  isExpanded,
+  uniqueRecipientCount,
+  latestRev,
+  latestSent,
+  onToggleExpand,
+}: {
+  group: DrawingTransmittalGroup
+  isExpanded: boolean
+  uniqueRecipientCount: number
+  latestRev: number
+  latestSent: string | null
+  onToggleExpand: (id: string, e: React.MouseEvent) => void
+}) {
+  return (
+    <>
+      {/* Main row */}
+      <tr className="transition-colors hover:bg-gray-50/70">
+        {/* Expand toggle */}
+        <td className="px-2 py-3">
+          {group.recipients.length > 0 && (
+            <button
+              onClick={(e) => onToggleExpand(group.drawingId, e)}
+              className="flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+            >
+              {isExpanded ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+            </button>
+          )}
+        </td>
+
+        {/* Drawing # */}
+        <td className="px-4 py-3">
+          <span className="font-mono font-bold text-gray-900 text-xs">
+            {group.drawingNumber}
+          </span>
+        </td>
+
+        {/* Title */}
+        <td className="px-4 py-3">
+          <span className="font-medium text-gray-900 truncate max-w-[260px] block">
+            {group.title}
+          </span>
+        </td>
+
+        {/* Recipients count */}
+        <td className="px-4 py-3">
+          <span className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
+            {uniqueRecipientCount} {uniqueRecipientCount === 1 ? 'recipient' : 'recipients'}
+          </span>
+        </td>
+
+        {/* Latest Rev */}
+        <td className="px-4 py-3">
+          {latestRev > 0 ? (
+            <span className="inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-600">
+              Rev {latestRev}
+            </span>
+          ) : (
+            <span className="text-gray-300">&mdash;</span>
+          )}
+        </td>
+
+        {/* Last Sent */}
+        <td className="px-4 py-3">
+          {latestSent ? (
+            <span className="text-sm text-gray-700">
+              {formatDate(latestSent)}
+            </span>
+          ) : (
+            <span className="text-gray-300">&mdash;</span>
+          )}
+        </td>
+      </tr>
+
+      {/* Expanded recipient rows */}
+      {isExpanded && group.recipients.length > 0 && (
+        <tr>
+          <td colSpan={6} className="bg-gray-50/50 px-0 py-0">
+            <div className="px-12 py-3">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-left text-[11px] uppercase tracking-wider text-gray-400">
+                    <th className="pb-2 pr-4 font-semibold">Recipient</th>
+                    <th className="pb-2 pr-4 font-semibold w-[120px]">Company</th>
+                    <th className="pb-2 pr-4 font-semibold w-[80px]">T#</th>
+                    <th className="pb-2 pr-4 font-semibold w-[70px]">Rev</th>
+                    <th className="pb-2 pr-4 font-semibold w-[100px]">Sent</th>
+                    <th className="pb-2 font-semibold w-[90px]">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {group.recipients
+                    .sort((a, b) => {
+                      const dateA = a.sentAt ? new Date(a.sentAt).getTime() : 0
+                      const dateB = b.sentAt ? new Date(b.sentAt).getTime() : 0
+                      return dateB - dateA
+                    })
+                    .map((r, i) => {
+                      const statusCfg = STATUS_CONFIG[r.status]
+                      return (
+                        <tr key={`${r.transmittalId}-${i}`}>
+                          <td className="py-2 pr-4">
+                            <div className="flex items-center gap-1.5">
+                              {r.recipientType && RECIPIENT_TYPE_LABELS[r.recipientType] ? (
+                                <span className="text-[10px] text-gray-400">{RECIPIENT_TYPE_LABELS[r.recipientType]}</span>
+                              ) : null}
+                              <span className="text-gray-700">{r.recipientName}</span>
+                            </div>
+                          </td>
+                          <td className="py-2 pr-4">
+                            {r.recipientCompany ? (
+                              <span className="text-gray-600 truncate max-w-[110px] block">{r.recipientCompany}</span>
+                            ) : (
+                              <span className="text-gray-300">&mdash;</span>
+                            )}
+                          </td>
+                          <td className="py-2 pr-4">
+                            <span className="font-mono font-medium text-gray-800">
+                              {formatTransmittalNumber(r.transmittalNumber)}
+                            </span>
+                          </td>
+                          <td className="py-2 pr-4">
+                            {r.revisionNumber != null ? (
+                              <span className="inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-600">
+                                Rev {r.revisionNumber}
+                              </span>
+                            ) : (
+                              <span className="text-gray-300">&mdash;</span>
+                            )}
+                          </td>
+                          <td className="py-2 pr-4">
+                            {r.sentAt ? (
+                              <span className="text-gray-700">{formatDate(r.sentAt)}</span>
+                            ) : (
+                              <span className="text-gray-300">&mdash;</span>
+                            )}
+                          </td>
+                          <td className="py-2">
+                            {statusCfg ? (
+                              <span className={cn(
+                                'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium',
+                                statusCfg.bgColor, statusCfg.color
+                              )}>
+                                {statusCfg.label}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-gray-400">{r.status}</span>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
                 </tbody>
               </table>
             </div>
