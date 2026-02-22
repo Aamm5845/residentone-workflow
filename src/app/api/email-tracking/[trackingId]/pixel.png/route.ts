@@ -9,10 +9,26 @@ export async function GET(
   try {
     const { trackingId } = await params
 
-    // Check if it's a floorplan approval email (trackingId starts with 'floorplan_')
+    // Check tracking ID prefix to route to the appropriate handler
     const isFloorplanEmail = trackingId.startsWith('floorplan_')
+    const isTransmittalEmail = trackingId.startsWith('transmittal_')
 
-    if (isFloorplanEmail) {
+    if (isTransmittalEmail) {
+      // Handle transmittal email tracking
+      const transmittalId = trackingId.replace('transmittal_', '')
+      const transmittal = await prisma.transmittal.findUnique({
+        where: { id: transmittalId },
+        select: { id: true, emailOpenedAt: true },
+      })
+
+      if (transmittal && !transmittal.emailOpenedAt) {
+        await prisma.transmittal.update({
+          where: { id: transmittal.id },
+          data: { emailOpenedAt: new Date() },
+        })
+        console.log(`[email-tracking] Transmittal ${transmittalId} email opened`)
+      }
+    } else if (isFloorplanEmail) {
       // Handle floorplan approval email tracking
       const emailLog = await prisma.floorplanApprovalEmailLog.findFirst({
         where: {

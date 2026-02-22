@@ -3,6 +3,7 @@ import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email-service'
 import { dropboxService } from '@/lib/dropbox-service-v2'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 export const runtime = 'nodejs'
 
@@ -155,6 +156,11 @@ export async function POST(
     const companyLogo = org?.logoUrl || 'https://app.meisnerinteriors.com/meisnerinteriorlogo.png'
     const firstName = transmittal.recipientName.split(' ')[0]
     const itemCount = transmittal.items.length
+    const sentDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+
+    // Tracking pixel URL
+    const baseUrl = getBaseUrl()
+    const trackingPixelUrl = `${baseUrl}/api/email-tracking/transmittal_${transmittalId}/pixel.png`
 
     // Subject line - clean, no "Transmittal" word
     const emailSubject = transmittal.subject && transmittal.subject.trim() !== ''
@@ -213,7 +219,8 @@ export async function POST(
                  alt="${companyName}"
                  style="max-width: 220px; max-height: 80px; height: auto; margin-bottom: 24px;" />
             <p style="margin: 0; color: #111827; font-size: 18px; font-weight: 600;">${project.name}</p>
-            ${attachmentText ? `<p style="margin: 6px 0 0 0; color: #6b7280; font-size: 14px;">${attachmentText}</p>` : ''}
+            <p style="margin: 6px 0 0 0; color: #6b7280; font-size: 14px;">${transmittal.transmittalNumber} &middot; ${sentDate}</p>
+            ${attachmentText ? `<p style="margin: 4px 0 0 0; color: #9ca3af; font-size: 13px;">${attachmentText}</p>` : ''}
         </div>
 
         <!-- Content -->
@@ -257,6 +264,8 @@ export async function POST(
             &copy; ${new Date().getFullYear()} ${companyName}. All rights reserved.
         </p>
     </div>
+    <!-- Tracking pixel -->
+    <img src="${trackingPixelUrl}" width="1" height="1" alt="" style="display:none;width:1px;height:1px;border:0;" />
 </body>
 </html>`
 

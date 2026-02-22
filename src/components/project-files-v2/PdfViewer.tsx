@@ -22,6 +22,8 @@ import {
   Send,
   Clock,
   User,
+  Mail,
+  Eye,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -65,7 +67,10 @@ interface DrawingActivity {
     id: string
     transmittalNumber: string
     recipientName: string
+    recipientCompany: string | null
     sentAt: string | null
+    emailOpenedAt: string | null
+    method: string | null
   }>
 }
 
@@ -97,6 +102,17 @@ function formatDate(dateStr: string): string {
   try {
     const d = new Date(dateStr)
     return d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
+  } catch {
+    return '—'
+  }
+}
+
+function formatDateWithTime(dateStr: string): string {
+  try {
+    const d = new Date(dateStr)
+    const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+    return `${date} at ${time}`
   } catch {
     return '—'
   }
@@ -683,19 +699,40 @@ export default function PdfViewer({
                     <label className="text-xs font-medium text-blue-600 mb-2 block">Sent History</label>
                     <div className="space-y-2">
                       {drawingActivity.transmittals.slice(0, 5).map((t) => (
-                        <div key={t.id} className="flex items-start gap-2">
-                          <Send className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs text-gray-700 font-medium">{t.transmittalNumber}</p>
-                            <div className="flex items-center gap-1 text-[10px] text-gray-400">
-                              <span>{t.recipientName}</span>
-                              {t.sentAt && (
-                                <>
-                                  <span className="mx-0.5">&middot;</span>
-                                  {formatDate(t.sentAt)}
-                                </>
-                              )}
-                            </div>
+                        <div key={t.id} className="p-2 rounded-lg bg-gray-50/80 border border-gray-100">
+                          <div className="flex items-center gap-1.5">
+                            <Send className="w-3 h-3 text-gray-400 shrink-0" />
+                            <span className="text-xs font-medium text-gray-700">{t.transmittalNumber}</span>
+                            <span className="text-[10px] text-gray-400">&rarr;</span>
+                            <span className="text-xs text-gray-600 truncate">{t.recipientName}</span>
+                          </div>
+                          <div className="flex items-center gap-1 mt-1 text-[10px] text-gray-400 flex-wrap">
+                            {t.sentAt && (
+                              <span className="flex items-center gap-0.5">
+                                <Clock className="w-2.5 h-2.5" />
+                                {formatDateWithTime(t.sentAt)}
+                              </span>
+                            )}
+                            {t.method === 'EMAIL' && (
+                              <>
+                                <span className="mx-0.5">&middot;</span>
+                                <Mail className="w-2.5 h-2.5" />
+                              </>
+                            )}
+                            {t.emailOpenedAt ? (
+                              <>
+                                <span className="mx-0.5">&middot;</span>
+                                <span className="flex items-center gap-0.5 text-emerald-600 font-medium">
+                                  <Eye className="w-2.5 h-2.5" />
+                                  Opened
+                                </span>
+                              </>
+                            ) : t.method === 'EMAIL' && t.sentAt ? (
+                              <>
+                                <span className="mx-0.5">&middot;</span>
+                                <span className="text-gray-400">Not opened</span>
+                              </>
+                            ) : null}
                           </div>
                         </div>
                       ))}

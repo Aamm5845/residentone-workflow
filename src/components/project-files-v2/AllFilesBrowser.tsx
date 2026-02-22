@@ -218,7 +218,10 @@ export default function AllFilesBrowser({ projectId, dropboxFolder, drawings: re
         id: ti.transmittal?.id || ti.id,
         transmittalNumber: ti.transmittal?.transmittalNumber || '',
         recipientName: ti.transmittal?.recipientName || '',
+        recipientCompany: ti.transmittal?.recipientCompany || null,
         sentAt: ti.transmittal?.sentAt || null,
+        emailOpenedAt: ti.transmittal?.emailOpenedAt || null,
+        method: ti.transmittal?.method || null,
       })),
     }
   }, [drawingDetailData])

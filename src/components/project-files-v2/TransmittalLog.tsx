@@ -17,6 +17,7 @@ import {
   ChevronDown,
   Check,
   SlidersHorizontal,
+  Eye,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -42,6 +43,7 @@ interface TransmittalData {
   status: string
   notes: string | null
   sentAt: string | null
+  emailOpenedAt: string | null
   createdAt: string
   creator: { id: string; name: string | null }
   sentByUser: { id: string; name: string | null } | null
@@ -85,6 +87,7 @@ interface SentFileRow {
   recipientType: string | null
   method: string
   sentAt: string | null
+  emailOpenedAt: string | null
   fileUrl: string | null
   fileName: string | null
   dropboxPath: string | null
@@ -227,6 +230,7 @@ export default function TransmittalLog({
           recipientType: t.recipientType,
           method: t.method,
           sentAt: t.sentAt,
+          emailOpenedAt: t.emailOpenedAt,
           fileUrl: item.revision?.dropboxUrl || item.drawing.dropboxUrl || null,
           fileName: item.revision?.fileName || item.drawing.fileName || null,
           dropboxPath: item.revision?.dropboxPath || item.drawing.dropboxPath || null,
@@ -712,6 +716,18 @@ export default function TransmittalLog({
                       <div>
                         <span className="text-sm text-gray-700 block">{formatDateTime(row.sentAt).date}</span>
                         <span className="text-[11px] text-gray-400">{formatDateTime(row.sentAt).time}</span>
+                        {row.method === 'EMAIL' && (
+                          <div className="mt-0.5">
+                            {row.emailOpenedAt ? (
+                              <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-emerald-600">
+                                <Eye className="h-2.5 w-2.5" />
+                                Opened
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-gray-400">Not opened</span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <span className="text-gray-300">&mdash;</span>

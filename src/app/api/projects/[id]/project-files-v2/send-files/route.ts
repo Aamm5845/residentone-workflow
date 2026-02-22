@@ -3,6 +3,7 @@ import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email-service'
 import { dropboxService } from '@/lib/dropbox-service-v2'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 export const runtime = 'nodejs'
 
@@ -218,6 +219,7 @@ export async function POST(
     const createdRevisionIds: string[] = []
     const createdRevisionNumbers: number[] = []
     const createdTransmittalIds: string[] = []
+    const createdTransmittalNumbers: string[] = []
 
     await prisma.$transaction(async (tx) => {
       // 2a. Create or update ProjectDrawing + DrawingRevision for each file
@@ -346,6 +348,7 @@ export async function POST(
         }
 
         createdTransmittalIds.push(transmittal.id)
+        createdTransmittalNumbers.push(transmittalNumber)
       }
     })
 
@@ -389,8 +392,8 @@ export async function POST(
             <span style="color: #374151; font-size: 14px; font-weight: 500;">${d.title}</span>
             ${detailLine ? `<br/><span style="color: #9ca3af; font-size: 12px;">${detailLine}</span>` : ''}
           </td>
-          <td style="padding: 10px 16px; color: #6b7280; font-size: 13px; border-bottom: 1px solid #f3f4f6;">${d.section?.shortName || d.section?.name || ''}</td>
-          <td style="padding: 10px 16px; color: #6b7280; font-size: 13px; text-align: center; border-bottom: 1px solid #f3f4f6;">Rev ${d.currentRevision}</td>
+          <td style="padding: 10px 16px; color: #6b7280; font-size: 13px; border-bottom: 1px solid #f3f4f6;">${d.section?.name || d.section?.shortName || ''}</td>
+          <td style="padding: 10px 16px; color: #6b7280; font-size: 13px; text-align: center; border-bottom: 1px solid #f3f4f6;">${d.reviewNo || d.currentRevision}</td>
         </tr>`
       })
       .join('')
@@ -408,7 +411,9 @@ export async function POST(
     for (let r = 0; r < recipients.length; r++) {
       const recipient = recipients[r]
       const transmittalId = createdTransmittalIds[r]
+      const transmittalNumber = createdTransmittalNumbers[r]
       const firstName = recipient.name.split(' ')[0]
+      const sentDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
       const emailSubject = subject
         ? `${project.name} — ${subject}`
@@ -417,6 +422,10 @@ export async function POST(
       const introText = itemCount === 1
         ? `Here's a drawing for <strong>${project.name}</strong>.`
         : `Here are ${itemCount} drawings for <strong>${project.name}</strong>.`
+
+      // Tracking pixel URL
+      const baseUrl = getBaseUrl()
+      const trackingPixelUrl = `${baseUrl}/api/email-tracking/transmittal_${transmittalId}/pixel.png`
 
       const html = `<!DOCTYPE html>
 <html lang="en">
@@ -432,7 +441,8 @@ export async function POST(
                  alt="${companyName}"
                  style="max-width: 220px; max-height: 80px; height: auto; margin-bottom: 24px;" />
             <p style="margin: 0; color: #111827; font-size: 18px; font-weight: 600;">${project.name}</p>
-            <p style="margin: 6px 0 0 0; color: #6b7280; font-size: 14px;">${attachmentText}</p>
+            <p style="margin: 6px 0 0 0; color: #6b7280; font-size: 14px;">${transmittalNumber} &middot; ${sentDate}</p>
+            <p style="margin: 4px 0 0 0; color: #9ca3af; font-size: 13px;">${attachmentText}</p>
         </div>
 
         <!-- Content -->
@@ -476,6 +486,8 @@ export async function POST(
             &copy; ${new Date().getFullYear()} ${companyName}. All rights reserved.
         </p>
     </div>
+    <!-- Tracking pixel -->
+    <img src="${trackingPixelUrl}" width="1" height="1" alt="" style="display:none;width:1px;height:1px;border:0;" />
 </body>
 </html>`
 

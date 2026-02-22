@@ -13,6 +13,8 @@ import {
   Layers,
   MapPin,
   Link2,
+  Mail,
+  Eye,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -88,6 +90,7 @@ interface DrawingDetail {
       sentAt: string | null
       status: string
       method: string
+      emailOpenedAt: string | null
     }
   }>
 }
@@ -124,6 +127,17 @@ function formatDate(dateStr: string): string {
     day: 'numeric',
     year: 'numeric',
   })
+}
+
+function formatDateWithTime(dateStr: string): string {
+  try {
+    const d = new Date(dateStr)
+    const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+    return `${date} at ${time}`
+  } catch {
+    return '—'
+  }
 }
 
 function getStatusStyle(status: string): { bg: string; text: string; label: string } {
@@ -591,9 +605,12 @@ export default function DrawingDetailPanel({
                                 </span>
                                 <span className="text-xs text-gray-400 mx-0.5">&rarr;</span>
                                 <span className="text-sm text-gray-700 truncate">
-                                  {t.recipientCompany || t.recipientName}
+                                  {t.recipientName}
                                 </span>
                               </div>
+                              {t.recipientCompany && (
+                                <p className="text-xs text-gray-500 ml-[18px]">{t.recipientCompany}</p>
+                              )}
                               <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                                 {item.revisionNumber != null && (
                                   <span className="text-xs text-gray-500">
@@ -614,10 +631,23 @@ export default function DrawingDetailPanel({
                             </div>
                           </div>
                           {t.sentAt && (
-                            <p className="text-xs text-gray-400 mt-1.5 flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {formatDate(t.sentAt)}
-                            </p>
+                            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                              <p className="text-xs text-gray-400 flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {formatDateWithTime(t.sentAt)}
+                              </p>
+                              {t.method === 'EMAIL' && (
+                                <Mail className="w-3 h-3 text-gray-400" />
+                              )}
+                              {t.emailOpenedAt ? (
+                                <span className="text-xs text-emerald-600 font-medium flex items-center gap-0.5">
+                                  <Eye className="w-3 h-3" />
+                                  Opened
+                                </span>
+                              ) : t.method === 'EMAIL' ? (
+                                <span className="text-xs text-gray-400">Not opened</span>
+                              ) : null}
+                            </div>
                           )}
                         </div>
                       )

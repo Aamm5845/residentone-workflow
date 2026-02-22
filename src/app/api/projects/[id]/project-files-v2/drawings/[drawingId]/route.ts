@@ -61,8 +61,11 @@ export async function GET(
                 transmittalNumber: true,
                 recipientName: true,
                 recipientCompany: true,
+                recipientEmail: true,
+                method: true,
                 sentAt: true,
-                status: true
+                status: true,
+                emailOpenedAt: true,
               }
             },
             revision: {
