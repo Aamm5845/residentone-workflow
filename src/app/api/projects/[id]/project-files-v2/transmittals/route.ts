@@ -57,7 +57,7 @@ export async function GET(
                 id: true,
                 drawingNumber: true,
                 title: true,
-                discipline: true
+                section: { select: { id: true, name: true, shortName: true, color: true } }
               }
             },
             revision: {

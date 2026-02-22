@@ -38,7 +38,7 @@ export async function GET(
             id: true,
             drawingNumber: true,
             title: true,
-            discipline: true,
+            section: { select: { id: true, name: true, shortName: true, color: true } },
             status: true,
             currentRevision: true
           }
@@ -140,7 +140,7 @@ export async function GET(
           drawingId: link.drawing.id,
           drawingNumber: link.drawing.drawingNumber,
           title: link.drawing.title,
-          discipline: link.drawing.discipline,
+          section: link.drawing.section,
           cadLayoutName: link.cadLayoutName,
           plottedFromRevision: link.plottedFromRevision,
           cadFreshnessStatus: newStatus,

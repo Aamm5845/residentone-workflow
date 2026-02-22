@@ -67,7 +67,7 @@ interface TransmittalData {
       id: string
       drawingNumber: string
       title: string
-      discipline: string | null
+      section: { id: string; name: string; shortName: string; color: string } | null
     }
     revision: {
       id: string
@@ -270,7 +270,7 @@ export default function TransmittalDetail({
                       Title
                     </th>
                     <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[120px]">
-                      Discipline
+                      Section
                     </th>
                     <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[80px]">
                       Revision
@@ -300,9 +300,13 @@ export default function TransmittalDetail({
                           </div>
                         </td>
                         <td className="px-4 py-2.5">
-                          {item.drawing.discipline ? (
-                            <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-gray-100 text-gray-600">
-                              {item.drawing.discipline.replace('_', ' ')}
+                          {item.drawing.section ? (
+                            <span className={cn(
+                              'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium',
+                              'bg-gray-50 text-gray-700 border border-gray-200'
+                            )}>
+                              <span className={cn('h-1.5 w-1.5 rounded-full', item.drawing.section.color || 'bg-gray-400')} />
+                              {item.drawing.section.shortName}
                             </span>
                           ) : (
                             <span className="text-gray-300">&mdash;</span>

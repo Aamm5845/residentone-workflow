@@ -57,7 +57,7 @@ export async function POST(
                 id: true,
                 drawingNumber: true,
                 title: true,
-                discipline: true,
+                section: { select: { id: true, name: true, shortName: true, color: true } },
                 drawingType: true,
                 dropboxPath: true,
                 dropboxUrl: true
@@ -285,7 +285,7 @@ export async function POST(
                 id: true,
                 drawingNumber: true,
                 title: true,
-                discipline: true
+                section: { select: { id: true, name: true, shortName: true, color: true } }
               }
             }
           }

@@ -50,11 +50,18 @@ const METHOD_LABELS: Record<string, string> = {
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
+interface SectionData {
+  id: string
+  name: string
+  shortName: string
+  color: string
+}
+
 interface DrawingTransmittalGroup {
   drawingId: string
   drawingNumber: string
   title: string
-  discipline: string | null
+  section: SectionData | null
   recipients: Array<{
     transmittalId: string
     transmittalNumber: string
@@ -93,7 +100,7 @@ interface TransmittalData {
       id: string
       drawingNumber: string
       title: string
-      discipline: string | null
+      section: SectionData | null
     }
     revision: {
       id: string
@@ -242,7 +249,7 @@ export default function TransmittalLog({
             drawingId: item.drawing.id,
             drawingNumber: item.drawing.drawingNumber,
             title: item.drawing.title,
-            discipline: item.drawing.discipline,
+            section: item.drawing.section,
             recipients: [],
           })
         }
@@ -785,7 +792,7 @@ function TransmittalRow({
                   <tr className="text-left text-[11px] uppercase tracking-wider text-gray-400">
                     <th className="pb-2 pr-4 font-semibold">Drawing #</th>
                     <th className="pb-2 pr-4 font-semibold">Title</th>
-                    <th className="pb-2 pr-4 font-semibold w-[100px]">Discipline</th>
+                    <th className="pb-2 pr-4 font-semibold w-[100px]">Section</th>
                     <th className="pb-2 pr-4 font-semibold w-[80px]">Revision</th>
                     <th className="pb-2 font-semibold w-[120px]">Purpose</th>
                   </tr>
@@ -803,9 +810,13 @@ function TransmittalRow({
                           <span className="text-gray-700">{item.drawing.title}</span>
                         </td>
                         <td className="py-2 pr-4">
-                          {item.drawing.discipline ? (
-                            <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-gray-100 text-gray-600">
-                              {item.drawing.discipline.replace('_', ' ')}
+                          {item.drawing.section ? (
+                            <span className={cn(
+                              'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium',
+                              'bg-gray-50 text-gray-700 border border-gray-200'
+                            )}>
+                              <span className={cn('h-1.5 w-1.5 rounded-full', item.drawing.section.color || 'bg-gray-400')} />
+                              {item.drawing.section.shortName}
                             </span>
                           ) : (
                             <span className="text-gray-300">&mdash;</span>

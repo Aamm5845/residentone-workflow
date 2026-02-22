@@ -37,7 +37,7 @@ export async function GET(
                 id: true,
                 drawingNumber: true,
                 title: true,
-                discipline: true,
+                section: { select: { id: true, name: true, shortName: true, color: true } },
                 drawingType: true,
                 currentRevision: true,
                 status: true
@@ -146,7 +146,7 @@ export async function PATCH(
                 id: true,
                 drawingNumber: true,
                 title: true,
-                discipline: true
+                section: { select: { id: true, name: true, shortName: true, color: true } }
               }
             }
           }
