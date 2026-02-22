@@ -10,6 +10,7 @@ import {
   Filter,
   ChevronDown,
   ChevronRight,
+  ExternalLink,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -29,12 +30,17 @@ interface ReceivedFileData {
   title: string
   createdAt: string
   section: { id: string; name: string; shortName: string; color: string } | null
+  dropboxPath: string | null
+  dropboxUrl: string | null
   drawing: {
     id: string
     drawingNumber: string
     title: string
     currentRevision: number
     status: string
+    dropboxPath: string | null
+    dropboxUrl: string | null
+    fileName: string | null
   } | null
   creator: { id: string; name: string | null } | null
 }
@@ -425,7 +431,8 @@ function SenderGroupRow({
                     <th className="pb-2 pr-4 font-semibold w-[90px]">Section</th>
                     <th className="pb-2 pr-4 font-semibold w-[90px]">Drawing #</th>
                     <th className="pb-2 pr-4 font-semibold w-[60px]">Rev</th>
-                    <th className="pb-2 font-semibold w-[100px]">Logged By</th>
+                    <th className="pb-2 pr-4 font-semibold w-[100px]">Logged By</th>
+                    <th className="pb-2 font-semibold w-[60px]">File</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -491,7 +498,7 @@ function SenderGroupRow({
                         </td>
 
                         {/* Logged By */}
-                        <td className="py-2">
+                        <td className="py-2 pr-4">
                           {rf.creator?.name ? (
                             <span className="text-gray-600 truncate max-w-[90px] block">
                               {rf.creator.name}
@@ -499,6 +506,27 @@ function SenderGroupRow({
                           ) : (
                             <span className="text-gray-300">&mdash;</span>
                           )}
+                        </td>
+
+                        {/* File link */}
+                        <td className="py-2">
+                          {(() => {
+                            const fileUrl = rf.drawing?.dropboxUrl || rf.dropboxUrl || null
+                            return fileUrl ? (
+                              <a
+                                href={fileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition-colors"
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                                Open
+                              </a>
+                            ) : (
+                              <span className="text-gray-300">&mdash;</span>
+                            )
+                          })()}
                         </td>
                       </tr>
                     )

@@ -4,49 +4,21 @@ import { useState, useCallback, useMemo } from 'react'
 import {
   Send,
   Plus,
-  MoreVertical,
   ChevronDown,
   ChevronRight,
   Mail,
   Truck,
   Globe,
-  Eye,
-  CheckCircle2,
-  Clock,
-  ClipboardList,
   Package,
+  ClipboardList,
   Search,
   X,
   Calendar,
   Filter,
+  ExternalLink,
 } from 'lucide-react'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
-
-// ─── Shared config ──────────────────────────────────────────────────────────
-
-const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {
-  DRAFT: { label: 'Draft', color: 'text-gray-600', bgColor: 'bg-gray-100' },
-  SENT: { label: 'Sent', color: 'text-emerald-700', bgColor: 'bg-emerald-50' },
-  ACKNOWLEDGED: { label: 'Acknowledged', color: 'text-blue-700', bgColor: 'bg-blue-50' },
-  CANCELLED: { label: 'Cancelled', color: 'text-red-600', bgColor: 'bg-red-50' },
-}
-
-const METHOD_LABELS: Record<string, string> = {
-  EMAIL: 'Email',
-  HAND_DELIVERY: 'Hand Delivery',
-  COURIER: 'Courier',
-  FTP: 'FTP',
-  OTHER: 'Other',
-}
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -64,14 +36,11 @@ interface DrawingTransmittalGroup {
   section: SectionData | null
   recipients: Array<{
     transmittalId: string
-    transmittalNumber: string
     recipientName: string
     recipientCompany: string | null
     recipientType: string | null
     revisionNumber: number | null
-    purpose: string | null
     sentAt: string | null
-    status: string
     method: string
   }>
 }
@@ -101,11 +70,17 @@ interface TransmittalData {
       drawingNumber: string
       title: string
       section: SectionData | null
+      dropboxPath: string | null
+      dropboxUrl: string | null
+      fileName: string | null
     }
     revision: {
       id: string
       revisionNumber: number
       description: string | null
+      dropboxPath: string | null
+      dropboxUrl: string | null
+      fileName: string | null
     } | null
   }>
 }
@@ -113,7 +88,6 @@ interface TransmittalData {
 interface TransmittalLogProps {
   transmittals: TransmittalData[]
   isLoading: boolean
-  onViewDetail: (transmittal: TransmittalData) => void
   onCreateNew: () => void
 }
 
@@ -159,13 +133,9 @@ function getMethodIcon(method: string) {
   }
 }
 
-function formatTransmittalNumber(num: string): string {
-  // If already formatted like "T-001", return as-is
-  if (num.startsWith('T-')) return num
-  // Otherwise try to pad the number
-  const n = parseInt(num, 10)
-  if (!isNaN(n)) return `T-${String(n).padStart(3, '0')}`
-  return num
+/** Get the best available file URL for a transmittal item */
+function getFileUrl(item: TransmittalData['items'][number]): string | null {
+  return item.revision?.dropboxUrl || item.drawing.dropboxUrl || null
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
@@ -173,28 +143,25 @@ function formatTransmittalNumber(num: string): string {
 export default function TransmittalLog({
   transmittals,
   isLoading,
-  onViewDetail,
   onCreateNew,
 }: TransmittalLogProps) {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const [viewMode, setViewMode] = useState<'by-recipient' | 'by-drawing'>('by-recipient')
 
   // ── Filter state ────────────────────────────────────────────────────────
-  const [filterStatus, setFilterStatus] = useState<string | null>(null)
   const [filterRecipient, setFilterRecipient] = useState('')
   const [filterDateFrom, setFilterDateFrom] = useState('')
   const [filterDateTo, setFilterDateTo] = useState('')
 
-  const hasActiveFilters = filterStatus !== null || filterRecipient !== '' || filterDateFrom !== '' || filterDateTo !== ''
+  const hasActiveFilters = filterRecipient !== '' || filterDateFrom !== '' || filterDateTo !== ''
 
   const clearAllFilters = useCallback(() => {
-    setFilterStatus(null)
     setFilterRecipient('')
     setFilterDateFrom('')
     setFilterDateTo('')
   }, [])
 
-  // ── Unique recipient names/companies for the dropdown ───────────────────
+  // ── Unique recipient names for autocomplete ───────────────────────────
   const uniqueRecipients = useMemo(() => {
     const names = new Map<string, { name: string; company: string | null }>()
     for (const t of transmittals) {
@@ -208,35 +175,26 @@ export default function TransmittalLog({
   // ── Filter transmittals ─────────────────────────────────────────────────
   const filteredTransmittals = useMemo(() => {
     return transmittals.filter((t) => {
-      // Status filter
-      if (filterStatus && t.status !== filterStatus) return false
-
-      // Recipient filter (search across name and company)
       if (filterRecipient) {
         const q = filterRecipient.toLowerCase()
         const nameMatch = t.recipientName.toLowerCase().includes(q)
         const companyMatch = t.recipientCompany?.toLowerCase().includes(q) ?? false
         if (!nameMatch && !companyMatch) return false
       }
-
-      // Date from filter
       if (filterDateFrom) {
         const from = new Date(filterDateFrom)
         const sentDate = t.sentAt ? new Date(t.sentAt) : new Date(t.createdAt)
         if (sentDate < from) return false
       }
-
-      // Date to filter
       if (filterDateTo) {
         const to = new Date(filterDateTo)
         to.setHours(23, 59, 59, 999)
         const sentDate = t.sentAt ? new Date(t.sentAt) : new Date(t.createdAt)
         if (sentDate > to) return false
       }
-
       return true
     })
-  }, [transmittals, filterStatus, filterRecipient, filterDateFrom, filterDateTo])
+  }, [transmittals, filterRecipient, filterDateFrom, filterDateTo])
 
   // ── "By Drawing" grouped data ─────────────────────────────────────────
   const byDrawingGroups = useMemo(() => {
@@ -255,14 +213,11 @@ export default function TransmittalLog({
         }
         groups.get(key)!.recipients.push({
           transmittalId: t.id,
-          transmittalNumber: t.transmittalNumber,
           recipientName: t.recipientName,
           recipientCompany: t.recipientCompany,
           recipientType: t.recipientType,
           revisionNumber: item.revisionNumber ?? item.revision?.revisionNumber ?? null,
-          purpose: item.purpose,
           sentAt: t.sentAt,
-          status: t.status,
           method: t.method,
         })
       }
@@ -276,21 +231,16 @@ export default function TransmittalLog({
     e.stopPropagation()
     setExpandedRows((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
       return next
     })
   }, [])
 
-  // ── Loading state ───────────────────────────────────────────────────────
-
+  // ── Loading state ─────────────────────────────────────────────────────
   if (isLoading) {
     return (
       <div className="space-y-4">
-        {/* Header skeleton */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="h-7 w-32 animate-pulse rounded bg-gray-200" />
@@ -298,7 +248,6 @@ export default function TransmittalLog({
           </div>
           <div className="h-8 w-36 animate-pulse rounded-md bg-gray-200" />
         </div>
-        {/* Table skeleton */}
         <div className="rounded-lg border border-gray-200 bg-white">
           <div className="border-b border-gray-200 bg-gray-50/80 px-4 py-3">
             <div className="h-4 w-full animate-pulse rounded bg-gray-200" />
@@ -313,18 +262,15 @@ export default function TransmittalLog({
     )
   }
 
-  // ── Empty state ─────────────────────────────────────────────────────────
-
+  // ── Empty state ───────────────────────────────────────────────────────
   if (transmittals.length === 0) {
     return (
       <div className="space-y-4">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <h2 className="text-lg font-semibold text-gray-900">Sent Drawings</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Sent Files</h2>
           </div>
         </div>
-        {/* Empty content */}
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
             <Send className="w-8 h-8 text-gray-400" />
@@ -334,15 +280,14 @@ export default function TransmittalLog({
             Send drawings to contractors, subs, or clients and track everything here.
           </p>
           <Button onClick={onCreateNew} size="sm">
-            <Plus className="w-4 h-4 mr-1.5" /> Send Drawings
+            <Plus className="w-4 h-4 mr-1.5" /> Send Files
           </Button>
         </div>
       </div>
     )
   }
 
-  // ── Render ──────────────────────────────────────────────────────────────
-
+  // ── Render ────────────────────────────────────────────────────────────
   return (
     <div className="space-y-4">
       {/* Header row */}
@@ -377,7 +322,7 @@ export default function TransmittalLog({
             </button>
           </div>
           <Button onClick={onCreateNew} size="sm">
-            <Plus className="w-4 h-4 mr-1.5" /> Send Drawings
+            <Plus className="w-4 h-4 mr-1.5" /> Send Files
           </Button>
         </div>
       </div>
@@ -386,19 +331,7 @@ export default function TransmittalLog({
       <div className="flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3">
         <Filter className="w-4 h-4 text-gray-400 shrink-0" />
 
-        {/* Status filter */}
-        <select
-          value={filterStatus ?? ''}
-          onChange={(e) => setFilterStatus(e.target.value || null)}
-          className="h-8 rounded-md border border-gray-200 bg-white px-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-300"
-        >
-          <option value="">All Status</option>
-          {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
-            <option key={key} value={key}>{cfg.label}</option>
-          ))}
-        </select>
-
-        {/* Sent To filter - search input with datalist for autocomplete */}
+        {/* Recipient search */}
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
           <input
@@ -429,7 +362,7 @@ export default function TransmittalLog({
         {/* Separator */}
         <div className="w-px h-5 bg-gray-200" />
 
-        {/* Date from */}
+        {/* Date range */}
         <div className="flex items-center gap-1.5">
           <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
           <input
@@ -469,7 +402,7 @@ export default function TransmittalLog({
           </div>
           <h3 className="text-sm font-semibold text-gray-900 mb-1">No results found</h3>
           <p className="text-sm text-gray-500 max-w-sm mb-3">
-            No transmittals match your current filters.
+            No sent files match your current filters.
           </p>
           <Button variant="outline" size="sm" onClick={clearAllFilters}>
             Clear Filters
@@ -484,12 +417,6 @@ export default function TransmittalLog({
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50/80">
               <th className="w-[40px] px-2 py-3" />
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[90px]">
-                T#
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                Subject
-              </th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[170px]">
                 Recipient
               </th>
@@ -505,15 +432,10 @@ export default function TransmittalLog({
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[120px]">
                 Sent
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[110px]">
-                Status
-              </th>
-              <th className="w-[52px] px-2 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {filteredTransmittals.map((transmittal) => {
-              const status = STATUS_CONFIG[transmittal.status]
               const isExpanded = expandedRows.has(transmittal.id)
               const drawingCount = transmittal.items.length
 
@@ -521,11 +443,9 @@ export default function TransmittalLog({
                 <TransmittalRow
                   key={transmittal.id}
                   transmittal={transmittal}
-                  status={status}
                   isExpanded={isExpanded}
                   drawingCount={drawingCount}
                   onToggleExpand={toggleExpand}
-                  onViewDetail={onViewDetail}
                 />
               )
             })}
@@ -603,28 +523,24 @@ export default function TransmittalLog({
   )
 }
 
-// ─── Row sub-component ──────────────────────────────────────────────────────
+// ─── "By Recipient" row sub-component ───────────────────────────────────────
 
 function TransmittalRow({
   transmittal,
-  status,
   isExpanded,
   drawingCount,
   onToggleExpand,
-  onViewDetail,
 }: {
   transmittal: TransmittalData
-  status: { label: string; color: string; bgColor: string } | undefined
   isExpanded: boolean
   drawingCount: number
   onToggleExpand: (id: string, e: React.MouseEvent) => void
-  onViewDetail: (transmittal: TransmittalData) => void
 }) {
   return (
     <>
       {/* Main row */}
       <tr
-        onClick={() => onViewDetail(transmittal)}
+        onClick={(e) => onToggleExpand(transmittal.id, e)}
         className="cursor-pointer transition-colors hover:bg-gray-50/70"
       >
         {/* Expand toggle */}
@@ -641,20 +557,6 @@ function TransmittalRow({
               )}
             </button>
           )}
-        </td>
-
-        {/* T# */}
-        <td className="px-4 py-3">
-          <span className="font-mono font-bold text-gray-900 text-xs">
-            {formatTransmittalNumber(transmittal.transmittalNumber)}
-          </span>
-        </td>
-
-        {/* Subject */}
-        <td className="px-4 py-3">
-          <span className="font-medium text-gray-900 truncate max-w-[260px] block">
-            {transmittal.subject || <span className="text-gray-300">&mdash;</span>}
-          </span>
         </td>
 
         {/* Recipient */}
@@ -683,14 +585,12 @@ function TransmittalRow({
 
         {/* Drawings */}
         <td className="px-4 py-3">
-          <span className="inline-flex items-center gap-1.5 text-sm text-gray-600">
-            <span className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
-              {drawingCount} {drawingCount === 1 ? 'drawing' : 'drawings'}
-            </span>
+          <span className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
+            {drawingCount} {drawingCount === 1 ? 'file' : 'files'}
           </span>
         </td>
 
-        {/* Method — Email = system sent, anything else = manual/logged */}
+        {/* Method */}
         <td className="px-4 py-3">
           {transmittal.method === 'EMAIL' ? (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
@@ -716,76 +616,12 @@ function TransmittalRow({
             <span className="text-gray-300">&mdash;</span>
           )}
         </td>
-
-        {/* Status */}
-        <td className="px-4 py-3">
-          {status ? (
-            <span
-              className={cn(
-                'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
-                status.bgColor,
-                status.color
-              )}
-            >
-              {status.label}
-            </span>
-          ) : (
-            <span className="text-xs text-gray-400">{transmittal.status}</span>
-          )}
-        </td>
-
-        {/* Actions */}
-        <td className="px-2 py-3">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="h-7 w-7 text-gray-400 hover:text-gray-600"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <MoreVertical className="h-4 w-4" />
-                <span className="sr-only">Actions</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onViewDetail(transmittal)
-                }}
-              >
-                <Eye className="mr-2 h-4 w-4" />
-                View Details
-              </DropdownMenuItem>
-              {transmittal.status === 'SENT' && transmittal.method === 'EMAIL' && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Send className="mr-2 h-4 w-4" />
-                    Resend
-                  </DropdownMenuItem>
-                </>
-              )}
-              {transmittal.status === 'SENT' && (
-                <DropdownMenuItem
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <CheckCircle2 className="mr-2 h-4 w-4" />
-                  Mark Acknowledged
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </td>
       </tr>
 
       {/* Expanded items */}
       {isExpanded && transmittal.items.length > 0 && (
         <tr>
-          <td colSpan={10} className="bg-gray-50/50 px-0 py-0">
+          <td colSpan={6} className="bg-gray-50/50 px-0 py-0">
             <div className="px-12 py-3">
               <table className="w-full text-xs">
                 <thead>
@@ -794,11 +630,13 @@ function TransmittalRow({
                     <th className="pb-2 pr-4 font-semibold">Title</th>
                     <th className="pb-2 pr-4 font-semibold w-[100px]">Section</th>
                     <th className="pb-2 pr-4 font-semibold w-[80px]">Revision</th>
-                    <th className="pb-2 font-semibold w-[120px]">Purpose</th>
+                    <th className="pb-2 pr-4 font-semibold w-[120px]">Purpose</th>
+                    <th className="pb-2 font-semibold w-[60px]">File</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {transmittal.items.map((item) => {
+                    const fileUrl = getFileUrl(item)
                     return (
                       <tr key={item.id}>
                         <td className="py-2 pr-4">
@@ -835,9 +673,25 @@ function TransmittalRow({
                             <span className="text-gray-300">&mdash;</span>
                           )}
                         </td>
-                        <td className="py-2">
+                        <td className="py-2 pr-4">
                           {item.purpose ? (
                             <span className="text-gray-600">{item.purpose}</span>
+                          ) : (
+                            <span className="text-gray-300">&mdash;</span>
+                          )}
+                        </td>
+                        <td className="py-2">
+                          {fileUrl ? (
+                            <a
+                              href={fileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition-colors"
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                              Open
+                            </a>
                           ) : (
                             <span className="text-gray-300">&mdash;</span>
                           )}
@@ -875,7 +729,10 @@ function DrawingGroupRow({
   return (
     <>
       {/* Main row */}
-      <tr className="transition-colors hover:bg-gray-50/70">
+      <tr
+        className="cursor-pointer transition-colors hover:bg-gray-50/70"
+        onClick={(e) => onToggleExpand(group.drawingId, e)}
+      >
         {/* Expand toggle */}
         <td className="px-2 py-3">
           {group.recipients.length > 0 && (
@@ -946,10 +803,8 @@ function DrawingGroupRow({
                   <tr className="text-left text-[11px] uppercase tracking-wider text-gray-400">
                     <th className="pb-2 pr-4 font-semibold">Recipient</th>
                     <th className="pb-2 pr-4 font-semibold w-[120px]">Company</th>
-                    <th className="pb-2 pr-4 font-semibold w-[80px]">T#</th>
                     <th className="pb-2 pr-4 font-semibold w-[70px]">Rev</th>
-                    <th className="pb-2 pr-4 font-semibold w-[100px]">Sent</th>
-                    <th className="pb-2 font-semibold w-[90px]">Status</th>
+                    <th className="pb-2 font-semibold w-[100px]">Sent</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -959,61 +814,41 @@ function DrawingGroupRow({
                       const dateB = b.sentAt ? new Date(b.sentAt).getTime() : 0
                       return dateB - dateA
                     })
-                    .map((r, i) => {
-                      const statusCfg = STATUS_CONFIG[r.status]
-                      return (
-                        <tr key={`${r.transmittalId}-${i}`}>
-                          <td className="py-2 pr-4">
-                            <div className="flex items-center gap-1.5">
-                              {r.recipientType && RECIPIENT_TYPE_LABELS[r.recipientType] ? (
-                                <span className="text-[10px] text-gray-400">{RECIPIENT_TYPE_LABELS[r.recipientType]}</span>
-                              ) : null}
-                              <span className="text-gray-700">{r.recipientName}</span>
-                            </div>
-                          </td>
-                          <td className="py-2 pr-4">
-                            {r.recipientCompany ? (
-                              <span className="text-gray-600 truncate max-w-[110px] block">{r.recipientCompany}</span>
-                            ) : (
-                              <span className="text-gray-300">&mdash;</span>
-                            )}
-                          </td>
-                          <td className="py-2 pr-4">
-                            <span className="font-mono font-medium text-gray-800">
-                              {formatTransmittalNumber(r.transmittalNumber)}
+                    .map((r, i) => (
+                      <tr key={`${r.transmittalId}-${i}`}>
+                        <td className="py-2 pr-4">
+                          <div className="flex items-center gap-1.5">
+                            {r.recipientType && RECIPIENT_TYPE_LABELS[r.recipientType] ? (
+                              <span className="text-[10px] text-gray-400">{RECIPIENT_TYPE_LABELS[r.recipientType]}</span>
+                            ) : null}
+                            <span className="text-gray-700">{r.recipientName}</span>
+                          </div>
+                        </td>
+                        <td className="py-2 pr-4">
+                          {r.recipientCompany ? (
+                            <span className="text-gray-600 truncate max-w-[110px] block">{r.recipientCompany}</span>
+                          ) : (
+                            <span className="text-gray-300">&mdash;</span>
+                          )}
+                        </td>
+                        <td className="py-2 pr-4">
+                          {r.revisionNumber != null ? (
+                            <span className="inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-600">
+                              Rev {r.revisionNumber}
                             </span>
-                          </td>
-                          <td className="py-2 pr-4">
-                            {r.revisionNumber != null ? (
-                              <span className="inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-600">
-                                Rev {r.revisionNumber}
-                              </span>
-                            ) : (
-                              <span className="text-gray-300">&mdash;</span>
-                            )}
-                          </td>
-                          <td className="py-2 pr-4">
-                            {r.sentAt ? (
-                              <span className="text-gray-700">{formatDate(r.sentAt)}</span>
-                            ) : (
-                              <span className="text-gray-300">&mdash;</span>
-                            )}
-                          </td>
-                          <td className="py-2">
-                            {statusCfg ? (
-                              <span className={cn(
-                                'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium',
-                                statusCfg.bgColor, statusCfg.color
-                              )}>
-                                {statusCfg.label}
-                              </span>
-                            ) : (
-                              <span className="text-xs text-gray-400">{r.status}</span>
-                            )}
-                          </td>
-                        </tr>
-                      )
-                    })}
+                          ) : (
+                            <span className="text-gray-300">&mdash;</span>
+                          )}
+                        </td>
+                        <td className="py-2">
+                          {r.sentAt ? (
+                            <span className="text-gray-700">{formatDate(r.sentAt)}</span>
+                          ) : (
+                            <span className="text-gray-300">&mdash;</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>

@@ -94,6 +94,9 @@ export async function GET(
             title: true,
             currentRevision: true,
             status: true,
+            dropboxPath: true,
+            dropboxUrl: true,
+            fileName: true,
           },
         },
         creator: {

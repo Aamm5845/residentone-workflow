@@ -28,7 +28,6 @@ import DrawingFormDialog from './DrawingFormDialog'
 import NewRevisionDialog from './NewRevisionDialog'
 import TransmittalLog from './TransmittalLog'
 import NewTransmittalDialog from './NewTransmittalDialog'
-import TransmittalDetail from './TransmittalDetail'
 import FilterSidebar from './FilterSidebar'
 import AllFilesBrowser from './AllFilesBrowser'
 import PhotosGallery from './PhotosGallery'
@@ -85,7 +84,6 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
   const [revisionDrawing, setRevisionDrawing] = useState<any | null>(null)
   const [showNewTransmittal, setShowNewTransmittal] = useState(false)
   const [transmittalPreSelectedDrawings, setTransmittalPreSelectedDrawings] = useState<any[]>([])
-  const [viewTransmittal, setViewTransmittal] = useState<any | null>(null)
   const [cadLinkDrawing, setCadLinkDrawing] = useState<any | null>(null)
   const [showSendFile, setShowSendFile] = useState(false)
   const [showReceiveFile, setShowReceiveFile] = useState(false)
@@ -565,7 +563,6 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
             <TransmittalLog
               transmittals={transmittals}
               isLoading={transmittalsLoading}
-              onViewDetail={(t) => setViewTransmittal(t)}
               onCreateNew={() => setShowNewTransmittal(true)}
             />
           </TabsContent>
@@ -646,18 +643,6 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
         }}
         preSelectedDrawings={transmittalPreSelectedDrawings}
       />
-
-      {/* Transmittal Detail Dialog */}
-      {viewTransmittal && (
-        <TransmittalDetail
-          transmittal={viewTransmittal}
-          onClose={() => setViewTransmittal(null)}
-          onResend={() => {
-            mutateTransmittals()
-            setViewTransmittal(null)
-          }}
-        />
-      )}
 
       {/* Send File Dialog */}
       <SendFileDialog

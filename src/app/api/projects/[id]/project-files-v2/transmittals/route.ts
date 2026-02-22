@@ -57,13 +57,20 @@ export async function GET(
                 id: true,
                 drawingNumber: true,
                 title: true,
-                section: { select: { id: true, name: true, shortName: true, color: true } }
+                section: { select: { id: true, name: true, shortName: true, color: true } },
+                dropboxPath: true,
+                dropboxUrl: true,
+                fileName: true,
               }
             },
             revision: {
               select: {
                 id: true,
-                revisionNumber: true
+                revisionNumber: true,
+                description: true,
+                dropboxPath: true,
+                dropboxUrl: true,
+                fileName: true,
               }
             }
           }
