@@ -15,6 +15,7 @@ import {
   X,
   FileText,
   Send,
+  Download,
   FolderTree,
   Camera,
 } from 'lucide-react'
@@ -34,6 +35,7 @@ import PhotosGallery from './PhotosGallery'
 import CadFreshnessSummary from './CadFreshnessSummary'
 import CadSourceLinkDialog from './CadSourceLinkDialog'
 import SendFileDialog from './SendFileDialog'
+import ReceiveFileDialog from './ReceiveFileDialog'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -85,6 +87,14 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
   const [viewTransmittal, setViewTransmittal] = useState<any | null>(null)
   const [cadLinkDrawing, setCadLinkDrawing] = useState<any | null>(null)
   const [showSendFile, setShowSendFile] = useState(false)
+  const [showReceiveFile, setShowReceiveFile] = useState(false)
+  const [sendFileInitialFiles, setSendFileInitialFiles] = useState<{
+    name: string
+    dropboxPath: string
+    size?: number
+    title?: string
+    sectionId?: string
+  }[]>([])
   const [prefillDrawing, setPrefillDrawing] = useState<{
     dropboxPath: string
     fileName: string
@@ -231,6 +241,15 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
 
             {/* Right: actions */}
             <div className="flex items-center gap-3">
+              {/* Receive Files button — always visible */}
+              <button
+                onClick={() => setShowReceiveFile(true)}
+                className="group flex items-center gap-2.5 h-10 px-4 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 active:scale-[0.98] transition-all duration-200"
+              >
+                <Download className="w-4 h-4" />
+                <span className="text-sm font-medium">Receive Files</span>
+              </button>
+
               {/* Send Files button — always visible */}
               <button
                 onClick={() => setShowSendFile(true)}
@@ -361,9 +380,16 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
               }}
               onSendTransmittal={(drawingInfo) => {
                 const found = drawings.find((d: any) => d.id === drawingInfo.id)
-                if (found) {
-                  setTransmittalPreSelectedDrawings([found])
-                  setShowNewTransmittal(true)
+                if (found && found.dropboxPath) {
+                  const fileName = found.dropboxPath.split('/').pop() || found.drawingNumber || 'file.pdf'
+                  setSendFileInitialFiles([{
+                    name: fileName,
+                    dropboxPath: found.dropboxPath,
+                    size: 0,
+                    title: found.title || drawingInfo.title,
+                    sectionId: found.sectionId || undefined,
+                  }])
+                  setShowSendFile(true)
                 }
               }}
             />
@@ -429,8 +455,17 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
                     onEditDrawing={(d) => { setEditDrawing(d); setShowAddDrawing(true) }}
                     onNewRevision={(d) => setRevisionDrawing(d)}
                     onAddToTransmittal={(d) => {
-                      setTransmittalPreSelectedDrawings([d])
-                      setShowNewTransmittal(true)
+                      if (d.dropboxPath) {
+                        const fileName = d.dropboxPath.split('/').pop() || d.drawingNumber || 'file.pdf'
+                        setSendFileInitialFiles([{
+                          name: fileName,
+                          dropboxPath: d.dropboxPath,
+                          size: 0,
+                          title: d.title || '',
+                          sectionId: d.sectionId || undefined,
+                        }])
+                        setShowSendFile(true)
+                      }
                     }}
                     onArchiveDrawing={handleArchiveDrawing}
                     selectedDrawingId={selectedDrawingId}
@@ -443,8 +478,17 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
                     onEditDrawing={(d) => { setEditDrawing(d); setShowAddDrawing(true) }}
                     onNewRevision={(d) => setRevisionDrawing(d)}
                     onAddToTransmittal={(d) => {
-                      setTransmittalPreSelectedDrawings([d])
-                      setShowNewTransmittal(true)
+                      if (d.dropboxPath) {
+                        const fileName = d.dropboxPath.split('/').pop() || d.drawingNumber || 'file.pdf'
+                        setSendFileInitialFiles([{
+                          name: fileName,
+                          dropboxPath: d.dropboxPath,
+                          size: 0,
+                          title: d.title || '',
+                          sectionId: d.sectionId || undefined,
+                        }])
+                        setShowSendFile(true)
+                      }
                     }}
                     onArchiveDrawing={handleArchiveDrawing}
                     selectedDrawingId={selectedDrawingId}
@@ -471,9 +515,16 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
                   }}
                   onCreateTransmittal={() => {
                     const found = drawings.find((d: any) => d.id === selectedDrawingId)
-                    if (found) {
-                      setTransmittalPreSelectedDrawings([found])
-                      setShowNewTransmittal(true)
+                    if (found && found.dropboxPath) {
+                      const fileName = found.dropboxPath.split('/').pop() || found.drawingNumber || 'file.pdf'
+                      setSendFileInitialFiles([{
+                        name: fileName,
+                        dropboxPath: found.dropboxPath,
+                        size: 0,
+                        title: found.title || '',
+                        sectionId: found.sectionId || undefined,
+                      }])
+                      setShowSendFile(true)
                     }
                   }}
                   onLinkCadSource={() => {
@@ -589,8 +640,26 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
       <SendFileDialog
         projectId={project.id}
         open={showSendFile}
-        onOpenChange={setShowSendFile}
-        onSuccess={() => setShowSendFile(false)}
+        onOpenChange={(open) => {
+          setShowSendFile(open)
+          if (!open) setSendFileInitialFiles([])
+        }}
+        onSuccess={() => {
+          setShowSendFile(false)
+          setSendFileInitialFiles([])
+        }}
+        initialFiles={sendFileInitialFiles.length > 0 ? sendFileInitialFiles : undefined}
+      />
+
+      {/* Receive File Dialog */}
+      <ReceiveFileDialog
+        projectId={project.id}
+        open={showReceiveFile}
+        onOpenChange={setShowReceiveFile}
+        onSuccess={() => {
+          setShowReceiveFile(false)
+          refreshAll()
+        }}
       />
 
       {/* CAD Source Link Dialog */}

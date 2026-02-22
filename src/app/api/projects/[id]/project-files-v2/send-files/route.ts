@@ -313,13 +313,29 @@ export async function POST(
 
     // Build drawing rows for email
     const drawingRows = createdDrawings
-      .map((d) => `
+      .map((d) => {
+        const fileNotes = d.drawnBy || d.reviewNo || d.pageNo
+          ? [
+              d.drawnBy ? `Drawn by: ${d.drawnBy}` : '',
+              d.reviewNo ? `Review: ${d.reviewNo}` : '',
+              d.pageNo ? `Page: ${d.pageNo}` : '',
+            ].filter(Boolean).join(' · ')
+          : ''
+        // Find matching file notes from the original payload
+        const matchingFile = files.find(f => f.title?.trim() === d.title)
+        const itemNotes = matchingFile?.fileNotes || ''
+        const detailLine = [fileNotes, itemNotes].filter(Boolean).join(' — ')
+
+        return `
         <tr>
-          <td style="padding: 10px 16px; color: #111827; font-size: 14px; font-weight: 500; border-bottom: 1px solid #f3f4f6;">${d.drawingNumber}</td>
-          <td style="padding: 10px 16px; color: #374151; font-size: 14px; border-bottom: 1px solid #f3f4f6;">${d.title}</td>
+          <td style="padding: 10px 16px; border-bottom: 1px solid #f3f4f6;">
+            <span style="color: #374151; font-size: 14px; font-weight: 500;">${d.title}</span>
+            ${detailLine ? `<br/><span style="color: #9ca3af; font-size: 12px;">${detailLine}</span>` : ''}
+          </td>
           <td style="padding: 10px 16px; color: #6b7280; font-size: 13px; border-bottom: 1px solid #f3f4f6;">${d.section?.shortName || d.section?.name || ''}</td>
           <td style="padding: 10px 16px; color: #6b7280; font-size: 13px; text-align: center; border-bottom: 1px solid #f3f4f6;">Rev 1</td>
-        </tr>`)
+        </tr>`
+      })
       .join('')
 
     const notesHtml = notes
@@ -374,7 +390,6 @@ export async function POST(
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 32px;">
                 <thead>
                     <tr style="border-bottom: 2px solid #e5e7eb;">
-                        <th style="padding: 8px 16px; text-align: left; color: #6b7280; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">No.</th>
                         <th style="padding: 8px 16px; text-align: left; color: #6b7280; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Title</th>
                         <th style="padding: 8px 16px; text-align: left; color: #6b7280; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Section</th>
                         <th style="padding: 8px 16px; text-align: center; color: #6b7280; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Rev</th>

@@ -37,7 +37,6 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 // Select components no longer used — custom section picker replaces them
 import { cn } from '@/lib/utils'
 
@@ -73,11 +72,20 @@ interface Section {
   color: string
 }
 
+interface InitialFile {
+  name: string
+  dropboxPath: string
+  size?: number
+  title?: string
+  sectionId?: string
+}
+
 interface SendFileDialogProps {
   projectId: string
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess?: () => void
+  initialFiles?: InitialFile[]
 }
 
 // ─── Config ──────────────────────────────────────────────────────────────────
@@ -152,6 +160,7 @@ export default function SendFileDialog({
   open,
   onOpenChange,
   onSuccess,
+  initialFiles,
 }: SendFileDialogProps) {
   // ── File state ──
   const [files, setFiles] = useState<FileWithMetadata[]>([])
@@ -182,7 +191,6 @@ export default function SendFileDialog({
   const [isCreatingSection, setIsCreatingSection] = useState(false)
 
   // ── Form state ──
-  const [notes, setNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [showSuccess, setShowSuccess] = useState(false)
@@ -247,7 +255,6 @@ export default function SendFileDialog({
     setNewSectionName('')
     setNewSectionShortName('')
     setNewSectionColor(SECTION_COLORS[0])
-    setNotes('')
     setIsSubmitting(false)
     setSubmitError(null)
     setShowSuccess(false)
@@ -433,7 +440,7 @@ export default function SendFileDialog({
             type: r.type || 'OTHER',
           })),
           subject: null,
-          notes: notes.trim() || null,
+          notes: null,
           files: files.map(f => ({
             name: f.name,
             size: f.size,
@@ -466,7 +473,7 @@ export default function SendFileDialog({
     } finally {
       setIsSubmitting(false)
     }
-  }, [canSend, projectId, selectedRecipients, globalSectionId, notes, files, reset, onOpenChange, onSuccess])
+  }, [canSend, projectId, selectedRecipients, globalSectionId, files, reset, onOpenChange, onSuccess])
 
   // ── Dropbox browser ──
   const folders = browseData?.folders ?? []
@@ -480,6 +487,31 @@ export default function SendFileDialog({
       if (first) setExpandedCategory(first)
     }
   }, [open, hasRecipients, showManualEntry, expandedCategory, groupedRecipients])
+
+  // Pre-populate files when opened with initialFiles (e.g. from "Send Drawing")
+  useEffect(() => {
+    if (open && initialFiles && initialFiles.length > 0 && files.length === 0) {
+      const prefilled: FileWithMetadata[] = initialFiles.map(f => ({
+        id: crypto.randomUUID(),
+        name: f.name,
+        size: f.size || 0,
+        source: 'dropbox' as const,
+        dropboxPath: f.dropboxPath,
+        sectionId: f.sectionId || globalSectionId,
+        title: f.title || stripExtension(f.name),
+        drawnBy: '',
+        reviewNo: '',
+        pageNo: '',
+        fileNotes: '',
+        showDetails: true,
+      }))
+      setFiles(prefilled)
+      // If the initial file has a sectionId, auto-select it
+      if (initialFiles[0]?.sectionId) {
+        setGlobalSectionId(initialFiles[0].sectionId)
+      }
+    }
+  }, [open, initialFiles]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── RENDER ─────────────────────────────────────────────────────────────────
 
@@ -1061,24 +1093,6 @@ export default function SendFileDialog({
                             )
                           })}
 
-                          {/* Add more files buttons (compact) */}
-                          <div className="flex items-center gap-2 pt-1">
-                            <button
-                              onClick={() => fileInputRef.current?.click()}
-                              className="inline-flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-gray-700 font-medium transition-colors"
-                            >
-                              <Upload className="w-3 h-3" />
-                              Upload more
-                            </button>
-                            <span className="text-gray-200">|</span>
-                            <button
-                              onClick={() => setShowDropboxPicker(true)}
-                              className="inline-flex items-center gap-1.5 text-[11px] text-blue-600 hover:text-blue-700 font-medium transition-colors"
-                            >
-                              <Folder className="w-3 h-3" />
-                              Dropbox
-                            </button>
-                          </div>
                         </motion.div>
                       )}
                     </AnimatePresence>
@@ -1284,17 +1298,6 @@ export default function SendFileDialog({
                     )}
                   </section>
 
-                  {/* ══════════ 4. NOTES (optional) ══════════ */}
-                  <section>
-                    <label className="text-xs font-medium text-gray-500 mb-1.5 block">Notes <span className="text-[10px] text-gray-300 font-medium uppercase tracking-wider ml-1">Optional</span></label>
-                    <Textarea
-                      placeholder="Any notes for the recipient..."
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      className="text-sm resize-none rounded-lg"
-                      rows={2}
-                    />
-                  </section>
                 </div>
               </div>
 

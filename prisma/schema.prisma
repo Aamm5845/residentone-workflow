@@ -267,6 +267,7 @@ model User {
   createdTransmittals         Transmittal[]               @relation("TransmittalCreator")
   sentTransmittals            Transmittal[]               @relation("TransmittalSentBy")
   fileSends                   FileSend[]                  @relation("FileSendSentBy")
+  receivedFiles               ReceivedFile[]              @relation("ReceivedFileCreator")
 }
 
 model Client {
@@ -407,6 +408,7 @@ model Project {
   transmittals              Transmittal[]
   photoMeta                 ProjectPhotoMeta[]
   fileSends                 FileSend[]
+  receivedFiles             ReceivedFile[]
 }
 
 // Client Sources - files received from clients (measurements, architect plans, etc.)
@@ -4950,8 +4952,9 @@ model ProjectSection {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  project  Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  drawings ProjectDrawing[]
+  project       Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  drawings      ProjectDrawing[]
+  receivedFiles ReceivedFile[]
 
   @@index([projectId])
   @@index([projectId, order])
@@ -4989,6 +4992,7 @@ model ProjectDrawing {
   revisions        DrawingRevision[]
   transmittalItems TransmittalItem[]
   cadSourceLink    CadSourceLink?
+  receivedFiles    ReceivedFile[]
 
   @@index([projectId])
   @@index([projectId, discipline])
@@ -5072,6 +5076,34 @@ model TransmittalItem {
 
   @@index([transmittalId])
   @@index([drawingId])
+}
+
+model ReceivedFile {
+  id            String   @id @default(cuid())
+  projectId     String
+  senderName    String
+  senderEmail   String?
+  senderCompany String?
+  senderType    String?
+  receivedDate  DateTime @default(now())
+  notes         String?
+  drawingId     String?
+  fileName      String
+  dropboxPath   String?
+  fileSize      Int?
+  sectionId     String?
+  title         String
+  createdBy     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  project  Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  drawing  ProjectDrawing?  @relation(fields: [drawingId], references: [id], onDelete: SetNull)
+  section  ProjectSection?  @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  creator  User             @relation("ReceivedFileCreator", fields: [createdBy], references: [id])
+
+  @@index([projectId])
+  @@index([projectId, receivedDate])
 }
 
 model ProjectPhotoMeta {
