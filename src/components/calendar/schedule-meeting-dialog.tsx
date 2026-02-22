@@ -195,6 +195,65 @@ export function ScheduleMeetingDialog({ projects, editMeeting, trigger, onSucces
   const locationType = watch('locationType')
   const selectedProjectId = watch('projectId')
 
+  // Populate form when editMeeting changes (for controlled open state)
+  useEffect(() => {
+    if (editMeeting && open) {
+      setError('')
+      const meetDate = new Date(editMeeting.date)
+      const meetStart = new Date(editMeeting.startTime)
+      const meetEnd = new Date(editMeeting.endTime)
+
+      reset({
+        title: editMeeting.title,
+        description: editMeeting.description || '',
+        date: meetDate.toISOString().split('T')[0],
+        startTime: meetStart.toTimeString().slice(0, 5),
+        endTime: meetEnd.toTimeString().slice(0, 5),
+        locationType: editMeeting.locationType as 'VIRTUAL' | 'IN_OFFICE' | 'ON_SITE' | 'OUR_OFFICE',
+        locationDetails: editMeeting.locationDetails || '',
+        meetingLink: editMeeting.meetingLink || '',
+        projectId: editMeeting.projectId || '',
+        reminderMinutes: editMeeting.reminderMinutes || 30,
+      })
+
+      // Populate attendees
+      const existingAttendees: SelectedAttendee[] = editMeeting.attendees.map((att) => {
+        if (att.user) {
+          return {
+            type: 'TEAM_MEMBER' as const,
+            userId: att.user.id,
+            displayName: att.user.name || att.user.email,
+            displayEmail: att.user.email,
+          }
+        }
+        if (att.client) {
+          return {
+            type: 'CLIENT' as const,
+            clientId: att.client.id,
+            displayName: att.client.name,
+            displayEmail: att.client.email,
+          }
+        }
+        if (att.contractor) {
+          return {
+            type: (att.contractor.type === 'SUBCONTRACTOR' ? 'SUBCONTRACTOR' : 'CONTRACTOR') as 'CONTRACTOR' | 'SUBCONTRACTOR',
+            contractorId: att.contractor.id,
+            displayName: att.contractor.contactName || att.contractor.businessName,
+            displayEmail: att.contractor.email,
+          }
+        }
+        return {
+          type: 'EXTERNAL' as const,
+          externalName: att.externalName || '',
+          externalEmail: att.externalEmail || '',
+          displayName: att.externalName || 'External',
+          displayEmail: att.externalEmail || '',
+        }
+      })
+      setAttendees(existingAttendees)
+    }
+  }, [editMeeting, open, reset])
+
   // Fetch project contacts (client, contractors) for quick-add checkboxes
   useEffect(() => {
     if (!selectedProjectId) {
