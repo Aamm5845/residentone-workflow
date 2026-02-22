@@ -94,6 +94,19 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
     type: 'contractor' as 'contractor' | 'subcontractor',
     specialty: ''
   })
+  const [editingContractor, setEditingContractor] = useState<any | null>(null)
+  const [editContractorData, setEditContractorData] = useState({
+    businessName: '',
+    contactName: '',
+    email: '',
+    phone: '',
+    address: '',
+    type: 'contractor' as 'contractor' | 'subcontractor',
+    specialty: '',
+    notes: ''
+  })
+  const [isSavingContractor, setIsSavingContractor] = useState(false)
+  const [isDeletingContractor, setIsDeletingContractor] = useState(false)
   const [dropboxOption, setDropboxOption] = useState<'create' | 'link' | 'skip'>('skip')
   const [dropboxFolderPath, setDropboxFolderPath] = useState('')
   const [isCreatingDropbox, setIsCreatingDropbox] = useState(false)
@@ -415,6 +428,97 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
 
   const saveContractors = async () => {
     await updateSection('contractors', { contractors: contractorsList })
+  }
+
+  const openEditContractor = (contractor: any) => {
+    setEditingContractor(contractor)
+    setEditContractorData({
+      businessName: contractor.businessName || '',
+      contactName: contractor.contactName || '',
+      email: contractor.email || '',
+      phone: contractor.phone || '',
+      address: contractor.address || '',
+      type: (contractor.type?.toLowerCase() || 'contractor') as 'contractor' | 'subcontractor',
+      specialty: contractor.specialty || '',
+      notes: contractor.notes || ''
+    })
+  }
+
+  const saveEditContractor = async () => {
+    if (!editingContractor) return
+    if (!editContractorData.businessName || !editContractorData.email) {
+      alert('Business Name and Email are required')
+      return
+    }
+    if (editContractorData.type === 'subcontractor' && !editContractorData.specialty) {
+      alert('Specialty is required for subcontractors')
+      return
+    }
+
+    setIsSavingContractor(true)
+    try {
+      const response = await fetch(`/api/contractors/${editingContractor.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          businessName: editContractorData.businessName,
+          contactName: editContractorData.contactName || null,
+          email: editContractorData.email,
+          phone: editContractorData.phone || null,
+          address: editContractorData.address || null,
+          type: editContractorData.type.toUpperCase(),
+          specialty: editContractorData.specialty || null,
+          notes: editContractorData.notes || null
+        })
+      })
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        throw new Error(err.error || 'Failed to update contractor')
+      }
+
+      const updated = await response.json()
+      setContractorsList((prev: any[]) => prev.map((c: any) =>
+        c.id === editingContractor.id ? {
+          ...c,
+          businessName: updated.businessName,
+          contactName: updated.contactName,
+          email: updated.email,
+          phone: updated.phone,
+          address: updated.address,
+          type: updated.type?.toLowerCase(),
+          specialty: updated.specialty,
+          notes: updated.notes
+        } : c
+      ))
+      setEditingContractor(null)
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to update contractor')
+    } finally {
+      setIsSavingContractor(false)
+    }
+  }
+
+  const deleteContractor = async (contractor: any) => {
+    if (!confirm(`Are you sure you want to remove ${contractor.businessName}? This will deactivate or delete the contractor.`)) return
+
+    setIsDeletingContractor(true)
+    try {
+      const response = await fetch(`/api/contractors/${contractor.id}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete contractor')
+      }
+
+      setContractorsList((prev: any[]) => prev.filter((c: any) => c.id !== contractor.id))
+      setEditingContractor(null)
+    } catch (error) {
+      alert('Failed to delete contractor')
+    } finally {
+      setIsDeletingContractor(false)
+    }
   }
 
   const updateClient = async () => {
@@ -850,14 +954,20 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
               {contractorsList.length > 0 && (
                 <div className="space-y-2">
                   {contractorsList.map((c: any, i: number) => (
-                    <div key={i} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
-                      <div>
+                    <div key={i} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors">
+                      <div className="flex-1 cursor-pointer" onClick={() => openEditContractor(c)}>
                         <p className="font-medium text-gray-900 text-sm">{c.businessName}</p>
                         <p className="text-xs text-gray-500 capitalize">{c.type}{c.specialty ? ` • ${c.specialty}` : ''}</p>
+                        {c.email && <p className="text-xs text-gray-400">{c.email}</p>}
                       </div>
-                      <Button variant="ghost" size="sm" onClick={() => removeContractor(i)} className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0">
-                        <X className="w-4 h-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => openEditContractor(c)} className="text-purple-500 hover:text-purple-700 hover:bg-purple-50 h-8 w-8 p-0">
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => removeContractor(i)} className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0">
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -894,13 +1004,16 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
                   </h4>
                   <div className="space-y-4">
                     {contractors.map((c: any, i: number) => (
-                      <div key={i} className="bg-white rounded-lg p-4 border border-blue-200">
+                      <div key={i} className="bg-white rounded-lg p-4 border border-blue-200 cursor-pointer hover:border-blue-400 hover:shadow-sm transition-all" onClick={() => openEditContractor(c)}>
                         <div className="grid grid-cols-2 gap-x-6 gap-y-3">
                           <InfoRowSmall label="Business Name" value={c.businessName} />
                           <InfoRowSmall label="Contact Name" value={c.contactName} />
                           <InfoRowSmall label="Email" value={c.email} />
                           <InfoRowSmall label="Phone" value={c.phone} />
                           <InfoRowSmall label="Address" value={c.address} className="col-span-2" />
+                        </div>
+                        <div className="mt-3 pt-3 border-t border-blue-100 flex justify-end">
+                          <span className="text-xs text-blue-600 hover:text-blue-800 font-medium">Click to edit</span>
                         </div>
                       </div>
                     ))}
@@ -919,13 +1032,16 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
                       </h4>
                       <div className="space-y-3">
                         {(subs as any[]).map((c: any, i: number) => (
-                          <div key={i} className="bg-white rounded-lg p-4 border border-purple-200">
+                          <div key={i} className="bg-white rounded-lg p-4 border border-purple-200 cursor-pointer hover:border-purple-400 hover:shadow-sm transition-all" onClick={() => openEditContractor(c)}>
                             <div className="grid grid-cols-2 gap-x-6 gap-y-3">
                               <InfoRowSmall label="Business Name" value={c.businessName} />
                               <InfoRowSmall label="Contact Name" value={c.contactName} />
                               <InfoRowSmall label="Email" value={c.email} />
                               <InfoRowSmall label="Phone" value={c.phone} />
                               <InfoRowSmall label="Address" value={c.address} className="col-span-2" />
+                            </div>
+                            <div className="mt-3 pt-3 border-t border-purple-100 flex justify-end">
+                              <span className="text-xs text-purple-600 hover:text-purple-800 font-medium">Click to edit</span>
                             </div>
                           </div>
                         ))}
@@ -1279,6 +1395,62 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
             <Button variant="destructive" size="sm" onClick={handleDelete} disabled={isDeleting || deleteConfirmation !== project.name}>
               {isDeleting ? 'Deleting...' : 'Delete'}
             </Button>
+          </div>
+        </Modal>
+      )}
+
+      {editingContractor && (
+        <Modal title="Edit Contractor" onClose={() => setEditingContractor(null)}>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+              <select value={editContractorData.type} onChange={(e) => setEditContractorData({ ...editContractorData, type: e.target.value as any })} className="w-full px-3 py-2 border rounded-md text-sm">
+                <option value="contractor">Contractor</option>
+                <option value="subcontractor">Subcontractor</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Business Name *</label>
+              <Input value={editContractorData.businessName} onChange={(e) => setEditContractorData({ ...editContractorData, businessName: e.target.value })} />
+            </div>
+            {editContractorData.type === 'subcontractor' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Specialty *</label>
+                <Input value={editContractorData.specialty} onChange={(e) => setEditContractorData({ ...editContractorData, specialty: e.target.value })} placeholder="Electrician, Plumber, etc." />
+              </div>
+            )}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Contact Name</label>
+              <Input value={editContractorData.contactName} onChange={(e) => setEditContractorData({ ...editContractorData, contactName: e.target.value })} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+              <Input type="email" value={editContractorData.email} onChange={(e) => setEditContractorData({ ...editContractorData, email: e.target.value })} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+              <Input value={editContractorData.phone} onChange={(e) => setEditContractorData({ ...editContractorData, phone: e.target.value })} placeholder="(555) 123-4567" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+              <Input value={editContractorData.address} onChange={(e) => setEditContractorData({ ...editContractorData, address: e.target.value })} placeholder="123 Main St, City" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+              <Textarea value={editContractorData.notes} onChange={(e) => setEditContractorData({ ...editContractorData, notes: e.target.value })} rows={2} placeholder="Additional notes..." />
+            </div>
+          </div>
+          <div className="flex items-center justify-between mt-6">
+            <Button variant="destructive" size="sm" onClick={() => deleteContractor(editingContractor)} disabled={isDeletingContractor}>
+              <Trash2 className="w-4 h-4 mr-1" />
+              {isDeletingContractor ? 'Deleting...' : 'Delete'}
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setEditingContractor(null)}>Cancel</Button>
+              <Button size="sm" onClick={saveEditContractor} disabled={isSavingContractor || !editContractorData.businessName || !editContractorData.email} className="bg-[#a657f0] hover:bg-[#a657f0]/90">
+                {isSavingContractor ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
           </div>
         </Modal>
       )}

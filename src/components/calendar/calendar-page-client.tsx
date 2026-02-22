@@ -1058,15 +1058,17 @@ export default function CalendarPageClient({
         onRefresh={handleMeetingSuccess}
       />
 
-      {/* Edit Meeting Dialog (hidden, triggered programmatically) */}
-      {editMeeting && (
-        <ScheduleMeetingDialog
-          projects={projectList}
-          editMeeting={editMeeting}
-          onSuccess={handleMeetingSuccess}
-          trigger={<span />}
-        />
-      )}
+      {/* Edit Meeting Dialog (controlled open state, triggered from detail dialog) */}
+      <ScheduleMeetingDialog
+        projects={projectList}
+        editMeeting={editMeeting}
+        open={!!editMeeting}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setEditMeeting(null)
+        }}
+        onSuccess={handleMeetingSuccess}
+        trigger={<span className="hidden" />}
+      />
 
       {/* Schedule Meeting from Day Click */}
       <ScheduleMeetingDialog
