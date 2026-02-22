@@ -95,6 +95,7 @@ interface TransmittalLogProps {
   transmittals: TransmittalData[]
   isLoading: boolean
   onCreateNew: () => void
+  onOpenInFiles?: (folderPath: string) => void
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -124,6 +125,7 @@ export default function TransmittalLog({
   transmittals,
   isLoading,
   onCreateNew,
+  onOpenInFiles,
 }: TransmittalLogProps) {
   // ── Filter state ────────────────────────────────────────────────────────
   const [filterSearch, setFilterSearch] = useState('')
@@ -153,16 +155,15 @@ export default function TransmittalLog({
     setFilterDateTo('')
   }, [])
 
-  /** Open the file's parent folder in Dropbox web UI */
+  /** Navigate to the file's folder in the All Files tab */
   const handleOpenFile = useCallback((row: SentFileRow) => {
-    if (!row.dropboxPath || !dropboxFolder) return
+    if (!row.dropboxPath) return
     // Build the folder path by removing the filename
     const parts = row.dropboxPath.split('/')
     parts.pop() // remove filename
     const folderRelative = parts.join('/')
-    const fullPath = `${dropboxFolder}/${folderRelative}`
-    window.open(`https://www.dropbox.com/home${fullPath}`, '_blank')
-  }, [dropboxFolder])
+    onOpenInFiles?.(folderRelative)
+  }, [onOpenInFiles])
 
   // ── Flatten: one row per file sent ────────────────────────────────────
   const allRows = useMemo(() => {
@@ -301,7 +302,7 @@ export default function TransmittalLog({
         </Button>
       </div>
 
-      {/* ── Filter bar ──────────────────────────────────────────────── */}
+      {/* ── Filter & Sort bar ────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3">
         <Filter className="w-4 h-4 text-gray-400 shrink-0" />
 
@@ -344,6 +345,33 @@ export default function TransmittalLog({
             title="To date"
           />
         </div>
+
+        <div className="w-px h-5 bg-gray-200" />
+
+        {/* Sort buttons */}
+        <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Sort</span>
+        {([
+          { field: 'sent' as SortField, label: 'Date' },
+          { field: 'recipient' as SortField, label: 'Recipient' },
+          { field: 'section' as SortField, label: 'Section' },
+          { field: 'title' as SortField, label: 'Title' },
+        ]).map(({ field, label }) => (
+          <button
+            key={field}
+            onClick={() => handleSort(field)}
+            className={cn(
+              'inline-flex items-center gap-1 h-7 px-2.5 rounded-md text-xs font-medium transition-all border',
+              sortField === field
+                ? 'bg-gray-900 text-white border-gray-900'
+                : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:text-gray-700'
+            )}
+          >
+            {label}
+            {sortField === field && (
+              sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+            )}
+          </button>
+        ))}
 
         {hasActiveFilters && (
           <button
@@ -389,9 +417,9 @@ export default function TransmittalLog({
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50/80">
                 <th className="px-4 py-3 text-left">
-                  <button onClick={() => handleSort('title')} className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-gray-500 hover:text-gray-900 transition-colors">
+                  <button onClick={() => handleSort('title')} className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-gray-500 hover:text-gray-700 transition-colors cursor-pointer select-none">
                     Title
-                    {sortField === 'title' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : null}
+                    {sortField === 'title' && (sortDir === 'asc' ? <ArrowUp className="h-3 w-3 text-gray-900" /> : <ArrowDown className="h-3 w-3 text-gray-900" />)}
                   </button>
                 </th>
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-500">
@@ -401,24 +429,24 @@ export default function TransmittalLog({
                   Page No
                 </th>
                 <th className="px-4 py-3 text-left">
-                  <button onClick={() => handleSort('section')} className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-gray-500 hover:text-gray-900 transition-colors">
+                  <button onClick={() => handleSort('section')} className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-gray-500 hover:text-gray-700 transition-colors cursor-pointer select-none">
                     Section
-                    {sortField === 'section' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : null}
+                    {sortField === 'section' && (sortDir === 'asc' ? <ArrowUp className="h-3 w-3 text-gray-900" /> : <ArrowDown className="h-3 w-3 text-gray-900" />)}
                   </button>
                 </th>
                 <th className="px-4 py-3 text-left">
-                  <button onClick={() => handleSort('recipient')} className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-gray-500 hover:text-gray-900 transition-colors">
+                  <button onClick={() => handleSort('recipient')} className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-gray-500 hover:text-gray-700 transition-colors cursor-pointer select-none">
                     Recipient
-                    {sortField === 'recipient' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : null}
+                    {sortField === 'recipient' && (sortDir === 'asc' ? <ArrowUp className="h-3 w-3 text-gray-900" /> : <ArrowDown className="h-3 w-3 text-gray-900" />)}
                   </button>
                 </th>
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-500">
                   Method
                 </th>
                 <th className="px-4 py-3 text-left">
-                  <button onClick={() => handleSort('sent')} className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-gray-500 hover:text-gray-900 transition-colors">
+                  <button onClick={() => handleSort('sent')} className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-gray-500 hover:text-gray-700 transition-colors cursor-pointer select-none">
                     Sent
-                    {sortField === 'sent' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : null}
+                    {sortField === 'sent' && (sortDir === 'asc' ? <ArrowUp className="h-3 w-3 text-gray-900" /> : <ArrowDown className="h-3 w-3 text-gray-900" />)}
                   </button>
                 </th>
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-500">
@@ -511,9 +539,9 @@ export default function TransmittalLog({
                     )}
                   </td>
 
-                  {/* File link — opens in Dropbox */}
+                  {/* File link — opens in All Files tab */}
                   <td className="px-3 py-3 text-center">
-                    {(row.dropboxPath && dropboxFolder) ? (
+                    {row.dropboxPath ? (
                       <button
                         onClick={() => handleOpenFile(row)}
                         className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition-colors"

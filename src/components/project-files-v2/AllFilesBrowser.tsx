@@ -72,6 +72,7 @@ interface AllFilesBrowserProps {
   projectId: string
   dropboxFolder: string | null
   drawings?: RegisteredDrawing[]
+  navigateToPath?: string | null
   onRegisterAsDrawing?: (file: { name: string; path: string; size: number }) => void
   onSendTransmittal?: (drawingInfo: { id: string; drawingNumber: string; title: string }) => void
 }
@@ -155,9 +156,16 @@ function bufferToBase64(buffer: ArrayBuffer): string {
 // Component
 // ---------------------------------------------------------------------------
 
-export default function AllFilesBrowser({ projectId, dropboxFolder, drawings: registeredDrawings, onRegisterAsDrawing, onSendTransmittal }: AllFilesBrowserProps) {
+export default function AllFilesBrowser({ projectId, dropboxFolder, drawings: registeredDrawings, navigateToPath, onRegisterAsDrawing, onSendTransmittal }: AllFilesBrowserProps) {
   const [currentPath, setCurrentPath] = useState('')
   const [isDragging, setIsDragging] = useState(false)
+
+  // Navigate to a specific folder when requested from another tab
+  useEffect(() => {
+    if (navigateToPath != null && navigateToPath !== currentPath) {
+      setCurrentPath(navigateToPath)
+    }
+  }, [navigateToPath]) // eslint-disable-line react-hooks/exhaustive-deps
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null)
   const [uploadSuccess, setUploadSuccess] = useState(false)

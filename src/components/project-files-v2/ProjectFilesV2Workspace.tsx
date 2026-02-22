@@ -102,6 +102,9 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
     title?: string
   } | null>(null)
 
+  // Navigate All Files to a specific folder (used by Sent/Received tabs)
+  const [allFilesNavigatePath, setAllFilesNavigatePath] = useState<string | null>(null)
+
   // ---- Derived filter params ----
   const filterParams = useMemo(() => {
     const params = new URLSearchParams()
@@ -369,6 +372,7 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
             <AllFilesBrowser
               projectId={project.id}
               dropboxFolder={project.dropboxFolder}
+              navigateToPath={allFilesNavigatePath}
               drawings={drawings.map((d: any) => ({
                 id: d.id,
                 drawingNumber: d.drawingNumber,
@@ -566,6 +570,10 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
               transmittals={transmittals}
               isLoading={transmittalsLoading}
               onCreateNew={() => setShowNewTransmittal(true)}
+              onOpenInFiles={(folderPath) => {
+                setAllFilesNavigatePath(folderPath)
+                setActiveTab('all-files')
+              }}
             />
           </TabsContent>
 
