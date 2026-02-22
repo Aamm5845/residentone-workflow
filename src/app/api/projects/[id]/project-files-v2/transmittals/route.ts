@@ -61,6 +61,8 @@ export async function GET(
                 dropboxPath: true,
                 dropboxUrl: true,
                 fileName: true,
+                pageNo: true,
+                reviewNo: true,
               }
             },
             revision: {

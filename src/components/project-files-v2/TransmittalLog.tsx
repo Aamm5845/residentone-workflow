@@ -4,8 +4,6 @@ import { useState, useCallback, useMemo } from 'react'
 import {
   Send,
   Plus,
-  ChevronDown,
-  ChevronRight,
   Mail,
   Truck,
   Globe,
@@ -16,6 +14,7 @@ import {
   Calendar,
   Filter,
   ExternalLink,
+  FileText,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -27,22 +26,6 @@ interface SectionData {
   name: string
   shortName: string
   color: string
-}
-
-interface DrawingTransmittalGroup {
-  drawingId: string
-  drawingNumber: string
-  title: string
-  section: SectionData | null
-  recipients: Array<{
-    transmittalId: string
-    recipientName: string
-    recipientCompany: string | null
-    recipientType: string | null
-    revisionNumber: number | null
-    sentAt: string | null
-    method: string
-  }>
 }
 
 interface TransmittalData {
@@ -73,6 +56,8 @@ interface TransmittalData {
       dropboxPath: string | null
       dropboxUrl: string | null
       fileName: string | null
+      pageNo: string | null
+      reviewNo: string | null
     }
     revision: {
       id: string
@@ -85,6 +70,22 @@ interface TransmittalData {
   }>
 }
 
+/** Flattened row — one per file sent */
+interface SentFileRow {
+  id: string // unique key: transmittalId-itemId
+  title: string
+  revisionNumber: number | null
+  pageNo: string | null
+  section: SectionData | null
+  recipientName: string
+  recipientCompany: string | null
+  recipientType: string | null
+  method: string
+  sentAt: string | null
+  fileUrl: string | null
+  fileName: string | null
+}
+
 interface TransmittalLogProps {
   transmittals: TransmittalData[]
   isLoading: boolean
@@ -92,14 +93,6 @@ interface TransmittalLogProps {
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-
-function formatDate(date: string): string {
-  return new Date(date).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
 
 function formatDateTime(date: string): { date: string; time: string } {
   const d = new Date(date)
@@ -118,26 +111,6 @@ const RECIPIENT_TYPE_LABELS: Record<string, string> = {
   OTHER: '',
 }
 
-function getMethodIcon(method: string) {
-  switch (method) {
-    case 'EMAIL':
-      return <Mail className="h-3.5 w-3.5" />
-    case 'HAND_DELIVERY':
-      return <Package className="h-3.5 w-3.5" />
-    case 'COURIER':
-      return <Truck className="h-3.5 w-3.5" />
-    case 'FTP':
-      return <Globe className="h-3.5 w-3.5" />
-    default:
-      return <ClipboardList className="h-3.5 w-3.5" />
-  }
-}
-
-/** Get the best available file URL for a transmittal item */
-function getFileUrl(item: TransmittalData['items'][number]): string | null {
-  return item.revision?.dropboxUrl || item.drawing.dropboxUrl || null
-}
-
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function TransmittalLog({
@@ -145,97 +118,71 @@ export default function TransmittalLog({
   isLoading,
   onCreateNew,
 }: TransmittalLogProps) {
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
-  const [viewMode, setViewMode] = useState<'by-recipient' | 'by-drawing'>('by-recipient')
-
   // ── Filter state ────────────────────────────────────────────────────────
-  const [filterRecipient, setFilterRecipient] = useState('')
+  const [filterSearch, setFilterSearch] = useState('')
   const [filterDateFrom, setFilterDateFrom] = useState('')
   const [filterDateTo, setFilterDateTo] = useState('')
 
-  const hasActiveFilters = filterRecipient !== '' || filterDateFrom !== '' || filterDateTo !== ''
+  const hasActiveFilters = filterSearch !== '' || filterDateFrom !== '' || filterDateTo !== ''
 
   const clearAllFilters = useCallback(() => {
-    setFilterRecipient('')
+    setFilterSearch('')
     setFilterDateFrom('')
     setFilterDateTo('')
   }, [])
 
-  // ── Unique recipient names for autocomplete ───────────────────────────
-  const uniqueRecipients = useMemo(() => {
-    const names = new Map<string, { name: string; company: string | null }>()
+  // ── Flatten: one row per file sent ────────────────────────────────────
+  const allRows = useMemo(() => {
+    const rows: SentFileRow[] = []
     for (const t of transmittals) {
-      if (!names.has(t.recipientName)) {
-        names.set(t.recipientName, { name: t.recipientName, company: t.recipientCompany })
-      }
-    }
-    return Array.from(names.values()).sort((a, b) => a.name.localeCompare(b.name))
-  }, [transmittals])
-
-  // ── Filter transmittals ─────────────────────────────────────────────────
-  const filteredTransmittals = useMemo(() => {
-    return transmittals.filter((t) => {
-      if (filterRecipient) {
-        const q = filterRecipient.toLowerCase()
-        const nameMatch = t.recipientName.toLowerCase().includes(q)
-        const companyMatch = t.recipientCompany?.toLowerCase().includes(q) ?? false
-        if (!nameMatch && !companyMatch) return false
-      }
-      if (filterDateFrom) {
-        const from = new Date(filterDateFrom)
-        const sentDate = t.sentAt ? new Date(t.sentAt) : new Date(t.createdAt)
-        if (sentDate < from) return false
-      }
-      if (filterDateTo) {
-        const to = new Date(filterDateTo)
-        to.setHours(23, 59, 59, 999)
-        const sentDate = t.sentAt ? new Date(t.sentAt) : new Date(t.createdAt)
-        if (sentDate > to) return false
-      }
-      return true
-    })
-  }, [transmittals, filterRecipient, filterDateFrom, filterDateTo])
-
-  // ── "By Drawing" grouped data ─────────────────────────────────────────
-  const byDrawingGroups = useMemo(() => {
-    const groups = new Map<string, DrawingTransmittalGroup>()
-    for (const t of filteredTransmittals) {
       for (const item of t.items) {
-        const key = item.drawing.id
-        if (!groups.has(key)) {
-          groups.set(key, {
-            drawingId: item.drawing.id,
-            drawingNumber: item.drawing.drawingNumber,
-            title: item.drawing.title,
-            section: item.drawing.section,
-            recipients: [],
-          })
-        }
-        groups.get(key)!.recipients.push({
-          transmittalId: t.id,
+        rows.push({
+          id: `${t.id}-${item.id}`,
+          title: item.drawing.title,
+          revisionNumber: item.revision?.revisionNumber ?? item.revisionNumber ?? null,
+          pageNo: item.drawing.pageNo ?? null,
+          section: item.drawing.section,
           recipientName: t.recipientName,
           recipientCompany: t.recipientCompany,
           recipientType: t.recipientType,
-          revisionNumber: item.revisionNumber ?? item.revision?.revisionNumber ?? null,
-          sentAt: t.sentAt,
           method: t.method,
+          sentAt: t.sentAt,
+          fileUrl: item.revision?.dropboxUrl || item.drawing.dropboxUrl || null,
+          fileName: item.revision?.fileName || item.drawing.fileName || null,
         })
       }
     }
-    return Array.from(groups.values()).sort((a, b) =>
-      a.drawingNumber.localeCompare(b.drawingNumber)
-    )
-  }, [filteredTransmittals])
-
-  const toggleExpand = useCallback((id: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    setExpandedRows((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
+    // Sort by sent date descending (newest first)
+    rows.sort((a, b) => {
+      const dateA = a.sentAt ? new Date(a.sentAt).getTime() : 0
+      const dateB = b.sentAt ? new Date(b.sentAt).getTime() : 0
+      return dateB - dateA
     })
-  }, [])
+    return rows
+  }, [transmittals])
+
+  // ── Filter rows ───────────────────────────────────────────────────────
+  const filteredRows = useMemo(() => {
+    return allRows.filter((row) => {
+      if (filterSearch) {
+        const q = filterSearch.toLowerCase()
+        const titleMatch = row.title.toLowerCase().includes(q)
+        const recipientMatch = row.recipientName.toLowerCase().includes(q)
+        const companyMatch = row.recipientCompany?.toLowerCase().includes(q) ?? false
+        const fileMatch = row.fileName?.toLowerCase().includes(q) ?? false
+        if (!titleMatch && !recipientMatch && !companyMatch && !fileMatch) return false
+      }
+      if (filterDateFrom && row.sentAt) {
+        if (new Date(row.sentAt) < new Date(filterDateFrom)) return false
+      }
+      if (filterDateTo && row.sentAt) {
+        const to = new Date(filterDateTo)
+        to.setHours(23, 59, 59, 999)
+        if (new Date(row.sentAt) > to) return false
+      }
+      return true
+    })
+  }, [allRows, filterSearch, filterDateFrom, filterDateTo])
 
   // ── Loading state ─────────────────────────────────────────────────────
   if (isLoading) {
@@ -252,7 +199,7 @@ export default function TransmittalLog({
           <div className="border-b border-gray-200 bg-gray-50/80 px-4 py-3">
             <div className="h-4 w-full animate-pulse rounded bg-gray-200" />
           </div>
-          {[1, 2, 3, 4].map((i) => (
+          {[1, 2, 3, 4, 5].map((i) => (
             <div key={i} className="border-b border-gray-100 px-4 py-3.5">
               <div className="h-4 w-full animate-pulse rounded bg-gray-100" />
             </div>
@@ -293,65 +240,32 @@ export default function TransmittalLog({
       {/* Header row */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h2 className="text-lg font-semibold text-gray-900">Sent History</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Sent Files</h2>
           <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700">
-            {viewMode === 'by-recipient'
-              ? `${filteredTransmittals.length}${hasActiveFilters ? ` / ${transmittals.length}` : ''}`
-              : `${byDrawingGroups.length} drawing${byDrawingGroups.length !== 1 ? 's' : ''}`
-            }
+            {filteredRows.length}{hasActiveFilters ? ` / ${allRows.length}` : ''}
           </span>
         </div>
-        <div className="flex items-center gap-3">
-          {/* View toggle */}
-          <div className="flex items-center bg-white border border-gray-200 rounded-lg p-0.5">
-            <button
-              onClick={() => setViewMode('by-recipient')}
-              className={cn('px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
-                viewMode === 'by-recipient' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-700'
-              )}
-            >
-              By Recipient
-            </button>
-            <button
-              onClick={() => setViewMode('by-drawing')}
-              className={cn('px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
-                viewMode === 'by-drawing' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-700'
-              )}
-            >
-              By Drawing
-            </button>
-          </div>
-          <Button onClick={onCreateNew} size="sm">
-            <Plus className="w-4 h-4 mr-1.5" /> Send Files
-          </Button>
-        </div>
+        <Button onClick={onCreateNew} size="sm">
+          <Plus className="w-4 h-4 mr-1.5" /> Send Files
+        </Button>
       </div>
 
       {/* ── Filter bar ──────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3">
         <Filter className="w-4 h-4 text-gray-400 shrink-0" />
 
-        {/* Recipient search */}
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
           <input
             type="text"
-            placeholder="Sent to..."
-            value={filterRecipient}
-            onChange={(e) => setFilterRecipient(e.target.value)}
-            list="recipient-suggestions"
-            className="h-8 w-44 rounded-md border border-gray-200 bg-white pl-8 pr-7 text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-300"
+            placeholder="Search title, recipient..."
+            value={filterSearch}
+            onChange={(e) => setFilterSearch(e.target.value)}
+            className="h-8 w-52 rounded-md border border-gray-200 bg-white pl-8 pr-7 text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-300"
           />
-          <datalist id="recipient-suggestions">
-            {uniqueRecipients.map((r) => (
-              <option key={r.name} value={r.name}>
-                {r.company ? `${r.name} — ${r.company}` : r.name}
-              </option>
-            ))}
-          </datalist>
-          {filterRecipient && (
+          {filterSearch && (
             <button
-              onClick={() => setFilterRecipient('')}
+              onClick={() => setFilterSearch('')}
               className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
             >
               <X className="w-3.5 h-3.5" />
@@ -359,10 +273,8 @@ export default function TransmittalLog({
           )}
         </div>
 
-        {/* Separator */}
         <div className="w-px h-5 bg-gray-200" />
 
-        {/* Date range */}
         <div className="flex items-center gap-1.5">
           <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
           <input
@@ -382,7 +294,6 @@ export default function TransmittalLog({
           />
         </div>
 
-        {/* Clear all */}
         {hasActiveFilters && (
           <button
             onClick={clearAllFilters}
@@ -395,7 +306,7 @@ export default function TransmittalLog({
       </div>
 
       {/* ── Filtered empty state ───────────────────────────────────── */}
-      {filteredTransmittals.length === 0 && hasActiveFilters && (
+      {filteredRows.length === 0 && hasActiveFilters && (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mb-3">
             <Filter className="w-6 h-6 text-gray-400" />
@@ -410,451 +321,145 @@ export default function TransmittalLog({
         </div>
       )}
 
-      {/* ── By Recipient table (default) ─────────────────────────── */}
-      {viewMode === 'by-recipient' && filteredTransmittals.length > 0 && (
-      <div className="w-full overflow-x-auto rounded-lg border border-gray-200 bg-white">
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr className="border-b border-gray-200 bg-gray-50/80">
-              <th className="w-[40px] px-2 py-3" />
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[170px]">
-                Recipient
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[130px]">
-                Company
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[110px]">
-                Drawings
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[120px]">
-                Method
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[120px]">
-                Sent
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {filteredTransmittals.map((transmittal) => {
-              const isExpanded = expandedRows.has(transmittal.id)
-              const drawingCount = transmittal.items.length
+      {/* ── Table — one row per file ─────────────────────────────── */}
+      {filteredRows.length > 0 && (
+        <div className="w-full overflow-x-auto rounded-lg border border-gray-200 bg-white">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-gray-200 bg-gray-50/80">
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  Title
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[70px]">
+                  Rev
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[80px]">
+                  Page No
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[100px]">
+                  Section
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[160px]">
+                  Recipient
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[90px]">
+                  Method
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[120px]">
+                  Sent
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[60px]">
+                  File
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {filteredRows.map((row) => (
+                <tr key={row.id} className="transition-colors hover:bg-gray-50/70">
+                  {/* Title */}
+                  <td className="px-4 py-3">
+                    <span className="font-medium text-gray-900 truncate max-w-[240px] block">
+                      {row.title}
+                    </span>
+                  </td>
 
-              return (
-                <TransmittalRow
-                  key={transmittal.id}
-                  transmittal={transmittal}
-                  isExpanded={isExpanded}
-                  drawingCount={drawingCount}
-                  onToggleExpand={toggleExpand}
-                />
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-      )}
+                  {/* Revision */}
+                  <td className="px-4 py-3">
+                    {row.revisionNumber != null ? (
+                      <span className="inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-600">
+                        Rev {row.revisionNumber}
+                      </span>
+                    ) : (
+                      <span className="text-gray-300">&mdash;</span>
+                    )}
+                  </td>
 
-      {/* ── By Drawing table ──────────────────────────────────────── */}
-      {viewMode === 'by-drawing' && byDrawingGroups.length > 0 && (
-      <div className="w-full overflow-x-auto rounded-lg border border-gray-200 bg-white">
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr className="border-b border-gray-200 bg-gray-50/80">
-              <th className="w-[40px] px-2 py-3" />
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[120px]">
-                Drawing #
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                Title
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[130px]">
-                Recipients
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[100px]">
-                Latest Rev
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[130px]">
-                Last Sent
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {byDrawingGroups.map((group) => {
-              const isExpanded = expandedRows.has(group.drawingId)
-              const uniqueRecipientCount = new Set(group.recipients.map(r => r.recipientName)).size
-              const latestRev = Math.max(...group.recipients.map(r => r.revisionNumber ?? 0))
-              const latestSent = group.recipients
-                .filter(r => r.sentAt)
-                .sort((a, b) => new Date(b.sentAt!).getTime() - new Date(a.sentAt!).getTime())[0]
+                  {/* Page No */}
+                  <td className="px-4 py-3">
+                    {row.pageNo ? (
+                      <span className="text-sm text-gray-700">{row.pageNo}</span>
+                    ) : (
+                      <span className="text-gray-300">&mdash;</span>
+                    )}
+                  </td>
 
-              return (
-                <DrawingGroupRow
-                  key={group.drawingId}
-                  group={group}
-                  isExpanded={isExpanded}
-                  uniqueRecipientCount={uniqueRecipientCount}
-                  latestRev={latestRev}
-                  latestSent={latestSent?.sentAt ?? null}
-                  onToggleExpand={toggleExpand}
-                />
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-      )}
+                  {/* Section */}
+                  <td className="px-4 py-3">
+                    {row.section ? (
+                      <span className={cn(
+                        'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium',
+                        'bg-gray-50 text-gray-700 border border-gray-200'
+                      )}>
+                        <span className={cn('h-1.5 w-1.5 rounded-full', row.section.color || 'bg-gray-400')} />
+                        {row.section.shortName}
+                      </span>
+                    ) : (
+                      <span className="text-gray-300">&mdash;</span>
+                    )}
+                  </td>
 
-      {/* ── By Drawing empty state ────────────────────────────────── */}
-      {viewMode === 'by-drawing' && byDrawingGroups.length === 0 && hasActiveFilters && (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mb-3">
-            <Filter className="w-6 h-6 text-gray-400" />
-          </div>
-          <h3 className="text-sm font-semibold text-gray-900 mb-1">No results found</h3>
-          <p className="text-sm text-gray-500 max-w-sm mb-3">
-            No drawings match your current filters.
-          </p>
-          <Button variant="outline" size="sm" onClick={clearAllFilters}>
-            Clear Filters
-          </Button>
+                  {/* Recipient */}
+                  <td className="px-4 py-3">
+                    <div className="truncate max-w-[150px]">
+                      {row.recipientType && RECIPIENT_TYPE_LABELS[row.recipientType] ? (
+                        <>
+                          <span className="text-xs text-gray-400">{RECIPIENT_TYPE_LABELS[row.recipientType]}</span>
+                          <span className="text-xs text-gray-300 mx-1">–</span>
+                        </>
+                      ) : null}
+                      <span className="text-sm text-gray-700">{row.recipientName}</span>
+                    </div>
+                  </td>
+
+                  {/* Method */}
+                  <td className="px-4 py-3">
+                    {row.method === 'EMAIL' ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
+                        <Mail className="h-3 w-3" />
+                        Email
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">
+                        <FileText className="h-3 w-3" />
+                        Manual
+                      </span>
+                    )}
+                  </td>
+
+                  {/* Sent */}
+                  <td className="px-4 py-3">
+                    {row.sentAt ? (
+                      <div>
+                        <span className="text-sm text-gray-700 block">{formatDateTime(row.sentAt).date}</span>
+                        <span className="text-[11px] text-gray-400">{formatDateTime(row.sentAt).time}</span>
+                      </div>
+                    ) : (
+                      <span className="text-gray-300">&mdash;</span>
+                    )}
+                  </td>
+
+                  {/* File link */}
+                  <td className="px-4 py-3">
+                    {row.fileUrl ? (
+                      <a
+                        href={row.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition-colors"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        Open
+                      </a>
+                    ) : (
+                      <span className="text-gray-300">&mdash;</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
-  )
-}
-
-// ─── "By Recipient" row sub-component ───────────────────────────────────────
-
-function TransmittalRow({
-  transmittal,
-  isExpanded,
-  drawingCount,
-  onToggleExpand,
-}: {
-  transmittal: TransmittalData
-  isExpanded: boolean
-  drawingCount: number
-  onToggleExpand: (id: string, e: React.MouseEvent) => void
-}) {
-  return (
-    <>
-      {/* Main row */}
-      <tr
-        onClick={(e) => onToggleExpand(transmittal.id, e)}
-        className="cursor-pointer transition-colors hover:bg-gray-50/70"
-      >
-        {/* Expand toggle */}
-        <td className="px-2 py-3">
-          {drawingCount > 0 && (
-            <button
-              onClick={(e) => onToggleExpand(transmittal.id, e)}
-              className="flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
-            >
-              {isExpanded ? (
-                <ChevronDown className="h-4 w-4" />
-              ) : (
-                <ChevronRight className="h-4 w-4" />
-              )}
-            </button>
-          )}
-        </td>
-
-        {/* Recipient */}
-        <td className="px-4 py-3">
-          <div className="truncate max-w-[160px]">
-            {transmittal.recipientType && RECIPIENT_TYPE_LABELS[transmittal.recipientType] ? (
-              <>
-                <span className="text-xs text-gray-400">{RECIPIENT_TYPE_LABELS[transmittal.recipientType]}</span>
-                <span className="text-xs text-gray-300 mx-1">–</span>
-              </>
-            ) : null}
-            <span className="text-sm text-gray-700">{transmittal.recipientName}</span>
-          </div>
-        </td>
-
-        {/* Company */}
-        <td className="px-4 py-3">
-          {transmittal.recipientCompany ? (
-            <span className="text-sm text-gray-600 truncate max-w-[120px] block">
-              {transmittal.recipientCompany}
-            </span>
-          ) : (
-            <span className="text-gray-300">&mdash;</span>
-          )}
-        </td>
-
-        {/* Drawings */}
-        <td className="px-4 py-3">
-          <span className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
-            {drawingCount} {drawingCount === 1 ? 'file' : 'files'}
-          </span>
-        </td>
-
-        {/* Method */}
-        <td className="px-4 py-3">
-          {transmittal.method === 'EMAIL' ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
-              <Mail className="h-3 w-3" />
-              Email
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">
-              {getMethodIcon(transmittal.method)}
-              Manual
-            </span>
-          )}
-        </td>
-
-        {/* Sent date + time */}
-        <td className="px-4 py-3">
-          {transmittal.sentAt ? (
-            <div>
-              <span className="text-sm text-gray-700 block">{formatDateTime(transmittal.sentAt).date}</span>
-              <span className="text-[11px] text-gray-400">{formatDateTime(transmittal.sentAt).time}</span>
-            </div>
-          ) : (
-            <span className="text-gray-300">&mdash;</span>
-          )}
-        </td>
-      </tr>
-
-      {/* Expanded items */}
-      {isExpanded && transmittal.items.length > 0 && (
-        <tr>
-          <td colSpan={6} className="bg-gray-50/50 px-0 py-0">
-            <div className="px-12 py-3">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="text-left text-[11px] uppercase tracking-wider text-gray-400">
-                    <th className="pb-2 pr-4 font-semibold">Drawing #</th>
-                    <th className="pb-2 pr-4 font-semibold">Title</th>
-                    <th className="pb-2 pr-4 font-semibold w-[100px]">Section</th>
-                    <th className="pb-2 pr-4 font-semibold w-[80px]">Revision</th>
-                    <th className="pb-2 pr-4 font-semibold w-[120px]">Purpose</th>
-                    <th className="pb-2 font-semibold w-[60px]">File</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {transmittal.items.map((item) => {
-                    const fileUrl = getFileUrl(item)
-                    return (
-                      <tr key={item.id}>
-                        <td className="py-2 pr-4">
-                          <span className="font-mono font-medium text-gray-800">
-                            {item.drawing.drawingNumber}
-                          </span>
-                        </td>
-                        <td className="py-2 pr-4">
-                          <span className="text-gray-700">{item.drawing.title}</span>
-                        </td>
-                        <td className="py-2 pr-4">
-                          {item.drawing.section ? (
-                            <span className={cn(
-                              'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium',
-                              'bg-gray-50 text-gray-700 border border-gray-200'
-                            )}>
-                              <span className={cn('h-1.5 w-1.5 rounded-full', item.drawing.section.color || 'bg-gray-400')} />
-                              {item.drawing.section.shortName}
-                            </span>
-                          ) : (
-                            <span className="text-gray-300">&mdash;</span>
-                          )}
-                        </td>
-                        <td className="py-2 pr-4">
-                          {item.revision ? (
-                            <span className="inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-600">
-                              Rev {item.revision.revisionNumber}
-                            </span>
-                          ) : item.revisionNumber != null ? (
-                            <span className="inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-600">
-                              Rev {item.revisionNumber}
-                            </span>
-                          ) : (
-                            <span className="text-gray-300">&mdash;</span>
-                          )}
-                        </td>
-                        <td className="py-2 pr-4">
-                          {item.purpose ? (
-                            <span className="text-gray-600">{item.purpose}</span>
-                          ) : (
-                            <span className="text-gray-300">&mdash;</span>
-                          )}
-                        </td>
-                        <td className="py-2">
-                          {fileUrl ? (
-                            <a
-                              href={fileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition-colors"
-                            >
-                              <ExternalLink className="h-3 w-3" />
-                              Open
-                            </a>
-                          ) : (
-                            <span className="text-gray-300">&mdash;</span>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </td>
-        </tr>
-      )}
-    </>
-  )
-}
-
-// ─── "By Drawing" row sub-component ─────────────────────────────────────────
-
-function DrawingGroupRow({
-  group,
-  isExpanded,
-  uniqueRecipientCount,
-  latestRev,
-  latestSent,
-  onToggleExpand,
-}: {
-  group: DrawingTransmittalGroup
-  isExpanded: boolean
-  uniqueRecipientCount: number
-  latestRev: number
-  latestSent: string | null
-  onToggleExpand: (id: string, e: React.MouseEvent) => void
-}) {
-  return (
-    <>
-      {/* Main row */}
-      <tr
-        className="cursor-pointer transition-colors hover:bg-gray-50/70"
-        onClick={(e) => onToggleExpand(group.drawingId, e)}
-      >
-        {/* Expand toggle */}
-        <td className="px-2 py-3">
-          {group.recipients.length > 0 && (
-            <button
-              onClick={(e) => onToggleExpand(group.drawingId, e)}
-              className="flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
-            >
-              {isExpanded ? (
-                <ChevronDown className="h-4 w-4" />
-              ) : (
-                <ChevronRight className="h-4 w-4" />
-              )}
-            </button>
-          )}
-        </td>
-
-        {/* Drawing # */}
-        <td className="px-4 py-3">
-          <span className="font-mono font-bold text-gray-900 text-xs">
-            {group.drawingNumber}
-          </span>
-        </td>
-
-        {/* Title */}
-        <td className="px-4 py-3">
-          <span className="font-medium text-gray-900 truncate max-w-[260px] block">
-            {group.title}
-          </span>
-        </td>
-
-        {/* Recipients count */}
-        <td className="px-4 py-3">
-          <span className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
-            {uniqueRecipientCount} {uniqueRecipientCount === 1 ? 'recipient' : 'recipients'}
-          </span>
-        </td>
-
-        {/* Latest Rev */}
-        <td className="px-4 py-3">
-          {latestRev > 0 ? (
-            <span className="inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-600">
-              Rev {latestRev}
-            </span>
-          ) : (
-            <span className="text-gray-300">&mdash;</span>
-          )}
-        </td>
-
-        {/* Last Sent */}
-        <td className="px-4 py-3">
-          {latestSent ? (
-            <span className="text-sm text-gray-700">
-              {formatDate(latestSent)}
-            </span>
-          ) : (
-            <span className="text-gray-300">&mdash;</span>
-          )}
-        </td>
-      </tr>
-
-      {/* Expanded recipient rows */}
-      {isExpanded && group.recipients.length > 0 && (
-        <tr>
-          <td colSpan={6} className="bg-gray-50/50 px-0 py-0">
-            <div className="px-12 py-3">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="text-left text-[11px] uppercase tracking-wider text-gray-400">
-                    <th className="pb-2 pr-4 font-semibold">Recipient</th>
-                    <th className="pb-2 pr-4 font-semibold w-[120px]">Company</th>
-                    <th className="pb-2 pr-4 font-semibold w-[70px]">Rev</th>
-                    <th className="pb-2 font-semibold w-[100px]">Sent</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {group.recipients
-                    .sort((a, b) => {
-                      const dateA = a.sentAt ? new Date(a.sentAt).getTime() : 0
-                      const dateB = b.sentAt ? new Date(b.sentAt).getTime() : 0
-                      return dateB - dateA
-                    })
-                    .map((r, i) => (
-                      <tr key={`${r.transmittalId}-${i}`}>
-                        <td className="py-2 pr-4">
-                          <div className="flex items-center gap-1.5">
-                            {r.recipientType && RECIPIENT_TYPE_LABELS[r.recipientType] ? (
-                              <span className="text-[10px] text-gray-400">{RECIPIENT_TYPE_LABELS[r.recipientType]}</span>
-                            ) : null}
-                            <span className="text-gray-700">{r.recipientName}</span>
-                          </div>
-                        </td>
-                        <td className="py-2 pr-4">
-                          {r.recipientCompany ? (
-                            <span className="text-gray-600 truncate max-w-[110px] block">{r.recipientCompany}</span>
-                          ) : (
-                            <span className="text-gray-300">&mdash;</span>
-                          )}
-                        </td>
-                        <td className="py-2 pr-4">
-                          {r.revisionNumber != null ? (
-                            <span className="inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-600">
-                              Rev {r.revisionNumber}
-                            </span>
-                          ) : (
-                            <span className="text-gray-300">&mdash;</span>
-                          )}
-                        </td>
-                        <td className="py-2">
-                          {r.sentAt ? (
-                            <span className="text-gray-700">{formatDate(r.sentAt)}</span>
-                          ) : (
-                            <span className="text-gray-300">&mdash;</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-          </td>
-        </tr>
-      )}
-    </>
   )
 }
