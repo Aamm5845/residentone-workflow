@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import {
   Send,
   Plus,
@@ -13,6 +13,10 @@ import {
   FileText,
   ArrowUp,
   ArrowDown,
+  ArrowUpDown,
+  ChevronDown,
+  Check,
+  SlidersHorizontal,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -117,6 +121,20 @@ const RECIPIENT_TYPE_LABELS: Record<string, string> = {
   OTHER: '',
 }
 
+const SORT_OPTIONS: { field: SortField; label: string }[] = [
+  { field: 'sent', label: 'Date Sent' },
+  { field: 'recipient', label: 'Recipient' },
+  { field: 'section', label: 'Section' },
+  { field: 'title', label: 'Title' },
+]
+
+const SORT_LABELS: Record<SortField, string> = {
+  sent: 'Date',
+  recipient: 'Recipient',
+  section: 'Section',
+  title: 'Title',
+}
+
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function TransmittalLog({
@@ -131,10 +149,33 @@ export default function TransmittalLog({
   const [filterSearch, setFilterSearch] = useState('')
   const [filterDateFrom, setFilterDateFrom] = useState('')
   const [filterDateTo, setFilterDateTo] = useState('')
+  const [filterSection, setFilterSection] = useState<string | null>(null)
+  const [filterRecipient, setFilterRecipient] = useState<string | null>(null)
 
   // ── Sort state ────────────────────────────────────────────────────────
   const [sortField, setSortField] = useState<SortField>('sent')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
+
+  // ── Dropdown visibility ───────────────────────────────────────────────
+  const [showSortDropdown, setShowSortDropdown] = useState(false)
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false)
+
+  const sortDropdownRef = useRef<HTMLDivElement>(null)
+  const filterDropdownRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdowns on click outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(e.target as Node)) {
+        setShowSortDropdown(false)
+      }
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(e.target as Node)) {
+        setShowFilterDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const handleSort = useCallback((field: SortField) => {
     setSortField((prev) => {
@@ -145,14 +186,18 @@ export default function TransmittalLog({
       setSortDir(field === 'sent' ? 'desc' : 'asc')
       return field
     })
+    setShowSortDropdown(false)
   }, [])
 
-  const hasActiveFilters = filterSearch !== '' || filterDateFrom !== '' || filterDateTo !== ''
+  const hasActiveFilters = filterSearch !== '' || filterDateFrom !== '' || filterDateTo !== '' || filterSection !== null || filterRecipient !== null
+  const activeFilterCount = [filterSection, filterRecipient].filter(Boolean).length
 
   const clearAllFilters = useCallback(() => {
     setFilterSearch('')
     setFilterDateFrom('')
     setFilterDateTo('')
+    setFilterSection(null)
+    setFilterRecipient(null)
   }, [])
 
   /** Navigate to the file's folder in the All Files tab */
@@ -213,6 +258,21 @@ export default function TransmittalLog({
     return rows
   }, [transmittals, sortField, sortDir])
 
+  // ── Derive unique sections & recipients for filter dropdowns ──────────
+  const uniqueSections = useMemo(() => {
+    const map = new Map<string, SectionData>()
+    for (const row of allRows) {
+      if (row.section && !map.has(row.section.id)) map.set(row.section.id, row.section)
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name))
+  }, [allRows])
+
+  const uniqueRecipients = useMemo(() => {
+    const set = new Set<string>()
+    for (const row of allRows) set.add(row.recipientName)
+    return Array.from(set).sort()
+  }, [allRows])
+
   // ── Filter rows ───────────────────────────────────────────────────────
   const filteredRows = useMemo(() => {
     return allRows.filter((row) => {
@@ -232,9 +292,11 @@ export default function TransmittalLog({
         to.setHours(23, 59, 59, 999)
         if (new Date(row.sentAt) > to) return false
       }
+      if (filterSection && row.section?.id !== filterSection) return false
+      if (filterRecipient && row.recipientName !== filterRecipient) return false
       return true
     })
-  }, [allRows, filterSearch, filterDateFrom, filterDateTo])
+  }, [allRows, filterSearch, filterDateFrom, filterDateTo, filterSection, filterRecipient])
 
   // ── Loading state ─────────────────────────────────────────────────────
   if (isLoading) {
@@ -304,8 +366,7 @@ export default function TransmittalLog({
 
       {/* ── Filter & Sort bar ────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3">
-        <Filter className="w-4 h-4 text-gray-400 shrink-0" />
-
+        {/* Search */}
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
           <input
@@ -327,6 +388,7 @@ export default function TransmittalLog({
 
         <div className="w-px h-5 bg-gray-200" />
 
+        {/* Date range */}
         <div className="flex items-center gap-1.5">
           <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
           <input
@@ -348,39 +410,156 @@ export default function TransmittalLog({
 
         <div className="w-px h-5 bg-gray-200" />
 
-        {/* Sort buttons */}
-        <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Sort</span>
-        {([
-          { field: 'sent' as SortField, label: 'Date' },
-          { field: 'recipient' as SortField, label: 'Recipient' },
-          { field: 'section' as SortField, label: 'Section' },
-          { field: 'title' as SortField, label: 'Title' },
-        ]).map(({ field, label }) => (
+        {/* Sort dropdown */}
+        <div className="relative" ref={sortDropdownRef}>
           <button
-            key={field}
-            onClick={() => handleSort(field)}
+            onClick={() => { setShowSortDropdown((v) => !v); setShowFilterDropdown(false) }}
             className={cn(
-              'inline-flex items-center gap-1 h-7 px-2.5 rounded-md text-xs font-medium transition-all border',
-              sortField === field
+              'inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-xs font-medium transition-all border',
+              showSortDropdown
                 ? 'bg-gray-900 text-white border-gray-900'
-                : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:text-gray-700'
+                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:text-gray-800'
             )}
           >
-            {label}
-            {sortField === field && (
-              sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+            <ArrowUpDown className="h-3.5 w-3.5" />
+            Sort
+            {sortField !== 'sent' && (
+              <span className="ml-0.5 text-[10px] opacity-70">
+                ({SORT_LABELS[sortField]})
+              </span>
             )}
+            <ChevronDown className={cn('h-3 w-3 transition-transform', showSortDropdown && 'rotate-180')} />
           </button>
-        ))}
+          {showSortDropdown && (
+            <div className="absolute left-0 top-full mt-1 z-50 w-44 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+              {SORT_OPTIONS.map(({ field, label }) => (
+                <button
+                  key={field}
+                  onClick={() => handleSort(field)}
+                  className="flex items-center justify-between w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <span>{label}</span>
+                  <span className="flex items-center gap-1">
+                    {sortField === field && (
+                      <>
+                        {sortDir === 'asc' ? <ArrowUp className="h-3 w-3 text-gray-900" /> : <ArrowDown className="h-3 w-3 text-gray-900" />}
+                        <Check className="h-3.5 w-3.5 text-gray-900" />
+                      </>
+                    )}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
-        {hasActiveFilters && (
+        {/* Filter dropdown */}
+        <div className="relative" ref={filterDropdownRef}>
           <button
-            onClick={clearAllFilters}
-            className="ml-auto flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800 transition-colors"
+            onClick={() => { setShowFilterDropdown((v) => !v); setShowSortDropdown(false) }}
+            className={cn(
+              'inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-xs font-medium transition-all border',
+              showFilterDropdown || activeFilterCount > 0
+                ? 'bg-gray-900 text-white border-gray-900'
+                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:text-gray-800'
+            )}
           >
-            <X className="w-3 h-3" />
-            Clear
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            Filter
+            {activeFilterCount > 0 && (
+              <span className={cn(
+                'ml-0.5 inline-flex items-center justify-center h-4 min-w-[16px] rounded-full text-[10px] font-bold',
+                showFilterDropdown ? 'bg-white text-gray-900' : 'bg-white text-gray-900'
+              )}>
+                {activeFilterCount}
+              </span>
+            )}
+            <ChevronDown className={cn('h-3 w-3 transition-transform', showFilterDropdown && 'rotate-180')} />
           </button>
+          {showFilterDropdown && (
+            <div className="absolute left-0 top-full mt-1 z-50 w-56 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+              {/* Section filter */}
+              <div className="px-3 py-1.5">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Section</span>
+              </div>
+              <button
+                onClick={() => setFilterSection(null)}
+                className="flex items-center justify-between w-full px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <span>All Sections</span>
+                {filterSection === null && <Check className="h-3.5 w-3.5 text-gray-900" />}
+              </button>
+              {uniqueSections.map((sec) => (
+                <button
+                  key={sec.id}
+                  onClick={() => setFilterSection(filterSection === sec.id ? null : sec.id)}
+                  className="flex items-center justify-between w-full px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <span className={cn('h-2 w-2 rounded-full shrink-0', sec.color || 'bg-gray-400')} />
+                    <span className="truncate">{sec.name}</span>
+                  </span>
+                  {filterSection === sec.id && <Check className="h-3.5 w-3.5 text-gray-900" />}
+                </button>
+              ))}
+
+              <div className="my-1 border-t border-gray-100" />
+
+              {/* Recipient filter */}
+              <div className="px-3 py-1.5">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Recipient</span>
+              </div>
+              <button
+                onClick={() => setFilterRecipient(null)}
+                className="flex items-center justify-between w-full px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <span>All Recipients</span>
+                {filterRecipient === null && <Check className="h-3.5 w-3.5 text-gray-900" />}
+              </button>
+              <div className="max-h-40 overflow-y-auto">
+                {uniqueRecipients.map((name) => (
+                  <button
+                    key={name}
+                    onClick={() => setFilterRecipient(filterRecipient === name ? null : name)}
+                    className="flex items-center justify-between w-full px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <span className="truncate">{name}</span>
+                    {filterRecipient === name && <Check className="h-3.5 w-3.5 text-gray-900" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Active filter/sort chips */}
+        {hasActiveFilters && (
+          <>
+            <div className="w-px h-5 bg-gray-200" />
+            {filterSection && (
+              <span className="inline-flex items-center gap-1 h-6 px-2 rounded-full bg-gray-100 text-[11px] font-medium text-gray-700">
+                {uniqueSections.find(s => s.id === filterSection)?.name}
+                <button onClick={() => setFilterSection(null)} className="text-gray-400 hover:text-gray-600">
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            )}
+            {filterRecipient && (
+              <span className="inline-flex items-center gap-1 h-6 px-2 rounded-full bg-gray-100 text-[11px] font-medium text-gray-700">
+                {filterRecipient}
+                <button onClick={() => setFilterRecipient(null)} className="text-gray-400 hover:text-gray-600">
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            )}
+            <button
+              onClick={clearAllFilters}
+              className="ml-auto flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800 transition-colors"
+            >
+              <X className="w-3 h-3" />
+              Clear all
+            </button>
+          </>
         )}
       </div>
 
