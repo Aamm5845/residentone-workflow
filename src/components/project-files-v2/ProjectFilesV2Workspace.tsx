@@ -561,6 +561,7 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
           {/* ======================================================= */}
           <TabsContent value="transmittals">
             <TransmittalLog
+              projectId={project.id}
               transmittals={transmittals}
               isLoading={transmittalsLoading}
               onCreateNew={() => setShowNewTransmittal(true)}

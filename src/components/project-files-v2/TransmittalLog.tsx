@@ -15,6 +15,7 @@ import {
   Filter,
   ExternalLink,
   FileText,
+  Loader2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -75,6 +76,7 @@ interface SentFileRow {
   id: string // unique key: transmittalId-itemId
   title: string
   revisionNumber: number | null
+  reviewNo: string | null
   pageNo: string | null
   section: SectionData | null
   recipientName: string
@@ -84,9 +86,11 @@ interface SentFileRow {
   sentAt: string | null
   fileUrl: string | null
   fileName: string | null
+  dropboxPath: string | null
 }
 
 interface TransmittalLogProps {
+  projectId: string
   transmittals: TransmittalData[]
   isLoading: boolean
   onCreateNew: () => void
@@ -114,6 +118,7 @@ const RECIPIENT_TYPE_LABELS: Record<string, string> = {
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function TransmittalLog({
+  projectId,
   transmittals,
   isLoading,
   onCreateNew,
@@ -123,6 +128,8 @@ export default function TransmittalLog({
   const [filterDateFrom, setFilterDateFrom] = useState('')
   const [filterDateTo, setFilterDateTo] = useState('')
 
+  const [openingFileId, setOpeningFileId] = useState<string | null>(null)
+
   const hasActiveFilters = filterSearch !== '' || filterDateFrom !== '' || filterDateTo !== ''
 
   const clearAllFilters = useCallback(() => {
@@ -130,6 +137,32 @@ export default function TransmittalLog({
     setFilterDateFrom('')
     setFilterDateTo('')
   }, [])
+
+  const handleOpenFile = useCallback(async (row: SentFileRow) => {
+    // If we already have a direct URL, use it
+    if (row.fileUrl) {
+      window.open(row.fileUrl, '_blank')
+      return
+    }
+    // Otherwise generate a temporary link from the dropboxPath
+    if (!row.dropboxPath) return
+    setOpeningFileId(row.id)
+    try {
+      const res = await fetch(
+        `/api/projects/${projectId}/project-files-v2/file-link?path=${encodeURIComponent(row.dropboxPath)}`
+      )
+      if (res.ok) {
+        const data = await res.json()
+        if (data.url) {
+          window.open(data.url, '_blank')
+        }
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setOpeningFileId(null)
+    }
+  }, [projectId])
 
   // ── Flatten: one row per file sent ────────────────────────────────────
   const allRows = useMemo(() => {
@@ -140,6 +173,7 @@ export default function TransmittalLog({
           id: `${t.id}-${item.id}`,
           title: item.drawing.title,
           revisionNumber: item.revision?.revisionNumber ?? item.revisionNumber ?? null,
+          reviewNo: item.drawing.reviewNo ?? null,
           pageNo: item.drawing.pageNo ?? null,
           section: item.drawing.section,
           recipientName: t.recipientName,
@@ -149,6 +183,7 @@ export default function TransmittalLog({
           sentAt: t.sentAt,
           fileUrl: item.revision?.dropboxUrl || item.drawing.dropboxUrl || null,
           fileName: item.revision?.fileName || item.drawing.fileName || null,
+          dropboxPath: item.revision?.dropboxPath || item.drawing.dropboxPath || null,
         })
       }
     }
@@ -324,31 +359,41 @@ export default function TransmittalLog({
       {/* ── Table — one row per file ─────────────────────────────── */}
       {filteredRows.length > 0 && (
         <div className="w-full overflow-x-auto rounded-lg border border-gray-200 bg-white">
-          <table className="w-full border-collapse text-sm">
+          <table className="w-full table-fixed border-collapse text-sm">
+            <colgroup>
+              <col className="w-[30%]" />   {/* Title */}
+              <col className="w-[5%]" />    {/* Rev */}
+              <col className="w-[7%]" />    {/* Page No */}
+              <col className="w-[14%]" />   {/* Section */}
+              <col className="w-[14%]" />   {/* Recipient */}
+              <col className="w-[8%]" />    {/* Method */}
+              <col className="w-[14%]" />   {/* Sent */}
+              <col className="w-[8%]" />    {/* File */}
+            </colgroup>
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50/80">
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
                   Title
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[70px]">
+                <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-500">
                   Rev
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[80px]">
+                <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
                   Page No
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[100px]">
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
                   Section
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[160px]">
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
                   Recipient
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[90px]">
+                <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-500">
                   Method
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[120px]">
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
                   Sent
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[60px]">
+                <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-500">
                   File
                 </th>
               </tr>
@@ -358,16 +403,16 @@ export default function TransmittalLog({
                 <tr key={row.id} className="transition-colors hover:bg-gray-50/70">
                   {/* Title */}
                   <td className="px-4 py-3">
-                    <span className="font-medium text-gray-900 truncate max-w-[240px] block">
+                    <span className="font-medium text-gray-900 truncate block">
                       {row.title}
                     </span>
                   </td>
 
-                  {/* Revision */}
-                  <td className="px-4 py-3">
-                    {row.revisionNumber != null ? (
-                      <span className="inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-600">
-                        Rev {row.revisionNumber}
+                  {/* Revision — show reviewNo (user-entered) or revisionNumber */}
+                  <td className="px-3 py-3 text-center">
+                    {(row.reviewNo || row.revisionNumber != null) ? (
+                      <span className="text-sm font-medium text-gray-700">
+                        {row.reviewNo || row.revisionNumber}
                       </span>
                     ) : (
                       <span className="text-gray-300">&mdash;</span>
@@ -375,7 +420,7 @@ export default function TransmittalLog({
                   </td>
 
                   {/* Page No */}
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-3">
                     {row.pageNo ? (
                       <span className="text-sm text-gray-700">{row.pageNo}</span>
                     ) : (
@@ -383,15 +428,15 @@ export default function TransmittalLog({
                     )}
                   </td>
 
-                  {/* Section */}
+                  {/* Section — show full name with color dot */}
                   <td className="px-4 py-3">
                     {row.section ? (
                       <span className={cn(
-                        'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium',
+                        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium',
                         'bg-gray-50 text-gray-700 border border-gray-200'
                       )}>
-                        <span className={cn('h-1.5 w-1.5 rounded-full', row.section.color || 'bg-gray-400')} />
-                        {row.section.shortName}
+                        <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', row.section.color || 'bg-gray-400')} />
+                        <span className="truncate">{row.section.name}</span>
                       </span>
                     ) : (
                       <span className="text-gray-300">&mdash;</span>
@@ -400,7 +445,7 @@ export default function TransmittalLog({
 
                   {/* Recipient */}
                   <td className="px-4 py-3">
-                    <div className="truncate max-w-[150px]">
+                    <div className="truncate">
                       {row.recipientType && RECIPIENT_TYPE_LABELS[row.recipientType] ? (
                         <>
                           <span className="text-xs text-gray-400">{RECIPIENT_TYPE_LABELS[row.recipientType]}</span>
@@ -412,14 +457,14 @@ export default function TransmittalLog({
                   </td>
 
                   {/* Method */}
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-3 text-center">
                     {row.method === 'EMAIL' ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
                         <Mail className="h-3 w-3" />
                         Email
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">
                         <FileText className="h-3 w-3" />
                         Manual
                       </span>
@@ -439,17 +484,20 @@ export default function TransmittalLog({
                   </td>
 
                   {/* File link */}
-                  <td className="px-4 py-3">
-                    {row.fileUrl ? (
-                      <a
-                        href={row.fileUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition-colors"
+                  <td className="px-3 py-3 text-center">
+                    {(row.fileUrl || row.dropboxPath) ? (
+                      <button
+                        onClick={() => handleOpenFile(row)}
+                        disabled={openingFileId === row.id}
+                        className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition-colors disabled:opacity-50"
                       >
-                        <ExternalLink className="h-3 w-3" />
+                        {openingFileId === row.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <ExternalLink className="h-3 w-3" />
+                        )}
                         Open
-                      </a>
+                      </button>
                     ) : (
                       <span className="text-gray-300">&mdash;</span>
                     )}
