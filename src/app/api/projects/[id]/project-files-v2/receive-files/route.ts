@@ -57,6 +57,65 @@ async function ensureUniqueDrawingNumber(projectId: string, baseNumber: string):
   }
 }
 
+// ─── GET ────────────────────────────────────────────────────────────────────
+
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession()
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { id } = await params
+
+    // Verify project access
+    const project = await prisma.project.findFirst({
+      where: { id, orgId: session.user.orgId || undefined },
+      select: { id: true },
+    })
+
+    if (!project) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    }
+
+    const receivedFiles = await prisma.receivedFile.findMany({
+      where: { projectId: id },
+      include: {
+        section: {
+          select: { id: true, name: true, shortName: true, color: true },
+        },
+        drawing: {
+          select: {
+            id: true,
+            drawingNumber: true,
+            title: true,
+            currentRevision: true,
+            status: true,
+          },
+        },
+        creator: {
+          select: { id: true, name: true },
+        },
+      },
+      orderBy: { receivedDate: 'desc' },
+    })
+
+    return NextResponse.json({
+      receivedFiles,
+      total: receivedFiles.length,
+    })
+  } catch (error) {
+    console.error('[project-files-v2/receive-files] Error fetching received files:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch received files' },
+      { status: 500 }
+    )
+  }
+}
+
 // ─── POST ───────────────────────────────────────────────────────────────────
 
 export async function POST(

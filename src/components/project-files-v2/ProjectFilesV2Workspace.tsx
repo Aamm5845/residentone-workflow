@@ -36,6 +36,7 @@ import CadFreshnessSummary from './CadFreshnessSummary'
 import CadSourceLinkDialog from './CadSourceLinkDialog'
 import SendFileDialog from './SendFileDialog'
 import ReceiveFileDialog from './ReceiveFileDialog'
+import ReceivedFilesLog from './ReceivedFilesLog'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -48,7 +49,7 @@ interface Project {
   client?: { id: string; name: string; email: string } | null
 }
 
-type TabValue = 'all-files' | 'drawings' | 'photos' | 'transmittals'
+type TabValue = 'all-files' | 'drawings' | 'photos' | 'transmittals' | 'received'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -142,6 +143,12 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
       fetcher
     )
 
+  const { data: receivedData, isLoading: receivedLoading, mutate: mutateReceived } =
+    useSWR(
+      activeTab === 'received' ? `/api/projects/${project.id}/project-files-v2/receive-files` : null,
+      fetcher
+    )
+
   // ---- Handlers ----
   const handleSearchSubmit = useCallback(() => {
     setFilters((prev) => ({ ...prev, search: searchInput }))
@@ -167,6 +174,7 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
   const floors = Array.isArray(floorsData) ? floorsData : (floorsData?.floors ?? floorsData ?? [])
   const sections = Array.isArray(sectionsData) ? sectionsData : (sectionsData?.sections ?? sectionsData ?? [])
   const transmittals = transmittalsData?.transmittals ?? []
+  const receivedFiles = receivedData?.receivedFiles ?? []
 
   // Build section counts map
   const sectionCounts: Record<string, number> = {}
@@ -320,6 +328,10 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
               <TabsTrigger value="transmittals" className="gap-1.5">
                 <Send className="w-4 h-4" />
                 Sent
+              </TabsTrigger>
+              <TabsTrigger value="received" className="gap-1.5">
+                <Download className="w-4 h-4" />
+                Received
               </TabsTrigger>
             </TabsList>
 
@@ -557,6 +569,17 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
               onCreateNew={() => setShowNewTransmittal(true)}
             />
           </TabsContent>
+
+          {/* ======================================================= */}
+          {/* RECEIVED FILES TAB                                       */}
+          {/* ======================================================= */}
+          <TabsContent value="received">
+            <ReceivedFilesLog
+              receivedFiles={receivedFiles}
+              isLoading={receivedLoading}
+              onReceiveNew={() => setShowReceiveFile(true)}
+            />
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -659,6 +682,7 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
         onSuccess={() => {
           setShowReceiveFile(false)
           refreshAll()
+          mutateReceived()
         }}
       />
 
