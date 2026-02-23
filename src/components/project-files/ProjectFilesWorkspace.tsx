@@ -18,7 +18,6 @@ import NewRevisionDialog from '../project-files-v2/NewRevisionDialog'
 import NewTransmittalDialog from '../project-files-v2/NewTransmittalDialog'
 import TransmittalDetail from '../project-files-v2/TransmittalDetail'
 import SendFileDialog from '../project-files-v2/SendFileDialog'
-import CadSourceLinkDialog from '../project-files-v2/CadSourceLinkDialog'
 import PhotosGallery from '../project-files-v2/PhotosGallery'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -63,7 +62,6 @@ export default function ProjectFilesWorkspace({ project }: { project: Project })
   const [showNewTransmittal, setShowNewTransmittal] = useState(false)
   const [transmittalPreSelectedDrawings, setTransmittalPreSelectedDrawings] = useState<any[]>([])
   const [viewTransmittal, setViewTransmittal] = useState<any | null>(null)
-  const [cadLinkDrawing, setCadLinkDrawing] = useState<any | null>(null)
   const [showSendFile, setShowSendFile] = useState(false)
   const [prefillDrawing, setPrefillDrawing] = useState<{
     dropboxPath: string; fileName: string; fileSize?: number; drawingNumber?: string; title?: string
@@ -325,7 +323,6 @@ export default function ProjectFilesWorkspace({ project }: { project: Project })
                 setTransmittalPreSelectedDrawings([d])
                 setShowNewTransmittal(true)
               }}
-              onLinkCadSource={(d) => setCadLinkDrawing(d)}
             />
           </TabsContent>
 
@@ -415,20 +412,6 @@ export default function ProjectFilesWorkspace({ project }: { project: Project })
         onSuccess={() => setShowSendFile(false)}
       />
 
-      {cadLinkDrawing && (
-        <CadSourceLinkDialog
-          projectId={project.id}
-          drawing={{
-            id: cadLinkDrawing.id,
-            drawingNumber: cadLinkDrawing.drawingNumber || '',
-            title: cadLinkDrawing.title || '',
-          }}
-          existingLink={cadLinkDrawing.cadSourceLink || null}
-          open={!!cadLinkDrawing}
-          onOpenChange={(open) => { if (!open) setCadLinkDrawing(null) }}
-          onSuccess={() => { refreshAll(); setCadLinkDrawing(null) }}
-        />
-      )}
     </div>
   )
 }

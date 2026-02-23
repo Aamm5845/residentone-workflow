@@ -22,7 +22,6 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
-import CadFreshnessBadge, { type CadFreshnessStatusType } from './CadFreshnessBadge'
 
 // ─── Shared Configs ─────────────────────────────────────────────────────────
 
@@ -71,14 +70,6 @@ interface Drawing {
   section: { id: string; name: string; shortName: string; color: string } | null
   _count: { revisions: number; transmittalItems: number }
   lastTransmittal?: { sentAt: string; recipientName: string } | null
-  cadSourceLink?: {
-    id: string
-    cadDropboxPath: string
-    cadLayoutName: string | null
-    cadFreshnessStatus: CadFreshnessStatusType
-    plottedFromRevision: string | null
-    plottedAt: string | null
-  } | null
 }
 
 interface DrawingRegisterCardsProps {
@@ -358,13 +349,6 @@ function DrawingCard({
             Rev {drawing.currentRevision}
           </span>
 
-          {/* CAD freshness badge */}
-          {drawing.cadSourceLink && (
-            <CadFreshnessBadge
-              status={drawing.cadSourceLink.cadFreshnessStatus}
-              compact
-            />
-          )}
         </div>
 
         {/* Bottom row: status + actions */}

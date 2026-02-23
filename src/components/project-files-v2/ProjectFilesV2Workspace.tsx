@@ -33,8 +33,6 @@ import FilterSidebar from './FilterSidebar'
 import AllFilesBrowser from './AllFilesBrowser'
 import PhotosGallery from './PhotosGallery'
 import RenderingsGallery from './RenderingsGallery'
-import CadFreshnessSummary from './CadFreshnessSummary'
-import CadSourceLinkDialog from './CadSourceLinkDialog'
 import SendFileDialog from './SendFileDialog'
 import ReceiveFileDialog from './ReceiveFileDialog'
 import ReceivedFilesLog from './ReceivedFilesLog'
@@ -86,7 +84,6 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
   const [revisionDrawing, setRevisionDrawing] = useState<any | null>(null)
   const [showNewTransmittal, setShowNewTransmittal] = useState(false)
   const [transmittalPreSelectedDrawings, setTransmittalPreSelectedDrawings] = useState<any[]>([])
-  const [cadLinkDrawing, setCadLinkDrawing] = useState<any | null>(null)
   const [showSendFile, setShowSendFile] = useState(false)
   const [showReceiveFile, setShowReceiveFile] = useState(false)
   const [sendFileInitialFiles, setSendFileInitialFiles] = useState<{
@@ -443,9 +440,6 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
 
               {/* Drawing register */}
               <div className="flex-1 min-w-0">
-                {/* CAD Freshness Summary */}
-                <CadFreshnessSummary projectId={project.id} />
-
                 {drawingsLoading ? (
                   <DrawingsLoadingSkeleton viewMode={viewMode} />
                 ) : drawings.length === 0 ? (
@@ -549,10 +543,6 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
                       }])
                       setShowSendFile(true)
                     }
-                  }}
-                  onLinkCadSource={() => {
-                    const found = drawings.find((d: any) => d.id === selectedDrawingId)
-                    if (found) setCadLinkDrawing(found)
                   }}
                 />
               )}
@@ -698,26 +688,6 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
         }}
       />
 
-      {/* CAD Source Link Dialog */}
-      {cadLinkDrawing && (
-        <CadSourceLinkDialog
-          projectId={project.id}
-          drawing={{
-            id: cadLinkDrawing.id,
-            drawingNumber: cadLinkDrawing.drawingNumber || '',
-            title: cadLinkDrawing.title || '',
-          }}
-          existingLink={cadLinkDrawing.cadSourceLink || null}
-          open={!!cadLinkDrawing}
-          onOpenChange={(open) => {
-            if (!open) setCadLinkDrawing(null)
-          }}
-          onSuccess={() => {
-            refreshAll()
-            setCadLinkDrawing(null)
-          }}
-        />
-      )}
     </div>
   )
 }

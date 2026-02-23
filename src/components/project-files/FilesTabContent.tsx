@@ -258,10 +258,6 @@ export default function FilesTabContent({
                 const found = drawings.find((d) => d.id === selectedDrawingId)
                 if (found) onCreateTransmittal(found)
               }}
-              onLinkCadSource={() => {
-                const found = drawings.find((d) => d.id === selectedDrawingId)
-                if (found) onLinkCadSource(found)
-              }}
             />
           )}
         </SheetContent>
