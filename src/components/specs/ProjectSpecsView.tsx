@@ -3840,6 +3840,36 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       </Select>
                     </div>
 
+                    {/* Approval / Price Filter */}
+                    <div className="space-y-2">
+                      <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Quick Filter</Label>
+                      <Select value={summaryFilter} onValueChange={(v) => setSummaryFilter(v as 'all' | 'needs_approval' | 'needs_price')}>
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue placeholder="All Items" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">
+                            <div className="flex items-center gap-2">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                              All Items ({filteredSpecs.filter(s => s.clientApproved).length} approved)
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="needs_approval">
+                            <div className="flex items-center gap-2">
+                              <Clock className="w-3.5 h-3.5 text-amber-500" />
+                              Need Approval ({filteredSpecs.filter(s => !s.clientApproved && !['CONTRACTOR_TO_ORDER', 'CLIENT_TO_ORDER'].includes(s.specStatus || '')).length})
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="needs_price">
+                            <div className="flex items-center gap-2">
+                              <DollarSign className="w-3.5 h-3.5 text-red-500" />
+                              Need Price ({filteredSpecs.filter(s => !s.rrp && s.specStatus !== 'CONTRACTOR_TO_ORDER').length})
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
                     {/* Show Archived Toggle - only shown if there are archived items */}
                     {archivedCount > 0 && (
                       <div className="flex items-center justify-between py-2 border-t">
@@ -3953,70 +3983,15 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             </div>
           </div>
           
-          {/* Status Overview Bar - Always visible (uses filteredSpecs to respect room/status filters) */}
+          {/* Item count bar */}
           {specs.length > 0 && (
             <div className="mt-3 pt-3 border-t border-gray-100">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm text-gray-500 mr-1">
-                  {filteredSpecs.length} {filteredSpecs.length !== specs.length ? `of ${specs.length}` : ''} items:
+                <span className="text-sm text-gray-500">
+                  {filteredSpecs.length} {filteredSpecs.length !== specs.length ? `of ${specs.length}` : ''} items
+                  {summaryFilter === 'needs_approval' && <span className="text-amber-600 ml-1">(Need Approval)</span>}
+                  {summaryFilter === 'needs_price' && <span className="text-red-600 ml-1">(Need Price)</span>}
                 </span>
-
-                {/* Approved - Green */}
-                <button
-                  onClick={() => setSummaryFilter('all')}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all",
-                    summaryFilter === 'all'
-                      ? "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-300"
-                      : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
-                  )}
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  {filteredSpecs.filter(s => s.clientApproved).length} Approved
-                </button>
-
-                {/* Needs Approval - Amber (excludes CONTRACTOR_TO_ORDER and CLIENT_TO_ORDER as approval not needed) */}
-                {filteredSpecs.filter(s => !s.clientApproved && !['CONTRACTOR_TO_ORDER', 'CLIENT_TO_ORDER'].includes(s.specStatus || '')).length > 0 && (
-                  <button
-                    onClick={() => setSummaryFilter(summaryFilter === 'needs_approval' ? 'all' : 'needs_approval')}
-                    className={cn(
-                      "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all",
-                      summaryFilter === 'needs_approval'
-                        ? "bg-amber-100 text-amber-700 ring-1 ring-amber-300"
-                        : "bg-amber-50 text-amber-600 hover:bg-amber-100"
-                    )}
-                  >
-                    <Clock className="w-3.5 h-3.5" />
-                    {filteredSpecs.filter(s => !s.clientApproved && !['CONTRACTOR_TO_ORDER', 'CLIENT_TO_ORDER'].includes(s.specStatus || '')).length} Need Approval
-                  </button>
-                )}
-
-                {/* Needs Price - Red (excludes CONTRACTOR_TO_ORDER as it doesn't need pricing) */}
-                {filteredSpecs.filter(s => !s.rrp && s.specStatus !== 'CONTRACTOR_TO_ORDER').length > 0 && (
-                  <button
-                    onClick={() => setSummaryFilter(summaryFilter === 'needs_price' ? 'all' : 'needs_price')}
-                    className={cn(
-                      "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all",
-                      summaryFilter === 'needs_price'
-                        ? "bg-red-100 text-red-700 ring-1 ring-red-300"
-                        : "bg-red-50 text-red-600 hover:bg-red-100"
-                    )}
-                  >
-                    <DollarSign className="w-3.5 h-3.5" />
-                    {filteredSpecs.filter(s => !s.rrp && s.specStatus !== 'CONTRACTOR_TO_ORDER').length} Need Price
-                  </button>
-                )}
-
-                {/* Clear filter indicator */}
-                {summaryFilter !== 'all' && (
-                  <button
-                    onClick={() => setSummaryFilter('all')}
-                    className="inline-flex items-center gap-1 px-2 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full"
-                  >
-                    <X className="w-3 h-3" />
-                    Clear
-                  </button>
-                )}
               </div>
             </div>
           )}
@@ -5730,7 +5705,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 if (docCodes.length === 1) {
                                   return (
                                     <span
-                                      className="inline-flex items-center text-[10px] font-mono font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded px-1.5 py-0.5 cursor-text hover:bg-indigo-100 transition-colors truncate"
+                                      className="inline-flex items-center text-[11px] font-mono font-medium text-gray-700 cursor-text hover:text-indigo-600 transition-colors truncate"
                                       onClick={(e) => {
                                         e.stopPropagation()
                                         const prefixMatch = docCodes[0].match(/^([A-Z]{1,3})-(\d+)$/)
@@ -5753,7 +5728,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                     <PopoverTrigger asChild>
                                       <button
                                         onClick={(e) => e.stopPropagation()}
-                                        className="inline-flex items-center gap-0.5 text-[10px] font-mono font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded px-1.5 py-0.5 hover:bg-indigo-100 transition-colors truncate"
+                                        className="inline-flex items-center gap-0.5 text-[11px] font-mono font-medium text-gray-700 hover:text-indigo-600 transition-colors truncate"
                                         title={docCodes.join(', ')}
                                       >
                                         {docCodes[0]}
