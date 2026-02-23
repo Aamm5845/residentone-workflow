@@ -510,7 +510,24 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   const [creatingSectionLoading, setCreatingSectionLoading] = useState(false)
   
   const [savingItem, setSavingItem] = useState(false)
-  
+
+  // Regenerate doc codes confirmation dialog
+  const [regenConfirmDialog, setRegenConfirmDialog] = useState<{
+    open: boolean
+    loading: boolean
+    categories: string[]
+    previewData: {
+      totalItems: number
+      specItemsToUpdate: number
+      mergedGroups: Array<{
+        newDocCode: string
+        category: string
+        items: Array<{ name: string; roomName: string }>
+      }>
+      categoriesProcessed: Array<{ name: string; prefix: string; itemCount: number }>
+    } | null
+  }>({ open: false, loading: false, categories: [], previewData: null })
+
   // Rendering images for crop feature
   const [renderingImages, setRenderingImages] = useState<Array<{id: string, url: string, filename: string}>>([])
   const [loadingRenderingImages, setLoadingRenderingImages] = useState(false)
@@ -4433,22 +4450,23 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 size="sm"
                 className="h-8 text-xs gap-1.5"
                 onClick={async () => {
+                  setRegenConfirmDialog({ open: true, loading: true, categories: [], previewData: null })
                   try {
                     const res = await fetch(`/api/projects/${project.id}/regenerate-doc-codes`, {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ categories: [] })
+                      body: JSON.stringify({ categories: [], preview: true })
                     })
                     const data = await res.json()
                     if (data.success) {
-                      toast.success(`Regenerated doc codes for ${data.updatedCount} items`)
-                      loadFfeItems()
-                      fetchSpecs()
+                      setRegenConfirmDialog(prev => ({ ...prev, loading: false, previewData: data }))
                     } else {
-                      toast.error(data.error || 'Failed to regenerate')
+                      toast.error(data.error || 'Failed to preview')
+                      setRegenConfirmDialog(prev => ({ ...prev, open: false }))
                     }
                   } catch {
-                    toast.error('Failed to regenerate doc codes')
+                    toast.error('Failed to preview doc codes')
+                    setRegenConfirmDialog(prev => ({ ...prev, open: false }))
                   }
                 }}
               >
@@ -4502,22 +4520,23 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                           <button
                             onClick={async (e) => {
                               e.stopPropagation()
+                              setRegenConfirmDialog({ open: true, loading: true, categories: [category], previewData: null })
                               try {
                                 const res = await fetch(`/api/projects/${project.id}/regenerate-doc-codes`, {
                                   method: 'POST',
                                   headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ categories: [category] })
+                                  body: JSON.stringify({ categories: [category], preview: true })
                                 })
                                 const data = await res.json()
                                 if (data.success) {
-                                  toast.success(`Regenerated ${data.updatedCount} doc codes for ${category}`)
-                                  loadFfeItems()
-                                  fetchSpecs()
+                                  setRegenConfirmDialog(prev => ({ ...prev, loading: false, previewData: data }))
                                 } else {
-                                  toast.error(data.error || 'Failed to regenerate')
+                                  toast.error(data.error || 'Failed to preview')
+                                  setRegenConfirmDialog(prev => ({ ...prev, open: false }))
                                 }
                               } catch {
-                                toast.error('Failed to regenerate doc codes')
+                                toast.error('Failed to preview doc codes')
+                                setRegenConfirmDialog(prev => ({ ...prev, open: false }))
                               }
                             }}
                             className="px-3 py-1 mr-2 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded transition-colors flex items-center gap-1"
@@ -9544,6 +9563,106 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               }}
             >
               Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Regenerate Doc Codes Confirmation Dialog */}
+      <Dialog open={regenConfirmDialog.open} onOpenChange={(open) => {
+        if (!open) setRegenConfirmDialog(prev => ({ ...prev, open: false }))
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Regenerate Doc Codes</DialogTitle>
+            <DialogDescription>
+              {regenConfirmDialog.categories.length > 0
+                ? `Regenerate doc codes for ${regenConfirmDialog.categories.join(', ')}`
+                : 'Regenerate all doc codes across the project'
+              }
+            </DialogDescription>
+          </DialogHeader>
+          {regenConfirmDialog.loading ? (
+            <div className="flex items-center justify-center py-6">
+              <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+              <span className="ml-2 text-sm text-gray-500">Analyzing items...</span>
+            </div>
+          ) : regenConfirmDialog.previewData && (
+            <div className="space-y-3">
+              <div className="text-sm text-gray-600">
+                <span className="font-medium">{regenConfirmDialog.previewData.totalItems}</span> FFE items and{' '}
+                <span className="font-medium">{regenConfirmDialog.previewData.specItemsToUpdate}</span> spec items will be updated.
+              </div>
+
+              {regenConfirmDialog.previewData.mergedGroups.length > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
+                  <div className="flex items-center gap-1.5 text-amber-700 text-sm font-medium">
+                    <AlertCircle className="w-4 h-4" />
+                    Items sharing the same spec will be merged
+                  </div>
+                  <div className="space-y-2">
+                    {regenConfirmDialog.previewData.mergedGroups.map((group, i) => (
+                      <div key={i} className="bg-white rounded border border-amber-100 p-2">
+                        <div className="text-xs font-mono text-amber-600 mb-1">{group.newDocCode} ({group.category})</div>
+                        <div className="space-y-0.5">
+                          {group.items.map((item, j) => (
+                            <div key={j} className="text-xs text-gray-600">
+                              <span className="font-medium">{item.name}</span>
+                              <span className="text-gray-400"> - {item.roomName}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {regenConfirmDialog.previewData.mergedGroups.length === 0 && (
+                <div className="text-sm text-gray-500">
+                  No items share the same spec - each item will get a unique doc code.
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setRegenConfirmDialog(prev => ({ ...prev, open: false }))}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              disabled={regenConfirmDialog.loading}
+              onClick={async () => {
+                setRegenConfirmDialog(prev => ({ ...prev, loading: true }))
+                try {
+                  const res = await fetch(`/api/projects/${project.id}/regenerate-doc-codes`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ categories: regenConfirmDialog.categories })
+                  })
+                  const data = await res.json()
+                  if (data.success) {
+                    const mergeInfo = data.mergedGroups?.length > 0
+                      ? ` (${data.mergedGroups.length} merged group${data.mergedGroups.length > 1 ? 's' : ''})`
+                      : ''
+                    toast.success(`Regenerated doc codes for ${data.updatedCount} FFE items and ${data.specUpdatedCount} spec items${mergeInfo}`)
+                    loadFfeItems()
+                    fetchSpecs()
+                  } else {
+                    toast.error(data.error || 'Failed to regenerate')
+                  }
+                } catch {
+                  toast.error('Failed to regenerate doc codes')
+                } finally {
+                  setRegenConfirmDialog({ open: false, loading: false, categories: [], previewData: null })
+                }
+              }}
+            >
+              Regenerate
             </Button>
           </DialogFooter>
         </DialogContent>
