@@ -291,7 +291,20 @@ export async function POST(
             name,
             prefix: cat.docCodePrefix,
             itemCount: cat.items.length
-          }))
+          })),
+        debug: {
+          totalFfeItemIds: allFfeItemIds.length,
+          specLinksFound: specLinks.length,
+          legacySpecItemsFound: legacySpecItems.length,
+          ffeToSpecsMapSize: ffeToSpecs.size,
+          specToFfesMapSize: specToFfes.size,
+          categoriesWithPrefix: Array.from(categoryMap.entries())
+            .filter(([_, cat]) => cat.docCodePrefix)
+            .map(([name]) => name),
+          categoriesWithoutPrefix: Array.from(categoryMap.entries())
+            .filter(([_, cat]) => !cat.docCodePrefix)
+            .map(([name, cat]) => ({ name, itemCount: cat.items.length }))
+        }
       })
     }
 

@@ -4458,6 +4458,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       body: JSON.stringify({ categories: [], preview: true })
                     })
                     const data = await res.json()
+                    console.log('[Regen Preview]', JSON.stringify(data.debug, null, 2))
                     if (data.success) {
                       setRegenConfirmDialog(prev => ({ ...prev, loading: false, previewData: data }))
                     } else {
