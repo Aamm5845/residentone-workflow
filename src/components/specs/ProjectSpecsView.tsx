@@ -3567,6 +3567,26 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
               </div>
 
+              {/* Center: Financial totals - only when financial tab active */}
+              {activeTab === 'financial' && (
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-stone-400 uppercase">Trade</span>
+                    <span className="text-sm font-semibold text-stone-900">${(financials?.totalTradePriceCAD ?? 0).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-stone-400 uppercase">RRP</span>
+                    <span className="text-sm font-semibold text-stone-900">${(financials?.totalRRPCAD ?? 0).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                  {(financials?.totalRRPUSD ?? 0) > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] text-blue-400 uppercase">RRP (USD)</span>
+                      <span className="text-sm font-semibold text-blue-600">${(financials?.totalRRPUSD ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Right: Search + Filter/Sort/View + New */}
               <div className="flex items-center gap-1.5">
                 {/* Search */}
@@ -3907,26 +3927,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           </div>
         )}
 
-        {/* Financial Summary - compact inline bar */}
-        {activeTab === 'financial' && (
-          <div className="border-b border-stone-200">
-            <div className="max-w-full mx-auto px-6 py-1.5">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] text-stone-400 uppercase">RRP (CAD)</span>
-                  <span className="text-sm font-semibold text-stone-900">${(financials?.totalRRPCAD ?? 0).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                </div>
-                {(financials?.totalRRPUSD ?? 0) > 0 && (
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] text-blue-400 uppercase">RRP (USD)</span>
-                    <span className="text-sm font-semibold text-blue-600">${(financials?.totalRRPUSD ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
+
 
       {/* Needs Selection Tab Content */}
       {activeTab === 'needs' && (
@@ -6019,137 +6021,60 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               </DropdownMenu>
                             </div>
                             
-                            {/* Financial Columns - Only in Financial Tab */}
-                            {activeTab === 'financial' && (
-                              <>
-                                {(() => {
-                                  // Look up supplier to get their currency setting
-                                  const itemSupplier = item.supplierId ? suppliers.find(s => s.id === item.supplierId) : null
-                                  // Use supplier's currency if linked, otherwise fall back to item's stored currency
-                                  const effectiveTradeCurrency = itemSupplier?.currency || item.tradePriceCurrency || 'CAD'
-                                  const effectiveRrpCurrency = itemSupplier?.currency || item.rrpCurrency || 'CAD'
-                                  const isUsdTrade = effectiveTradeCurrency === 'USD'
-                                  const isUsdRrp = effectiveRrpCurrency === 'USD'
-
+                            {/* Supplier - Fixed width column (before financial so position matches summary tab) */}
+                            <div className="group/supplier w-28 lg:w-40 min-w-[100px] h-9 relative flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center gap-1 mb-0.5">
+                                <p className="text-[9px] text-stone-400 uppercase tracking-wide">Supplier</p>
+                                {(item.supplierName || item.supplierId) && (() => {
+                                  const phonebookSupplier = item.supplierId
+                                    ? suppliers.find(s => s.id === item.supplierId)
+                                    : suppliers.find(s => s.name === item.supplierName?.split(' / ')[0])
+                                  if (!phonebookSupplier) return null
+                                  const contactName = phonebookSupplier.contactName || null
                                   return (
-                                    <>
-                                      {/* Trade Price - shows total: (unit × qty) + components */}
-                                      <div className="flex-shrink w-16 lg:w-24 h-9 text-right">
-                                        <p className="text-[9px] text-stone-400 uppercase tracking-wide mb-0.5">
-                                          Trade {isUsdTrade && <span className="text-blue-500">(USD)</span>}
-                                        </p>
-                                        {editingField?.itemId === item.id && editingField?.field === 'tradePrice' ? (
-                                          <Input
-                                            value={editValue}
-                                            onChange={(e) => setEditValue(e.target.value)}
-                                            onBlur={saveInlineEdit}
-                                            onKeyDown={handleEditKeyDown}
-                                            className="h-6 text-xs text-right"
-                                            autoFocus
-                                            type="number"
-                                            step="0.01"
-                                          />
-                                        ) : (
-                                          (() => {
-                                            const itemTradeTotal = (item.tradePrice || 0) * (item.quantity || 1)
-                                            const componentsPrice = (item as any).componentsTotal || 0
-                                            const total = itemTradeTotal + componentsPrice
-                                            return (
-                                              <p
-                                                className={`text-xs cursor-text hover:bg-stone-100 rounded px-1 ${isUsdTrade ? 'text-blue-600' : 'text-stone-900'}`}
-                                                onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'tradePrice', item.tradePrice?.toString() || '') }}
-                                                title={componentsPrice > 0 ? `Item: ${formatCurrency(item.tradePrice || 0)} × ${item.quantity || 1} + Components: ${formatCurrency(componentsPrice)}` : (item.quantity || 1) > 1 ? `${formatCurrency(item.tradePrice || 0)} × ${item.quantity}` : undefined}
-                                              >
-                                                {total > 0 ? formatCurrency(total) : '-'}
-                                              </p>
-                                            )
-                                          })()
-                                        )}
-                                      </div>
-
-                                      {/* Markup % - hidden on small screens */}
-                                      <div className="hidden md:block flex-shrink w-12 lg:w-16 h-9 text-right">
-                                        <p className="text-[9px] text-stone-400 uppercase tracking-wide mb-0.5">Markup</p>
-                                        {editingField?.itemId === item.id && editingField?.field === 'markupPercent' ? (
-                                          <Input
-                                            value={editValue}
-                                            onChange={(e) => setEditValue(e.target.value)}
-                                            onBlur={saveInlineEdit}
-                                            onKeyDown={handleEditKeyDown}
-                                            className="h-6 text-xs text-right"
-                                            autoFocus
-                                            type="number"
-                                            step="1"
-                                            placeholder="%"
-                                          />
-                                        ) : (
-                                          (() => {
-                                            // Calculate markup from trade price and RRP if both exist
-                                            let displayMarkup: number | null = item.markupPercent || null
-                                            let isCalculated = false
-                                            if (!displayMarkup && item.tradePrice && item.rrp && item.tradePrice > 0) {
-                                              displayMarkup = ((item.rrp - item.tradePrice) / item.tradePrice) * 100
-                                              isCalculated = true
-                                            }
-                                            return (
-                                              <p
-                                                className={`text-xs cursor-text hover:bg-stone-100 rounded px-1 ${displayMarkup != null ? (isCalculated ? 'text-purple-600' : 'text-stone-900') : 'text-stone-400'}`}
-                                                onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'markupPercent', item.markupPercent?.toString() || '') }}
-                                                title={isCalculated ? 'Calculated from Trade Price & RRP' : (item.tradePrice ? 'Enter markup % to auto-calculate RRP' : 'Add trade price first')}
-                                              >
-                                                {displayMarkup != null ? `${displayMarkup.toFixed(1)}%` : '-'}
-                                              </p>
-                                            )
-                                          })()
-                                        )}
-                                      </div>
-
-                                      {/* RRP - shows total: (unit × qty) + components with markup */}
-                                      <div className="flex-shrink w-16 lg:w-20 h-9 text-right">
-                                        <p className="text-[9px] text-stone-400 uppercase tracking-wide mb-0.5">
-                                          RRP {isUsdRrp && <span className="text-blue-500">(USD)</span>}
-                                        </p>
-                                        {editingField?.itemId === item.id && editingField?.field === 'rrp' ? (
-                                          <Input
-                                            value={editValue}
-                                            onChange={(e) => setEditValue(e.target.value)}
-                                            onBlur={saveInlineEdit}
-                                            onKeyDown={handleEditKeyDown}
-                                            className="h-6 text-xs text-right"
-                                            autoFocus
-                                            type="number"
-                                            step="0.01"
-                                          />
-                                        ) : (
-                                          (() => {
-                                            const itemRrpTotal = (item.rrp || 0) * (item.quantity || 1)
-                                            const componentsPrice = (item as any).componentsTotal || 0
-                                            const markupPercent = item.markupPercent || 0
-                                            // Apply markup to components for RRP
-                                            const componentsRrp = componentsPrice * (1 + markupPercent / 100)
-                                            const total = itemRrpTotal + componentsRrp
-                                            return (
-                                              <p
-                                                className={`text-xs cursor-text hover:bg-stone-100 rounded px-1 ${isUsdRrp ? 'text-blue-600' : 'text-stone-900'}`}
-                                                onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'rrp', item.rrp?.toString() || '') }}
-                                                title={componentsPrice > 0 ? `Item: ${formatCurrency(item.rrp || 0)} × ${item.quantity || 1} + Components: ${formatCurrency(componentsRrp)}${markupPercent > 0 ? ` (+${markupPercent}%)` : ''}` : (item.quantity || 1) > 1 ? `${formatCurrency(item.rrp || 0)} × ${item.quantity}` : undefined}
-                                              >
-                                                {total > 0 ? formatCurrency(total) : '-'}
-                                              </p>
-                                            )
-                                          })()
-                                        )}
-                                      </div>
-                                    </>
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <button
+                                          className="text-[9px] text-stone-400 hover:text-stone-600 opacity-0 group-hover/supplier:opacity-100 transition-opacity"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          · View
+                                        </button>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-56 p-3" align="start" side="bottom" onClick={(e) => e.stopPropagation()}>
+                                        <div className="space-y-2">
+                                          <div>
+                                            <p className="text-sm font-medium text-stone-900">{phonebookSupplier.name}</p>
+                                            {contactName && <p className="text-xs text-stone-500">{contactName}</p>}
+                                          </div>
+                                          {(phonebookSupplier.email || phonebookSupplier.phone || phonebookSupplier.website) && (
+                                            <div className="space-y-1.5 pt-1.5 border-t border-stone-100">
+                                              {phonebookSupplier.email && (
+                                                <div className="flex items-center gap-2 text-xs">
+                                                  <Mail className="w-3 h-3 text-stone-400 flex-shrink-0" />
+                                                  <a href={`mailto:${phonebookSupplier.email}`} className="text-stone-600 hover:text-stone-900 truncate">{phonebookSupplier.email}</a>
+                                                </div>
+                                              )}
+                                              {phonebookSupplier.phone && (
+                                                <div className="flex items-center gap-2 text-xs">
+                                                  <Phone className="w-3 h-3 text-stone-400 flex-shrink-0" />
+                                                  <a href={`tel:${phonebookSupplier.phone}`} className="text-stone-600 hover:text-stone-900">{phonebookSupplier.phone}</a>
+                                                </div>
+                                              )}
+                                              {phonebookSupplier.website && (
+                                                <div className="flex items-center gap-2 text-xs">
+                                                  <Globe className="w-3 h-3 text-stone-400 flex-shrink-0" />
+                                                  <a href={phonebookSupplier.website.startsWith('http') ? phonebookSupplier.website : `https://${phonebookSupplier.website}`} target="_blank" rel="noopener noreferrer" className="text-stone-600 hover:text-stone-900 truncate">{phonebookSupplier.website.replace(/^https?:\/\//, '')}</a>
+                                                </div>
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </PopoverContent>
+                                    </Popover>
                                   )
                                 })()}
-                              </>
-                            )}
-                            
-                            {/* Supplier - Fixed width column */}
-                            <div className="w-28 lg:w-40 min-w-[100px] h-9 relative flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                              <p className="text-[9px] text-stone-400 uppercase tracking-wide mb-0.5">Supplier</p>
-                              {/* Supplier display with hover contact card */}
+                              </div>
                               {(item.supplierName || item.supplierId) ? (
                                 (() => {
                                   const phonebookSupplier = item.supplierId
@@ -6166,91 +6091,21 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                     contactName = parts.length > 1 ? parts.slice(1).join(' / ') : null
                                   }
                                   return (
-                                    <HoverCard openDelay={300} closeDelay={100}>
-                                      <HoverCardTrigger asChild>
-                                        <button
-                                          className="w-full text-left cursor-pointer hover:bg-stone-100 rounded px-1 -mx-1 py-0.5"
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            setSupplierPickerItem(item.id)
-                                          }}
-                                          title={item.supplierName || undefined}
-                                        >
-                                          <div className="leading-tight">
-                                            <span className="text-xs text-stone-700 truncate block">{businessName}</span>
-                                            {contactName && (
-                                              <span className="text-[10px] text-stone-400 truncate block">{contactName}</span>
-                                            )}
-                                          </div>
-                                        </button>
-                                      </HoverCardTrigger>
-                                      <HoverCardContent className="w-72 p-0" align="start" side="bottom">
-                                        <div className="p-3">
-                                          <div className="flex items-start gap-3">
-                                            <div className="w-9 h-9 rounded-lg bg-stone-100 flex items-center justify-center text-stone-600 font-semibold text-sm flex-shrink-0">
-                                              {businessName.charAt(0).toUpperCase()}
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                              <p className="text-sm font-medium text-stone-900 truncate">{businessName}</p>
-                                              {contactName && <p className="text-xs text-stone-500">{contactName}</p>}
-                                            </div>
-                                          </div>
-                                        </div>
-                                        {phonebookSupplier && (phonebookSupplier.email || phonebookSupplier.phone || phonebookSupplier.website) && (
-                                          <div className="border-t border-stone-100 px-3 py-2.5 space-y-1.5">
-                                            {phonebookSupplier.email && (
-                                              <div className="flex items-center gap-2 text-xs">
-                                                <Mail className="w-3 h-3 text-stone-400 flex-shrink-0" />
-                                                <a href={`mailto:${phonebookSupplier.email}`} className="text-stone-600 hover:text-stone-900 truncate" onClick={(e) => e.stopPropagation()}>
-                                                  {phonebookSupplier.email}
-                                                </a>
-                                              </div>
-                                            )}
-                                            {phonebookSupplier.phone && (
-                                              <div className="flex items-center gap-2 text-xs">
-                                                <Phone className="w-3 h-3 text-stone-400 flex-shrink-0" />
-                                                <a href={`tel:${phonebookSupplier.phone}`} className="text-stone-600 hover:text-stone-900" onClick={(e) => e.stopPropagation()}>
-                                                  {phonebookSupplier.phone}
-                                                </a>
-                                              </div>
-                                            )}
-                                            {phonebookSupplier.website && (
-                                              <div className="flex items-center gap-2 text-xs">
-                                                <Globe className="w-3 h-3 text-stone-400 flex-shrink-0" />
-                                                <a href={phonebookSupplier.website.startsWith('http') ? phonebookSupplier.website : `https://${phonebookSupplier.website}`} target="_blank" rel="noopener noreferrer" className="text-stone-600 hover:text-stone-900 truncate" onClick={(e) => e.stopPropagation()}>
-                                                  {phonebookSupplier.website.replace(/^https?:\/\//, '')}
-                                                </a>
-                                              </div>
-                                            )}
-                                          </div>
+                                    <button
+                                      className="w-full text-left cursor-pointer hover:bg-stone-100 rounded px-1 -mx-1 py-0.5"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        setSupplierPickerItem(item.id)
+                                      }}
+                                      title={item.supplierName || undefined}
+                                    >
+                                      <div className="leading-tight">
+                                        <span className="text-xs text-stone-700 truncate block">{businessName}</span>
+                                        {contactName && (
+                                          <span className="text-[10px] text-stone-400 truncate block">{contactName}</span>
                                         )}
-                                        <div className="border-t border-stone-100 px-3 py-2 flex items-center gap-2">
-                                          <button
-                                            className="text-xs text-stone-500 hover:text-stone-700 transition-colors"
-                                            onClick={(e) => {
-                                              e.stopPropagation()
-                                              setSupplierPickerItem(item.id)
-                                            }}
-                                          >
-                                            Change Supplier
-                                          </button>
-                                          {phonebookSupplier && (
-                                            <>
-                                              <span className="text-stone-200">·</span>
-                                              <button
-                                                className="text-xs text-stone-500 hover:text-stone-700 transition-colors"
-                                                onClick={(e) => {
-                                                  e.stopPropagation()
-                                                  window.open(`/suppliers/${phonebookSupplier.id}`, '_blank')
-                                                }}
-                                              >
-                                                View Contact
-                                              </button>
-                                            </>
-                                          )}
-                                        </div>
-                                      </HoverCardContent>
-                                    </HoverCard>
+                                      </div>
+                                    </button>
                                   )
                                 })()
                               ) : (
@@ -6264,7 +6119,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   <span className="text-xs text-stone-400">-</span>
                                 </button>
                               )}
-                              {/* Supplier Picker Popover - always present, triggered by state */}
+                              {/* Supplier Picker Popover */}
                               <Popover open={supplierPickerItem === item.id} onOpenChange={(open) => setSupplierPickerItem(open ? item.id : null)}>
                                 <PopoverTrigger asChild>
                                   <span className="absolute top-0 left-0 w-0 h-0 overflow-hidden" />
@@ -6340,7 +6195,131 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 />
                               )}
                             </div>
-                            
+
+                            {/* Financial Columns - Only in Financial Tab */}
+                            {activeTab === 'financial' && (
+                              <>
+                                {(() => {
+                                  // Look up supplier to get their currency setting
+                                  const itemSupplier = item.supplierId ? suppliers.find(s => s.id === item.supplierId) : null
+                                  const effectiveTradeCurrency = itemSupplier?.currency || item.tradePriceCurrency || 'CAD'
+                                  const effectiveRrpCurrency = itemSupplier?.currency || item.rrpCurrency || 'CAD'
+                                  const isUsdTrade = effectiveTradeCurrency === 'USD'
+                                  const isUsdRrp = effectiveRrpCurrency === 'USD'
+
+                                  return (
+                                    <>
+                                      {/* Trade Price */}
+                                      <div className="flex-shrink w-16 lg:w-24 h-9 text-right">
+                                        <p className="text-[9px] text-stone-400 uppercase tracking-wide mb-0.5">
+                                          Trade {isUsdTrade && <span className="text-blue-500">(USD)</span>}
+                                        </p>
+                                        {editingField?.itemId === item.id && editingField?.field === 'tradePrice' ? (
+                                          <Input
+                                            value={editValue}
+                                            onChange={(e) => setEditValue(e.target.value)}
+                                            onBlur={saveInlineEdit}
+                                            onKeyDown={handleEditKeyDown}
+                                            className="h-6 text-xs text-right"
+                                            autoFocus
+                                            type="number"
+                                            step="0.01"
+                                          />
+                                        ) : (
+                                          (() => {
+                                            const itemTradeTotal = (item.tradePrice || 0) * (item.quantity || 1)
+                                            const componentsPrice = (item as any).componentsTotal || 0
+                                            const total = itemTradeTotal + componentsPrice
+                                            return (
+                                              <p
+                                                className={`text-xs cursor-text hover:bg-stone-100 rounded px-1 ${isUsdTrade ? 'text-blue-600' : 'text-stone-900'}`}
+                                                onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'tradePrice', item.tradePrice?.toString() || '') }}
+                                                title={componentsPrice > 0 ? `Item: ${formatCurrency(item.tradePrice || 0)} × ${item.quantity || 1} + Components: ${formatCurrency(componentsPrice)}` : (item.quantity || 1) > 1 ? `${formatCurrency(item.tradePrice || 0)} × ${item.quantity}` : undefined}
+                                              >
+                                                {total > 0 ? formatCurrency(total) : '-'}
+                                              </p>
+                                            )
+                                          })()
+                                        )}
+                                      </div>
+
+                                      {/* Markup % */}
+                                      <div className="hidden md:block flex-shrink w-12 lg:w-16 h-9 text-right">
+                                        <p className="text-[9px] text-stone-400 uppercase tracking-wide mb-0.5">Markup</p>
+                                        {editingField?.itemId === item.id && editingField?.field === 'markupPercent' ? (
+                                          <Input
+                                            value={editValue}
+                                            onChange={(e) => setEditValue(e.target.value)}
+                                            onBlur={saveInlineEdit}
+                                            onKeyDown={handleEditKeyDown}
+                                            className="h-6 text-xs text-right"
+                                            autoFocus
+                                            type="number"
+                                            step="1"
+                                            placeholder="%"
+                                          />
+                                        ) : (
+                                          (() => {
+                                            let displayMarkup: number | null = item.markupPercent || null
+                                            let isCalculated = false
+                                            if (!displayMarkup && item.tradePrice && item.rrp && item.tradePrice > 0) {
+                                              displayMarkup = ((item.rrp - item.tradePrice) / item.tradePrice) * 100
+                                              isCalculated = true
+                                            }
+                                            return (
+                                              <p
+                                                className={`text-xs cursor-text hover:bg-stone-100 rounded px-1 ${displayMarkup != null ? (isCalculated ? 'text-purple-600' : 'text-stone-900') : 'text-stone-400'}`}
+                                                onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'markupPercent', item.markupPercent?.toString() || '') }}
+                                                title={isCalculated ? 'Calculated from Trade Price & RRP' : (item.tradePrice ? 'Enter markup % to auto-calculate RRP' : 'Add trade price first')}
+                                              >
+                                                {displayMarkup != null ? `${displayMarkup.toFixed(1)}%` : '-'}
+                                              </p>
+                                            )
+                                          })()
+                                        )}
+                                      </div>
+
+                                      {/* RRP */}
+                                      <div className="flex-shrink w-16 lg:w-20 h-9 text-right">
+                                        <p className="text-[9px] text-stone-400 uppercase tracking-wide mb-0.5">
+                                          RRP {isUsdRrp && <span className="text-blue-500">(USD)</span>}
+                                        </p>
+                                        {editingField?.itemId === item.id && editingField?.field === 'rrp' ? (
+                                          <Input
+                                            value={editValue}
+                                            onChange={(e) => setEditValue(e.target.value)}
+                                            onBlur={saveInlineEdit}
+                                            onKeyDown={handleEditKeyDown}
+                                            className="h-6 text-xs text-right"
+                                            autoFocus
+                                            type="number"
+                                            step="0.01"
+                                          />
+                                        ) : (
+                                          (() => {
+                                            const itemRrpTotal = (item.rrp || 0) * (item.quantity || 1)
+                                            const componentsPrice = (item as any).componentsTotal || 0
+                                            const markupPercent = item.markupPercent || 0
+                                            const componentsRrp = componentsPrice * (1 + markupPercent / 100)
+                                            const total = itemRrpTotal + componentsRrp
+                                            return (
+                                              <p
+                                                className={`text-xs cursor-text hover:bg-stone-100 rounded px-1 ${isUsdRrp ? 'text-blue-600' : 'text-stone-900'}`}
+                                                onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'rrp', item.rrp?.toString() || '') }}
+                                                title={componentsPrice > 0 ? `Item: ${formatCurrency(item.rrp || 0)} × ${item.quantity || 1} + Components: ${formatCurrency(componentsRrp)}${markupPercent > 0 ? ` (+${markupPercent}%)` : ''}` : (item.quantity || 1) > 1 ? `${formatCurrency(item.rrp || 0)} × ${item.quantity}` : undefined}
+                                              >
+                                                {total > 0 ? formatCurrency(total) : '-'}
+                                              </p>
+                                            )
+                                          })()
+                                        )}
+                                      </div>
+                                    </>
+                                  )
+                                })()}
+                              </>
+                            )}
+
                             {/* Status & Actions - Fixed at right edge */}
                             <div className="flex-shrink-0 flex flex-col items-end gap-1 ml-auto">
                               {/* Row 1: Approve + Status + Menu */}
