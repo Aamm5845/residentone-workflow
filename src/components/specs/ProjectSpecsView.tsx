@@ -4517,36 +4517,34 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                           )}
                           <span className="text-sm text-gray-500">({items.length} items)</span>
                         </button>
-                        {prefix && (
-                          <button
-                            onClick={async (e) => {
-                              e.stopPropagation()
-                              setRegenConfirmDialog({ open: true, loading: true, categories: [category], previewData: null })
-                              try {
-                                const res = await fetch(`/api/projects/${project.id}/regenerate-doc-codes`, {
-                                  method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ categories: [category], preview: true })
-                                })
-                                const data = await res.json()
-                                if (data.success) {
-                                  setRegenConfirmDialog(prev => ({ ...prev, loading: false, previewData: data }))
-                                } else {
-                                  toast.error(data.error || 'Failed to preview')
-                                  setRegenConfirmDialog(prev => ({ ...prev, open: false }))
-                                }
-                              } catch {
-                                toast.error('Failed to preview doc codes')
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation()
+                            setRegenConfirmDialog({ open: true, loading: true, categories: [category], previewData: null })
+                            try {
+                              const res = await fetch(`/api/projects/${project.id}/regenerate-doc-codes`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ categories: [category], preview: true })
+                              })
+                              const data = await res.json()
+                              if (data.success) {
+                                setRegenConfirmDialog(prev => ({ ...prev, loading: false, previewData: data }))
+                              } else {
+                                toast.error(data.error || 'Failed to preview')
                                 setRegenConfirmDialog(prev => ({ ...prev, open: false }))
                               }
-                            }}
-                            className="px-3 py-1 mr-2 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded transition-colors flex items-center gap-1"
-                            title={`Regenerate doc codes for ${category}`}
-                          >
-                            <RefreshCw className="w-3 h-3" />
-                            Regen
-                          </button>
-                        )}
+                            } catch {
+                              toast.error('Failed to preview doc codes')
+                              setRegenConfirmDialog(prev => ({ ...prev, open: false }))
+                            }
+                          }}
+                          className="px-3 py-1 mr-2 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded transition-colors flex items-center gap-1"
+                          title={`Regenerate doc codes for ${category}`}
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                          Regen
+                        </button>
                       </div>
                       {!collapsedNeedsSections.has(`all-${category}`) && (
                       <div className="divide-y divide-gray-100">

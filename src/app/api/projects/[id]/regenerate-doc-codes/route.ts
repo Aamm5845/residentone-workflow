@@ -43,6 +43,16 @@ export async function POST(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
+    // Fetch org presets to fill in missing prefixes on sections
+    const presets = await prisma.fFESectionPreset.findMany({
+      where: { orgId, isActive: true },
+      select: { name: true, docCodePrefix: true }
+    })
+    const presetPrefixMap = new Map<string, string>()
+    for (const preset of presets) {
+      presetPrefixMap.set(preset.name.toLowerCase(), preset.docCodePrefix)
+    }
+
     // Get all rooms with sections and FFE requirement items
     const rooms = await prisma.room.findMany({
       where: { projectId },
@@ -92,16 +102,21 @@ export async function POST(
         if (categories && categories.length > 0 && !categories.includes(categoryKey)) return
 
         if (!categoryMap.has(categoryKey)) {
+          // Try section's own prefix, then fallback to preset by name match
+          const sectionPrefix = section.docCodePrefix || presetPrefixMap.get(categoryKey.toLowerCase()) || null
           categoryMap.set(categoryKey, {
-            docCodePrefix: section.docCodePrefix || null,
+            docCodePrefix: sectionPrefix,
             items: []
           })
         }
 
         const category = categoryMap.get(categoryKey)!
         // If we find a prefix on any section with this name, use it
-        if (!category.docCodePrefix && section.docCodePrefix) {
-          category.docCodePrefix = section.docCodePrefix
+        if (!category.docCodePrefix) {
+          const resolvedPrefix = section.docCodePrefix || presetPrefixMap.get(categoryKey.toLowerCase()) || null
+          if (resolvedPrefix) {
+            category.docCodePrefix = resolvedPrefix
+          }
         }
 
         section.items.forEach(item => {
