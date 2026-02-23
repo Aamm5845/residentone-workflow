@@ -140,14 +140,14 @@ const ITEM_STATUS_OPTIONS = [
   { value: 'SHIPPED', label: 'Shipped', icon: Truck, color: 'text-indigo-500', requiresApproval: true },
   { value: 'DELIVERED', label: 'Delivered', icon: PackageCheck, color: 'text-teal-600', requiresApproval: true },
   { value: 'INSTALLED', label: 'Installed', icon: CheckCheck, color: 'text-green-600', requiresApproval: true },
-  { value: 'CLOSED', label: 'Closed', icon: CheckCheck, color: 'text-gray-600', requiresApproval: true },
+  { value: 'CLOSED', label: 'Closed', icon: CheckCheck, color: 'text-stone-600', requiresApproval: true },
   // === MANUAL STATUSES ===
-  { value: 'DRAFT', label: 'Draft', icon: Circle, color: 'text-gray-400', requiresApproval: false },
-  { value: 'HIDDEN', label: 'Hidden', icon: Circle, color: 'text-gray-300', requiresApproval: false },
+  { value: 'DRAFT', label: 'Draft', icon: Circle, color: 'text-stone-400', requiresApproval: false },
+  { value: 'HIDDEN', label: 'Hidden', icon: Circle, color: 'text-stone-300', requiresApproval: false },
   { value: 'CLIENT_TO_ORDER', label: 'Client to Order', icon: Truck, color: 'text-purple-500', requiresApproval: false },
   { value: 'CONTRACTOR_TO_ORDER', label: 'Contractor to Order', icon: Truck, color: 'text-orange-500', requiresApproval: false, skipFilters: true },
   { value: 'ISSUE', label: 'Issue', icon: AlertCircle, color: 'text-red-500', requiresApproval: false },
-  { value: 'ARCHIVED', label: 'Archived', icon: Archive, color: 'text-gray-400', requiresApproval: false },
+  { value: 'ARCHIVED', label: 'Archived', icon: Archive, color: 'text-stone-400', requiresApproval: false },
 ]
 
 // Legacy status display mapping (items with old statuses still show correctly)
@@ -168,7 +168,7 @@ const LEGACY_STATUS_MAP: Record<string, { label: string; icon: any; color: strin
   'APPROVED': { label: 'Quote Accepted', icon: CheckCircle2, color: 'text-green-500' },
   'PAYMENT_DUE': { label: 'Payment Due', icon: CreditCard, color: 'text-orange-500' },
   'IN_TRANSIT': { label: 'Shipped', icon: Truck, color: 'text-indigo-500' },
-  'NEEDS_SPEC': { label: 'Needs Spec', icon: Circle, color: 'text-gray-400' },
+  'NEEDS_SPEC': { label: 'Needs Spec', icon: Circle, color: 'text-stone-400' },
   'SPEC_ADDED': { label: 'Spec Added', icon: CheckCircle2, color: 'text-emerald-400' },
   'QUOTED': { label: 'Quoted', icon: CreditCard, color: 'text-teal-500' },
   'BUDGET_SENT': { label: 'Budget Sent', icon: Mail, color: 'text-blue-500' },
@@ -3315,9 +3315,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       case 'IN_PROGRESS':
         return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">In Progress</Badge>
       case 'NEEDS_SPEC':
-        return <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-300">Needs Spec</Badge>
+        return <Badge variant="outline" className="bg-stone-100 text-stone-700 border-stone-300">Needs Spec</Badge>
       default:
-        return <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-200">Draft</Badge>
+        return <Badge variant="outline" className="bg-stone-50 text-stone-600 border-stone-200">Draft</Badge>
     }
   }
 
@@ -3326,8 +3326,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50/50 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+      <div className="min-h-screen bg-stone-50/50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-stone-400" />
       </div>
     )
   }
@@ -3732,7 +3732,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   <div className="space-y-4">
                     {/* Section Filter */}
                     <div className="space-y-2">
-                      <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Section</Label>
+                      <Label className="text-xs font-medium text-stone-500 uppercase tracking-wider">Section</Label>
                       <Select value={filterSection} onValueChange={setFilterSection}>
                         <SelectTrigger className="h-9 text-sm">
                           <SelectValue placeholder="All Sections" />
@@ -3743,7 +3743,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             <SelectItem key={group.sectionId || group.name} value={group.sectionId || 'all'}>
                               <div className="flex items-center justify-between w-full">
                                 <span>{group.name}</span>
-                                <span className="text-gray-400 text-xs ml-2">({group.items.length})</span>
+                                <span className="text-stone-400 text-xs ml-2">({group.items.length})</span>
                               </div>
                             </SelectItem>
                           ))}
@@ -3753,7 +3753,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     
                     {/* Status Filter */}
                     <div className="space-y-2">
-                      <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Status</Label>
+                      <Label className="text-xs font-medium text-stone-500 uppercase tracking-wider">Status</Label>
                       <Select value={filterStatus} onValueChange={setFilterStatus}>
                         <SelectTrigger className="h-9 text-sm">
                           <SelectValue placeholder="All Statuses" />
@@ -3774,7 +3774,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     
                     {/* Room Filter */}
                     <div className="space-y-2">
-                      <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Room</Label>
+                      <Label className="text-xs font-medium text-stone-500 uppercase tracking-wider">Room</Label>
                       <Select value={filterRoom} onValueChange={setFilterRoom}>
                         <SelectTrigger className="h-9 text-sm">
                           <SelectValue placeholder="All Rooms" />
@@ -3790,7 +3790,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
                     {/* Currency Filter */}
                     <div className="space-y-2">
-                      <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Currency</Label>
+                      <Label className="text-xs font-medium text-stone-500 uppercase tracking-wider">Currency</Label>
                       <Select value={filterCurrency} onValueChange={(v) => setFilterCurrency(v as 'all' | 'CAD' | 'USD')}>
                         <SelectTrigger className="h-9 text-sm">
                           <SelectValue placeholder="All Currencies" />
@@ -3805,7 +3805,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
                     {/* Approval / Price Filter */}
                     <div className="space-y-2">
-                      <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Quick Filter</Label>
+                      <Label className="text-xs font-medium text-stone-500 uppercase tracking-wider">Quick Filter</Label>
                       <Select value={summaryFilter} onValueChange={(v) => setSummaryFilter(v as 'all' | 'needs_approval' | 'needs_price')}>
                         <SelectTrigger className="h-9 text-sm">
                           <SelectValue placeholder="All Items" />
@@ -3837,8 +3837,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     {archivedCount > 0 && (
                       <div className="flex items-center justify-between py-2 border-t">
                         <div className="flex items-center gap-2">
-                          <Archive className="w-4 h-4 text-gray-400" />
-                          <Label htmlFor="show-archived" className="text-sm text-gray-600 cursor-pointer">
+                          <Archive className="w-4 h-4 text-stone-400" />
+                          <Label htmlFor="show-archived" className="text-sm text-stone-600 cursor-pointer">
                             Show archived ({archivedCount})
                           </Label>
                         </div>
@@ -3855,7 +3855,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="w-full h-8 text-xs text-gray-500 hover:text-gray-700"
+                        className="w-full h-8 text-xs text-stone-500 hover:text-stone-700"
                         onClick={() => {
                           setFilterStatus('all')
                           setFilterRoom('all')
@@ -3882,45 +3882,45 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
-                  <div className="px-2 py-1.5 text-xs font-medium text-gray-500">Group by</div>
-                  <DropdownMenuItem onClick={() => setSortBy('category')} className={cn(sortBy === 'category' && "bg-gray-100")}>
+                  <div className="px-2 py-1.5 text-xs font-medium text-stone-500">Group by</div>
+                  <DropdownMenuItem onClick={() => setSortBy('category')} className={cn(sortBy === 'category' && "bg-stone-100")}>
                     Category
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setSortBy('room')} className={cn(sortBy === 'room' && "bg-gray-100")}>
+                  <DropdownMenuItem onClick={() => setSortBy('room')} className={cn(sortBy === 'room' && "bg-stone-100")}>
                     Room
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <div className="px-2 py-1.5 text-xs font-medium text-gray-500">Sort items by</div>
-                  <DropdownMenuItem onClick={() => setItemSortBy('default')} className={cn(itemSortBy === 'default' && "bg-gray-100")}>
+                  <div className="px-2 py-1.5 text-xs font-medium text-stone-500">Sort items by</div>
+                  <DropdownMenuItem onClick={() => setItemSortBy('default')} className={cn(itemSortBy === 'default' && "bg-stone-100")}>
                     Default Order
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setItemSortBy('name')} className={cn(itemSortBy === 'name' && "bg-gray-100")}>
+                  <DropdownMenuItem onClick={() => setItemSortBy('name')} className={cn(itemSortBy === 'name' && "bg-stone-100")}>
                     Name (A-Z)
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setItemSortBy('brand')} className={cn(itemSortBy === 'brand' && "bg-gray-100")}>
+                  <DropdownMenuItem onClick={() => setItemSortBy('brand')} className={cn(itemSortBy === 'brand' && "bg-stone-100")}>
                     Brand (A-Z)
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setItemSortBy('price_asc')} className={cn(itemSortBy === 'price_asc' && "bg-gray-100")}>
+                  <DropdownMenuItem onClick={() => setItemSortBy('price_asc')} className={cn(itemSortBy === 'price_asc' && "bg-stone-100")}>
                     Price (Low → High)
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setItemSortBy('price_desc')} className={cn(itemSortBy === 'price_desc' && "bg-gray-100")}>
+                  <DropdownMenuItem onClick={() => setItemSortBy('price_desc')} className={cn(itemSortBy === 'price_desc' && "bg-stone-100")}>
                     Price (High → Low)
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setItemSortBy('status')} className={cn(itemSortBy === 'status' && "bg-gray-100")}>
+                  <DropdownMenuItem onClick={() => setItemSortBy('status')} className={cn(itemSortBy === 'status' && "bg-stone-100")}>
                     Status
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
 
               {/* View Toggle */}
-              <div className="flex items-center border rounded-md bg-gray-100/50">
+              <div className="flex items-center border border-stone-200 rounded-lg bg-stone-100/50">
                 <button
                   onClick={() => setViewMode('list')}
                   className={cn(
-                    "p-1.5 rounded-l-md transition-colors",
+                    "p-1.5 rounded-l-lg transition-colors",
                     viewMode === 'list'
-                      ? "bg-white text-gray-900 shadow-sm"
-                      : "text-gray-500 hover:text-gray-700"
+                      ? "bg-white text-stone-900 shadow-sm"
+                      : "text-stone-400 hover:text-stone-600"
                   )}
                   title="List view"
                 >
@@ -3929,10 +3929,10 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 <button
                   onClick={() => setViewMode('board')}
                   className={cn(
-                    "p-1.5 rounded-r-md transition-colors",
+                    "p-1.5 rounded-r-lg transition-colors",
                     viewMode === 'board'
-                      ? "bg-white text-gray-900 shadow-sm"
-                      : "text-gray-500 hover:text-gray-700"
+                      ? "bg-white text-stone-900 shadow-sm"
+                      : "text-stone-400 hover:text-stone-600"
                   )}
                   title="Board view"
                 >
@@ -3944,9 +3944,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           
           {/* Item count bar */}
           {specs.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-gray-100">
+            <div className="mt-3 pt-3 border-t border-stone-100">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-stone-500">
                   {filteredSpecs.length} {filteredSpecs.length !== specs.length ? `of ${specs.length}` : ''} items
                   {summaryFilter === 'needs_approval' && <span className="text-amber-600 ml-1">(Need Approval)</span>}
                   {summaryFilter === 'needs_price' && <span className="text-red-600 ml-1">(Need Price)</span>}
@@ -3957,11 +3957,11 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           
           {/* Financial Summary Bar - Only in Financial Tab */}
           {activeTab === 'financial' && (
-            <div className="flex items-center gap-6 mt-3 pt-3 border-t border-gray-100 flex-wrap">
+            <div className="flex items-center gap-6 mt-3 pt-3 border-t border-stone-100 flex-wrap">
               {/* RRP CAD */}
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500 uppercase">RRP (CAD)</span>
-                <span className="text-lg font-semibold text-gray-900">${(financials?.totalRRPCAD ?? 0).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                <span className="text-xs text-stone-500 uppercase">RRP (CAD)</span>
+                <span className="text-lg font-semibold text-stone-900">${(financials?.totalRRPCAD ?? 0).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
               {/* RRP USD - Only show if there are USD items */}
               {(financials?.totalRRPUSD ?? 0) > 0 && (
@@ -3979,14 +3979,14 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       {/* Needs Selection Tab Content */}
       {activeTab === 'needs' && (
         <div className="max-w-full mx-auto px-4 py-4">
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="bg-white rounded-xl border border-stone-200 p-6">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-500 to-gray-600 flex items-center justify-center shadow-sm">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-stone-400 to-stone-500 flex items-center justify-center shadow-sm">
                 <Circle className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">FFE Items Needing Selection</h3>
-                <p className="text-sm text-gray-600">
+                <h3 className="text-lg font-semibold text-stone-900">FFE Items Needing Selection</h3>
+                <p className="text-sm text-stone-600">
                   Items from FFE Workspace that don&apos;t have products chosen yet
                 </p>
               </div>
@@ -4009,7 +4009,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     })
                   })
                   return Array.from(byCategory.entries()).map(([category, items]) => (
-                    <div key={category} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                    <div key={category} className="bg-white rounded-lg border border-stone-200 overflow-hidden">
                       <button
                         onClick={() => setCollapsedNeedsSections(prev => {
                           const next = new Set(prev)
@@ -4017,35 +4017,35 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                           else next.add(category)
                           return next
                         })}
-                        className="w-full bg-gray-100/50 px-4 py-2 border-b border-gray-200 flex items-center gap-2 hover:bg-gray-100 transition-colors cursor-pointer"
+                        className="w-full bg-stone-100/50 px-4 py-2 border-b border-stone-200 flex items-center gap-2 hover:bg-stone-100 transition-colors cursor-pointer"
                       >
                         {collapsedNeedsSections.has(category) ? (
-                          <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                          <ChevronRight className="w-4 h-4 text-stone-400 flex-shrink-0" />
                         ) : (
-                          <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                          <ChevronDown className="w-4 h-4 text-stone-400 flex-shrink-0" />
                         )}
-                        <span className="font-medium text-gray-900">{category}</span>
-                        <span className="text-sm text-gray-500">({items.length} items)</span>
+                        <span className="font-medium text-stone-900">{category}</span>
+                        <span className="text-sm text-stone-500">({items.length} items)</span>
                       </button>
                       {!collapsedNeedsSections.has(category) && (
-                      <div className="divide-y divide-gray-100">
+                      <div className="divide-y divide-stone-100">
                         {items.map(({ roomName, roomId, sectionId, item }) => (
                           <div
                             key={item.id}
                             className={cn(
-                              "py-3 hover:bg-gray-50",
-                              item.isLinkedItem ? "px-8 bg-gray-50/50" : "px-4"
+                              "py-3 hover:bg-stone-50",
+                              item.isLinkedItem ? "px-8 bg-stone-50/50" : "px-4"
                             )}
                           >
                             <div className="flex items-center justify-between gap-3">
                               <div className="flex items-center gap-3 flex-1 min-w-0">
                                 {item.isLinkedItem && (
-                                  <div className="w-4 h-4 border-l-2 border-b-2 border-gray-300 -ml-4 mr-1" />
+                                  <div className="w-4 h-4 border-l-2 border-b-2 border-stone-300 -ml-4 mr-1" />
                                 )}
-                                <Circle className={cn("w-4 h-4 flex-shrink-0", item.isLinkedItem ? "text-gray-400" : "text-gray-400")} />
+                                <Circle className={cn("w-4 h-4 flex-shrink-0", item.isLinkedItem ? "text-stone-400" : "text-stone-400")} />
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-2">
-                                    <p className="font-medium text-gray-900 truncate">{item.name}</p>
+                                    <p className="font-medium text-stone-900 truncate">{item.name}</p>
                                     {item.isLinkedItem && item.parentId && (
                                       <Popover>
                                         <PopoverTrigger asChild>
@@ -4074,8 +4074,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                           </div>
                                           <div className="p-3 space-y-2">
                                             <div>
-                                              <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">Parent Item</p>
-                                              <p className="text-sm font-medium text-gray-900">{item.parentName}</p>
+                                              <p className="text-[10px] text-stone-500 uppercase tracking-wide mb-1">Parent Item</p>
+                                              <p className="text-sm font-medium text-stone-900">{item.parentName}</p>
                                             </div>
                                             <Button
                                               variant="outline"
@@ -4099,14 +4099,14 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                       </Popover>
                                     )}
                                   </div>
-                                  <p className="text-xs text-gray-500">{roomName}</p>
+                                  <p className="text-xs text-stone-500">{roomName}</p>
                                 </div>
                               </div>
                               <div className="w-20 flex-shrink-0 text-right">
                                 {item.docCode ? (
                                   <span className="text-[10px] font-mono font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded">{item.docCode}</span>
                                 ) : (
-                                  <span className="text-xs text-gray-300">—</span>
+                                  <span className="text-xs text-stone-300">—</span>
                                 )}
                               </div>
                               <DropdownMenu>
@@ -4114,7 +4114,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    className="h-7 text-xs gap-1 border-gray-300 text-gray-700 hover:bg-gray-100"
+                                    className="h-7 text-xs gap-1 border-stone-300 text-stone-700 hover:bg-stone-100"
                                   >
                                     <CheckCircle2 className="w-3.5 h-3.5" />
                                     Choose
@@ -4163,9 +4163,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             </div>
                             {/* Notes Display */}
                             {item.notes && (
-                              <div className="mt-2 ml-7 flex items-start gap-2 bg-gray-50 rounded-lg p-2">
-                                <StickyNote className="w-3.5 h-3.5 text-gray-400 mt-0.5 flex-shrink-0" />
-                                <p className="text-xs text-gray-600">{item.notes}</p>
+                              <div className="mt-2 ml-7 flex items-start gap-2 bg-stone-50 rounded-lg p-2">
+                                <StickyNote className="w-3.5 h-3.5 text-stone-400 mt-0.5 flex-shrink-0" />
+                                <p className="text-xs text-stone-600">{item.notes}</p>
                               </div>
                             )}
                           </div>
@@ -4178,7 +4178,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               ) : (
                 // Group by room
                 filteredFfeItems.filter(room => room.sections.some(s => s.items.some(i => !i.hasLinkedSpecs))).map(room => (
-                  <div key={room.roomId} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                  <div key={room.roomId} className="bg-white rounded-lg border border-stone-200 overflow-hidden">
                     <button
                       onClick={() => setCollapsedNeedsSections(prev => {
                         const next = new Set(prev)
@@ -4187,38 +4187,38 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                         else next.add(key)
                         return next
                       })}
-                      className="w-full bg-gray-100/50 px-4 py-2 border-b border-gray-200 flex items-center gap-2 hover:bg-gray-100 transition-colors cursor-pointer"
+                      className="w-full bg-stone-100/50 px-4 py-2 border-b border-stone-200 flex items-center gap-2 hover:bg-stone-100 transition-colors cursor-pointer"
                     >
                       {collapsedNeedsSections.has(`room-${room.roomId}`) ? (
-                        <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        <ChevronRight className="w-4 h-4 text-stone-400 flex-shrink-0" />
                       ) : (
-                        <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        <ChevronDown className="w-4 h-4 text-stone-400 flex-shrink-0" />
                       )}
-                      <span className="font-medium text-gray-900">{room.roomName}</span>
-                      <span className="text-sm text-gray-500">
+                      <span className="font-medium text-stone-900">{room.roomName}</span>
+                      <span className="text-sm text-stone-500">
                         ({room.sections.reduce((acc, s) => acc + s.items.filter(i => !i.hasLinkedSpecs).length, 0)} items)
                       </span>
                     </button>
                     {!collapsedNeedsSections.has(`room-${room.roomId}`) && (
-                    <div className="divide-y divide-gray-100">
+                    <div className="divide-y divide-stone-100">
                       {room.sections.flatMap(section =>
                         section.items.filter(item => !item.hasLinkedSpecs).map(item => (
                           <div
                             key={item.id}
                             className={cn(
-                              "py-3 hover:bg-gray-50",
-                              item.isLinkedItem ? "px-8 bg-gray-50/50" : "px-4"
+                              "py-3 hover:bg-stone-50",
+                              item.isLinkedItem ? "px-8 bg-stone-50/50" : "px-4"
                             )}
                           >
                             <div className="flex items-center justify-between gap-3">
                               <div className="flex items-center gap-3 flex-1 min-w-0">
                                 {item.isLinkedItem && (
-                                  <div className="w-4 h-4 border-l-2 border-b-2 border-gray-300 -ml-4 mr-1" />
+                                  <div className="w-4 h-4 border-l-2 border-b-2 border-stone-300 -ml-4 mr-1" />
                                 )}
-                                <Circle className={cn("w-4 h-4 flex-shrink-0", item.isLinkedItem ? "text-gray-400" : "text-gray-400")} />
+                                <Circle className={cn("w-4 h-4 flex-shrink-0", item.isLinkedItem ? "text-stone-400" : "text-stone-400")} />
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-2">
-                                    <p className="font-medium text-gray-900 truncate">{item.name}</p>
+                                    <p className="font-medium text-stone-900 truncate">{item.name}</p>
                                     {item.isLinkedItem && item.parentId && (
                                       <Popover>
                                         <PopoverTrigger asChild>
@@ -4247,9 +4247,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                           </div>
                                           <div className="p-3 space-y-2">
                                             <div>
-                                              <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">Parent Item</p>
-                                              <p className="text-sm font-medium text-gray-900">{item.parentName}</p>
-                                              <p className="text-xs text-gray-500 mt-0.5">Section: {section.sectionName}</p>
+                                              <p className="text-[10px] text-stone-500 uppercase tracking-wide mb-1">Parent Item</p>
+                                              <p className="text-sm font-medium text-stone-900">{item.parentName}</p>
+                                              <p className="text-xs text-stone-500 mt-0.5">Section: {section.sectionName}</p>
                                             </div>
                                             <Button
                                               variant="outline"
@@ -4273,14 +4273,14 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                       </Popover>
                                     )}
                                   </div>
-                                  <p className="text-xs text-gray-500">{section.sectionName}</p>
+                                  <p className="text-xs text-stone-500">{section.sectionName}</p>
                                 </div>
                               </div>
                               <div className="w-20 flex-shrink-0 text-right">
                                 {item.docCode ? (
                                   <span className="text-[10px] font-mono font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded">{item.docCode}</span>
                                 ) : (
-                                  <span className="text-xs text-gray-300">—</span>
+                                  <span className="text-xs text-stone-300">—</span>
                                 )}
                               </div>
                               <DropdownMenu>
@@ -4288,7 +4288,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    className="h-7 text-xs gap-1 border-gray-300 text-gray-700 hover:bg-gray-100"
+                                    className="h-7 text-xs gap-1 border-stone-300 text-stone-700 hover:bg-stone-100"
                                   >
                                     <CheckCircle2 className="w-3.5 h-3.5" />
                                     Choose
@@ -4337,9 +4337,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             </div>
                             {/* Notes Display */}
                             {item.notes && (
-                              <div className="mt-2 ml-7 flex items-start gap-2 bg-gray-50 rounded-lg p-2">
-                                <StickyNote className="w-3.5 h-3.5 text-gray-400 mt-0.5 flex-shrink-0" />
-                                <p className="text-xs text-gray-600">{item.notes}</p>
+                              <div className="mt-2 ml-7 flex items-start gap-2 bg-stone-50 rounded-lg p-2">
+                                <StickyNote className="w-3.5 h-3.5 text-stone-400 mt-0.5 flex-shrink-0" />
+                                <p className="text-xs text-stone-600">{item.notes}</p>
                               </div>
                             )}
                           </div>
@@ -4352,7 +4352,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               )}
               
               {filteredFfeItems.every(room => room.sections.every(s => s.items.every(i => i.hasLinkedSpecs))) && (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-stone-500">
                   <CheckCircle2 className="w-12 h-12 mx-auto mb-3 text-emerald-500" />
                   <p className="font-medium text-emerald-700">All FFE items have products selected!</p>
                 </div>
@@ -4365,15 +4365,15 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       {/* All FFE Items Tab Content */}
       {activeTab === 'all-ffe' && (
         <div className="max-w-full mx-auto px-4 py-4">
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="bg-white rounded-xl border border-stone-200 p-6">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-500 to-gray-600 flex items-center justify-center shadow-sm">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-stone-400 to-stone-500 flex items-center justify-center shadow-sm">
                   <List className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">All FFE Items</h3>
-                  <p className="text-sm text-gray-600">
+                  <h3 className="text-lg font-semibold text-stone-900">All FFE Items</h3>
+                  <p className="text-sm text-stone-600">
                     Complete overview of all FFE items across rooms and sections
                   </p>
                 </div>
@@ -4428,8 +4428,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     })
                   })
                   return Array.from(byCategory.entries()).map(([category, { prefix, items }]) => (
-                    <div key={category} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                      <div className="flex items-center border-b border-gray-200 bg-gray-100/50">
+                    <div key={category} className="bg-white rounded-lg border border-stone-200 overflow-hidden">
+                      <div className="flex items-center border-b border-stone-200 bg-stone-100/50">
                         <button
                           onClick={() => setCollapsedNeedsSections(prev => {
                             const next = new Set(prev)
@@ -4438,18 +4438,18 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             else next.add(key)
                             return next
                           })}
-                          className="flex-1 px-4 py-2 flex items-center gap-2 hover:bg-gray-100 transition-colors cursor-pointer"
+                          className="flex-1 px-4 py-2 flex items-center gap-2 hover:bg-stone-100 transition-colors cursor-pointer"
                         >
                           {collapsedNeedsSections.has(`all-${category}`) ? (
-                            <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                            <ChevronRight className="w-4 h-4 text-stone-400 flex-shrink-0" />
                           ) : (
-                            <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                            <ChevronDown className="w-4 h-4 text-stone-400 flex-shrink-0" />
                           )}
-                          <span className="font-medium text-gray-900">{category}</span>
+                          <span className="font-medium text-stone-900">{category}</span>
                           {prefix && (
-                            <span className="text-xs font-mono text-gray-400 bg-gray-200/60 px-1.5 py-0.5 rounded">{prefix}</span>
+                            <span className="text-xs font-mono text-stone-400 bg-stone-200/60 px-1.5 py-0.5 rounded">{prefix}</span>
                           )}
-                          <span className="text-sm text-gray-500">({items.length} items)</span>
+                          <span className="text-sm text-stone-500">({items.length} items)</span>
                         </button>
                         <button
                           onClick={async (e) => {
@@ -4473,7 +4473,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               setRegenConfirmDialog(prev => ({ ...prev, open: false }))
                             }
                           }}
-                          className="px-3 py-1 mr-2 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded transition-colors flex items-center gap-1"
+                          className="px-3 py-1 mr-2 text-xs text-stone-500 hover:text-stone-700 hover:bg-stone-200 rounded transition-colors flex items-center gap-1"
                           title={`Regenerate doc codes for ${category}`}
                         >
                           <RefreshCw className="w-3 h-3" />
@@ -4481,22 +4481,22 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                         </button>
                       </div>
                       {!collapsedNeedsSections.has(`all-${category}`) && (
-                      <div className="divide-y divide-gray-100">
+                      <div className="divide-y divide-stone-100">
                         {items.map(({ roomName, item }) => (
-                          <div key={item.id} className="px-4 py-3 hover:bg-gray-50">
+                          <div key={item.id} className="px-4 py-3 hover:bg-stone-50">
                             <div className="flex items-center justify-between gap-3">
                               <div className="flex items-center gap-3 flex-1 min-w-0">
-                                <Circle className={cn("w-4 h-4 flex-shrink-0", item.hasLinkedSpecs ? "text-emerald-500" : "text-gray-300")} />
+                                <Circle className={cn("w-4 h-4 flex-shrink-0", item.hasLinkedSpecs ? "text-emerald-500" : "text-stone-300")} />
                                 <div className="min-w-0">
-                                  <p className="font-medium text-gray-900 truncate">{item.name}</p>
-                                  <p className="text-xs text-gray-500">{roomName}</p>
+                                  <p className="font-medium text-stone-900 truncate">{item.name}</p>
+                                  <p className="text-xs text-stone-500">{roomName}</p>
                                 </div>
                               </div>
                               <div className="w-20 flex-shrink-0 text-right">
                                 {item.docCode ? (
                                   <span className="text-[10px] font-mono font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded">{item.docCode}</span>
                                 ) : (
-                                  <span className="text-xs text-gray-300">—</span>
+                                  <span className="text-xs text-stone-300">—</span>
                                 )}
                               </div>
                               <div className="flex-shrink-0">
@@ -4506,7 +4506,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                     {item.status === 'chosen' ? 'Selected' : item.status}
                                   </Badge>
                                 ) : (
-                                  <Badge variant="outline" className="text-xs bg-gray-50 text-gray-500 border-gray-200">
+                                  <Badge variant="outline" className="text-xs bg-stone-50 text-stone-500 border-stone-200">
                                     <Circle className="w-3 h-3 mr-1" />
                                     Needs Selection
                                   </Badge>
@@ -4514,9 +4514,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               </div>
                             </div>
                             {item.notes && (
-                              <div className="mt-2 ml-7 flex items-start gap-2 bg-gray-50 rounded-lg p-2">
-                                <StickyNote className="w-3.5 h-3.5 text-gray-400 mt-0.5 flex-shrink-0" />
-                                <p className="text-xs text-gray-600">{item.notes}</p>
+                              <div className="mt-2 ml-7 flex items-start gap-2 bg-stone-50 rounded-lg p-2">
+                                <StickyNote className="w-3.5 h-3.5 text-stone-400 mt-0.5 flex-shrink-0" />
+                                <p className="text-xs text-stone-600">{item.notes}</p>
                               </div>
                             )}
                           </div>
@@ -4529,7 +4529,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               ) : (
                 // Group by room
                 filteredFfeItems.filter(room => room.sections.some(s => s.items.length > 0)).map(room => (
-                  <div key={room.roomId} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                  <div key={room.roomId} className="bg-white rounded-lg border border-stone-200 overflow-hidden">
                     <button
                       onClick={() => setCollapsedNeedsSections(prev => {
                         const next = new Set(prev)
@@ -4538,36 +4538,36 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                         else next.add(key)
                         return next
                       })}
-                      className="w-full bg-gray-100/50 px-4 py-2 border-b border-gray-200 flex items-center gap-2 hover:bg-gray-100 transition-colors cursor-pointer"
+                      className="w-full bg-stone-100/50 px-4 py-2 border-b border-stone-200 flex items-center gap-2 hover:bg-stone-100 transition-colors cursor-pointer"
                     >
                       {collapsedNeedsSections.has(`all-room-${room.roomId}`) ? (
-                        <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        <ChevronRight className="w-4 h-4 text-stone-400 flex-shrink-0" />
                       ) : (
-                        <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        <ChevronDown className="w-4 h-4 text-stone-400 flex-shrink-0" />
                       )}
-                      <span className="font-medium text-gray-900">{room.roomName}</span>
-                      <span className="text-sm text-gray-500">
+                      <span className="font-medium text-stone-900">{room.roomName}</span>
+                      <span className="text-sm text-stone-500">
                         ({room.sections.reduce((acc, s) => acc + s.items.length, 0)} items)
                       </span>
                     </button>
                     {!collapsedNeedsSections.has(`all-room-${room.roomId}`) && (
-                    <div className="divide-y divide-gray-100">
+                    <div className="divide-y divide-stone-100">
                       {room.sections.flatMap(section =>
                         section.items.map(item => (
-                          <div key={item.id} className="px-4 py-3 hover:bg-gray-50">
+                          <div key={item.id} className="px-4 py-3 hover:bg-stone-50">
                             <div className="flex items-center justify-between gap-3">
                               <div className="flex items-center gap-3 flex-1 min-w-0">
-                                <Circle className={cn("w-4 h-4 flex-shrink-0", item.hasLinkedSpecs ? "text-emerald-500" : "text-gray-300")} />
+                                <Circle className={cn("w-4 h-4 flex-shrink-0", item.hasLinkedSpecs ? "text-emerald-500" : "text-stone-300")} />
                                 <div className="min-w-0">
-                                  <p className="font-medium text-gray-900 truncate">{item.name}</p>
-                                  <p className="text-xs text-gray-500">{section.sectionName}</p>
+                                  <p className="font-medium text-stone-900 truncate">{item.name}</p>
+                                  <p className="text-xs text-stone-500">{section.sectionName}</p>
                                 </div>
                               </div>
                               <div className="w-20 flex-shrink-0 text-right">
                                 {item.docCode ? (
                                   <span className="text-[10px] font-mono font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded">{item.docCode}</span>
                                 ) : (
-                                  <span className="text-xs text-gray-300">—</span>
+                                  <span className="text-xs text-stone-300">—</span>
                                 )}
                               </div>
                               <div className="flex-shrink-0">
@@ -4577,7 +4577,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                     {item.status === 'chosen' ? 'Selected' : item.status}
                                   </Badge>
                                 ) : (
-                                  <Badge variant="outline" className="text-xs bg-gray-50 text-gray-500 border-gray-200">
+                                  <Badge variant="outline" className="text-xs bg-stone-50 text-stone-500 border-stone-200">
                                     <Circle className="w-3 h-3 mr-1" />
                                     Needs Selection
                                   </Badge>
@@ -4585,9 +4585,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               </div>
                             </div>
                             {item.notes && (
-                              <div className="mt-2 ml-7 flex items-start gap-2 bg-gray-50 rounded-lg p-2">
-                                <StickyNote className="w-3.5 h-3.5 text-gray-400 mt-0.5 flex-shrink-0" />
-                                <p className="text-xs text-gray-600">{item.notes}</p>
+                              <div className="mt-2 ml-7 flex items-start gap-2 bg-stone-50 rounded-lg p-2">
+                                <StickyNote className="w-3.5 h-3.5 text-stone-400 mt-0.5 flex-shrink-0" />
+                                <p className="text-xs text-stone-600">{item.notes}</p>
                               </div>
                             )}
                           </div>
@@ -4621,27 +4621,27 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     <span className="text-sm text-orange-600">({unlinkedSpecs.length} items not linked to any FFE requirement)</span>
                   </button>
                   {!collapsedNeedsSections.has('all-unlinked') && (
-                  <div className="divide-y divide-gray-100">
+                  <div className="divide-y divide-stone-100">
                     {unlinkedSpecs.map(spec => (
-                      <div key={spec.id} className="px-4 py-3 hover:bg-gray-50">
+                      <div key={spec.id} className="px-4 py-3 hover:bg-stone-50">
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex items-center gap-3 flex-1 min-w-0">
                             <AlertCircle className="w-4 h-4 text-orange-400 flex-shrink-0" />
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
-                                <p className="font-medium text-gray-900 truncate">{spec.name}</p>
+                                <p className="font-medium text-stone-900 truncate">{spec.name}</p>
                                 {spec.brand && (
-                                  <span className="text-xs text-gray-400 flex-shrink-0">{spec.brand}</span>
+                                  <span className="text-xs text-stone-400 flex-shrink-0">{spec.brand}</span>
                                 )}
                               </div>
-                              <p className="text-xs text-gray-500">{spec.roomName} &middot; {spec.sectionName}</p>
+                              <p className="text-xs text-stone-500">{spec.roomName} &middot; {spec.sectionName}</p>
                             </div>
                           </div>
                           <div className="w-20 flex-shrink-0 text-right">
                             {spec.docCode ? (
-                              <span className="text-xs font-mono font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">{spec.docCode}</span>
+                              <span className="text-xs font-mono font-medium text-stone-500 bg-stone-100 px-2 py-1 rounded">{spec.docCode}</span>
                             ) : (
-                              <span className="text-xs text-gray-300">—</span>
+                              <span className="text-xs text-stone-300">—</span>
                             )}
                           </div>
                           <Badge variant="outline" className="text-xs bg-orange-50 text-orange-600 border-orange-200 flex-shrink-0">
@@ -4657,10 +4657,10 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               )}
 
               {filteredFfeItems.every(room => room.sections.every(s => s.items.length === 0)) && unlinkedSpecs.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  <Package className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                  <p className="font-medium text-gray-500">No FFE items found</p>
-                  <p className="text-sm text-gray-400 mt-1">Add items in the FFE Workspace first</p>
+                <div className="text-center py-8 text-stone-500">
+                  <Package className="w-12 h-12 mx-auto mb-3 text-stone-300" />
+                  <p className="font-medium text-stone-500">No FFE items found</p>
+                  <p className="text-sm text-stone-400 mt-1">Add items in the FFE Workspace first</p>
                 </div>
               )}
             </div>
@@ -4694,13 +4694,13 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         ) : (
         <div className="max-w-full mx-auto px-4 py-4">
         {groupedSpecs.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-8">
+          <div className="bg-white rounded-xl border border-stone-200 p-8">
             {/* Show available sections if any - deduplicated by section name */}
             {availableRooms.some(r => r.sections.length > 0) ? (
               <div className="space-y-4">
                 <div className="text-center mb-6">
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Ready to add specs</h3>
-                  <p className="text-gray-500">Click on a section below to add items, or use the Chrome extension.</p>
+                  <h3 className="text-lg font-medium text-stone-900 mb-2">Ready to add specs</h3>
+                  <p className="text-stone-500">Click on a section below to add items, or use the Chrome extension.</p>
                 </div>
 
                 {/* Deduplicate sections by name - show each section once */}
@@ -4717,20 +4717,20 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 })().map(section => (
                   <div
                     key={section.id}
-                    className="group flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-emerald-300 hover:bg-emerald-50/50 transition-colors"
+                    className="group flex items-center justify-between p-4 bg-stone-50 rounded-lg border border-stone-200 hover:border-emerald-300 hover:bg-emerald-50/50 transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      <Layers className="w-5 h-5 text-gray-400" />
+                      <Layers className="w-5 h-5 text-stone-400" />
                       <div>
-                        <p className="font-medium text-gray-900">{section.name}</p>
-                        <p className="text-sm text-gray-500">No items yet</p>
+                        <p className="font-medium text-stone-900">{section.name}</p>
+                        <p className="text-sm text-stone-500">No items yet</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-7 text-xs gap-1.5 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600"
+                        className="h-7 text-xs gap-1.5 border-dashed border-stone-300 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600"
                         onClick={() => openLibraryModal(section.id, section.roomId)}
                       >
                         <Library className="w-3.5 h-3.5" />
@@ -4739,7 +4739,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-7 text-xs gap-1.5 border-dashed border-gray-300 hover:border-purple-400 hover:bg-purple-50 hover:text-purple-600"
+                        className="h-7 text-xs gap-1.5 border-dashed border-stone-300 hover:border-purple-400 hover:bg-purple-50 hover:text-purple-600"
                         onClick={() => setAddFromUrlModal({ open: true, sectionId: section.id, roomId: section.roomId })}
                       >
                         <Sparkles className="w-3.5 h-3.5" />
@@ -4748,7 +4748,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-7 text-xs gap-1.5 border-dashed border-gray-300 hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-600"
+                        className="h-7 text-xs gap-1.5 border-dashed border-stone-300 hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-600"
                         onClick={() => setDetailPanel({
                           isOpen: true,
                           mode: 'create',
@@ -4764,7 +4764,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   </div>
                 ))}
                 
-                <div className="text-center pt-4 border-t border-gray-200 mt-6">
+                <div className="text-center pt-4 border-t border-stone-200 mt-6">
                   <Button 
                     variant="outline"
                     onClick={() => setAddSectionModal({ open: true, categoryName: null })}
@@ -4777,9 +4777,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               </div>
             ) : (
               <div className="text-center">
-                <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No specs found</h3>
-                <p className="text-gray-500 mb-6">Add product specifications using the Chrome extension or manually below.</p>
+                <Package className="w-12 h-12 text-stone-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-stone-900 mb-2">No specs found</h3>
+                <p className="text-stone-500 mb-6">Add product specifications using the Chrome extension or manually below.</p>
                 
                 <div className="flex justify-center gap-3">
                   <Button 
@@ -5086,34 +5086,34 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                         />
                                       )}
                                       <div className="min-w-0 flex-1">
-                                        <p className="font-medium text-sm text-gray-900 truncate">{displayItem.name}</p>
-                                        {displayItem.brand && <p className="text-xs text-gray-500">{displayItem.brand}</p>}
-                                        {displayItem.modelNumber && <p className="text-xs text-gray-400">{displayItem.modelNumber}</p>}
+                                        <p className="font-medium text-sm text-stone-900 truncate">{displayItem.name}</p>
+                                        {displayItem.brand && <p className="text-xs text-stone-500">{displayItem.brand}</p>}
+                                        {displayItem.modelNumber && <p className="text-xs text-stone-400">{displayItem.modelNumber}</p>}
                                       </div>
                                     </div>
                                     <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs border-t pt-2">
                                       {displayItem.color && (
-                                        <div><span className="text-gray-400">Color:</span> <span className="text-gray-700">{displayItem.color}</span></div>
+                                        <div><span className="text-stone-400">Color:</span> <span className="text-stone-700">{displayItem.color}</span></div>
                                       )}
                                       {displayItem.finish && (
-                                        <div><span className="text-gray-400">Finish:</span> <span className="text-gray-700">{displayItem.finish}</span></div>
+                                        <div><span className="text-stone-400">Finish:</span> <span className="text-stone-700">{displayItem.finish}</span></div>
                                       )}
                                       {displayItem.material && (
-                                        <div><span className="text-gray-400">Material:</span> <span className="text-gray-700">{displayItem.material}</span></div>
+                                        <div><span className="text-stone-400">Material:</span> <span className="text-stone-700">{displayItem.material}</span></div>
                                       )}
                                       {(displayItem.width || displayItem.height || displayItem.depth || displayItem.length) && (
                                         <div>
-                                          <span className="text-gray-400">Dims:</span>{' '}
-                                          <span className="text-gray-700">
+                                          <span className="text-stone-400">Dims:</span>{' '}
+                                          <span className="text-stone-700">
                                             {[displayItem.width, displayItem.length, displayItem.height, displayItem.depth].filter(Boolean).join(' × ')}
                                           </span>
                                         </div>
                                       )}
                                       {displayItem.quantity && (
-                                        <div><span className="text-gray-400">Qty:</span> <span className="text-gray-700">{displayItem.quantity} {displayItem.unitType || 'units'}</span></div>
+                                        <div><span className="text-stone-400">Qty:</span> <span className="text-stone-700">{displayItem.quantity} {displayItem.unitType || 'units'}</span></div>
                                       )}
                                       {displayItem.leadTime && (
-                                        <div><span className="text-gray-400">Lead Time:</span> <span className="text-gray-700 font-medium">{formatLeadTime(displayItem.leadTime)}</span></div>
+                                        <div><span className="text-stone-400">Lead Time:</span> <span className="text-stone-700 font-medium">{formatLeadTime(displayItem.leadTime)}</span></div>
                                       )}
                                       {(displayItem.supplierName || displayItem.supplierId) && (
                                         (() => {
@@ -5124,9 +5124,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                           const contactName = phonebookSupplier?.contactName || (displayItem.supplierName?.includes(' / ') ? displayItem.supplierName.split(' / ').slice(1).join(' / ') : null)
                                           return (
                                             <div className="col-span-2">
-                                              <span className="text-gray-400">Supplier:</span>{' '}
-                                              <span className="text-gray-700">{businessName}</span>
-                                              {contactName && <span className="text-gray-500 text-[10px] ml-1">({contactName})</span>}
+                                              <span className="text-stone-400">Supplier:</span>{' '}
+                                              <span className="text-stone-700">{businessName}</span>
+                                              {contactName && <span className="text-stone-500 text-[10px] ml-1">({contactName})</span>}
                                             </div>
                                           )
                                         })()
@@ -5140,9 +5140,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                           const rrpTotal = ((displayItem.rrp || 0) * qty) + componentsRrp
                                           return (
                                             <div className="col-span-2 pt-1 border-t mt-1">
-                                              {tradeTotal > 0 && <span className="text-gray-700 font-medium">${tradeTotal.toFixed(2)} trade</span>}
-                                              {tradeTotal > 0 && rrpTotal > 0 && <span className="text-gray-300 mx-1">|</span>}
-                                              {rrpTotal > 0 && <span className="text-gray-500">${rrpTotal.toFixed(2)} RRP</span>}
+                                              {tradeTotal > 0 && <span className="text-stone-700 font-medium">${tradeTotal.toFixed(2)} trade</span>}
+                                              {tradeTotal > 0 && rrpTotal > 0 && <span className="text-stone-300 mx-1">|</span>}
+                                              {rrpTotal > 0 && <span className="text-stone-500">${rrpTotal.toFixed(2)} RRP</span>}
                                             </div>
                                           )
                                         })()
@@ -5196,7 +5196,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                       <PopoverContent className="w-48 p-2" align="start" onClick={(e) => e.stopPropagation()}>
                                         <p className="text-xs font-medium mb-1">Flagged</p>
                                         {(item.customFields as any)?.flag?.note && (
-                                          <p className="text-xs text-gray-600">{(item.customFields as any).flag.note}</p>
+                                          <p className="text-xs text-stone-600">{(item.customFields as any).flag.note}</p>
                                         )}
                                         <Button 
                                           variant="ghost" 
@@ -5273,7 +5273,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                                     return (
                                                       <div
                                                         key={idx}
-                                                        className="flex items-center gap-2 p-2 rounded hover:bg-gray-50 transition-colors cursor-pointer"
+                                                        className="flex items-center gap-2 p-2 rounded hover:bg-stone-50 transition-colors cursor-pointer"
                                                         onClick={(e) => {
                                                           e.stopPropagation()
                                                           // Open the child item in the detail panel
@@ -5296,16 +5296,16 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                                           </span>
                                                         )}
                                                         <div className="flex-1 min-w-0">
-                                                          <p className="text-xs font-medium text-gray-900 truncate">{childName}</p>
+                                                          <p className="text-xs font-medium text-stone-900 truncate">{childName}</p>
                                                           {childSpec && (
                                                             <div className="flex items-center gap-2 mt-0.5">
                                                               {childSpec.brand && (
-                                                                <span className="text-[10px] text-gray-500">{childSpec.brand}</span>
+                                                                <span className="text-[10px] text-stone-500">{childSpec.brand}</span>
                                                               )}
                                                               {childSpec.specStatus && (
                                                                 <span className={`text-[9px] px-1.5 py-0.5 rounded ${
                                                                   childSpec.specStatus === 'SELECTED' ? 'bg-emerald-100 text-emerald-700' :
-                                                                  childSpec.specStatus === 'DRAFT' ? 'bg-gray-100 text-gray-600' :
+                                                                  childSpec.specStatus === 'DRAFT' ? 'bg-stone-100 text-stone-600' :
                                                                   'bg-blue-100 text-blue-700'
                                                                 }`}>
                                                                   {childSpec.specStatus}
@@ -5367,10 +5367,10 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                               <div className="p-3 space-y-3">
                                                 {/* Parent item info */}
                                                 <div>
-                                                  <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">Parent Item</p>
-                                                  <p className="text-sm font-medium text-gray-900">{parentName}</p>
+                                                  <p className="text-[10px] text-stone-500 uppercase tracking-wide mb-1">Parent Item</p>
+                                                  <p className="text-sm font-medium text-stone-900">{parentName}</p>
                                                   {displayItem.linkedFfeItems?.[0]?.sectionName && (
-                                                    <p className="text-xs text-gray-500 mt-0.5">
+                                                    <p className="text-xs text-stone-500 mt-0.5">
                                                       Section: {displayItem.linkedFfeItems[0].sectionName}
                                                     </p>
                                                   )}
@@ -5449,10 +5449,10 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                       <PopoverTrigger asChild>
                                         <button
                                           onClick={(e) => e.stopPropagation()}
-                                          className="inline-flex items-center gap-1 text-[10px] text-gray-500 uppercase tracking-wide mt-0.5 hover:text-gray-700"
+                                          className="inline-flex items-center gap-1 text-[10px] text-stone-500 uppercase tracking-wide mt-0.5 hover:text-stone-700"
                                         >
                                           {uniqueRooms[0].roomName}
-                                          <span className="px-1 py-0.5 bg-gray-200 text-gray-600 rounded text-[9px] font-medium normal-case">
+                                          <span className="px-1 py-0.5 bg-stone-200 text-stone-600 rounded text-[9px] font-medium normal-case">
                                             +{additionalRoomsCount}
                                           </span>
                                         </button>
@@ -5462,15 +5462,15 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                         align="start"
                                         onClick={(e) => e.stopPropagation()}
                                       >
-                                        <div className="p-2 border-b bg-gray-50">
-                                          <p className="text-xs font-medium text-gray-700">
+                                        <div className="p-2 border-b bg-stone-50">
+                                          <p className="text-xs font-medium text-stone-700">
                                             All Linked Rooms ({uniqueRooms.length})
                                           </p>
                                         </div>
                                         <div className="max-h-32 overflow-y-auto divide-y">
                                           {/* Show ALL rooms including the first one */}
                                           {uniqueRooms.map((ffeItem, idx) => (
-                                            <div key={idx} className="p-2 text-xs text-gray-700">
+                                            <div key={idx} className="p-2 text-xs text-stone-700">
                                               {ffeItem.roomName}
                                             </div>
                                           ))}
@@ -5480,7 +5480,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   )
                                 }
                                 return (
-                                  <p className="text-[10px] text-gray-500 uppercase tracking-wide mt-0.5 truncate">
+                                  <p className="text-[10px] text-stone-500 uppercase tracking-wide mt-0.5 truncate">
                                     {uniqueRooms.length > 0 ? uniqueRooms[0].roomName : item.roomName}
                                   </p>
                                 )
@@ -5512,8 +5512,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                           align="start"
                                           onClick={(e) => e.stopPropagation()}
                                         >
-                                          <div className="p-2 border-b bg-gray-50">
-                                            <p className="text-xs font-medium text-gray-700">
+                                          <div className="p-2 border-b bg-stone-50">
+                                            <p className="text-xs font-medium text-stone-700">
                                               All Linked FFE Items ({uniqueNames.length})
                                             </p>
                                           </div>
@@ -5526,10 +5526,10 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                                 className="flex items-center justify-between gap-2 p-2 hover:bg-blue-50 transition-colors"
                                               >
                                                 <div className="min-w-0">
-                                                  <p className="text-xs font-medium text-gray-900 truncate">
+                                                  <p className="text-xs font-medium text-stone-900 truncate">
                                                     {ffeItem.ffeItemName}
                                                   </p>
-                                                  <p className="text-[10px] text-gray-500 truncate">
+                                                  <p className="text-[10px] text-stone-500 truncate">
                                                     {ffeItem.roomName} · {ffeItem.sectionName}
                                                   </p>
                                                 </div>
@@ -5598,7 +5598,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                     </a>
                                   ) : (
                                     <button 
-                                      className="p-1.5 text-gray-300 hover:text-blue-500 hover:bg-blue-50 rounded-full transition-colors"
+                                      className="p-1.5 text-stone-300 hover:text-blue-500 hover:bg-blue-50 rounded-full transition-colors"
                                       onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'supplierLink', '') }}
                                       title="Add product link"
                                     >
@@ -5611,7 +5611,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             
                             {/* Doc Code - Shows linked FFE doc codes with color */}
                             <div className="w-16 lg:w-24 min-w-[60px] h-9 flex-shrink-0">
-                              <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Doc Code</p>
+                              <p className="text-[9px] text-stone-400 uppercase tracking-wide mb-0.5">Doc Code</p>
                               {(() => {
                                 // Derive display doc codes from linked FFE items (many-to-many) or legacy link
                                 const linkedDocCodes = (displayItem.linkedFfeItems || [])
@@ -5637,7 +5637,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                     const prefix = prefixMatch[1]
                                     return (
                                       <div className="flex items-center h-6">
-                                        <span className="text-xs text-gray-500 font-mono mr-0.5">{prefix}-</span>
+                                        <span className="text-xs text-stone-500 font-mono mr-0.5">{prefix}-</span>
                                         <Input
                                           value={editValue}
                                           onChange={(e) => setEditValue(e.target.value.replace(/\D/g, '').slice(0, 3))}
@@ -5693,7 +5693,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 if (docCodes.length === 1) {
                                   return (
                                     <span
-                                      className="inline-flex items-center text-[11px] font-mono font-medium text-gray-700 cursor-text hover:text-indigo-600 transition-colors truncate"
+                                      className="inline-flex items-center text-[11px] font-mono font-medium text-stone-700 cursor-text hover:text-indigo-600 transition-colors truncate"
                                       onClick={(e) => {
                                         e.stopPropagation()
                                         const prefixMatch = docCodes[0].match(/^([A-Z]{1,3})-(\d+)$/)
@@ -5716,7 +5716,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                     <PopoverTrigger asChild>
                                       <button
                                         onClick={(e) => e.stopPropagation()}
-                                        className="inline-flex items-center gap-0.5 text-[11px] font-mono font-medium text-gray-700 hover:text-indigo-600 transition-colors truncate"
+                                        className="inline-flex items-center gap-0.5 text-[11px] font-mono font-medium text-stone-700 hover:text-indigo-600 transition-colors truncate"
                                         title={docCodes.join(', ')}
                                       >
                                         {docCodes[0]}
@@ -5740,7 +5740,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                                 {code}
                                               </span>
                                               {linkedItem && (
-                                                <span className="text-[10px] text-gray-500 truncate">
+                                                <span className="text-[10px] text-stone-500 truncate">
                                                   {linkedItem.roomName}
                                                 </span>
                                               )}
@@ -5756,7 +5756,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
                             {/* Model - Shrinkable width for longer model numbers */}
                             <div className="w-14 lg:w-20 min-w-[50px] h-9 flex-shrink">
-                              <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Model</p>
+                              <p className="text-[9px] text-stone-400 uppercase tracking-wide mb-0.5">Model</p>
                               {editingField?.itemId === item.id && editingField?.field === 'modelNumber' ? (
                                 <Input
                                   value={editValue}
@@ -5769,7 +5769,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 />
                               ) : (
                                 <p 
-                                  className="text-xs text-gray-900 truncate cursor-text hover:bg-gray-100 rounded px-1 -mx-1"
+                                  className="text-xs text-stone-900 truncate cursor-text hover:bg-stone-100 rounded px-1 -mx-1"
                                   onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'modelNumber', item.modelNumber || item.sku || '') }}
                                   title={item.modelNumber || item.sku || 'Click to add model'}
                                 >
@@ -5780,7 +5780,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             
                             {/* Brand - Shrinkable width */}
                             <div className="w-16 lg:w-28 min-w-[56px] h-9 flex-shrink">
-                              <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Brand</p>
+                              <p className="text-[9px] text-stone-400 uppercase tracking-wide mb-0.5">Brand</p>
                               {editingField?.itemId === item.id && editingField?.field === 'brand' ? (
                                 <Input
                                   value={editValue}
@@ -5792,7 +5792,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 />
                               ) : (
                                 <p
-                                  className="text-xs text-gray-700 truncate cursor-text hover:bg-gray-100 rounded px-1 -mx-1"
+                                  className="text-xs text-stone-700 truncate cursor-text hover:bg-stone-100 rounded px-1 -mx-1"
                                   onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'brand', item.brand || '') }}
                                   title={item.brand || undefined}
                                 >
@@ -5803,7 +5803,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
                             {/* Width (IN) */}
                             <div className="w-10 lg:w-12 min-w-[36px] h-9 text-center flex-shrink">
-                              <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Width</p>
+                              <p className="text-[9px] text-stone-400 uppercase tracking-wide mb-0.5">Width</p>
                               {editingField?.itemId === item.id && editingField?.field === 'width' ? (
                                 <Input
                                   value={editValue}
@@ -5815,7 +5815,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 />
                               ) : (
                                 <p
-                                  className="text-xs text-gray-700 truncate cursor-text hover:bg-gray-100 rounded px-1"
+                                  className="text-xs text-stone-700 truncate cursor-text hover:bg-stone-100 rounded px-1"
                                   onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'width', item.width || '') }}
                                   title={item.width || undefined}
                                 >
@@ -5826,7 +5826,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
                             {/* Length (IN) */}
                             <div className="flex-shrink-0 w-12 h-9 text-center">
-                              <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Length</p>
+                              <p className="text-[9px] text-stone-400 uppercase tracking-wide mb-0.5">Length</p>
                               {editingField?.itemId === item.id && editingField?.field === 'length' ? (
                                 <Input
                                   value={editValue}
@@ -5838,7 +5838,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 />
                               ) : (
                                 <p
-                                  className="text-xs text-gray-700 truncate cursor-text hover:bg-gray-100 rounded px-1"
+                                  className="text-xs text-stone-700 truncate cursor-text hover:bg-stone-100 rounded px-1"
                                   onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'length', item.length || '') }}
                                   title={item.length || undefined}
                                 >
@@ -5849,7 +5849,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
                             {/* Height (IN) */}
                             <div className="w-10 lg:w-12 min-w-[36px] h-9 text-center flex-shrink">
-                              <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Height</p>
+                              <p className="text-[9px] text-stone-400 uppercase tracking-wide mb-0.5">Height</p>
                               {editingField?.itemId === item.id && editingField?.field === 'height' ? (
                                 <Input
                                   value={editValue}
@@ -5861,7 +5861,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 />
                               ) : (
                                 <p
-                                  className="text-xs text-gray-700 truncate cursor-text hover:bg-gray-100 rounded px-1"
+                                  className="text-xs text-stone-700 truncate cursor-text hover:bg-stone-100 rounded px-1"
                                   onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'height', item.height || '') }}
                                   title={item.height || undefined}
                                 >
@@ -5872,7 +5872,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
                             {/* Depth (IN) */}
                             <div className="w-10 lg:w-12 min-w-[36px] h-9 text-center flex-shrink">
-                              <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Depth</p>
+                              <p className="text-[9px] text-stone-400 uppercase tracking-wide mb-0.5">Depth</p>
                               {editingField?.itemId === item.id && editingField?.field === 'depth' ? (
                                 <Input
                                   value={editValue}
@@ -5884,7 +5884,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 />
                               ) : (
                                 <p
-                                  className="text-xs text-gray-700 truncate cursor-text hover:bg-gray-100 rounded px-1"
+                                  className="text-xs text-stone-700 truncate cursor-text hover:bg-stone-100 rounded px-1"
                                   onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'depth', item.depth || '') }}
                                   title={item.depth || undefined}
                                 >
@@ -5895,7 +5895,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
                             {/* Colour */}
                             <div className="w-12 lg:w-20 min-w-[44px] h-9 flex-shrink">
-                              <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Colour</p>
+                              <p className="text-[9px] text-stone-400 uppercase tracking-wide mb-0.5">Colour</p>
                               {editingField?.itemId === item.id && editingField?.field === 'color' ? (
                                 <Input
                                   value={editValue}
@@ -5907,7 +5907,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 />
                               ) : (
                                 <p
-                                  className="text-xs text-gray-700 truncate cursor-text hover:bg-gray-100 rounded px-1 -mx-1"
+                                  className="text-xs text-stone-700 truncate cursor-text hover:bg-stone-100 rounded px-1 -mx-1"
                                   onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'color', item.color || '') }}
                                   title={item.color || undefined}
                                 >
@@ -5918,7 +5918,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
                             {/* Finish */}
                             <div className="w-12 lg:w-20 min-w-[44px] h-9 flex-shrink">
-                              <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Finish</p>
+                              <p className="text-[9px] text-stone-400 uppercase tracking-wide mb-0.5">Finish</p>
                               {editingField?.itemId === item.id && editingField?.field === 'finish' ? (
                                 <Input
                                   value={editValue}
@@ -5930,7 +5930,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 />
                               ) : (
                                 <p
-                                  className="text-xs text-gray-700 truncate cursor-text hover:bg-gray-100 rounded px-1 -mx-1"
+                                  className="text-xs text-stone-700 truncate cursor-text hover:bg-stone-100 rounded px-1 -mx-1"
                                   onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'finish', item.finish || '') }}
                                   title={item.finish || undefined}
                                 >
@@ -5941,7 +5941,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
                             {/* Material - Shrinkable width */}
                             <div className="w-12 lg:w-20 min-w-[44px] h-9 flex-shrink">
-                              <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Material</p>
+                              <p className="text-[9px] text-stone-400 uppercase tracking-wide mb-0.5">Material</p>
                               {editingField?.itemId === item.id && editingField?.field === 'material' ? (
                                 <Input
                                   value={editValue}
@@ -5953,7 +5953,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 />
                               ) : (
                                 <p
-                                  className="text-xs text-gray-700 truncate cursor-text hover:bg-gray-100 rounded px-1 -mx-1"
+                                  className="text-xs text-stone-700 truncate cursor-text hover:bg-stone-100 rounded px-1 -mx-1"
                                   onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'material', item.material || '') }}
                                   title={item.material || undefined}
                                 >
@@ -5964,7 +5964,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
                             {/* QTY - Shrinkable width */}
                             <div className="w-10 lg:w-14 min-w-[32px] h-9 text-center flex-shrink">
-                              <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Qty</p>
+                              <p className="text-[9px] text-stone-400 uppercase tracking-wide mb-0.5">Qty</p>
                               {editingField?.itemId === item.id && editingField?.field === 'quantity' ? (
                                 <Input
                                   value={editValue}
@@ -5978,7 +5978,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 />
                               ) : (
                                 <p 
-                                  className="text-xs text-gray-700 cursor-text hover:bg-gray-100 rounded px-1"
+                                  className="text-xs text-stone-700 cursor-text hover:bg-stone-100 rounded px-1"
                                   onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'quantity', item.quantity?.toString() || '1') }}
                                 >
                                   {item.quantity || 1}
@@ -5988,14 +5988,14 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             
                             {/* Unit Type - Shrinkable width with dropdown picker (like Supplier) */}
                             <div className="w-10 lg:w-14 min-w-[32px] h-9 flex-shrink" onClick={(e) => e.stopPropagation()}>
-                              <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Unit</p>
+                              <p className="text-[9px] text-stone-400 uppercase tracking-wide mb-0.5">Unit</p>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <button 
-                                    className="w-full text-left text-xs text-gray-700 truncate cursor-pointer hover:bg-gray-100 rounded px-1 -mx-1 py-0.5"
+                                    className="w-full text-left text-xs text-stone-700 truncate cursor-pointer hover:bg-stone-100 rounded px-1 -mx-1 py-0.5"
                                     onClick={(e) => e.stopPropagation()}
                                   >
-                                    {item.unitType && item.unitType !== 'units' ? item.unitType.toUpperCase() : <span className="text-gray-400">-</span>}
+                                    {item.unitType && item.unitType !== 'units' ? item.unitType.toUpperCase() : <span className="text-stone-400">-</span>}
                                   </button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="start" className="w-32">
@@ -6016,7 +6016,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                           console.error('Error updating unit type:', error)
                                         }
                                       }}
-                                      className={item.unitType === opt.value ? 'bg-gray-100' : ''}
+                                      className={item.unitType === opt.value ? 'bg-stone-100' : ''}
                                     >
                                       {opt.label}
                                     </DropdownMenuItem>
@@ -6027,17 +6027,17 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             
                             {/* Lead Time - Shrinkable width with dropdown picker (like Supplier) */}
                             <div className="w-16 lg:w-24 min-w-[56px] h-9 mr-1 lg:mr-3 flex-shrink" onClick={(e) => e.stopPropagation()}>
-                              <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Lead Time</p>
+                              <p className="text-[9px] text-stone-400 uppercase tracking-wide mb-0.5">Lead Time</p>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <button
-                                    className="w-full text-left text-xs text-gray-700 cursor-pointer hover:bg-gray-100 rounded px-1 -mx-1 py-0.5"
+                                    className="w-full text-left text-xs text-stone-700 cursor-pointer hover:bg-stone-100 rounded px-1 -mx-1 py-0.5"
                                     onClick={(e) => e.stopPropagation()}
                                   >
                                     {item.leadTime ? (
                                       formatLeadTime(item.leadTime)
                                     ) : (
-                                      <span className="text-gray-400">-</span>
+                                      <span className="text-stone-400">-</span>
                                     )}
                                   </button>
                                 </DropdownMenuTrigger>
@@ -6060,7 +6060,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                           console.error('Error updating lead time:', error)
                                         }
                                       }}
-                                      className={(!item.leadTime && opt.value === 'none') || item.leadTime === opt.value ? 'bg-gray-100' : ''}
+                                      className={(!item.leadTime && opt.value === 'none') || item.leadTime === opt.value ? 'bg-stone-100' : ''}
                                     >
                                       {opt.label}
                                     </DropdownMenuItem>
@@ -6085,7 +6085,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                     <>
                                       {/* Trade Price - shows total: (unit × qty) + components */}
                                       <div className="flex-shrink w-16 lg:w-24 h-9 text-right">
-                                        <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">
+                                        <p className="text-[9px] text-stone-400 uppercase tracking-wide mb-0.5">
                                           Trade {isUsdTrade && <span className="text-blue-500">(USD)</span>}
                                         </p>
                                         {editingField?.itemId === item.id && editingField?.field === 'tradePrice' ? (
@@ -6106,7 +6106,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                             const total = itemTradeTotal + componentsPrice
                                             return (
                                               <p
-                                                className={`text-xs cursor-text hover:bg-gray-100 rounded px-1 ${isUsdTrade ? 'text-blue-600' : 'text-gray-900'}`}
+                                                className={`text-xs cursor-text hover:bg-stone-100 rounded px-1 ${isUsdTrade ? 'text-blue-600' : 'text-stone-900'}`}
                                                 onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'tradePrice', item.tradePrice?.toString() || '') }}
                                                 title={componentsPrice > 0 ? `Item: ${formatCurrency(item.tradePrice || 0)} × ${item.quantity || 1} + Components: ${formatCurrency(componentsPrice)}` : (item.quantity || 1) > 1 ? `${formatCurrency(item.tradePrice || 0)} × ${item.quantity}` : undefined}
                                               >
@@ -6119,7 +6119,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
                                       {/* Markup % - hidden on small screens */}
                                       <div className="hidden md:block flex-shrink w-12 lg:w-16 h-9 text-right">
-                                        <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Markup</p>
+                                        <p className="text-[9px] text-stone-400 uppercase tracking-wide mb-0.5">Markup</p>
                                         {editingField?.itemId === item.id && editingField?.field === 'markupPercent' ? (
                                           <Input
                                             value={editValue}
@@ -6143,7 +6143,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                             }
                                             return (
                                               <p
-                                                className={`text-xs cursor-text hover:bg-gray-100 rounded px-1 ${displayMarkup != null ? (isCalculated ? 'text-purple-600' : 'text-gray-900') : 'text-gray-400'}`}
+                                                className={`text-xs cursor-text hover:bg-stone-100 rounded px-1 ${displayMarkup != null ? (isCalculated ? 'text-purple-600' : 'text-stone-900') : 'text-stone-400'}`}
                                                 onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'markupPercent', item.markupPercent?.toString() || '') }}
                                                 title={isCalculated ? 'Calculated from Trade Price & RRP' : (item.tradePrice ? 'Enter markup % to auto-calculate RRP' : 'Add trade price first')}
                                               >
@@ -6156,7 +6156,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
                                       {/* RRP - shows total: (unit × qty) + components with markup */}
                                       <div className="flex-shrink w-16 lg:w-20 h-9 text-right">
-                                        <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">
+                                        <p className="text-[9px] text-stone-400 uppercase tracking-wide mb-0.5">
                                           RRP {isUsdRrp && <span className="text-blue-500">(USD)</span>}
                                         </p>
                                         {editingField?.itemId === item.id && editingField?.field === 'rrp' ? (
@@ -6180,7 +6180,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                             const total = itemRrpTotal + componentsRrp
                                             return (
                                               <p
-                                                className={`text-xs cursor-text hover:bg-gray-100 rounded px-1 ${isUsdRrp ? 'text-blue-600' : 'text-gray-900'}`}
+                                                className={`text-xs cursor-text hover:bg-stone-100 rounded px-1 ${isUsdRrp ? 'text-blue-600' : 'text-stone-900'}`}
                                                 onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'rrp', item.rrp?.toString() || '') }}
                                                 title={componentsPrice > 0 ? `Item: ${formatCurrency(item.rrp || 0)} × ${item.quantity || 1} + Components: ${formatCurrency(componentsRrp)}${markupPercent > 0 ? ` (+${markupPercent}%)` : ''}` : (item.quantity || 1) > 1 ? `${formatCurrency(item.rrp || 0)} × ${item.quantity}` : undefined}
                                               >
@@ -6198,11 +6198,11 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             
                             {/* Supplier - Flexible to fill space with minimum width, allows 2 lines */}
                             <div className="flex-1 min-w-[80px] lg:min-w-[120px] h-9 relative" onClick={(e) => e.stopPropagation()}>
-                              <p className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Supplier</p>
+                              <p className="text-[9px] text-stone-400 uppercase tracking-wide mb-0.5">Supplier</p>
                               <Popover open={supplierPickerItem === item.id} onOpenChange={(open) => setSupplierPickerItem(open ? item.id : null)}>
                                 <PopoverTrigger asChild>
                                   <button
-                                    className="w-full text-left cursor-pointer hover:bg-gray-100 rounded px-1 -mx-1 py-0.5"
+                                    className="w-full text-left cursor-pointer hover:bg-stone-100 rounded px-1 -mx-1 py-0.5"
                                     onClick={(e) => e.stopPropagation()}
                                     title={item.supplierName || undefined}
                                   >
@@ -6229,15 +6229,15 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
                                         return (
                                           <div className="leading-tight">
-                                            <span className="text-xs text-gray-700 truncate block">{businessName}</span>
+                                            <span className="text-xs text-stone-700 truncate block">{businessName}</span>
                                             {contactName && (
-                                              <span className="text-[10px] text-gray-400 truncate block">{contactName}</span>
+                                              <span className="text-[10px] text-stone-400 truncate block">{contactName}</span>
                                             )}
                                           </div>
                                         )
                                       })()
                                     ) : (
-                                      <span className="text-xs text-gray-400">Select Supplier</span>
+                                      <span className="text-xs text-stone-400">Select Supplier</span>
                                     )}
                                   </button>
                                 </PopoverTrigger>
@@ -6265,7 +6265,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                                 <div className="min-w-0 flex-1">
                                                   <p className="font-medium truncate">{supplier.name}</p>
                                                   {supplier.contactName && (
-                                                    <p className="text-gray-500 text-[10px] truncate">{supplier.contactName}</p>
+                                                    <p className="text-stone-500 text-[10px] truncate">{supplier.contactName}</p>
                                                   )}
                                                 </div>
                                               </div>
@@ -6289,7 +6289,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                             setSupplierPickerItem(null)
                                             startEditing(item.id, 'supplierName', item.supplierName || '')
                                           }}
-                                          className="text-xs text-gray-500 cursor-pointer"
+                                          className="text-xs text-stone-500 cursor-pointer"
                                         >
                                           <span className="w-3.5 h-3.5 mr-2" />
                                           Enter Manually
@@ -6329,10 +6329,10 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   className={cn(
                                     "flex items-center justify-center gap-1 px-1.5 lg:px-2 py-1 rounded border text-xs transition-all w-auto lg:w-[90px]",
                                     ['CONTRACTOR_TO_ORDER', 'CLIENT_TO_ORDER'].includes(item.specStatus || '')
-                                      ? "bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed"
+                                      ? "bg-stone-50 border-stone-200 text-stone-400 cursor-not-allowed"
                                       : item.clientApproved
                                         ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
-                                        : "bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50"
+                                        : "bg-white border-stone-200 text-stone-500 hover:border-stone-300 hover:bg-stone-50"
                                   )}
                                   title={
                                     ['CONTRACTOR_TO_ORDER', 'CLIENT_TO_ORDER'].includes(item.specStatus || '')
@@ -6345,7 +6345,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   {item.clientApproved ? (
                                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
                                   ) : (
-                                    <Circle className={cn("w-3.5 h-3.5 flex-shrink-0", ['CONTRACTOR_TO_ORDER', 'CLIENT_TO_ORDER'].includes(item.specStatus || '') ? "text-gray-300" : "text-gray-300")} />
+                                    <Circle className={cn("w-3.5 h-3.5 flex-shrink-0", ['CONTRACTOR_TO_ORDER', 'CLIENT_TO_ORDER'].includes(item.specStatus || '') ? "text-stone-300" : "text-stone-300")} />
                                   )}
                                   <span className="hidden lg:inline">{item.clientApproved ? 'Approved' : 'Approve'}</span>
                                 </button>
@@ -6354,11 +6354,11 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <button
-                                      className="flex items-center gap-1 px-1.5 lg:px-2 py-1 rounded border border-gray-200 hover:border-gray-300 bg-white text-xs transition-colors whitespace-nowrap w-auto lg:w-[130px]"
+                                      className="flex items-center gap-1 px-1.5 lg:px-2 py-1 rounded border border-stone-200 hover:border-stone-300 bg-white text-xs transition-colors whitespace-nowrap w-auto lg:w-[130px]"
                                       onClick={(e) => e.stopPropagation()}
                                     >
                                       {getItemStatusDisplay(item.specStatus || 'DRAFT')}
-                                      <ChevronDown className="w-3 h-3 text-gray-400 flex-shrink-0 ml-auto" />
+                                      <ChevronDown className="w-3 h-3 text-stone-400 flex-shrink-0 ml-auto" />
                                     </button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end" className="w-48">
@@ -6400,7 +6400,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                       className="h-7 w-7 p-0"
                                       onClick={(e) => e.stopPropagation()}
                                     >
-                                      <MoreVertical className="w-4 h-4 text-gray-400" />
+                                      <MoreVertical className="w-4 h-4 text-stone-400" />
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end" className="w-48">
@@ -6437,7 +6437,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                       Client Invoice
                                     </DropdownMenuItem>
 
-                                    <div className="h-px bg-gray-100 my-1" />
+                                    <div className="h-px bg-stone-100 my-1" />
                                     
                                     {/* Flag */}
                                     <DropdownMenuItem 
@@ -6500,7 +6500,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                     Move to section...
                                   </DropdownMenuItem>
                                   <DropdownMenuItem 
-                                    className="text-xs text-gray-400"
+                                    className="text-xs text-stone-400"
                                     onClick={(e) => {
                                       e.stopPropagation()
                                       toast('PDF export coming soon')
@@ -6519,7 +6519,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                     <RefreshCw className="w-3.5 h-3.5 mr-2" />
                                     Update from URL
                                   </DropdownMenuItem>
-                                  <div className="border-t border-gray-100 my-1" />
+                                  <div className="border-t border-stone-100 my-1" />
                                   <DropdownMenuItem 
                                     className="text-xs text-red-600"
                                     onClick={(e) => {
@@ -6538,7 +6538,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-6 text-xs px-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                                className="h-6 text-xs px-2 text-stone-500 hover:text-stone-700 hover:bg-stone-100"
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   setDetailPanel({
@@ -6568,13 +6568,13 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   {/* Add Item Actions - Bottom of Section - Only visible on hover */}
                   {group.sectionId && group.roomId && (
                     <div className={cn(
-                      "flex items-center gap-2 px-4 h-10 bg-gray-50/50 border-t border-gray-100 transition-opacity duration-200",
+                      "flex items-center gap-2 px-4 h-10 bg-stone-50/50 border-t border-stone-100 transition-opacity duration-200",
                       hoveredSection === group.name ? "opacity-100" : "opacity-0 pointer-events-none"
                     )}>
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-7 text-xs gap-1.5 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600"
+                        className="h-7 text-xs gap-1.5 border-dashed border-stone-300 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600"
                         onClick={() => openLibraryModal(group.sectionId!, group.roomId!)}
                       >
                         <Library className="w-3.5 h-3.5" />
@@ -6583,7 +6583,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-7 text-xs gap-1.5 border-dashed border-gray-300 hover:border-purple-400 hover:bg-purple-50 hover:text-purple-600"
+                        className="h-7 text-xs gap-1.5 border-dashed border-stone-300 hover:border-purple-400 hover:bg-purple-50 hover:text-purple-600"
                         onClick={() => setAddFromUrlModal({ open: true, sectionId: group.sectionId!, roomId: group.roomId! })}
                       >
                         <Sparkles className="w-3.5 h-3.5" />
@@ -6592,7 +6592,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-7 text-xs gap-1.5 border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-100"
+                        className="h-7 text-xs gap-1.5 border-dashed border-stone-300 hover:border-stone-400 hover:bg-stone-100"
                         onClick={() => setDetailPanel({
                           isOpen: true,
                           mode: 'create',
@@ -6675,7 +6675,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               Generate Product from URL
             </DialogTitle>
             <DialogDescription>
-              Linking product to: <span className="font-medium text-gray-900">{urlGenerateDialog.ffeItem?.name}</span>
+              Linking product to: <span className="font-medium text-stone-900">{urlGenerateDialog.ffeItem?.name}</span>
             </DialogDescription>
           </DialogHeader>
           
@@ -6683,7 +6683,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             {/* URL Input */}
             <div className="flex gap-2">
               <div className="relative flex-1">
-                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
                 <Input
                   value={urlGenerateInput}
                   onChange={(e) => setUrlGenerateInput(e.target.value)}
@@ -6694,7 +6694,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 <button
                   type="button"
                   onClick={handleUrlGeneratePaste}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-stone-400 hover:text-stone-600 transition-colors"
                   title="Paste from clipboard"
                 >
                   <ClipboardPaste className="w-4 h-4" />
@@ -6724,7 +6724,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               <div className="border rounded-lg p-4 space-y-4">
                 {/* Header with Edit button */}
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700">Extracted Product</span>
+                  <span className="text-sm font-medium text-stone-700">Extracted Product</span>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -6807,7 +6807,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       }}
                     />
                     <div className={cn(
-                      "w-16 h-16 border-2 border-dashed border-gray-300 rounded flex flex-col items-center justify-center text-gray-400 hover:border-blue-400 hover:text-blue-500 transition-colors",
+                      "w-16 h-16 border-2 border-dashed border-stone-300 rounded flex flex-col items-center justify-center text-stone-400 hover:border-blue-400 hover:text-blue-500 transition-colors",
                       urlGenerateUploadingImage && "opacity-50 pointer-events-none"
                     )}>
                       {urlGenerateUploadingImage ? (
@@ -6841,7 +6841,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 {urlGenerateEditing ? (
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <Label className="text-xs text-gray-500">Product Name</Label>
+                      <Label className="text-xs text-stone-500">Product Name</Label>
                       <Input
                         value={urlGenerateData.productName || ''}
                         onChange={(e) => setUrlGenerateData((prev: any) => ({ ...prev, productName: e.target.value }))}
@@ -6849,7 +6849,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-gray-500">Brand</Label>
+                      <Label className="text-xs text-stone-500">Brand</Label>
                       <Input
                         value={urlGenerateData.brand || ''}
                         onChange={(e) => setUrlGenerateData((prev: any) => ({ ...prev, brand: e.target.value }))}
@@ -6857,7 +6857,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-gray-500">SKU</Label>
+                      <Label className="text-xs text-stone-500">SKU</Label>
                       <Input
                         value={urlGenerateData.sku || ''}
                         onChange={(e) => setUrlGenerateData((prev: any) => ({ ...prev, sku: e.target.value }))}
@@ -6865,7 +6865,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-gray-500">RRP</Label>
+                      <Label className="text-xs text-stone-500">RRP</Label>
                       <Input
                         value={urlGenerateData.rrp || ''}
                         onChange={(e) => setUrlGenerateData((prev: any) => ({ ...prev, rrp: e.target.value }))}
@@ -6873,7 +6873,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-gray-500">Trade Price</Label>
+                      <Label className="text-xs text-stone-500">Trade Price</Label>
                       <Input
                         value={urlGenerateData.tradePrice || ''}
                         onChange={(e) => setUrlGenerateData((prev: any) => ({ ...prev, tradePrice: e.target.value }))}
@@ -6881,7 +6881,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-gray-500">Lead Time</Label>
+                      <Label className="text-xs text-stone-500">Lead Time</Label>
                       <Input
                         value={urlGenerateData.leadTime || ''}
                         onChange={(e) => setUrlGenerateData((prev: any) => ({ ...prev, leadTime: e.target.value }))}
@@ -6889,7 +6889,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-gray-500">Width</Label>
+                      <Label className="text-xs text-stone-500">Width</Label>
                       <Input
                         value={urlGenerateData.width || ''}
                         onChange={(e) => setUrlGenerateData((prev: any) => ({ ...prev, width: e.target.value }))}
@@ -6897,7 +6897,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-gray-500">Height</Label>
+                      <Label className="text-xs text-stone-500">Height</Label>
                       <Input
                         value={urlGenerateData.height || ''}
                         onChange={(e) => setUrlGenerateData((prev: any) => ({ ...prev, height: e.target.value }))}
@@ -6905,7 +6905,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-gray-500">Depth</Label>
+                      <Label className="text-xs text-stone-500">Depth</Label>
                       <Input
                         value={urlGenerateData.depth || ''}
                         onChange={(e) => setUrlGenerateData((prev: any) => ({ ...prev, depth: e.target.value }))}
@@ -6913,7 +6913,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-gray-500">Length</Label>
+                      <Label className="text-xs text-stone-500">Length</Label>
                       <Input
                         value={urlGenerateData.length || ''}
                         onChange={(e) => setUrlGenerateData((prev: any) => ({ ...prev, length: e.target.value }))}
@@ -6921,7 +6921,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-gray-500">Material</Label>
+                      <Label className="text-xs text-stone-500">Material</Label>
                       <Input
                         value={urlGenerateData.material || ''}
                         onChange={(e) => setUrlGenerateData((prev: any) => ({ ...prev, material: e.target.value }))}
@@ -6929,7 +6929,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-gray-500">Color</Label>
+                      <Label className="text-xs text-stone-500">Color</Label>
                       <Input
                         value={urlGenerateData.colour || urlGenerateData.color || ''}
                         onChange={(e) => setUrlGenerateData((prev: any) => ({ ...prev, colour: e.target.value, color: e.target.value }))}
@@ -6937,7 +6937,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-gray-500">Finish</Label>
+                      <Label className="text-xs text-stone-500">Finish</Label>
                       <Input
                         value={urlGenerateData.finish || ''}
                         onChange={(e) => setUrlGenerateData((prev: any) => ({ ...prev, finish: e.target.value }))}
@@ -6947,18 +6947,18 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <p className="font-medium text-gray-900">{urlGenerateData.productName || 'Untitled Product'}</p>
+                    <p className="font-medium text-stone-900">{urlGenerateData.productName || 'Untitled Product'}</p>
                     {urlGenerateData.brand && (
-                      <p className="text-sm text-gray-600">Brand: {urlGenerateData.brand}</p>
+                      <p className="text-sm text-stone-600">Brand: {urlGenerateData.brand}</p>
                     )}
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone-500">
                       {urlGenerateData.sku && <span>SKU: {urlGenerateData.sku}</span>}
                       {urlGenerateData.rrp && <span>RRP: {urlGenerateData.rrp}</span>}
                       {urlGenerateData.tradePrice && <span>Trade: {urlGenerateData.tradePrice}</span>}
                       {urlGenerateData.leadTime && <span>Lead Time: {urlGenerateData.leadTime}</span>}
                     </div>
                     {(urlGenerateData.width || urlGenerateData.height || urlGenerateData.depth || urlGenerateData.length) && (
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-stone-500">
                         Dimensions: {[
                           urlGenerateData.width && `W: ${urlGenerateData.width}`,
                           urlGenerateData.height && `H: ${urlGenerateData.height}`,
@@ -6968,7 +6968,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       </p>
                     )}
                     {(urlGenerateData.material || urlGenerateData.colour || urlGenerateData.color || urlGenerateData.finish) && (
-                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone-500">
                         {urlGenerateData.material && <span>Material: {urlGenerateData.material}</span>}
                         {(urlGenerateData.colour || urlGenerateData.color) && <span>Color: {urlGenerateData.colour || urlGenerateData.color}</span>}
                         {urlGenerateData.finish && <span>Finish: {urlGenerateData.finish}</span>}
@@ -6990,7 +6990,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   </Button>
                 ) : (
                   <div>
-                    <Label className="text-xs text-gray-500">Notes</Label>
+                    <Label className="text-xs text-stone-500">Notes</Label>
                     <Textarea
                       value={urlGenerateData.notes || ''}
                       onChange={(e) => setUrlGenerateData((prev: any) => ({ ...prev, notes: e.target.value }))}
@@ -7001,9 +7001,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 )}
                 
                 {/* Supplier Section */}
-                <div className="space-y-2 pt-2 border-t border-gray-200">
+                <div className="space-y-2 pt-2 border-t border-stone-200">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs text-gray-500">Supplier</Label>
+                    <Label className="text-xs text-stone-500">Supplier</Label>
                     <button 
                       type="button"
                       onClick={() => setAddSupplierModal({ open: true, forItemId: null })}
@@ -7014,14 +7014,14 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     </button>
                   </div>
                   {urlGenerateSelectedSupplier ? (
-                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border">
+                    <div className="flex items-center gap-3 p-3 bg-stone-50 rounded-lg border">
                       <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-700 font-semibold">
                         {urlGenerateSelectedSupplier.name.charAt(0).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-900 truncate">{urlGenerateSelectedSupplier.name}</p>
+                        <p className="font-medium text-stone-900 truncate">{urlGenerateSelectedSupplier.name}</p>
                         {urlGenerateSelectedSupplier.contactName && (
-                          <p className="text-xs text-gray-500">{urlGenerateSelectedSupplier.contactName}</p>
+                          <p className="text-xs text-stone-500">{urlGenerateSelectedSupplier.contactName}</p>
                         )}
                       </div>
                       <button 
@@ -7047,7 +7047,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                         </SelectTrigger>
                         <SelectContent>
                           {suppliers.length === 0 ? (
-                            <div className="text-center p-4 text-sm text-gray-500">
+                            <div className="text-center p-4 text-sm text-stone-500">
                               No suppliers in phonebook
                               <button 
                                 type="button"
@@ -7061,12 +7061,12 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             suppliers.map(supplier => (
                               <SelectItem key={supplier.id} value={supplier.id}>
                                 <div className="flex items-center gap-2">
-                                  <div className="w-6 h-6 rounded bg-gray-100 flex items-center justify-center text-xs font-medium">
+                                  <div className="w-6 h-6 rounded bg-stone-100 flex items-center justify-center text-xs font-medium">
                                     {supplier.name.charAt(0)}
                                   </div>
                                   <span>{supplier.name}</span>
                                   {supplier.contactName && (
-                                    <span className="text-gray-400">/ {supplier.contactName}</span>
+                                    <span className="text-stone-400">/ {supplier.contactName}</span>
                                   )}
                                 </div>
                               </SelectItem>
@@ -7074,7 +7074,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                           )}
                         </SelectContent>
                       </Select>
-                      <div className="text-xs text-gray-400 text-center">or enter manually</div>
+                      <div className="text-xs text-stone-400 text-center">or enter manually</div>
                       <Input
                         value={urlGenerateSupplierSearch}
                         onChange={(e) => {
@@ -7167,7 +7167,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             {/* URL Input */}
             <div className="flex gap-2">
               <div className="relative flex-1">
-                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
                 <Input
                   value={urlInput}
                   onChange={(e) => setUrlInput(e.target.value)}
@@ -7178,7 +7178,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 <button
                   type="button"
                   onClick={handleAddFromUrlPaste}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-stone-400 hover:text-stone-600 transition-colors"
                   title="Paste from clipboard"
                 >
                   <ClipboardPaste className="w-4 h-4" />
@@ -7208,7 +7208,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               <div className="border rounded-lg p-4 space-y-4">
                 {/* Header with Edit button */}
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700">Extracted Product</span>
+                  <span className="text-sm font-medium text-stone-700">Extracted Product</span>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -7291,7 +7291,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       }}
                     />
                     <div className={cn(
-                      "w-16 h-16 border-2 border-dashed border-gray-300 rounded flex flex-col items-center justify-center text-gray-400 hover:border-purple-400 hover:text-purple-500 transition-colors",
+                      "w-16 h-16 border-2 border-dashed border-stone-300 rounded flex flex-col items-center justify-center text-stone-400 hover:border-purple-400 hover:text-purple-500 transition-colors",
                       addFromUrlUploadingImage && "opacity-50 pointer-events-none"
                     )}>
                       {addFromUrlUploadingImage ? (
@@ -7326,7 +7326,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <Label className="text-xs text-gray-500">Product Name</Label>
+                        <Label className="text-xs text-stone-500">Product Name</Label>
                         <Input
                           value={extractedData.productName || ''}
                           onChange={(e) => setExtractedData({ ...extractedData, productName: e.target.value })}
@@ -7334,7 +7334,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                         />
                       </div>
                       <div>
-                        <Label className="text-xs text-gray-500">Brand</Label>
+                        <Label className="text-xs text-stone-500">Brand</Label>
                         <Input
                           value={extractedData.brand || ''}
                           onChange={(e) => setExtractedData({ ...extractedData, brand: e.target.value })}
@@ -7344,7 +7344,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <Label className="text-xs text-gray-500">SKU</Label>
+                      <Label className="text-xs text-stone-500">SKU</Label>
                       <Input
                         value={extractedData.sku || ''}
                         onChange={(e) => setExtractedData({ ...extractedData, sku: e.target.value })}
@@ -7352,7 +7352,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-gray-500">RRP</Label>
+                      <Label className="text-xs text-stone-500">RRP</Label>
                       <Input
                         value={extractedData.rrp || ''}
                         onChange={(e) => setExtractedData({ ...extractedData, rrp: e.target.value })}
@@ -7360,7 +7360,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-gray-500">Trade Price</Label>
+                      <Label className="text-xs text-stone-500">Trade Price</Label>
                       <Input
                         value={extractedData.tradePrice || ''}
                         onChange={(e) => setExtractedData({ ...extractedData, tradePrice: e.target.value })}
@@ -7368,7 +7368,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-gray-500">Lead Time</Label>
+                      <Label className="text-xs text-stone-500">Lead Time</Label>
                       <Input
                         value={extractedData.leadTime || ''}
                         onChange={(e) => setExtractedData({ ...extractedData, leadTime: e.target.value })}
@@ -7376,7 +7376,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-gray-500">Width</Label>
+                      <Label className="text-xs text-stone-500">Width</Label>
                       <Input
                         value={extractedData.width || ''}
                         onChange={(e) => setExtractedData({ ...extractedData, width: e.target.value })}
@@ -7384,7 +7384,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-gray-500">Height</Label>
+                      <Label className="text-xs text-stone-500">Height</Label>
                       <Input
                         value={extractedData.height || ''}
                         onChange={(e) => setExtractedData({ ...extractedData, height: e.target.value })}
@@ -7392,7 +7392,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-gray-500">Depth</Label>
+                      <Label className="text-xs text-stone-500">Depth</Label>
                       <Input
                         value={extractedData.depth || ''}
                         onChange={(e) => setExtractedData({ ...extractedData, depth: e.target.value })}
@@ -7400,7 +7400,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-gray-500">Length</Label>
+                      <Label className="text-xs text-stone-500">Length</Label>
                       <Input
                         value={extractedData.length || ''}
                         onChange={(e) => setExtractedData({ ...extractedData, length: e.target.value })}
@@ -7408,7 +7408,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-gray-500">Material</Label>
+                      <Label className="text-xs text-stone-500">Material</Label>
                       <Input
                         value={extractedData.material || ''}
                         onChange={(e) => setExtractedData({ ...extractedData, material: e.target.value })}
@@ -7416,7 +7416,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-gray-500">Color</Label>
+                      <Label className="text-xs text-stone-500">Color</Label>
                       <Input
                         value={extractedData.colour || ''}
                         onChange={(e) => setExtractedData({ ...extractedData, colour: e.target.value })}
@@ -7424,7 +7424,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-gray-500">Finish</Label>
+                      <Label className="text-xs text-stone-500">Finish</Label>
                       <Input
                         value={extractedData.finish || ''}
                         onChange={(e) => setExtractedData({ ...extractedData, finish: e.target.value })}
@@ -7435,18 +7435,18 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <p className="font-medium text-gray-900">{extractedData.productName || 'Untitled Product'}</p>
+                    <p className="font-medium text-stone-900">{extractedData.productName || 'Untitled Product'}</p>
                     {extractedData.brand && (
-                      <p className="text-sm text-gray-600">Brand: {extractedData.brand}</p>
+                      <p className="text-sm text-stone-600">Brand: {extractedData.brand}</p>
                     )}
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone-500">
                       {extractedData.sku && <span>SKU: {extractedData.sku}</span>}
                       {extractedData.rrp && <span>RRP: {extractedData.rrp}</span>}
                       {extractedData.tradePrice && <span>Trade: {extractedData.tradePrice}</span>}
                       {extractedData.leadTime && <span>Lead Time: {extractedData.leadTime}</span>}
                     </div>
                     {(extractedData.width || extractedData.height || extractedData.depth || extractedData.length) && (
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-stone-500">
                         Dimensions: {[
                           extractedData.width && `W: ${extractedData.width}`,
                           extractedData.height && `H: ${extractedData.height}`,
@@ -7456,7 +7456,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       </p>
                     )}
                     {(extractedData.material || extractedData.colour || extractedData.finish) && (
-                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone-500">
                         {extractedData.material && <span>Material: {extractedData.material}</span>}
                         {extractedData.colour && <span>Color: {extractedData.colour}</span>}
                         {extractedData.finish && <span>Finish: {extractedData.finish}</span>}
@@ -7467,7 +7467,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
                 {/* Quantity Input */}
                 <div className="border-t pt-3">
-                  <Label className="text-xs text-gray-500">Quantity</Label>
+                  <Label className="text-xs text-stone-500">Quantity</Label>
                   <Input
                     type="number"
                     min={1}
@@ -7491,7 +7491,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   </Button>
                 ) : (
                   <div>
-                    <Label className="text-xs text-gray-500">Notes</Label>
+                    <Label className="text-xs text-stone-500">Notes</Label>
                     <Textarea
                       value={extractedData.notes || ''}
                       onChange={(e) => setExtractedData({ ...extractedData, notes: e.target.value })}
@@ -7515,24 +7515,24 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 ) : (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-xs text-gray-500">Supplier</Label>
+                      <Label className="text-xs text-stone-500">Supplier</Label>
                       <button
                         type="button"
                         onClick={() => {
                           setAddFromUrlShowSupplier(false)
                           setAddFromUrlSelectedSupplier(null)
                         }}
-                        className="text-xs text-gray-400 hover:text-gray-600"
+                        className="text-xs text-stone-400 hover:text-stone-600"
                       >
                         Cancel
                       </button>
                     </div>
                     {addFromUrlSelectedSupplier ? (
-                      <div className="flex items-center justify-between p-2 border rounded-lg bg-gray-50">
+                      <div className="flex items-center justify-between p-2 border rounded-lg bg-stone-50">
                         <div>
                           <p className="font-medium text-sm">{addFromUrlSelectedSupplier.name}</p>
                           {addFromUrlSelectedSupplier.website && (
-                            <p className="text-xs text-gray-500">{addFromUrlSelectedSupplier.website}</p>
+                            <p className="text-xs text-stone-500">{addFromUrlSelectedSupplier.website}</p>
                           )}
                         </div>
                         <Button
@@ -7562,7 +7562,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                         </SelectTrigger>
                         <SelectContent>
                           {suppliers.length === 0 ? (
-                            <div className="text-center p-4 text-sm text-gray-500">
+                            <div className="text-center p-4 text-sm text-stone-500">
                               No suppliers in phonebook
                             </div>
                           ) : (
@@ -7572,7 +7572,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   {supplier.logo ? (
                                     <img src={supplier.logo} alt={supplier.name} className="w-5 h-5 rounded object-cover" />
                                   ) : (
-                                    <div className="w-5 h-5 rounded bg-gray-100 flex items-center justify-center text-xs font-medium">
+                                    <div className="w-5 h-5 rounded bg-stone-100 flex items-center justify-center text-xs font-medium">
                                       {supplier.name.charAt(0)}
                                     </div>
                                   )}
@@ -7599,12 +7599,12 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 <p className="text-xs text-blue-700">Select the FFE item this product fulfills.</p>
                 
                 {ffeItemsLoading ? (
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <div className="flex items-center gap-2 text-sm text-stone-500">
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Loading FFE items...
                   </div>
                 ) : ffeItems.length === 0 ? (
-                  <p className="text-sm text-gray-500">No FFE items found. Add items in FFE Workspace first.</p>
+                  <p className="text-sm text-stone-500">No FFE items found. Add items in FFE Workspace first.</p>
                 ) : (
                   <div className="space-y-2">
                     {/* Step 1: Select Room (only show if no room selected) */}
@@ -7627,8 +7627,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     {selectedFfeRoom && !selectedFfeSection && (
                       <>
                         <div className="flex items-center gap-2 text-sm">
-                          <span className="text-gray-500">Room:</span>
-                          <Badge variant="secondary" className="cursor-pointer hover:bg-gray-200" onClick={() => {
+                          <span className="text-stone-500">Room:</span>
+                          <Badge variant="secondary" className="cursor-pointer hover:bg-stone-200" onClick={() => {
                             setSelectedFfeRoom('')
                             setSelectedFfeSection('')
                             setSelectedFfeItemId('')
@@ -7657,8 +7657,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     {selectedFfeRoom && selectedFfeSection && !selectedFfeItemId && (
                       <>
                         <div className="flex items-center gap-2 text-sm flex-wrap">
-                          <span className="text-gray-500">Room:</span>
-                          <Badge variant="secondary" className="cursor-pointer hover:bg-gray-200" onClick={() => {
+                          <span className="text-stone-500">Room:</span>
+                          <Badge variant="secondary" className="cursor-pointer hover:bg-stone-200" onClick={() => {
                             setSelectedFfeRoom('')
                             setSelectedFfeSection('')
                             setSelectedFfeItemId('')
@@ -7667,8 +7667,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             {ffeItems.find(r => r.roomId === selectedFfeRoom)?.roomName}
                             <X className="w-3 h-3 ml-1" />
                           </Badge>
-                          <span className="text-gray-500">Category:</span>
-                          <Badge variant="secondary" className="cursor-pointer hover:bg-gray-200" onClick={() => {
+                          <span className="text-stone-500">Category:</span>
+                          <Badge variant="secondary" className="cursor-pointer hover:bg-stone-200" onClick={() => {
                             setSelectedFfeSection('')
                             setSelectedFfeItemId('')
                             setShowAlreadyChosenWarning(false)
@@ -7688,7 +7688,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   {item.hasLinkedSpecs ? (
                                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
                                   ) : (
-                                    <Circle className="w-3.5 h-3.5 text-gray-300" />
+                                    <Circle className="w-3.5 h-3.5 text-stone-300" />
                                   )}
                                   <span>{item.name}</span>
                                   {item.hasLinkedSpecs && (
@@ -7734,7 +7734,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               setSelectedFfeItemId('')
                               setShowAlreadyChosenWarning(false)
                             }}
-                            className="text-xs text-gray-500 hover:text-gray-700 underline"
+                            className="text-xs text-stone-500 hover:text-stone-700 underline"
                           >
                             Change
                           </button>
@@ -7815,7 +7815,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           <div className="space-y-4 py-4">
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
               <Input
                 value={librarySearch}
                 onChange={(e) => setLibrarySearch(e.target.value)}
@@ -7828,11 +7828,11 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             <ScrollArea className="h-[400px]">
               {libraryLoading ? (
                 <div className="flex items-center justify-center h-32">
-                  <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                  <Loader2 className="w-6 h-6 animate-spin text-stone-400" />
                 </div>
               ) : filteredLibraryProducts.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <Package className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                <div className="text-center py-8 text-stone-500">
+                  <Package className="w-12 h-12 mx-auto mb-3 text-stone-300" />
                   <p>No products found</p>
                 </div>
               ) : (
@@ -7843,20 +7843,20 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       className={`flex items-center gap-4 p-3 rounded-lg border cursor-pointer transition-all ${
                         selectedLibraryProduct?.id === product.id 
                           ? 'border-blue-500 bg-blue-50' 
-                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          : 'border-stone-200 hover:border-stone-300 hover:bg-stone-50'
                       }`}
                       onClick={() => setSelectedLibraryProduct(product)}
                     >
-                      <div className="w-12 h-12 rounded bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                      <div className="w-12 h-12 rounded bg-stone-100 flex items-center justify-center overflow-hidden flex-shrink-0">
                         {product.thumbnailUrl ? (
                           <img src={product.thumbnailUrl} alt={product.name} className="w-full h-full object-cover" />
                         ) : (
-                          <Package className="w-5 h-5 text-gray-400" />
+                          <Package className="w-5 h-5 text-stone-400" />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-900 truncate">{product.name}</p>
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <p className="font-medium text-stone-900 truncate">{product.name}</p>
+                        <div className="flex items-center gap-2 text-sm text-stone-500">
                           {product.brand && <span>{product.brand}</span>}
                           {product.sku && <span>• {product.sku}</span>}
                         </div>
@@ -7885,12 +7885,12 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 <p className="text-xs text-blue-700">Select the FFE item this product fulfills.</p>
                 
                 {ffeItemsLoading ? (
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <div className="flex items-center gap-2 text-sm text-stone-500">
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Loading FFE items...
                   </div>
                 ) : ffeItems.length === 0 ? (
-                  <p className="text-sm text-gray-500">No FFE items found. Add items in FFE Workspace first.</p>
+                  <p className="text-sm text-stone-500">No FFE items found. Add items in FFE Workspace first.</p>
                 ) : (
                   <div className="space-y-2">
                     {/* Step 1: Select Room */}
@@ -7913,8 +7913,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     {selectedFfeRoom && !selectedFfeSection && (
                       <>
                         <div className="flex items-center gap-2 text-sm">
-                          <span className="text-gray-500">Room:</span>
-                          <Badge variant="secondary" className="cursor-pointer hover:bg-gray-200" onClick={() => {
+                          <span className="text-stone-500">Room:</span>
+                          <Badge variant="secondary" className="cursor-pointer hover:bg-stone-200" onClick={() => {
                             setSelectedFfeRoom('')
                             setSelectedFfeSection('')
                             setSelectedFfeItemId('')
@@ -7943,8 +7943,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     {selectedFfeRoom && selectedFfeSection && !selectedFfeItemId && (
                       <>
                         <div className="flex items-center gap-2 text-sm flex-wrap">
-                          <span className="text-gray-500">Room:</span>
-                          <Badge variant="secondary" className="cursor-pointer hover:bg-gray-200" onClick={() => {
+                          <span className="text-stone-500">Room:</span>
+                          <Badge variant="secondary" className="cursor-pointer hover:bg-stone-200" onClick={() => {
                             setSelectedFfeRoom('')
                             setSelectedFfeSection('')
                             setSelectedFfeItemId('')
@@ -7953,8 +7953,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             {ffeItems.find(r => r.roomId === selectedFfeRoom)?.roomName}
                             <X className="w-3 h-3 ml-1" />
                           </Badge>
-                          <span className="text-gray-500">Category:</span>
-                          <Badge variant="secondary" className="cursor-pointer hover:bg-gray-200" onClick={() => {
+                          <span className="text-stone-500">Category:</span>
+                          <Badge variant="secondary" className="cursor-pointer hover:bg-stone-200" onClick={() => {
                             setSelectedFfeSection('')
                             setSelectedFfeItemId('')
                             setShowAlreadyChosenWarning(false)
@@ -7974,7 +7974,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   {item.hasLinkedSpecs ? (
                                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
                                   ) : (
-                                    <Circle className="w-3.5 h-3.5 text-gray-300" />
+                                    <Circle className="w-3.5 h-3.5 text-stone-300" />
                                   )}
                                   <span>{item.name}</span>
                                   {item.hasLinkedSpecs && (
@@ -8020,7 +8020,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               setSelectedFfeItemId('')
                               setShowAlreadyChosenWarning(false)
                             }}
-                            className="text-xs text-gray-500 hover:text-gray-700 underline"
+                            className="text-xs text-stone-500 hover:text-stone-700 underline"
                           >
                             Change
                           </button>
@@ -8067,7 +8067,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Plus className="w-5 h-5 text-gray-600" />
+              <Plus className="w-5 h-5 text-stone-600" />
               Add Custom Product
             </DialogTitle>
             <DialogDescription>
@@ -8159,12 +8159,12 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               <p className="text-xs text-blue-700">Select the FFE item this product fulfills.</p>
               
               {ffeItemsLoading ? (
-                <div className="flex items-center gap-2 text-sm text-gray-500">
+                <div className="flex items-center gap-2 text-sm text-stone-500">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Loading FFE items...
                 </div>
               ) : ffeItems.length === 0 ? (
-                <p className="text-sm text-gray-500">No FFE items found. Add items in FFE Workspace first.</p>
+                <p className="text-sm text-stone-500">No FFE items found. Add items in FFE Workspace first.</p>
               ) : (
                 <div className="space-y-2">
                   {/* Step 1: Select Room */}
@@ -8187,8 +8187,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   {selectedFfeRoom && !selectedFfeSection && (
                     <>
                       <div className="flex items-center gap-2 text-sm">
-                        <span className="text-gray-500">Room:</span>
-                        <Badge variant="secondary" className="cursor-pointer hover:bg-gray-200" onClick={() => {
+                        <span className="text-stone-500">Room:</span>
+                        <Badge variant="secondary" className="cursor-pointer hover:bg-stone-200" onClick={() => {
                           setSelectedFfeRoom('')
                           setSelectedFfeSection('')
                           setSelectedFfeItemId('')
@@ -8217,8 +8217,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   {selectedFfeRoom && selectedFfeSection && !selectedFfeItemId && (
                     <>
                       <div className="flex items-center gap-2 text-sm flex-wrap">
-                        <span className="text-gray-500">Room:</span>
-                        <Badge variant="secondary" className="cursor-pointer hover:bg-gray-200" onClick={() => {
+                        <span className="text-stone-500">Room:</span>
+                        <Badge variant="secondary" className="cursor-pointer hover:bg-stone-200" onClick={() => {
                           setSelectedFfeRoom('')
                           setSelectedFfeSection('')
                           setSelectedFfeItemId('')
@@ -8227,8 +8227,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                           {ffeItems.find(r => r.roomId === selectedFfeRoom)?.roomName}
                           <X className="w-3 h-3 ml-1" />
                         </Badge>
-                        <span className="text-gray-500">Category:</span>
-                        <Badge variant="secondary" className="cursor-pointer hover:bg-gray-200" onClick={() => {
+                        <span className="text-stone-500">Category:</span>
+                        <Badge variant="secondary" className="cursor-pointer hover:bg-stone-200" onClick={() => {
                           setSelectedFfeSection('')
                           setSelectedFfeItemId('')
                           setShowAlreadyChosenWarning(false)
@@ -8248,7 +8248,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 {item.hasLinkedSpecs ? (
                                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
                                 ) : (
-                                  <Circle className="w-3.5 h-3.5 text-gray-300" />
+                                  <Circle className="w-3.5 h-3.5 text-stone-300" />
                                 )}
                                 <span>{item.name}</span>
                                 {item.hasLinkedSpecs && (
@@ -8294,7 +8294,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                             setSelectedFfeItemId('')
                             setShowAlreadyChosenWarning(false)
                           }}
-                          className="text-xs text-gray-500 hover:text-gray-700 underline"
+                          className="text-xs text-stone-500 hover:text-stone-700 underline"
                         >
                           Change
                         </button>
@@ -8447,7 +8447,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     <div className="flex items-center gap-2">
                       <option.icon className={cn("w-4 h-4", option.color)} />
                       {option.label}
-                      {option.requiresApproval && <span className="text-xs text-gray-400">(requires approval)</span>}
+                      {option.requiresApproval && <span className="text-xs text-stone-400">(requires approval)</span>}
                     </div>
                   </SelectItem>
                 ))}
@@ -8486,10 +8486,10 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           
           <div className="space-y-4 py-4">
             {duplicateModal.item && (
-              <div className="bg-gray-50 rounded-lg p-3">
-                <p className="text-sm text-gray-600">Duplicating:</p>
+              <div className="bg-stone-50 rounded-lg p-3">
+                <p className="text-sm text-stone-600">Duplicating:</p>
                 <p className="font-medium">{duplicateModal.item.name}</p>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-stone-500 mt-1">
                   {duplicateModal.item.roomName} &bull; {duplicateModal.item.categoryName}
                 </p>
               </div>
@@ -8497,9 +8497,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             
             {getUnlinkedFfeItemsForDuplicate().length === 0 ? (
               <div className="text-center py-6">
-                <Package className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-                <p className="text-sm text-gray-500">No unlinked items available in this category.</p>
-                <p className="text-xs text-gray-400 mt-1">All FFE items in this section are already linked to specs.</p>
+                <Package className="w-10 h-10 text-stone-300 mx-auto mb-2" />
+                <p className="text-sm text-stone-500">No unlinked items available in this category.</p>
+                <p className="text-xs text-stone-400 mt-1">All FFE items in this section are already linked to specs.</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -8559,10 +8559,10 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           <div className="space-y-4 py-4">
             {projectsLoading ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                <Loader2 className="w-6 h-6 animate-spin text-stone-400" />
               </div>
             ) : projectsList.length === 0 ? (
-              <p className="text-sm text-gray-500 text-center py-4">No other projects available</p>
+              <p className="text-sm text-stone-500 text-center py-4">No other projects available</p>
             ) : (
               <Select value={selectedCopyProject} onValueChange={setSelectedCopyProject}>
                 <SelectTrigger>
@@ -8622,7 +8622,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       color === 'green' && "bg-green-500",
                       color === 'blue' && "bg-blue-500",
                       color === 'purple' && "bg-purple-500",
-                      flagColor === color ? "ring-2 ring-offset-2 ring-gray-400" : "hover:scale-110"
+                      flagColor === color ? "ring-2 ring-offset-2 ring-stone-400" : "hover:scale-110"
                     )}
                     onClick={() => setFlagColor(color)}
                   />
@@ -8661,7 +8661,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Share2 className="w-5 h-5 text-gray-700" />
+              <Share2 className="w-5 h-5 text-stone-700" />
               Share Schedule
             </DialogTitle>
           </DialogHeader>
@@ -8691,11 +8691,11 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 {/* Share Links List */}
                 {loadingShareLinks ? (
                   <div className="text-center py-8">
-                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" />
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-stone-400" />
                   </div>
                 ) : shareLinks.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500 text-sm">
-                    <LinkIcon className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                  <div className="text-center py-8 text-stone-500 text-sm">
+                    <LinkIcon className="w-8 h-8 mx-auto mb-2 text-stone-300" />
                     <p>No share links yet</p>
                     <p className="text-xs mt-1">Create a link to share specific items</p>
                   </div>
@@ -8706,13 +8706,13 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                         key={link.id}
                         className={cn(
                           "border rounded-lg p-3",
-                          link.isExpired ? "bg-gray-50 border-gray-200" : "bg-white border-gray-200"
+                          link.isExpired ? "bg-stone-50 border-stone-200" : "bg-white border-stone-200"
                         )}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
-                              <span className="font-medium text-gray-900 truncate">
+                              <span className="font-medium text-stone-900 truncate">
                                 {link.name || 'Untitled Link'}
                               </span>
                               {link.isExpired && (
@@ -8738,18 +8738,18 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 </span>
                               )}
                               {link.showSupplier && (
-                                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-gray-100 text-gray-600 rounded">
+                                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-stone-100 text-stone-600 rounded">
                                   Supplier
                                 </span>
                               )}
                             </div>
                             {link.expiresAt && !link.isExpired && (
-                              <p className="text-xs text-gray-400 mt-1">
+                              <p className="text-xs text-stone-400 mt-1">
                                 Expires {new Date(link.expiresAt).toLocaleDateString()}
                               </p>
                             )}
                             {link.accessCount > 0 && (
-                              <p className="text-xs text-gray-400 mt-1">
+                              <p className="text-xs text-stone-400 mt-1">
                                 Viewed {link.accessCount} time{link.accessCount !== 1 ? 's' : ''}
                               </p>
                             )}
@@ -8909,7 +8909,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             <div className="space-y-2">
               <Label>Category</Label>
               {loadingSupplierCategories ? (
-                <div className="flex items-center gap-2 text-sm text-gray-500">
+                <div className="flex items-center gap-2 text-sm text-stone-500">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Loading...
                 </div>
@@ -8923,7 +8923,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${
                         newSupplier.categoryId === cat.id
                           ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
-                          : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300'
+                          : 'bg-stone-50 border-stone-200 text-stone-600 hover:border-stone-300'
                       }`}
                     >
                       {cat.name}
@@ -8943,7 +8943,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   className={`flex-1 py-2 px-3 rounded-lg border-2 font-medium text-sm transition-all ${
                     newSupplier.currency === 'CAD'
                       ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                      : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                      : 'border-stone-200 hover:border-stone-300 text-stone-600'
                   }`}
                 >
                   🇨🇦 CAD
@@ -8954,7 +8954,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   className={`flex-1 py-2 px-3 rounded-lg border-2 font-medium text-sm transition-all ${
                     newSupplier.currency === 'USD'
                       ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                      : 'border-stone-200 hover:border-stone-300 text-stone-600'
                   }`}
                 >
                   🇺🇸 USD
@@ -9037,10 +9037,10 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   <img 
                     src={newSupplier.logo} 
                     alt="Logo preview" 
-                    className="w-10 h-10 rounded object-cover border border-gray-200"
+                    className="w-10 h-10 rounded object-cover border border-stone-200"
                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
                   />
-                  <span className="text-xs text-gray-500">Logo preview</span>
+                  <span className="text-xs text-stone-500">Logo preview</span>
                 </div>
               )}
             </div>
@@ -9106,7 +9106,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 placeholder="e.g., Lighting, Flooring, Furniture"
                 autoFocus
               />
-              <p className="text-xs text-gray-500">Sections help organize your specs by category</p>
+              <p className="text-xs text-stone-500">Sections help organize your specs by category</p>
             </div>
           </div>
           
@@ -9340,7 +9340,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               Link Programa Item
             </DialogTitle>
             <DialogDescription>
-              Linking to: <span className="font-medium text-gray-900">{programaModal.ffeItemName}</span>
+              Linking to: <span className="font-medium text-stone-900">{programaModal.ffeItemName}</span>
             </DialogDescription>
           </DialogHeader>
 
@@ -9373,13 +9373,13 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             <div className="overflow-y-auto max-h-[50vh]" style={{ minHeight: '300px' }}>
               {programaLoading ? (
                 <div className="flex items-center justify-center h-32">
-                  <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                  <Loader2 className="w-6 h-6 animate-spin text-stone-400" />
                 </div>
               ) : programaItems.length === 0 ? (
                 <div className="text-center py-8">
-                  <Package className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                  <p className="text-gray-500">No Programa items imported yet</p>
-                  <p className="text-sm text-gray-400 mt-1">
+                  <Package className="w-12 h-12 mx-auto mb-3 text-stone-300" />
+                  <p className="text-stone-500">No Programa items imported yet</p>
+                  <p className="text-sm text-stone-400 mt-1">
                     Go to Settings → Programa Import to upload items
                   </p>
                 </div>
@@ -9406,9 +9406,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 if (Object.keys(grouped).length === 0) {
                   return (
                     <div className="text-center py-8">
-                      <Package className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                      <p className="text-gray-500">No unlinked items found</p>
-                      <p className="text-sm text-gray-400 mt-1">
+                      <Package className="w-12 h-12 mx-auto mb-3 text-stone-300" />
+                      <p className="text-stone-500">No unlinked items found</p>
+                      <p className="text-sm text-stone-400 mt-1">
                         All items may already be linked
                       </p>
                     </div>
@@ -9423,7 +9423,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                         <div key={category} className="border rounded-lg overflow-hidden">
                           <button
                             type="button"
-                            className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors"
+                            className="w-full flex items-center justify-between px-4 py-3 bg-stone-50 hover:bg-stone-100 transition-colors"
                             onClick={() => {
                               setProgramaExpandedCategories(prev => {
                                 const next = new Set(prev)
@@ -9438,20 +9438,20 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                           >
                             <div className="flex items-center gap-2">
                               {isExpanded ? (
-                                <ChevronDown className="w-4 h-4 text-gray-500" />
+                                <ChevronDown className="w-4 h-4 text-stone-500" />
                               ) : (
-                                <ChevronRight className="w-4 h-4 text-gray-500" />
+                                <ChevronRight className="w-4 h-4 text-stone-500" />
                               )}
-                              <span className="font-medium text-gray-900">{category}</span>
+                              <span className="font-medium text-stone-900">{category}</span>
                               <Badge variant="secondary">{items.length} items</Badge>
                             </div>
                           </button>
                           {isExpanded && (
-                            <div className="divide-y divide-gray-100">
+                            <div className="divide-y divide-stone-100">
                               {items.map((item: any) => (
                                 <div
                                   key={item.id}
-                                  className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex items-center justify-between"
+                                  className="px-4 py-3 hover:bg-stone-50 cursor-pointer flex items-center justify-between"
                                   onClick={() => linkProgramaItem(item.id)}
                                 >
                                   <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -9463,19 +9463,19 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                         className="w-12 h-12 object-cover rounded border flex-shrink-0"
                                       />
                                     ) : (
-                                      <div className="w-12 h-12 bg-gray-100 rounded border flex items-center justify-center flex-shrink-0">
-                                        <Package className="w-5 h-5 text-gray-400" />
+                                      <div className="w-12 h-12 bg-stone-100 rounded border flex items-center justify-center flex-shrink-0">
+                                        <Package className="w-5 h-5 text-stone-400" />
                                       </div>
                                     )}
                                     <div className="min-w-0">
-                                      <p className="font-medium text-gray-900 truncate">{item.name}</p>
-                                      <div className="flex items-center gap-3 text-sm text-gray-500">
+                                      <p className="font-medium text-stone-900 truncate">{item.name}</p>
+                                      <div className="flex items-center gap-3 text-sm text-stone-500">
                                         {item.brand && <span>{item.brand}</span>}
                                         {item.sku && <span>SKU: {item.sku}</span>}
                                         {item.color && <span>Color: {item.color}</span>}
                                       </div>
                                       {item.supplierCompanyName && (
-                                        <p className="text-xs text-gray-400 mt-1">
+                                        <p className="text-xs text-stone-400 mt-1">
                                           Supplier: {item.supplierCompanyName}
                                         </p>
                                       )}
@@ -9483,7 +9483,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                   </div>
                                   <div className="flex items-center gap-2 ml-4">
                                     {item.tradePrice && (
-                                      <span className="text-sm font-medium text-gray-700">
+                                      <span className="text-sm font-medium text-stone-700">
                                         ${item.tradePrice.toFixed(2)}
                                       </span>
                                     )}
@@ -9546,12 +9546,12 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
           </DialogHeader>
           {regenConfirmDialog.loading ? (
             <div className="flex items-center justify-center py-6">
-              <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
-              <span className="ml-2 text-sm text-gray-500">Analyzing items...</span>
+              <Loader2 className="w-5 h-5 animate-spin text-stone-400" />
+              <span className="ml-2 text-sm text-stone-500">Analyzing items...</span>
             </div>
           ) : regenConfirmDialog.previewData && (
             <div className="space-y-3">
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-stone-600">
                 <span className="font-medium">{regenConfirmDialog.previewData.totalItems}</span> FFE items and{' '}
                 <span className="font-medium">{regenConfirmDialog.previewData.specItemsToUpdate}</span> spec items will be updated.
               </div>
@@ -9568,9 +9568,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                         <div className="text-xs font-mono text-amber-600 mb-1">{group.newDocCode} ({group.category})</div>
                         <div className="space-y-0.5">
                           {group.items.map((item, j) => (
-                            <div key={j} className="text-xs text-gray-600">
+                            <div key={j} className="text-xs text-stone-600">
                               <span className="font-medium">{item.name}</span>
-                              <span className="text-gray-400"> - {item.roomName}</span>
+                              <span className="text-stone-400"> - {item.roomName}</span>
                             </div>
                           ))}
                         </div>
@@ -9581,7 +9581,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               )}
 
               {regenConfirmDialog.previewData.mergedGroups.length === 0 && (
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-stone-500">
                   No items share the same spec - each item will get a unique doc code.
                 </div>
               )}
