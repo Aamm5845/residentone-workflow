@@ -20,6 +20,7 @@ import {
   Eye,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import LatestFilesBySection, { useLatestFilesBySection } from './LatestFilesBySection'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -191,6 +192,9 @@ export default function TransmittalLog({
     setShowSortDropdown(false)
   }, [])
 
+  // ── Latest files by section (side panel) ────────────────────────────
+  const sectionGroups = useLatestFilesBySection(transmittals)
+
   const hasActiveFilters = filterSearch !== '' || filterDateFrom !== '' || filterDateTo !== '' || filterSection !== null || filterRecipient !== null
   const activeFilterCount = [filterSection, filterRecipient].filter(Boolean).length
 
@@ -356,7 +360,8 @@ export default function TransmittalLog({
 
   // ── Render ────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-4">
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="space-y-4 min-w-0">
       {/* Header row */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -759,6 +764,10 @@ export default function TransmittalLog({
           </table>
         </div>
       )}
+    </div>
+
+    {/* ── Side panel — latest files by section ──────────────── */}
+    <LatestFilesBySection sectionGroups={sectionGroups} />
     </div>
   )
 }
