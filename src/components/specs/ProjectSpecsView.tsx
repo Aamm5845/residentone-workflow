@@ -3932,482 +3932,241 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
       {/* Needs Selection Tab Content */}
       {activeTab === 'needs' && (
-        <div className="max-w-full mx-auto px-6 py-4">
-          <div className="bg-white rounded-xl border border-stone-200 p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-stone-400 to-stone-500 flex items-center justify-center shadow-sm">
-                <Circle className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-stone-900">FFE Items Needing Selection</h3>
-                <p className="text-sm text-stone-600">
-                  Items from FFE Workspace that don&apos;t have products chosen yet
-                </p>
-              </div>
-            </div>
-            
-            {/* Unchosen Items List */}
-            <div className="space-y-3">
-              {sortBy === 'category' ? (
-                // Group by category/section
-                (() => {
-                  const byCategory = new Map<string, Array<{ roomName: string; roomId: string; sectionId: string; item: any }>>()
-                  filteredFfeItems.forEach(room => {
-                    room.sections.forEach(section => {
-                      // Include all unchosen items (both parent and linked items)
-                      section.items.filter(item => !item.hasLinkedSpecs).forEach(item => {
-                        const key = section.sectionName
-                        if (!byCategory.has(key)) byCategory.set(key, [])
-                        byCategory.get(key)!.push({ roomName: room.roomName, roomId: room.roomId, sectionId: section.sectionId, item })
-                      })
-                    })
+        <div className="space-y-3 py-2">
+          {(() => {
+            // Build grouped items based on sort mode
+            const groups: Array<{ key: string; label: string; items: Array<{ roomName: string; roomId: string; sectionId: string; sectionName: string; item: any }> }> = []
+            if (sortBy === 'category') {
+              const byCategory = new Map<string, Array<{ roomName: string; roomId: string; sectionId: string; sectionName: string; item: any }>>()
+              filteredFfeItems.forEach(room => {
+                room.sections.forEach(section => {
+                  section.items.filter(item => !item.hasLinkedSpecs).forEach(item => {
+                    const key = section.sectionName
+                    if (!byCategory.has(key)) byCategory.set(key, [])
+                    byCategory.get(key)!.push({ roomName: room.roomName, roomId: room.roomId, sectionId: section.sectionId, sectionName: section.sectionName, item })
                   })
-                  return Array.from(byCategory.entries()).map(([category, items]) => (
-                    <div key={category} className="bg-white rounded-lg border border-stone-200 overflow-hidden">
-                      <button
-                        onClick={() => setCollapsedNeedsSections(prev => {
-                          const next = new Set(prev)
-                          if (next.has(category)) next.delete(category)
-                          else next.add(category)
-                          return next
-                        })}
-                        className="w-full bg-stone-100/50 px-4 py-2 border-b border-stone-200 flex items-center gap-2 hover:bg-stone-100 transition-colors cursor-pointer"
-                      >
-                        {collapsedNeedsSections.has(category) ? (
-                          <ChevronRight className="w-4 h-4 text-stone-400 flex-shrink-0" />
-                        ) : (
-                          <ChevronDown className="w-4 h-4 text-stone-400 flex-shrink-0" />
-                        )}
-                        <span className="font-medium text-stone-900">{category}</span>
-                        <span className="text-sm text-stone-500">({items.length} items)</span>
-                      </button>
-                      {!collapsedNeedsSections.has(category) && (
-                      <div className="divide-y divide-stone-100">
-                        {items.map(({ roomName, roomId, sectionId, item }) => (
-                          <div
-                            key={item.id}
-                            className={cn(
-                              "py-3 hover:bg-stone-50",
-                              item.isLinkedItem ? "px-8 bg-stone-50/50" : "px-4"
-                            )}
-                          >
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-3 flex-1 min-w-0">
-                                {item.isLinkedItem && (
-                                  <div className="w-4 h-4 border-l-2 border-b-2 border-stone-300 -ml-4 mr-1" />
-                                )}
-                                <Circle className={cn("w-4 h-4 flex-shrink-0", item.isLinkedItem ? "text-stone-400" : "text-stone-400")} />
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <p className="font-medium text-stone-900 truncate">{item.name}</p>
-                                    {item.isLinkedItem && item.parentId && (
-                                      <Popover>
-                                        <PopoverTrigger asChild>
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation()
-                                              const parentElement = document.querySelector(`[data-item-id="${item.parentId}"]`)
-                                              if (parentElement) {
-                                                parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                                                parentElement.classList.add('ring-2', 'ring-violet-400')
-                                                setTimeout(() => parentElement.classList.remove('ring-2', 'ring-violet-400'), 2000)
-                                              }
-                                            }}
-                                            className="w-5 h-5 flex items-center justify-center bg-violet-100 text-violet-600 rounded hover:bg-violet-200 transition-colors flex-shrink-0"
-                                            title={`Linked to: ${item.parentName}`}
-                                          >
-                                            <LinkIcon className="w-3 h-3" />
-                                          </button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-64 p-0" align="start" onClick={(e) => e.stopPropagation()}>
-                                          <div className="p-3 border-b bg-violet-50">
-                                            <div className="flex items-center gap-2">
-                                              <Layers className="w-4 h-4 text-violet-600" />
-                                              <p className="text-xs font-semibold text-violet-800">Grouped with Parent</p>
-                                            </div>
-                                          </div>
-                                          <div className="p-3 space-y-2">
-                                            <div>
-                                              <p className="text-[10px] text-stone-500 uppercase tracking-wide mb-1">Parent Item</p>
-                                              <p className="text-sm font-medium text-stone-900">{item.parentName}</p>
-                                            </div>
-                                            <Button
-                                              variant="outline"
-                                              size="sm"
-                                              className="w-full h-7 text-xs"
-                                              onClick={(e) => {
-                                                e.stopPropagation()
-                                                const parentElement = document.querySelector(`[data-item-id="${item.parentId}"]`)
-                                                if (parentElement) {
-                                                  parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                                                  parentElement.classList.add('ring-2', 'ring-violet-400')
-                                                  setTimeout(() => parentElement.classList.remove('ring-2', 'ring-violet-400'), 2000)
-                                                }
-                                              }}
-                                            >
-                                              <Eye className="w-3 h-3 mr-1" />
-                                              Find Parent in List
-                                            </Button>
-                                          </div>
-                                        </PopoverContent>
-                                      </Popover>
-                                    )}
-                                  </div>
-                                  <p className="text-xs text-stone-500">{roomName}</p>
-                                </div>
-                              </div>
-                              <div className="w-20 flex-shrink-0 text-right">
-                                {item.docCode ? (
-                                  <span className="text-[10px] font-mono font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded">{item.docCode}</span>
-                                ) : (
-                                  <span className="text-xs text-stone-300">—</span>
-                                )}
-                              </div>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-7 text-xs gap-1 border-stone-300 text-stone-700 hover:bg-stone-100"
-                                  >
-                                    <CheckCircle2 className="w-3.5 h-3.5" />
-                                    Choose
-                                    <ChevronDown className="w-3 h-3 ml-0.5" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => {
-                                    setUrlGenerateDialog({
-                                      open: true,
-                                      ffeItem: { id: item.id, name: item.name, roomId, sectionId }
-                                    })
-                                  }}>
-                                    <Globe className="w-4 h-4 mr-2" />
-                                    Generate from URL
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => {
-                                    setSelectedFfeRoom(roomId)
-                                    setSelectedFfeSection(sectionId)
-                                    setSelectedFfeItemId(item.id)
-                                    setDetailPanel({
-                                      isOpen: true,
-                                      mode: 'create',
-                                      item: null,
-                                      sectionId: sectionId,
-                                      roomId: roomId
-                                    })
-                                  }}>
-                                    <Plus className="w-4 h-4 mr-2" />
-                                    Add New
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => {
-                                    setProgramaModal({
-                                      open: true,
-                                      sectionId: sectionId,
-                                      roomId: roomId,
-                                      ffeItemId: item.id,
-                                      ffeItemName: item.name
-                                    })
-                                  }}>
-                                    <FileSpreadsheet className="w-4 h-4 mr-2" />
-                                    Programa Import
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                            {/* Notes Display */}
-                            {item.notes && (
-                              <div className="mt-2 ml-7 flex items-start gap-2 bg-stone-50 rounded-lg p-2">
-                                <StickyNote className="w-3.5 h-3.5 text-stone-400 mt-0.5 flex-shrink-0" />
-                                <p className="text-xs text-stone-600">{item.notes}</p>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                      )}
-                    </div>
-                  ))
-                })()
-              ) : (
-                // Group by room
-                filteredFfeItems.filter(room => room.sections.some(s => s.items.some(i => !i.hasLinkedSpecs))).map(room => (
-                  <div key={room.roomId} className="bg-white rounded-lg border border-stone-200 overflow-hidden">
-                    <button
-                      onClick={() => setCollapsedNeedsSections(prev => {
-                        const next = new Set(prev)
-                        const key = `room-${room.roomId}`
-                        if (next.has(key)) next.delete(key)
-                        else next.add(key)
-                        return next
-                      })}
-                      className="w-full bg-stone-100/50 px-4 py-2 border-b border-stone-200 flex items-center gap-2 hover:bg-stone-100 transition-colors cursor-pointer"
-                    >
-                      {collapsedNeedsSections.has(`room-${room.roomId}`) ? (
-                        <ChevronRight className="w-4 h-4 text-stone-400 flex-shrink-0" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4 text-stone-400 flex-shrink-0" />
-                      )}
-                      <span className="font-medium text-stone-900">{room.roomName}</span>
-                      <span className="text-sm text-stone-500">
-                        ({room.sections.reduce((acc, s) => acc + s.items.filter(i => !i.hasLinkedSpecs).length, 0)} items)
-                      </span>
-                    </button>
-                    {!collapsedNeedsSections.has(`room-${room.roomId}`) && (
-                    <div className="divide-y divide-stone-100">
-                      {room.sections.flatMap(section =>
-                        section.items.filter(item => !item.hasLinkedSpecs).map(item => (
-                          <div
-                            key={item.id}
-                            className={cn(
-                              "py-3 hover:bg-stone-50",
-                              item.isLinkedItem ? "px-8 bg-stone-50/50" : "px-4"
-                            )}
-                          >
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-3 flex-1 min-w-0">
-                                {item.isLinkedItem && (
-                                  <div className="w-4 h-4 border-l-2 border-b-2 border-stone-300 -ml-4 mr-1" />
-                                )}
-                                <Circle className={cn("w-4 h-4 flex-shrink-0", item.isLinkedItem ? "text-stone-400" : "text-stone-400")} />
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <p className="font-medium text-stone-900 truncate">{item.name}</p>
-                                    {item.isLinkedItem && item.parentId && (
-                                      <Popover>
-                                        <PopoverTrigger asChild>
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation()
-                                              const parentElement = document.querySelector(`[data-item-id="${item.parentId}"]`)
-                                              if (parentElement) {
-                                                parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                                                parentElement.classList.add('ring-2', 'ring-violet-400')
-                                                setTimeout(() => parentElement.classList.remove('ring-2', 'ring-violet-400'), 2000)
-                                              }
-                                            }}
-                                            className="w-5 h-5 flex items-center justify-center bg-violet-100 text-violet-600 rounded hover:bg-violet-200 transition-colors flex-shrink-0"
-                                            title={`Linked to: ${item.parentName}`}
-                                          >
-                                            <LinkIcon className="w-3 h-3" />
-                                          </button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-64 p-0" align="start" onClick={(e) => e.stopPropagation()}>
-                                          <div className="p-3 border-b bg-violet-50">
-                                            <div className="flex items-center gap-2">
-                                              <Layers className="w-4 h-4 text-violet-600" />
-                                              <p className="text-xs font-semibold text-violet-800">Grouped with Parent</p>
-                                            </div>
-                                          </div>
-                                          <div className="p-3 space-y-2">
-                                            <div>
-                                              <p className="text-[10px] text-stone-500 uppercase tracking-wide mb-1">Parent Item</p>
-                                              <p className="text-sm font-medium text-stone-900">{item.parentName}</p>
-                                              <p className="text-xs text-stone-500 mt-0.5">Section: {section.sectionName}</p>
-                                            </div>
-                                            <Button
-                                              variant="outline"
-                                              size="sm"
-                                              className="w-full h-7 text-xs"
-                                              onClick={(e) => {
-                                                e.stopPropagation()
-                                                const parentElement = document.querySelector(`[data-item-id="${item.parentId}"]`)
-                                                if (parentElement) {
-                                                  parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                                                  parentElement.classList.add('ring-2', 'ring-violet-400')
-                                                  setTimeout(() => parentElement.classList.remove('ring-2', 'ring-violet-400'), 2000)
-                                                }
-                                              }}
-                                            >
-                                              <Eye className="w-3 h-3 mr-1" />
-                                              Find Parent in List
-                                            </Button>
-                                          </div>
-                                        </PopoverContent>
-                                      </Popover>
-                                    )}
-                                  </div>
-                                  <p className="text-xs text-stone-500">{section.sectionName}</p>
-                                </div>
-                              </div>
-                              <div className="w-20 flex-shrink-0 text-right">
-                                {item.docCode ? (
-                                  <span className="text-[10px] font-mono font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded">{item.docCode}</span>
-                                ) : (
-                                  <span className="text-xs text-stone-300">—</span>
-                                )}
-                              </div>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-7 text-xs gap-1 border-stone-300 text-stone-700 hover:bg-stone-100"
-                                  >
-                                    <CheckCircle2 className="w-3.5 h-3.5" />
-                                    Choose
-                                    <ChevronDown className="w-3 h-3 ml-0.5" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => {
-                                    setUrlGenerateDialog({
-                                      open: true,
-                                      ffeItem: { id: item.id, name: item.name, roomId: room.roomId, sectionId: section.sectionId }
-                                    })
-                                  }}>
-                                    <Globe className="w-4 h-4 mr-2" />
-                                    Generate from URL
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => {
-                                    setSelectedFfeRoom(room.roomId)
-                                    setSelectedFfeSection(section.sectionId)
-                                    setSelectedFfeItemId(item.id)
-                                    setDetailPanel({
-                                      isOpen: true,
-                                      mode: 'create',
-                                      item: null,
-                                      sectionId: section.sectionId,
-                                      roomId: room.roomId
-                                    })
-                                  }}>
-                                    <Plus className="w-4 h-4 mr-2" />
-                                    Add New
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => {
-                                    setProgramaModal({
-                                      open: true,
-                                      sectionId: section.sectionId,
-                                      roomId: room.roomId,
-                                      ffeItemId: item.id,
-                                      ffeItemName: item.name
-                                    })
-                                  }}>
-                                    <FileSpreadsheet className="w-4 h-4 mr-2" />
-                                    Programa Import
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                            {/* Notes Display */}
-                            {item.notes && (
-                              <div className="mt-2 ml-7 flex items-start gap-2 bg-stone-50 rounded-lg p-2">
-                                <StickyNote className="w-3.5 h-3.5 text-stone-400 mt-0.5 flex-shrink-0" />
-                                <p className="text-xs text-stone-600">{item.notes}</p>
-                              </div>
-                            )}
-                          </div>
-                        ))
-                      )}
-                    </div>
-                    )}
-                  </div>
-                ))
-              )}
-              
-              {filteredFfeItems.every(room => room.sections.every(s => s.items.every(i => i.hasLinkedSpecs))) && (
-                <div className="text-center py-8 text-stone-500">
-                  <CheckCircle2 className="w-12 h-12 mx-auto mb-3 text-emerald-500" />
-                  <p className="font-medium text-emerald-700">All FFE items have products selected!</p>
+                })
+              })
+              byCategory.forEach((items, key) => groups.push({ key, label: key, items }))
+            } else {
+              filteredFfeItems.filter(room => room.sections.some(s => s.items.some(i => !i.hasLinkedSpecs))).forEach(room => {
+                const items: Array<{ roomName: string; roomId: string; sectionId: string; sectionName: string; item: any }> = []
+                room.sections.forEach(section => {
+                  section.items.filter(item => !item.hasLinkedSpecs).forEach(item => {
+                    items.push({ roomName: room.roomName, roomId: room.roomId, sectionId: section.sectionId, sectionName: section.sectionName, item })
+                  })
+                })
+                if (items.length > 0) groups.push({ key: `room-${room.roomId}`, label: room.roomName, items })
+              })
+            }
+
+            if (groups.length === 0) {
+              return (
+                <div className="text-center py-12 text-stone-400">
+                  <CheckCircle2 className="w-10 h-10 mx-auto mb-3 text-emerald-400" />
+                  <p className="text-sm font-medium text-emerald-600">All FFE items have products selected</p>
                 </div>
-              )}
-            </div>
-          </div>
+              )
+            }
+
+            return groups.map(group => (
+              <div key={group.key} className="scroll-mt-40">
+                {/* Section Header - matching Summary style */}
+                <button
+                  onClick={() => setCollapsedNeedsSections(prev => {
+                    const next = new Set(prev)
+                    if (next.has(group.key)) next.delete(group.key)
+                    else next.add(group.key)
+                    return next
+                  })}
+                  className="flex items-center gap-2 pb-2 pt-1 hover:opacity-70 transition-opacity"
+                >
+                  <h2 className="text-base font-semibold text-stone-800">{group.label}</h2>
+                  <span className="text-sm font-normal text-stone-400">{group.items.length}</span>
+                </button>
+
+                {/* Item Cards */}
+                {!collapsedNeedsSections.has(group.key) && (
+                  <div className="space-y-1.5">
+                    {group.items.map(({ roomName, roomId, sectionId, sectionName, item }) => (
+                      <div
+                        key={item.id}
+                        className={cn(
+                          "flex items-center rounded-lg bg-white px-3 py-2.5 gap-3 transition-all shadow-[0_0_0_1px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-[0_0_0_1px_rgba(0,0,0,0.08),0_2px_4px_rgba(0,0,0,0.06)]",
+                          item.isLinkedItem && "ml-6"
+                        )}
+                      >
+                        {/* Item Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-stone-900 truncate">{item.name}</p>
+                            {item.isLinkedItem && item.parentId && (
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <button
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="w-4 h-4 flex items-center justify-center text-stone-400 hover:text-stone-600 flex-shrink-0"
+                                    title={`Linked to: ${item.parentName}`}
+                                  >
+                                    <LinkIcon className="w-3 h-3" />
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-56 p-3" align="start" onClick={(e) => e.stopPropagation()}>
+                                  <p className="text-[10px] text-stone-400 uppercase tracking-wide mb-1">Grouped with</p>
+                                  <p className="text-sm font-medium text-stone-900">{item.parentName}</p>
+                                </PopoverContent>
+                              </Popover>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-stone-400 mt-0.5">{sortBy === 'category' ? roomName : sectionName}</p>
+                        </div>
+
+                        {/* Doc Code */}
+                        {item.docCode && (
+                          <span className="text-[10px] font-mono text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded flex-shrink-0">{item.docCode}</span>
+                        )}
+
+                        {/* Notes indicator */}
+                        {item.notes && (
+                          <HoverCard openDelay={200}>
+                            <HoverCardTrigger asChild>
+                              <StickyNote className="w-3.5 h-3.5 text-stone-300 flex-shrink-0 cursor-help" />
+                            </HoverCardTrigger>
+                            <HoverCardContent className="w-52 p-2.5 text-xs text-stone-600">
+                              {item.notes}
+                            </HoverCardContent>
+                          </HoverCard>
+                        )}
+
+                        {/* Choose Action */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-xs gap-1 border-stone-200 text-stone-600 hover:bg-stone-50 flex-shrink-0"
+                            >
+                              Choose
+                              <ChevronDown className="w-3 h-3" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => {
+                              setUrlGenerateDialog({
+                                open: true,
+                                ffeItem: { id: item.id, name: item.name, roomId, sectionId }
+                              })
+                            }}>
+                              <Globe className="w-4 h-4 mr-2" />
+                              Generate from URL
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                              setSelectedFfeRoom(roomId)
+                              setSelectedFfeSection(sectionId)
+                              setSelectedFfeItemId(item.id)
+                              setDetailPanel({
+                                isOpen: true,
+                                mode: 'create',
+                                item: null,
+                                sectionId: sectionId,
+                                roomId: roomId
+                              })
+                            }}>
+                              <Plus className="w-4 h-4 mr-2" />
+                              Add New
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                              setProgramaModal({
+                                open: true,
+                                sectionId: sectionId,
+                                roomId: roomId,
+                                ffeItemId: item.id,
+                                ffeItemName: item.name
+                              })
+                            }}>
+                              <FileSpreadsheet className="w-4 h-4 mr-2" />
+                              Programa Import
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))
+          })()}
         </div>
       )}
 
       {/* All FFE Items Tab Content */}
       {activeTab === 'all-ffe' && (
-        <div className="max-w-full mx-auto px-6 py-4">
-          <div className="bg-white rounded-xl border border-stone-200 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-stone-400 to-stone-500 flex items-center justify-center shadow-sm">
-                  <List className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-stone-900">All FFE Items</h3>
-                  <p className="text-sm text-stone-600">
-                    Complete overview of all FFE items across rooms and sections
-                  </p>
-                </div>
-              </div>
-              {/* Regenerate All Doc Codes button */}
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs gap-1.5"
-                onClick={async () => {
-                  setRegenConfirmDialog({ open: true, loading: true, categories: [], previewData: null })
-                  try {
-                    const res = await fetch(`/api/projects/${project.id}/regenerate-doc-codes`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ categories: [], preview: true })
-                    })
-                    const data = await res.json()
-                    console.log('[Regen Preview]', JSON.stringify(data.debug, null, 2))
-                    if (data.success) {
-                      setRegenConfirmDialog(prev => ({ ...prev, loading: false, previewData: data }))
-                    } else {
-                      toast.error(data.error || 'Failed to preview')
-                      setRegenConfirmDialog(prev => ({ ...prev, open: false }))
-                    }
-                  } catch {
-                    toast.error('Failed to preview doc codes')
-                    setRegenConfirmDialog(prev => ({ ...prev, open: false }))
-                  }
-                }}
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                Regenerate All Doc Codes
-              </Button>
-            </div>
-
-            {/* All Items List */}
-            <div className="space-y-3">
-              {sortBy === 'category' ? (
-                // Group by category/section
-                (() => {
-                  const byCategory = new Map<string, { prefix: string | null; items: Array<{ roomName: string; roomId: string; sectionId: string; item: any }> }>()
-                  filteredFfeItems.forEach(room => {
-                    room.sections.forEach(section => {
-                      section.items.forEach(item => {
-                        const key = section.sectionName
-                        if (!byCategory.has(key)) byCategory.set(key, { prefix: section.docCodePrefix || null, items: [] })
-                        const cat = byCategory.get(key)!
-                        if (!cat.prefix && section.docCodePrefix) cat.prefix = section.docCodePrefix
-                        cat.items.push({ roomName: room.roomName, roomId: room.roomId, sectionId: section.sectionId, item })
-                      })
-                    })
+        <div className="space-y-3 py-2">
+          {(() => {
+            // Build grouped items based on sort mode
+            const groups: Array<{ key: string; label: string; prefix?: string | null; items: Array<{ roomName: string; roomId: string; sectionId: string; sectionName: string; item: any }> }> = []
+            if (sortBy === 'category') {
+              const byCategory = new Map<string, { prefix: string | null; items: Array<{ roomName: string; roomId: string; sectionId: string; sectionName: string; item: any }> }>()
+              filteredFfeItems.forEach(room => {
+                room.sections.forEach(section => {
+                  section.items.forEach(item => {
+                    const key = section.sectionName
+                    if (!byCategory.has(key)) byCategory.set(key, { prefix: section.docCodePrefix || null, items: [] })
+                    const cat = byCategory.get(key)!
+                    if (!cat.prefix && section.docCodePrefix) cat.prefix = section.docCodePrefix
+                    cat.items.push({ roomName: room.roomName, roomId: room.roomId, sectionId: section.sectionId, sectionName: section.sectionName, item })
                   })
-                  return Array.from(byCategory.entries()).map(([category, { prefix, items }]) => (
-                    <div key={category} className="bg-white rounded-lg border border-stone-200 overflow-hidden">
-                      <div className="flex items-center border-b border-stone-200 bg-stone-100/50">
+                })
+              })
+              byCategory.forEach(({ prefix, items }, key) => groups.push({ key: `all-${key}`, label: key, prefix, items }))
+            } else {
+              filteredFfeItems.filter(room => room.sections.some(s => s.items.length > 0)).forEach(room => {
+                const items: Array<{ roomName: string; roomId: string; sectionId: string; sectionName: string; item: any }> = []
+                room.sections.forEach(section => {
+                  section.items.forEach(item => {
+                    items.push({ roomName: room.roomName, roomId: room.roomId, sectionId: section.sectionId, sectionName: section.sectionName, item })
+                  })
+                })
+                if (items.length > 0) groups.push({ key: `all-room-${room.roomId}`, label: room.roomName, items })
+              })
+            }
+
+            if (groups.length === 0 && unlinkedSpecs.length === 0) {
+              return (
+                <div className="text-center py-12 text-stone-400">
+                  <Package className="w-10 h-10 mx-auto mb-3 text-stone-300" />
+                  <p className="text-sm font-medium text-stone-500">No FFE items found</p>
+                  <p className="text-xs text-stone-400 mt-1">Add items in the FFE Workspace first</p>
+                </div>
+              )
+            }
+
+            return (
+              <>
+                {groups.map(group => (
+                  <div key={group.key} className="scroll-mt-40">
+                    {/* Section Header - matching Summary style */}
+                    <div className="flex items-center justify-between pb-2 pt-1">
+                      <button
+                        onClick={() => setCollapsedNeedsSections(prev => {
+                          const next = new Set(prev)
+                          if (next.has(group.key)) next.delete(group.key)
+                          else next.add(group.key)
+                          return next
+                        })}
+                        className="flex items-center gap-2 hover:opacity-70 transition-opacity"
+                      >
+                        <h2 className="text-base font-semibold text-stone-800">{group.label}</h2>
+                        {group.prefix && (
+                          <span className="text-[10px] font-mono text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded">{group.prefix}</span>
+                        )}
+                        <span className="text-sm font-normal text-stone-400">{group.items.length}</span>
+                      </button>
+                      {/* Regen button for category mode */}
+                      {sortBy === 'category' && (
                         <button
-                          onClick={() => setCollapsedNeedsSections(prev => {
-                            const next = new Set(prev)
-                            const key = `all-${category}`
-                            if (next.has(key)) next.delete(key)
-                            else next.add(key)
-                            return next
-                          })}
-                          className="flex-1 px-4 py-2 flex items-center gap-2 hover:bg-stone-100 transition-colors cursor-pointer"
-                        >
-                          {collapsedNeedsSections.has(`all-${category}`) ? (
-                            <ChevronRight className="w-4 h-4 text-stone-400 flex-shrink-0" />
-                          ) : (
-                            <ChevronDown className="w-4 h-4 text-stone-400 flex-shrink-0" />
-                          )}
-                          <span className="font-medium text-stone-900">{category}</span>
-                          {prefix && (
-                            <span className="text-xs font-mono text-stone-400 bg-stone-200/60 px-1.5 py-0.5 rounded">{prefix}</span>
-                          )}
-                          <span className="text-sm text-stone-500">({items.length} items)</span>
-                        </button>
-                        <button
-                          onClick={async (e) => {
-                            e.stopPropagation()
+                          onClick={async () => {
+                            const category = group.label
                             setRegenConfirmDialog({ open: true, loading: true, categories: [category], previewData: null })
                             try {
                               const res = await fetch(`/api/projects/${project.id}/regenerate-doc-codes`, {
@@ -4427,198 +4186,108 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               setRegenConfirmDialog(prev => ({ ...prev, open: false }))
                             }
                           }}
-                          className="px-3 py-1 mr-2 text-xs text-stone-500 hover:text-stone-700 hover:bg-stone-200 rounded transition-colors flex items-center gap-1"
-                          title={`Regenerate doc codes for ${category}`}
+                          className="text-[11px] text-stone-400 hover:text-stone-600 flex items-center gap-1 transition-colors"
+                          title={`Regenerate doc codes for ${group.label}`}
                         >
                           <RefreshCw className="w-3 h-3" />
                           Regen
                         </button>
-                      </div>
-                      {!collapsedNeedsSections.has(`all-${category}`) && (
-                      <div className="divide-y divide-stone-100">
-                        {items.map(({ roomName, item }) => (
-                          <div key={item.id} className="px-4 py-3 hover:bg-stone-50">
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-3 flex-1 min-w-0">
-                                <Circle className={cn("w-4 h-4 flex-shrink-0", item.hasLinkedSpecs ? "text-emerald-500" : "text-stone-300")} />
-                                <div className="min-w-0">
-                                  <p className="font-medium text-stone-900 truncate">{item.name}</p>
-                                  <p className="text-xs text-stone-500">{roomName}</p>
-                                </div>
-                              </div>
-                              <div className="w-20 flex-shrink-0 text-right">
-                                {item.docCode ? (
-                                  <span className="text-[10px] font-mono font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded">{item.docCode}</span>
-                                ) : (
-                                  <span className="text-xs text-stone-300">—</span>
-                                )}
-                              </div>
-                              <div className="flex-shrink-0">
-                                {item.hasLinkedSpecs ? (
-                                  <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">
-                                    <CheckCircle2 className="w-3 h-3 mr-1" />
-                                    {item.status === 'chosen' ? 'Selected' : item.status}
-                                  </Badge>
-                                ) : (
-                                  <Badge variant="outline" className="text-xs bg-stone-50 text-stone-500 border-stone-200">
-                                    <Circle className="w-3 h-3 mr-1" />
-                                    Needs Selection
-                                  </Badge>
-                                )}
-                              </div>
+                      )}
+                    </div>
+
+                    {/* Item Cards */}
+                    {!collapsedNeedsSections.has(group.key) && (
+                      <div className="space-y-1.5">
+                        {group.items.map(({ roomName, sectionName, item }) => (
+                          <div
+                            key={item.id}
+                            className="flex items-center rounded-lg bg-white px-3 py-2.5 gap-3 transition-all shadow-[0_0_0_1px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-[0_0_0_1px_rgba(0,0,0,0.08),0_2px_4px_rgba(0,0,0,0.06)]"
+                          >
+                            {/* Item Info */}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-stone-900 truncate">{item.name}</p>
+                              <p className="text-[11px] text-stone-400 mt-0.5">{sortBy === 'category' ? roomName : sectionName}</p>
                             </div>
-                            {item.notes && (
-                              <div className="mt-2 ml-7 flex items-start gap-2 bg-stone-50 rounded-lg p-2">
-                                <StickyNote className="w-3.5 h-3.5 text-stone-400 mt-0.5 flex-shrink-0" />
-                                <p className="text-xs text-stone-600">{item.notes}</p>
-                              </div>
+
+                            {/* Doc Code */}
+                            {item.docCode && (
+                              <span className="text-[10px] font-mono text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded flex-shrink-0">{item.docCode}</span>
                             )}
+
+                            {/* Notes indicator */}
+                            {item.notes && (
+                              <HoverCard openDelay={200}>
+                                <HoverCardTrigger asChild>
+                                  <StickyNote className="w-3.5 h-3.5 text-stone-300 flex-shrink-0 cursor-help" />
+                                </HoverCardTrigger>
+                                <HoverCardContent className="w-52 p-2.5 text-xs text-stone-600">
+                                  {item.notes}
+                                </HoverCardContent>
+                              </HoverCard>
+                            )}
+
+                            {/* Status */}
+                            <div className="flex-shrink-0">
+                              {item.hasLinkedSpecs ? (
+                                <span className="text-[11px] text-emerald-600 font-medium">
+                                  {item.status === 'chosen' ? 'Selected' : item.status}
+                                </span>
+                              ) : (
+                                <span className="text-[11px] text-stone-400">Pending</span>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>
-                      )}
-                    </div>
-                  ))
-                })()
-              ) : (
-                // Group by room
-                filteredFfeItems.filter(room => room.sections.some(s => s.items.length > 0)).map(room => (
-                  <div key={room.roomId} className="bg-white rounded-lg border border-stone-200 overflow-hidden">
+                    )}
+                  </div>
+                ))}
+
+                {/* Unlinked Spec Items */}
+                {unlinkedSpecs.length > 0 && (
+                  <div className="scroll-mt-40">
                     <button
                       onClick={() => setCollapsedNeedsSections(prev => {
                         const next = new Set(prev)
-                        const key = `all-room-${room.roomId}`
-                        if (next.has(key)) next.delete(key)
-                        else next.add(key)
+                        if (next.has('all-unlinked')) next.delete('all-unlinked')
+                        else next.add('all-unlinked')
                         return next
                       })}
-                      className="w-full bg-stone-100/50 px-4 py-2 border-b border-stone-200 flex items-center gap-2 hover:bg-stone-100 transition-colors cursor-pointer"
+                      className="flex items-center gap-2 pb-2 pt-1 hover:opacity-70 transition-opacity"
                     >
-                      {collapsedNeedsSections.has(`all-room-${room.roomId}`) ? (
-                        <ChevronRight className="w-4 h-4 text-stone-400 flex-shrink-0" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4 text-stone-400 flex-shrink-0" />
-                      )}
-                      <span className="font-medium text-stone-900">{room.roomName}</span>
-                      <span className="text-sm text-stone-500">
-                        ({room.sections.reduce((acc, s) => acc + s.items.length, 0)} items)
-                      </span>
+                      <h2 className="text-base font-semibold text-orange-700">Unlinked Spec Items</h2>
+                      <span className="text-sm font-normal text-orange-400">{unlinkedSpecs.length}</span>
                     </button>
-                    {!collapsedNeedsSections.has(`all-room-${room.roomId}`) && (
-                    <div className="divide-y divide-stone-100">
-                      {room.sections.flatMap(section =>
-                        section.items.map(item => (
-                          <div key={item.id} className="px-4 py-3 hover:bg-stone-50">
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-3 flex-1 min-w-0">
-                                <Circle className={cn("w-4 h-4 flex-shrink-0", item.hasLinkedSpecs ? "text-emerald-500" : "text-stone-300")} />
-                                <div className="min-w-0">
-                                  <p className="font-medium text-stone-900 truncate">{item.name}</p>
-                                  <p className="text-xs text-stone-500">{section.sectionName}</p>
-                                </div>
-                              </div>
-                              <div className="w-20 flex-shrink-0 text-right">
-                                {item.docCode ? (
-                                  <span className="text-[10px] font-mono font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded">{item.docCode}</span>
-                                ) : (
-                                  <span className="text-xs text-stone-300">—</span>
-                                )}
-                              </div>
-                              <div className="flex-shrink-0">
-                                {item.hasLinkedSpecs ? (
-                                  <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">
-                                    <CheckCircle2 className="w-3 h-3 mr-1" />
-                                    {item.status === 'chosen' ? 'Selected' : item.status}
-                                  </Badge>
-                                ) : (
-                                  <Badge variant="outline" className="text-xs bg-stone-50 text-stone-500 border-stone-200">
-                                    <Circle className="w-3 h-3 mr-1" />
-                                    Needs Selection
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-                            {item.notes && (
-                              <div className="mt-2 ml-7 flex items-start gap-2 bg-stone-50 rounded-lg p-2">
-                                <StickyNote className="w-3.5 h-3.5 text-stone-400 mt-0.5 flex-shrink-0" />
-                                <p className="text-xs text-stone-600">{item.notes}</p>
-                              </div>
-                            )}
-                          </div>
-                        ))
-                      )}
-                    </div>
-                    )}
-                  </div>
-                ))
-              )}
 
-              {/* Unlinked Spec Items - items in All Specs not linked to any FFE requirement */}
-              {unlinkedSpecs.length > 0 && (
-                <div className="bg-white rounded-lg border border-orange-200 overflow-hidden">
-                  <button
-                    onClick={() => setCollapsedNeedsSections(prev => {
-                      const next = new Set(prev)
-                      if (next.has('all-unlinked')) next.delete('all-unlinked')
-                      else next.add('all-unlinked')
-                      return next
-                    })}
-                    className="w-full bg-orange-50/50 px-4 py-2 border-b border-orange-200 flex items-center gap-2 hover:bg-orange-50 transition-colors cursor-pointer"
-                  >
-                    {collapsedNeedsSections.has('all-unlinked') ? (
-                      <ChevronRight className="w-4 h-4 text-orange-400 flex-shrink-0" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-orange-400 flex-shrink-0" />
-                    )}
-                    <AlertCircle className="w-4 h-4 text-orange-500 flex-shrink-0" />
-                    <span className="font-medium text-orange-800">Unlinked Spec Items</span>
-                    <span className="text-sm text-orange-600">({unlinkedSpecs.length} items not linked to any FFE requirement)</span>
-                  </button>
-                  {!collapsedNeedsSections.has('all-unlinked') && (
-                  <div className="divide-y divide-stone-100">
-                    {unlinkedSpecs.map(spec => (
-                      <div key={spec.id} className="px-4 py-3 hover:bg-stone-50">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <AlertCircle className="w-4 h-4 text-orange-400 flex-shrink-0" />
-                            <div className="min-w-0">
+                    {!collapsedNeedsSections.has('all-unlinked') && (
+                      <div className="space-y-1.5">
+                        {unlinkedSpecs.map(spec => (
+                          <div
+                            key={spec.id}
+                            className="flex items-center rounded-lg bg-white px-3 py-2.5 gap-3 transition-all shadow-[0_0_0_1px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-[0_0_0_1px_rgba(0,0,0,0.08),0_2px_4px_rgba(0,0,0,0.06)]"
+                          >
+                            <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
-                                <p className="font-medium text-stone-900 truncate">{spec.name}</p>
+                                <p className="text-sm font-medium text-stone-900 truncate">{spec.name}</p>
                                 {spec.brand && (
-                                  <span className="text-xs text-stone-400 flex-shrink-0">{spec.brand}</span>
+                                  <span className="text-[11px] text-stone-400 flex-shrink-0">{spec.brand}</span>
                                 )}
                               </div>
-                              <p className="text-xs text-stone-500">{spec.roomName} &middot; {spec.sectionName}</p>
+                              <p className="text-[11px] text-stone-400 mt-0.5">{spec.roomName} &middot; {spec.sectionName}</p>
                             </div>
-                          </div>
-                          <div className="w-20 flex-shrink-0 text-right">
-                            {spec.docCode ? (
-                              <span className="text-xs font-mono font-medium text-stone-500 bg-stone-100 px-2 py-1 rounded">{spec.docCode}</span>
-                            ) : (
-                              <span className="text-xs text-stone-300">—</span>
+                            {spec.docCode && (
+                              <span className="text-[10px] font-mono text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded flex-shrink-0">{spec.docCode}</span>
                             )}
+                            <span className="text-[11px] text-orange-500 flex-shrink-0">Unlinked</span>
                           </div>
-                          <Badge variant="outline" className="text-xs bg-orange-50 text-orange-600 border-orange-200 flex-shrink-0">
-                            <AlertCircle className="w-3 h-3 mr-1" />
-                            Unlinked
-                          </Badge>
-                        </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
-                  )}
-                </div>
-              )}
-
-              {filteredFfeItems.every(room => room.sections.every(s => s.items.length === 0)) && unlinkedSpecs.length === 0 && (
-                <div className="text-center py-8 text-stone-500">
-                  <Package className="w-12 h-12 mx-auto mb-3 text-stone-300" />
-                  <p className="font-medium text-stone-500">No FFE items found</p>
-                  <p className="text-sm text-stone-400 mt-1">Add items in the FFE Workspace first</p>
-                </div>
-              )}
-            </div>
-          </div>
+                )}
+              </>
+            )
+          })()}
         </div>
       )}
 
