@@ -204,7 +204,7 @@ export default function TransmittalLog({
   const sectionGroups = useLatestFilesBySection(transmittals)
 
   const hasActiveFilters = filterSearch !== '' || filterDateFrom !== '' || filterDateTo !== '' || filterSection !== null || filterRecipient !== null
-  const activeFilterCount = [filterSection, filterRecipient].filter(Boolean).length
+  const activeFilterCount = [filterSection, filterRecipient, filterDateFrom, filterDateTo].filter(Boolean).length
 
   const clearAllFilters = useCallback(() => {
     setFilterSearch('')
@@ -442,67 +442,43 @@ export default function TransmittalLog({
       </div>
 
       {/* ── Filter & Sort bar ────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3">
+      <div className="flex flex-wrap items-center gap-2.5">
         {/* Search */}
         <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
             placeholder="Search title, recipient..."
             value={filterSearch}
             onChange={(e) => setFilterSearch(e.target.value)}
-            className="h-8 w-52 rounded-xl border border-slate-200 bg-white pl-8 pr-7 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300"
+            className="h-9 w-56 rounded-lg border border-slate-200 bg-white pl-9 pr-8 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300"
           />
           {filterSearch && (
             <button
               onClick={() => setFilterSearch('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
             >
               <X className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
 
-        <div className="w-px h-5 bg-slate-200" />
-
-        {/* Date range */}
-        <div className="flex items-center gap-1.5">
-          <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-          <input
-            type="date"
-            value={filterDateFrom}
-            onChange={(e) => setFilterDateFrom(e.target.value)}
-            className="h-8 rounded-xl border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300"
-            title="From date"
-          />
-          <span className="text-xs text-slate-400">to</span>
-          <input
-            type="date"
-            value={filterDateTo}
-            onChange={(e) => setFilterDateTo(e.target.value)}
-            className="h-8 rounded-xl border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300"
-            title="To date"
-          />
-        </div>
-
-        <div className="w-px h-5 bg-slate-200" />
-
         {/* Sort dropdown */}
         <div className="relative" ref={sortDropdownRef}>
           <button
             onClick={() => { setShowSortDropdown((v) => !v); setShowFilterDropdown(false) }}
             className={cn(
-              'inline-flex items-center gap-1.5 h-8 px-3 rounded-xl text-xs font-medium transition-all border',
+              'inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-sm transition-all border',
               showSortDropdown
-                ? 'bg-slate-900 text-white border-slate-900'
-                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-800'
+                ? 'bg-white text-slate-900 font-medium shadow-sm border-slate-200'
+                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100 border-transparent'
             )}
           >
             <ArrowUpDown className="h-3.5 w-3.5" />
             Sort
             {sortField !== 'sent' && (
-              <span className="ml-0.5 text-[10px] opacity-70">
-                ({SORT_LABELS[sortField]})
+              <span className="text-slate-400 font-normal text-[11px]">
+                {SORT_LABELS[sortField]}
               </span>
             )}
             <ChevronDown className={cn('h-3 w-3 transition-transform', showSortDropdown && 'rotate-180')} />
@@ -530,28 +506,56 @@ export default function TransmittalLog({
           )}
         </div>
 
-        {/* Filter dropdown */}
+        {/* Filter dropdown (includes section, recipient, date range) */}
         <div className="relative" ref={filterDropdownRef}>
           <button
             onClick={() => { setShowFilterDropdown((v) => !v); setShowSortDropdown(false) }}
             className={cn(
-              'inline-flex items-center gap-1.5 h-8 px-3 rounded-xl text-xs font-medium transition-all border',
+              'inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-sm transition-all border',
               showFilterDropdown || activeFilterCount > 0
-                ? 'bg-slate-900 text-white border-slate-900'
-                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-800'
+                ? 'bg-white text-slate-900 font-medium shadow-sm border-slate-200'
+                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100 border-transparent'
             )}
           >
             <SlidersHorizontal className="h-3.5 w-3.5" />
             Filter
             {activeFilterCount > 0 && (
-              <span className="ml-0.5 inline-flex items-center justify-center h-4 min-w-[16px] rounded-full text-[10px] font-bold bg-white text-slate-900">
+              <span className="inline-flex items-center justify-center h-4 min-w-[16px] rounded-full text-[10px] font-bold bg-slate-900 text-white">
                 {activeFilterCount}
               </span>
             )}
             <ChevronDown className={cn('h-3 w-3 transition-transform', showFilterDropdown && 'rotate-180')} />
           </button>
           {showFilterDropdown && (
-            <div className="absolute left-0 top-full mt-1 z-50 w-56 rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+            <div className="absolute left-0 top-full mt-1 z-50 w-64 rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+              {/* Date range */}
+              <div className="px-3 py-1.5">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Date Range</span>
+              </div>
+              <div className="px-3 py-1.5 flex items-center gap-2">
+                <div className="flex-1">
+                  <input
+                    type="date"
+                    value={filterDateFrom}
+                    onChange={(e) => setFilterDateFrom(e.target.value)}
+                    className="h-8 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300"
+                    title="From date"
+                  />
+                </div>
+                <span className="text-xs text-slate-400 shrink-0">to</span>
+                <div className="flex-1">
+                  <input
+                    type="date"
+                    value={filterDateTo}
+                    onChange={(e) => setFilterDateTo(e.target.value)}
+                    className="h-8 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300"
+                    title="To date"
+                  />
+                </div>
+              </div>
+
+              <div className="my-1 border-t border-slate-100" />
+
               {/* Section filter */}
               <div className="px-3 py-1.5">
                 <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Section</span>
@@ -606,12 +610,12 @@ export default function TransmittalLog({
           )}
         </div>
 
-        {/* Active filter/sort chips */}
+        {/* Active filter chips */}
         {hasActiveFilters && (
           <>
             <div className="w-px h-5 bg-slate-200" />
             {filterSection && (
-              <span className="inline-flex items-center gap-1 h-6 px-2 rounded-full bg-slate-100 text-[11px] font-medium text-slate-700">
+              <span className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-slate-100 text-xs font-medium text-slate-700">
                 {uniqueSections.find(s => s.id === filterSection)?.name}
                 <button onClick={() => setFilterSection(null)} className="text-slate-400 hover:text-slate-600">
                   <X className="h-3 w-3" />
@@ -619,9 +623,22 @@ export default function TransmittalLog({
               </span>
             )}
             {filterRecipient && (
-              <span className="inline-flex items-center gap-1 h-6 px-2 rounded-full bg-slate-100 text-[11px] font-medium text-slate-700">
+              <span className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-slate-100 text-xs font-medium text-slate-700">
                 {filterRecipient}
                 <button onClick={() => setFilterRecipient(null)} className="text-slate-400 hover:text-slate-600">
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            )}
+            {(filterDateFrom || filterDateTo) && (
+              <span className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-slate-100 text-xs font-medium text-slate-700">
+                <Calendar className="h-3 w-3 text-slate-400" />
+                {filterDateFrom && filterDateTo
+                  ? `${filterDateFrom} – ${filterDateTo}`
+                  : filterDateFrom
+                    ? `From ${filterDateFrom}`
+                    : `To ${filterDateTo}`}
+                <button onClick={() => { setFilterDateFrom(''); setFilterDateTo('') }} className="text-slate-400 hover:text-slate-600">
                   <X className="h-3 w-3" />
                 </button>
               </span>

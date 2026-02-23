@@ -317,8 +317,8 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
           onValueChange={(val) => setActiveTab(val as TabValue)}
         >
           {/* Tab bar + view toggle */}
-          <div className="flex items-center justify-between mb-5">
-            <div className="inline-flex w-fit rounded-xl bg-slate-100 p-1">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-1.5">
               {([
                 { value: 'all-files' as TabValue, label: 'All Files', icon: FolderTree },
                 { value: 'drawings' as TabValue, label: 'Drawings', icon: FileText },
@@ -331,10 +331,10 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
                   key={value}
                   onClick={() => setActiveTab(value)}
                   className={cn(
-                    'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-all',
+                    'inline-flex items-center gap-2 px-4 py-2 text-sm rounded-lg transition-all',
                     activeTab === value
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
+                      ? 'bg-white text-slate-900 font-medium shadow-sm border border-slate-200'
+                      : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
                   )}
                 >
                   <Icon className="w-4 h-4" />
@@ -345,14 +345,14 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
 
             {/* View toggle - only for drawings tab */}
             {activeTab === 'drawings' && (
-              <div className="inline-flex items-center rounded-xl bg-slate-100 p-1">
+              <div className="inline-flex items-center gap-0.5">
                 <button
                   onClick={() => setViewMode('table')}
                   className={cn(
-                    'p-1.5 rounded-lg transition-all',
+                    'p-2 rounded-lg transition-all',
                     viewMode === 'table'
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-400 hover:text-slate-600'
+                      ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
+                      : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
                   )}
                   title="Table view"
                 >
@@ -361,10 +361,10 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
                 <button
                   onClick={() => setViewMode('cards')}
                   className={cn(
-                    'p-1.5 rounded-lg transition-all',
+                    'p-2 rounded-lg transition-all',
                     viewMode === 'cards'
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-400 hover:text-slate-600'
+                      ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
+                      : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
                   )}
                   title="Card view"
                 >
