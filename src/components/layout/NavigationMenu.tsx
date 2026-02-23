@@ -128,24 +128,24 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
   const showFinancials = userRole === 'OWNER' || canSeeFinancials || userPerms?.canSeeFinancials
 
   const mainNavigationBefore = [
-    { name: 'Home', href: '/dashboard', icon: Home, color: 'text-purple-600' },
-    { name: 'Projects', href: '/projects', icon: FolderOpen, color: 'text-blue-600' },
-    { name: 'Products', href: '/products', icon: Package, color: 'text-emerald-600' },
-    { name: 'Tasks', href: '/tasks', icon: CheckSquare, color: 'text-rose-500', badgeCount: taskCount, badgeColor: 'bg-rose-500' },
+    { name: 'Home', href: '/dashboard', icon: Home },
+    { name: 'Projects', href: '/projects', icon: FolderOpen },
+    { name: 'Products', href: '/products', icon: Package },
+    { name: 'Tasks', href: '/tasks', icon: CheckSquare, badgeCount: taskCount, badgeColor: 'bg-rose-500' },
   ]
 
   const mainNavigationAfter = [
-    { name: 'Calendar', href: '/calendar', icon: CalendarDays, color: 'text-orange-500' },
-    { name: 'Timeline', href: '/timeline', icon: Clock, color: 'text-cyan-600' },
-    { name: 'Team', href: '/team', icon: Users, color: 'text-green-600' },
-    { name: 'Reports', href: '/reports', icon: BarChart3, color: 'text-purple-600' },
-    ...(showFinancials ? [{ name: 'Financials', href: '/financials', icon: DollarSign, color: 'text-emerald-600' }] : []),
+    { name: 'Calendar', href: '/calendar', icon: CalendarDays },
+    { name: 'Timeline', href: '/timeline', icon: Clock },
+    { name: 'Team', href: '/team', icon: Users },
+    { name: 'Reports', href: '/reports', icon: BarChart3 },
+    ...(showFinancials ? [{ name: 'Financials', href: '/financials', icon: DollarSign }] : []),
   ]
 
   // Combined flat list for collapsed view (no sub-items)
   const mainNavigation = [
     ...mainNavigationBefore,
-    { name: 'Procurement', href: '/procurement', icon: FileText, color: 'text-amber-600', badgeCount: procurementCount, badgeColor: 'bg-amber-500' },
+    { name: 'Procurement', href: '/procurement', icon: FileText, badgeCount: procurementCount, badgeColor: 'bg-amber-500' },
     ...mainNavigationAfter,
   ]
 
@@ -154,9 +154,9 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
   const isProcurementActive = pathname.startsWith('/procurement') || pathname.match(/^\/projects\/[^/]+\/procurement/)
 
   const updatesNavigation = [
-    { name: 'Messages', href: '/messages', icon: MessageSquare, color: 'text-indigo-600', badgeCount: totalUnreadMessages, badgeColor: 'bg-[#6366ea]' },
-    { name: 'Activities', href: '/activities', icon: Activity, color: 'text-[#f6762e]', badgeCount: unreadActivitiesCount, badgeColor: 'bg-[#f6762e]' },
-    { name: "What's New", href: '/whats-new', icon: Sparkles, color: 'text-[#e94d97]', badgeCount: unseenUpdatesCount, special: true },
+    { name: 'Messages', href: '/messages', icon: MessageSquare, badgeCount: totalUnreadMessages, badgeColor: 'bg-[#6366ea]' },
+    { name: 'Activities', href: '/activities', icon: Activity, badgeCount: unreadActivitiesCount, badgeColor: 'bg-[#f6762e]' },
+    { name: "What's New", href: '/whats-new', icon: Sparkles, badgeCount: unseenUpdatesCount, special: true },
   ]
 
   // Don't highlight "Projects" when viewing filtered projects (e.g., Active Projects from dashboard)
@@ -178,24 +178,24 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
           {mainNavigation.map((item) => {
             const Icon = item.icon
             const badge = 'badgeCount' in item ? (item as { badgeCount?: number; badgeColor?: string }).badgeCount : undefined
-            const badgeColor = 'badgeColor' in item ? (item as { badgeColor?: string }).badgeColor : undefined
             const showBadge = badge && badge > 0
+            const active = isActive(item.href)
 
             return (
               <Link
                 key={item.name}
                 href={item.href}
                 className={cn(
-                  'group flex items-center justify-center p-2 text-sm font-medium rounded-md transition-colors relative',
-                  isActive(item.href)
-                    ? 'bg-purple-50 text-purple-700'
-                    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                  'group flex items-center justify-center p-2 text-sm font-medium rounded-lg transition-colors relative',
+                  active
+                    ? 'bg-stone-200/70 text-stone-900'
+                    : 'text-stone-500 hover:bg-stone-100 hover:text-stone-700'
                 )}
                 title={item.name}
               >
-                <Icon className={cn('h-5 w-5', item.color)} />
+                <Icon className={cn('h-5 w-5', active ? 'text-stone-900' : 'text-stone-400 group-hover:text-stone-600')} />
                 {showBadge && (
-                  <span className="absolute -top-1 -right-1 bg-gray-100 text-gray-600 text-[10px] font-medium rounded-full w-5 h-5 flex items-center justify-center border border-gray-200">
+                  <span className="absolute -top-1 -right-1 bg-stone-100 text-stone-600 text-[10px] font-medium rounded-full w-5 h-5 flex items-center justify-center border border-stone-200">
                     {badge > 99 ? '99+' : badge}
                   </span>
                 )}
@@ -205,25 +205,26 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
         </div>
 
         {/* Updates Navigation */}
-        <div className="space-y-1 border-t border-gray-200 pt-4">
+        <div className="space-y-1 border-t border-stone-200 pt-4">
           {updatesNavigation.map((item) => {
             const Icon = item.icon
             const showBadge = item.badgeCount && item.badgeCount > 0
+            const active = isActive(item.href)
             return (
               <Link
                 key={item.name}
                 href={item.href}
                 className={cn(
-                  'group flex items-center justify-center p-2 text-sm font-medium rounded-md transition-colors relative',
-                  isActive(item.href)
-                    ? 'bg-purple-50 text-purple-700'
-                    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                  'group flex items-center justify-center p-2 text-sm font-medium rounded-lg transition-colors relative',
+                  active
+                    ? 'bg-stone-200/70 text-stone-900'
+                    : 'text-stone-500 hover:bg-stone-100 hover:text-stone-700'
                 )}
                 title={item.name}
               >
-                <Icon className={cn('h-5 w-5', item.color)} />
+                <Icon className={cn('h-5 w-5', active ? 'text-stone-900' : 'text-stone-400 group-hover:text-stone-600')} />
                 {showBadge && (
-                  <span className="absolute -top-1 -right-1 bg-gray-100 text-gray-600 text-[10px] font-medium rounded-full w-5 h-5 flex items-center justify-center border border-gray-200">
+                  <span className="absolute -top-1 -right-1 bg-stone-100 text-stone-600 text-[10px] font-medium rounded-full w-5 h-5 flex items-center justify-center border border-stone-200">
                     {item.badgeCount > 99 ? '99+' : item.badgeCount}
                   </span>
                 )}
@@ -240,30 +241,30 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
     <div className="space-y-6">
       {/* Main Navigation */}
       <div>
-        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Navigation</h3>
-        <nav className="space-y-1">
+        <h3 className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-3">Navigation</h3>
+        <nav className="space-y-0.5">
           {mainNavigationBefore.map((item) => {
             const Icon = item.icon
             const badge = 'badgeCount' in item ? (item as { badgeCount?: number; badgeColor?: string }).badgeCount : undefined
-            const badgeColor = 'badgeColor' in item ? (item as { badgeColor?: string }).badgeColor : undefined
             const showBadge = badge && badge > 0
+            const active = isActive(item.href)
             return (
               <Link
                 key={item.name}
                 href={item.href}
                 className={cn(
-                  'group flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors',
-                  isActive(item.href)
-                    ? 'bg-purple-50 text-purple-700 border-r-2 border-purple-700'
-                    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                  'group flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors',
+                  active
+                    ? 'bg-stone-200/70 text-stone-900'
+                    : 'text-stone-600 hover:bg-stone-100 hover:text-stone-800'
                 )}
               >
                 <div className="flex items-center">
-                  <Icon className={cn('flex-shrink-0 h-5 w-5 mr-3', item.color)} />
+                  <Icon className={cn('flex-shrink-0 h-5 w-5 mr-3', active ? 'text-stone-900' : 'text-stone-400 group-hover:text-stone-600')} />
                   {item.name}
                 </div>
                 {showBadge && (
-                  <span className="text-gray-500 text-xs font-medium bg-gray-100 rounded-full px-2 py-0.5 min-w-[20px] text-center">
+                  <span className="text-stone-500 text-xs font-medium bg-stone-100 rounded-full px-2 py-0.5 min-w-[20px] text-center">
                     {badge > 99 ? '99+' : badge}
                   </span>
                 )}
@@ -275,18 +276,18 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
           <Link
             href="/procurement"
             className={cn(
-              'group flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors',
+              'group flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors',
               isProcurementActive
-                ? 'bg-purple-50 text-purple-700 border-r-2 border-purple-700'
-                : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                ? 'bg-stone-200/70 text-stone-900'
+                : 'text-stone-600 hover:bg-stone-100 hover:text-stone-800'
             )}
           >
             <div className="flex items-center">
-              <FileText className="flex-shrink-0 h-5 w-5 mr-3 text-amber-600" />
+              <FileText className={cn('flex-shrink-0 h-5 w-5 mr-3', isProcurementActive ? 'text-stone-900' : 'text-stone-400 group-hover:text-stone-600')} />
               Procurement
             </div>
             {procurementCount > 0 && (
-              <span className="text-gray-500 text-xs font-medium bg-gray-100 rounded-full px-2 py-0.5 min-w-[20px] text-center">
+              <span className="text-stone-500 text-xs font-medium bg-stone-100 rounded-full px-2 py-0.5 min-w-[20px] text-center">
                 {procurementCount > 99 ? '99+' : procurementCount}
               </span>
             )}
@@ -294,19 +295,20 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
 
           {mainNavigationAfter.map((item) => {
             const Icon = item.icon
+            const active = isActive(item.href)
             return (
               <Link
                 key={item.name}
                 href={item.href}
                 className={cn(
-                  'group flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors',
-                  isActive(item.href)
-                    ? 'bg-purple-50 text-purple-700 border-r-2 border-purple-700'
-                    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                  'group flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors',
+                  active
+                    ? 'bg-stone-200/70 text-stone-900'
+                    : 'text-stone-600 hover:bg-stone-100 hover:text-stone-800'
                 )}
               >
                 <div className="flex items-center">
-                  <Icon className={cn('flex-shrink-0 h-5 w-5 mr-3', item.color)} />
+                  <Icon className={cn('flex-shrink-0 h-5 w-5 mr-3', active ? 'text-stone-900' : 'text-stone-400 group-hover:text-stone-600')} />
                   {item.name}
                 </div>
               </Link>
@@ -317,29 +319,29 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
 
       {/* Updates Section */}
       <div>
-        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Updates</h3>
-        <nav className="space-y-1">
+        <h3 className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-3">Updates</h3>
+        <nav className="space-y-0.5">
           {updatesNavigation.map((item) => {
             const Icon = item.icon
             const showBadge = item.badgeCount && item.badgeCount > 0
-            const isSpecial = 'special' in item && item.special
+            const active = isActive(item.href)
             return (
               <Link
                 key={item.name}
                 href={item.href}
                 className={cn(
-                  'group flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors',
-                  isActive(item.href)
-                    ? 'bg-purple-50 text-purple-700 border-r-2 border-purple-700'
-                    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                  'group flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors',
+                  active
+                    ? 'bg-stone-200/70 text-stone-900'
+                    : 'text-stone-600 hover:bg-stone-100 hover:text-stone-800'
                 )}
               >
                 <div className="flex items-center">
-                  <Icon className={cn('flex-shrink-0 h-5 w-5 mr-3', item.color)} />
+                  <Icon className={cn('flex-shrink-0 h-5 w-5 mr-3', active ? 'text-stone-900' : 'text-stone-400 group-hover:text-stone-600')} />
                   {item.name}
                 </div>
                 {showBadge && (
-                  <span className="text-gray-500 text-xs font-medium bg-gray-100 rounded-full px-2 py-0.5 min-w-[20px] text-center">
+                  <span className="text-stone-500 text-xs font-medium bg-stone-100 rounded-full px-2 py-0.5 min-w-[20px] text-center">
                     {item.badgeCount > 99 ? '99+' : item.badgeCount}
                   </span>
                 )}

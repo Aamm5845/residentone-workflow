@@ -50,16 +50,16 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
 
   const workNavigation = {
     DESIGNER: [
-      { name: 'Design Tasks', href: '/design', icon: Palette, color: 'text-pink-600' },
+      { name: 'Design Tasks', href: '/design', icon: Palette },
     ],
     RENDERER: [
-      { name: '3D Queue', href: '/rendering', icon: Box, color: 'text-indigo-600' },
+      { name: '3D Queue', href: '/rendering', icon: Box },
     ],
     DRAFTER: [
-      { name: 'Drawings', href: '/drawings', icon: FileText, color: 'text-orange-600' },
+      { name: 'Drawings', href: '/drawings', icon: FileText },
     ],
     FFE: [
-      { name: 'Sourcing', href: '/ffe', icon: CheckSquare, color: 'text-emerald-600' },
+      { name: 'Sourcing', href: '/ffe', icon: CheckSquare },
     ],
   }
 
@@ -68,9 +68,9 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
 
   return (
     <Providers>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-stone-50">
         {/* Asana-style Header */}
-        <header className="bg-white border-b border-gray-200 fixed top-0 left-0 right-0 z-50">
+        <header className="bg-stone-50 border-b border-stone-200 fixed top-0 left-0 right-0 z-50">
           <div className="flex items-center justify-between px-4 md:px-6 py-3">
             {/* Left: Mobile Menu + Logo */}
             <div className="flex items-center space-x-3 md:space-x-6">
@@ -93,8 +93,8 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
                   <div className="bg-[#e94d97] rounded-br-md" /> {/* Pink - FFE */}
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-lg font-bold text-gray-900 leading-tight">StudioFlow</span>
-                  <span className="hidden md:block text-[10px] text-gray-400 leading-tight">by Meisner Interiors</span>
+                  <span className="text-lg font-bold text-stone-900 leading-tight">StudioFlow</span>
+                  <span className="hidden md:block text-[10px] text-stone-400 leading-tight">by Meisner Interiors</span>
                 </div>
               </Link>
               
@@ -144,7 +144,7 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
                   <img 
                     src={session.user.image} 
                     alt={session?.user?.name || 'Profile'}
-                    className="w-8 h-8 rounded-full object-cover border border-gray-200"
+                    className="w-8 h-8 rounded-full object-cover border border-stone-200"
                   />
                 ) : (
                   <div className="w-8 h-8 bg-[#a657f0] rounded-full flex items-center justify-center">
@@ -154,8 +154,8 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
                   </div>
                 )}
                 <div className="hidden md:block">
-                  <p className="text-sm font-medium text-gray-900">{session?.user?.name}</p>
-                  <p className="text-xs text-gray-500">{session?.user?.role}</p>
+                  <p className="text-sm font-medium text-stone-900">{session?.user?.name}</p>
+                  <p className="text-xs text-stone-500">{session?.user?.role}</p>
                 </div>
                 <Button
                   variant="ghost"
@@ -184,7 +184,7 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
         <div className="pt-16 flex h-screen">
           {/* Sidebar - Hidden on mobile, overlay when menu open */}
           <div className={cn(
-            "bg-white border-r border-gray-200 transition-all duration-200",
+            "bg-stone-50 border-r border-stone-200 transition-all duration-200",
             // Desktop behavior - fixed sidebar
             "hidden md:block md:flex-shrink-0",
             sidebarCollapsed ? "md:w-16" : "md:w-64",
@@ -218,7 +218,7 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
               
               {/* Navigation Menu */}
               <div onClick={handleNavClick}>
-                <Suspense fallback={<div className="space-y-1 px-2 py-2"><div className="h-8 bg-gray-100 rounded animate-pulse"></div></div>}>
+                <Suspense fallback={<div className="space-y-1 px-2 py-2"><div className="h-8 bg-stone-100 rounded animate-pulse"></div></div>}>
                   <NavigationMenu sidebarCollapsed={sidebarCollapsed} userRole={session?.user?.role} />
                 </Suspense>
               </div>
@@ -226,28 +226,29 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
               {/* Work Navigation */}
               {userWorkNavigation.length > 0 && !sidebarCollapsed && (
                 <div>
-                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">My Work</h3>
-                  <nav className="space-y-1">
+                  <h3 className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-3">My Work</h3>
+                  <nav className="space-y-0.5">
                     {userWorkNavigation.map((item) => {
                       const Icon = item.icon
+                      const active = isActive(item.href)
                       return (
                         <Link
                           key={item.name}
                           href={item.href}
                           onClick={handleNavClick}
                           className={cn(
-                            'group flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors',
-                            isActive(item.href)
-                              ? 'bg-[#a657f0]/10 text-[#a657f0] border-r-2 border-[#a657f0]'
-                              : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                            'group flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors',
+                            active
+                              ? 'bg-stone-200/70 text-stone-900'
+                              : 'text-stone-600 hover:bg-stone-100 hover:text-stone-800'
                           )}
                         >
                           <div className="flex items-center">
-                            <Icon className={cn('flex-shrink-0 h-5 w-5 mr-3', item.color)} />
+                            <Icon className={cn('flex-shrink-0 h-5 w-5 mr-3', active ? 'text-stone-900' : 'text-stone-400 group-hover:text-stone-600')} />
                             {item.name}
                           </div>
                           {item.badge && (
-                            <span className="text-gray-500 text-xs font-medium bg-gray-100 rounded-full px-2 py-0.5 min-w-[20px] text-center">
+                            <span className="text-stone-500 text-xs font-medium bg-stone-100 rounded-full px-2 py-0.5 min-w-[20px] text-center">
                               {item.badge}
                             </span>
                           )}
@@ -263,22 +264,23 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
                 <div className="space-y-1">
                   {userWorkNavigation.map((item) => {
                     const Icon = item.icon
+                    const active = isActive(item.href)
                     return (
                       <Link
                         key={item.name}
                         href={item.href}
                         onClick={handleNavClick}
                         className={cn(
-                          'group flex items-center justify-center p-2 text-sm font-medium rounded-md transition-colors relative',
-                          isActive(item.href)
-                            ? 'bg-[#a657f0]/10 text-[#a657f0]'
-                            : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                          'group flex items-center justify-center p-2 text-sm font-medium rounded-lg transition-colors relative',
+                          active
+                            ? 'bg-stone-200/70 text-stone-900'
+                            : 'text-stone-500 hover:bg-stone-100 hover:text-stone-700'
                         )}
                         title={item.name}
                       >
-                        <Icon className={cn('h-5 w-5', item.color)} />
+                        <Icon className={cn('h-5 w-5', active ? 'text-stone-900' : 'text-stone-400 group-hover:text-stone-600')} />
                         {item.badge && (
-                          <span className="absolute -top-1 -right-1 bg-gray-100 text-gray-600 text-[10px] font-medium rounded-full w-5 h-5 flex items-center justify-center border border-gray-200">
+                          <span className="absolute -top-1 -right-1 bg-stone-100 text-stone-600 text-[10px] font-medium rounded-full w-5 h-5 flex items-center justify-center border border-stone-200">
                             {item.badge}
                           </span>
                         )}
@@ -291,7 +293,7 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
           </div>
 
           {/* Main Content - Scrollable container for sticky headers */}
-          <main className="flex-1 bg-gray-50 min-w-0 overflow-y-auto">
+          <main className="flex-1 bg-stone-100/50 min-w-0 overflow-y-auto">
             {children}
           </main>
         </div>

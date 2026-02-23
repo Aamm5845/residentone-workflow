@@ -3393,7 +3393,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50/50">
+    <div className="min-h-screen bg-stone-50">
       {/* Hidden file input for image upload */}
       <input
         type="file"
@@ -3404,9 +3404,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
       />
       
       {/* Sticky Header - Action Bar + Tabs (top-0 since main content is the scroll container) */}
-      <div className="sticky top-0 z-30 bg-white shadow-sm">
+      <div className="sticky top-0 z-30 bg-stone-50 shadow-sm">
         {/* Action Bar */}
-        <div className="border-b border-gray-200">
+        <div className="border-b border-stone-200">
           <div className="max-w-full mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-6">
@@ -3414,23 +3414,23 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 onClick={() => router.push(`/projects/${project.id}`)}
                 variant="ghost"
                 size="sm"
-                className="text-gray-500 hover:text-gray-900 -ml-2"
+                className="text-stone-500 hover:text-stone-900 -ml-2"
               >
                 <ArrowLeft className="w-4 h-4 mr-1.5" />
                 Back
               </Button>
-              <div className="h-8 w-px bg-gray-200" />
+              <div className="h-8 w-px bg-stone-200" />
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">All Specs</h1>
-                <p className="text-sm text-gray-500 mt-0.5">{project.name}</p>
+                <h1 className="text-xl font-semibold text-stone-900">All Specs</h1>
+                <p className="text-sm text-stone-500 mt-0.5">{project.name}</p>
               </div>
               {specs.length > 0 && (
                 <>
-                  <div className="h-6 w-px bg-gray-200" />
+                  <div className="h-6 w-px bg-stone-200" />
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 text-xs text-gray-600 hover:text-gray-900"
+                    className="h-7 text-xs text-stone-600 hover:text-stone-900"
                     onClick={() => {
                       if (selectedItems.size === specs.length) {
                         setSelectedItems(new Set())
@@ -3450,9 +3450,9 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               )}
             </div>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1">
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 onClick={() => {
                   if (selectedItems.size === 0) {
@@ -3463,13 +3463,13 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   setQuickQuoteDialogOpen(true)
                 }}
                 disabled={selectedItems.size === 0}
-                className="h-8 border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300 disabled:opacity-50"
+                className="h-8 text-stone-600 hover:text-stone-800 hover:bg-stone-100 disabled:opacity-50"
               >
                 <Mail className="w-3.5 h-3.5 mr-1.5" />
                 Request Quotes {selectedItems.size > 0 && `(${selectedItems.size})`}
               </Button>
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 onClick={() => {
                   if (selectedItems.size === 0) {
@@ -3480,13 +3480,13 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   setClientQuoteDialogOpen(true)
                 }}
                 disabled={selectedItems.size === 0}
-                className="h-8 border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300 disabled:opacity-50"
+                className="h-8 text-stone-600 hover:text-stone-800 hover:bg-stone-100 disabled:opacity-50"
               >
                 <DollarSign className="w-3.5 h-3.5 mr-1.5" />
                 Client Invoice {selectedItems.size > 0 && `(${selectedItems.size})`}
               </Button>
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 onClick={() => {
                   if (selectedItems.size === 0) {
@@ -3496,18 +3496,18 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   setBudgetApprovalDialogOpen(true)
                 }}
                 disabled={selectedItems.size === 0}
-                className="h-8 border-violet-200 text-violet-700 hover:bg-violet-50 hover:border-violet-300 disabled:opacity-50"
+                className="h-8 text-stone-600 hover:text-stone-800 hover:bg-stone-100 disabled:opacity-50"
               >
                 <DollarSign className="w-3.5 h-3.5 mr-1.5" />
                 Budget Approval {selectedItems.size > 0 && `(${selectedItems.size})`}
               </Button>
-              <div className="h-5 w-px bg-gray-200 mx-1" />
+              <div className="h-5 w-px bg-stone-200 mx-0.5" />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
-                    className="h-8 border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300"
+                    className="h-8 text-stone-600 hover:text-stone-800 hover:bg-stone-100"
                   >
                     <Share2 className="w-3.5 h-3.5 mr-1.5" />
                     Share
@@ -3544,11 +3544,11 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               </DropdownMenu>
               {selectedItems.size > 0 && (
                 <>
-                  <div className="h-5 w-px bg-gray-200" />
+                  <div className="h-5 w-px bg-stone-200" />
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 text-xs gap-1.5"
+                    className="h-8 text-xs gap-1.5 text-stone-600 hover:text-stone-800 hover:bg-stone-100"
                     onClick={handleBulkDuplicate}
                     disabled={bulkDuplicating}
                     title="Duplicate selected items"
@@ -3558,7 +3558,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 text-xs gap-1.5"
+                    className="h-8 text-xs gap-1.5 text-stone-600 hover:text-stone-800 hover:bg-stone-100"
                     onClick={() => setBulkMoveModal(true)}
                     title="Move to section"
                   >
@@ -3567,7 +3567,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 text-xs gap-1.5"
+                    className="h-8 text-xs gap-1.5 text-stone-600 hover:text-stone-800 hover:bg-stone-100"
                     onClick={() => setBulkStatusModal(true)}
                     title="Update status"
                   >
@@ -3576,7 +3576,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 text-xs gap-1.5 text-green-600 hover:bg-green-50"
+                    className="h-8 text-xs gap-1.5 text-stone-600 hover:text-stone-800 hover:bg-stone-100"
                     onClick={handleBulkApprove}
                     disabled={bulkApproving}
                     title="Approve selected items"
@@ -3595,7 +3595,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 text-xs text-gray-500 hover:text-gray-700"
+                    className="h-8 text-xs text-stone-400 hover:text-stone-600"
                     onClick={() => setSelectedItems(new Set())}
                     title="Clear selection"
                   >
@@ -3620,99 +3620,76 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         </div>
 
         {/* Tabs Row */}
-        <div className="border-b border-gray-200">
+        <div className="border-b border-stone-200">
           <div className="max-w-full mx-auto px-6 py-3">
-            {/* Tabs Row - Modern Style */}
+            {/* Tabs Row - Clean Style */}
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              {/* Primary Tabs - Clean underline style */}
-              <div className="flex items-center border-b border-gray-200">
+              {/* Primary Tabs - Pill style like Programa */}
+              <div className="flex items-center gap-0.5">
                 <button
                   onClick={() => setActiveTab('summary')}
                   className={cn(
-                    "relative px-5 py-3 text-sm font-medium transition-all",
+                    "px-4 py-1.5 text-sm rounded-full transition-all",
                     activeTab === 'summary'
-                      ? "text-emerald-600"
-                      : "text-gray-500 hover:text-gray-700"
+                      ? "bg-white text-stone-900 font-medium shadow-sm border border-stone-200/80"
+                      : "text-stone-500 hover:text-stone-700 font-normal"
                   )}
                 >
-                  <div className="flex items-center gap-2">
-                    <Package className="w-4 h-4" />
-                    All Items
-                  </div>
-                  {activeTab === 'summary' && (
-                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-500 rounded-full" />
-                  )}
+                  Summary
                 </button>
                 <button
                   onClick={() => setActiveTab('financial')}
                   className={cn(
-                    "relative px-5 py-3 text-sm font-medium transition-all",
+                    "px-4 py-1.5 text-sm rounded-full transition-all",
                     activeTab === 'financial'
-                      ? "text-emerald-600"
-                      : "text-gray-500 hover:text-gray-700"
+                      ? "bg-white text-stone-900 font-medium shadow-sm border border-stone-200/80"
+                      : "text-stone-500 hover:text-stone-700 font-normal"
                   )}
                 >
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="w-4 h-4" />
-                    Financial
-                  </div>
-                  {activeTab === 'financial' && (
-                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-500 rounded-full" />
-                  )}
+                  Financial
                 </button>
                 <button
                   onClick={() => setActiveTab('needs')}
                   className={cn(
-                    "relative px-5 py-3 text-sm font-medium transition-all",
+                    "px-4 py-1.5 text-sm rounded-full transition-all",
                     activeTab === 'needs'
-                      ? "text-gray-900"
-                      : "text-gray-500 hover:text-gray-700"
+                      ? "bg-white text-stone-900 font-medium shadow-sm border border-stone-200/80"
+                      : "text-stone-500 hover:text-stone-700 font-normal"
                   )}
                 >
-                  <div className="flex items-center gap-2">
-                    <Circle className="w-4 h-4" />
+                  <span className="flex items-center gap-1.5">
                     Needs Selection
                     {ffeItems.length > 0 && (() => {
-                      // Calculate filtered count (respects room/section filters)
                       const filteredCount = filteredFfeItems.reduce((acc, room) =>
                         acc + room.sections.reduce((sAcc, section) =>
                           sAcc + section.items.filter(item => !item.hasLinkedSpecs).length, 0
                         ), 0
                       )
-                      // Calculate total count (all items)
                       const totalCount = ffeItems.reduce((acc, room) =>
                         acc + room.sections.reduce((sAcc, section) =>
                           sAcc + section.items.filter(item => !item.hasLinkedSpecs).length, 0
                         ), 0
                       )
                       const isFiltered = filterRoom !== 'all' || filterSection !== 'all'
-
                       return (
-                        <Badge
-                          variant="outline"
-                          className="text-xs px-1.5 py-0 h-5 bg-gray-100 text-gray-600 border-gray-200"
-                        >
-                          {isFiltered ? `${filteredCount} of ${totalCount}` : filteredCount}
-                        </Badge>
+                        <span className="text-stone-400 font-normal text-xs">
+                          {isFiltered ? `${filteredCount}/${totalCount}` : filteredCount}
+                        </span>
                       )
                     })()}
-                  </div>
-                  {activeTab === 'needs' && (
-                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900 rounded-full" />
-                  )}
+                  </span>
                 </button>
                 <button
                   onClick={() => setActiveTab('all-ffe')}
                   className={cn(
-                    "relative px-5 py-3 text-sm font-medium transition-all",
+                    "px-4 py-1.5 text-sm rounded-full transition-all",
                     activeTab === 'all-ffe'
-                      ? "text-gray-900"
-                      : "text-gray-500 hover:text-gray-700"
+                      ? "bg-white text-stone-900 font-medium shadow-sm border border-stone-200/80"
+                      : "text-stone-500 hover:text-stone-700 font-normal"
                   )}
                 >
-                  <div className="flex items-center gap-2">
-                    <List className="w-4 h-4" />
+                  <span className="flex items-center gap-1.5">
                     All FFE Items
                     {ffeItems.length > 0 && (() => {
                       const totalCount = ffeItems.reduce((acc, room) =>
@@ -3721,48 +3698,34 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                         ), 0
                       )
                       return totalCount > 0 ? (
-                        <Badge
-                          variant="outline"
-                          className="text-xs px-1.5 py-0 h-5 bg-gray-100 text-gray-600 border-gray-200"
-                        >
-                          {totalCount}
-                        </Badge>
+                        <span className="text-stone-400 font-normal text-xs">{totalCount}</span>
                       ) : null
                     })()}
-                  </div>
-                  {activeTab === 'all-ffe' && (
-                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900 rounded-full" />
-                  )}
+                  </span>
                 </button>
               </div>
             </div>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
               {/* Search */}
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-400" />
                 <Input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search..."
-                  className="pl-9 w-48 h-8 text-sm"
+                  placeholder="Search"
+                  className="pl-8 w-44 h-8 text-sm bg-transparent border-stone-200 rounded-lg placeholder:text-stone-400"
                 />
               </div>
-              
-              {/* Filter Dropdown */}
+
+              {/* Filter Dropdown - Icon only */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className={cn(
-                    "h-8",
-                    (filterStatus !== 'all' || filterRoom !== 'all' || filterSection !== 'all' || filterCurrency !== 'all' || summaryFilter !== 'all') ? "text-emerald-600" : "text-gray-500"
+                    "h-8 w-8 p-0",
+                    (filterStatus !== 'all' || filterRoom !== 'all' || filterSection !== 'all' || filterCurrency !== 'all' || summaryFilter !== 'all') ? "text-stone-900" : "text-stone-400"
                   )}>
-                    <Filter className="w-4 h-4 mr-1.5" />
-                    Filter
-                    {(filterStatus !== 'all' || filterRoom !== 'all' || filterSection !== 'all' || filterCurrency !== 'all' || summaryFilter !== 'all') && (
-                      <Badge variant="secondary" className="ml-1.5 h-5 px-1.5 text-xs bg-emerald-100 text-emerald-600">
-                        {(filterStatus !== 'all' ? 1 : 0) + (filterRoom !== 'all' ? 1 : 0) + (filterSection !== 'all' ? 1 : 0) + (filterCurrency !== 'all' ? 1 : 0) + (summaryFilter !== 'all' ? 1 : 0)}
-                      </Badge>
-                    )}
+                    <Filter className="w-4 h-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-72 p-4">
@@ -3912,14 +3875,10 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className={cn(
-                    "h-8",
-                    itemSortBy !== 'default' ? "text-blue-600" : "text-gray-500"
+                    "h-8 w-8 p-0",
+                    itemSortBy !== 'default' ? "text-stone-900" : "text-stone-400"
                   )}>
-                    <SortAsc className="w-4 h-4 mr-1.5" />
-                    Sort
-                    {itemSortBy !== 'default' && (
-                      <Badge variant="secondary" className="ml-1.5 h-5 px-1.5 text-xs bg-blue-100 text-blue-600">1</Badge>
-                    )}
+                    <SortAsc className="w-4 h-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
@@ -4856,20 +4815,18 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             )}
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-3 px-1.5 py-2">
             {groupedSpecs.map((group) => (
               <div
                 key={group.name}
                 id={`section-${group.name.replace(/\s+/g, '-')}`}
-                className="bg-white rounded-xl border border-gray-200 overflow-hidden scroll-mt-40"
+                className="scroll-mt-40"
                 onMouseEnter={() => setHoveredSection(group.name)}
                 onMouseLeave={() => setHoveredSection(null)}
               >
-                {/* Category Header */}
-                <div
-                  className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-100 group/header"
-                >
-                  <div className="flex items-center gap-2">
+                {/* Category Header - Programa style */}
+                <div className="flex items-center justify-between px-1 pb-2 pt-1">
+                  <div className="flex items-center gap-3">
                     {/* Select all checkbox - show on hover */}
                     <div className={cn(
                       "transition-opacity duration-150",
@@ -4894,28 +4851,21 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                     </div>
                     <button
                       onClick={() => toggleCategory(group.name)}
-                      className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                      className="flex items-center gap-2 hover:opacity-70 transition-opacity"
                     >
-                      {expandedCategories.has(group.name) ? (
-                        <ChevronUp className="w-4 h-4 text-gray-400" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4 text-gray-400" />
-                      )}
-                      <h2 className="text-sm font-semibold text-gray-900">{group.name}</h2>
-                      <Badge variant="secondary" className="bg-gray-200 text-gray-700 text-xs h-5">
-                        {group.items.length}
-                      </Badge>
+                      <h2 className="text-base font-semibold text-stone-800">{group.name}</h2>
+                      <span className="text-sm font-normal text-stone-400">{group.items.length}</span>
                       {activeTab === 'financial' && (
-                        <span className="text-sm font-medium ml-2 flex items-center gap-3">
+                        <span className="text-sm font-medium ml-3 flex items-center gap-3">
                           {(() => {
                             const totals = getSectionTotals(group.items)
                             return (
                               <>
-                                <span className="text-gray-700">
-                                  <span className="text-[10px] text-gray-500 uppercase mr-1">Trade:</span>
+                                <span className="text-stone-600">
+                                  <span className="text-[10px] text-stone-400 uppercase mr-1">Trade:</span>
                                   {formatCurrency(totals.tradeTotal)}
                                 </span>
-                                <span className="text-gray-500">
+                                <span className="text-stone-400">
                                   <span className="text-[10px] uppercase mr-1">RRP:</span>
                                   {formatCurrency(totals.rrpTotal)}
                                 </span>
@@ -4925,6 +4875,40 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                         </span>
                       )}
                     </button>
+                  </div>
+                  {/* Collapse/Expand - show on hover */}
+                  <div className={cn(
+                    "flex items-center gap-2 transition-opacity duration-150",
+                    hoveredSection === group.name ? "opacity-100" : "opacity-0"
+                  )}>
+                    <button
+                      onClick={() => toggleCategory(group.name)}
+                      className="flex items-center gap-1 text-xs text-stone-400 hover:text-stone-600 transition-colors"
+                    >
+                      {expandedCategories.has(group.name) ? (
+                        <>
+                          <ChevronUp className="w-3.5 h-3.5" />
+                          Collapse
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="w-3.5 h-3.5" />
+                          Expand
+                        </>
+                      )}
+                    </button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="p-1 rounded hover:bg-stone-100 text-stone-400 hover:text-stone-600 transition-colors">
+                          <MoreVertical className="w-3.5 h-3.5" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuItem onClick={() => toggleCategory(group.name)}>
+                          {expandedCategories.has(group.name) ? 'Collapse' : 'Expand'}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
 
@@ -4940,8 +4924,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       items={group.items.map(item => item.id)}
                       strategy={verticalListSortingStrategy}
                     >
-                    {/* Items Table */}
-                    <div className="divide-y divide-gray-100">
+                    {/* Items - Card layout */}
+                    <div className="space-y-2">
                       {group.items.map((item) => {
                         // Check if this item is part of an option group
                         const ffeId = getSpecFfeId(item)
@@ -4961,7 +4945,11 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                         return (
                         <SortableSpecItem key={item.id} id={item.id}>
                           {(listeners: any) => (
-                        <div className="flex flex-col">
+                        <div
+                          className="flex flex-col"
+                          onMouseEnter={() => setHoveredItem(displayItem.id)}
+                          onMouseLeave={() => setHoveredItem(null)}
+                        >
                           {/* Option Tabs - show when multiple specs share same FFE requirement */}
                           {hasMultipleOptions && ffeId && (
                             <div className="flex items-center gap-2 px-4 py-2 bg-purple-50 border-b border-purple-100">
@@ -4993,55 +4981,55 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               </div>
                             </div>
                           )}
-                          
-                          {/* Item Row */}
-                          <div
-                          id={`spec-item-${displayItem.id}`}
-                          data-item-id={displayItem.id}
-                          className={cn(
-                            "group/item relative flex items-center transition-colors border-l-2",
-                            highlightedItemId === displayItem.id
-                              ? "bg-emerald-100 border-emerald-500 ring-2 ring-emerald-300"
-                              : selectedItems.has(displayItem.id) 
-                                ? "bg-blue-50 border-blue-500" 
-                                : hasMultipleOptions
-                                  ? "bg-purple-50/30 hover:bg-purple-50 border-purple-200"
-                                  : "hover:bg-gray-50 border-transparent hover:border-blue-400"
-                          )}
-                          onMouseEnter={() => setHoveredItem(displayItem.id)}
-                          onMouseLeave={() => setHoveredItem(null)}
-                        >
-                          {/* Hover Actions - Fixed on left side, show on hover or if selected */}
+
+                          {/* Item row wrapper: hover controls + card */}
+                          <div className="flex items-center">
+                          {/* Hover Actions - Outside card, to the left */}
                           <div className={cn(
-                            "absolute left-1 lg:left-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 lg:gap-1 z-10 transition-opacity duration-150",
+                            "flex-shrink-0 flex flex-col items-center justify-center w-6 h-[88px] gap-1 transition-opacity duration-150",
                             hoveredItem === displayItem.id || selectedItems.has(item.id) ? "opacity-100" : "opacity-0"
                           )}>
                             <Checkbox
                               checked={selectedItems.has(item.id)}
                               onCheckedChange={() => toggleItemSelection(item.id)}
                               onClick={(e) => e.stopPropagation()}
-                              className="h-4 w-4"
+                              className="h-3.5 w-3.5"
                             />
                             <button
                               {...listeners}
-                              className="p-0.5 cursor-grab hover:bg-gray-200 rounded touch-none"
+                              className="p-0.5 cursor-grab hover:bg-stone-100 rounded touch-none"
                             >
-                              <GripVertical className="w-4 h-4 text-gray-400" />
+                              <GripVertical className="w-3.5 h-3.5 text-stone-300" />
                             </button>
                           </div>
-                          
-                          {/* Main Item Row - Using flex with responsive widths that shrink to fit */}
-                          <div className="flex items-start w-full px-2 lg:px-4 py-2 pl-10 lg:pl-14 gap-1 lg:gap-2">
-                            {/* Image - Responsive width, clickable to open editor or upload */}
-                            <div className="flex-shrink-0 w-12 lg:w-16">
+
+                          {/* Item Card */}
+                          <div
+                          id={`spec-item-${displayItem.id}`}
+                          data-item-id={displayItem.id}
+                          className={cn(
+                            "group/item relative flex items-center flex-1 min-w-0 transition-all rounded-lg h-[88px] p-2 gap-2 overflow-hidden shadow-[0_0_0_1px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)]",
+                            highlightedItemId === displayItem.id
+                              ? "bg-emerald-50 ring-2 ring-emerald-200"
+                              : selectedItems.has(displayItem.id)
+                                ? "bg-blue-50/50 shadow-[0_0_0_1px_rgba(59,130,246,0.3)]"
+                                : hasMultipleOptions
+                                  ? "bg-white hover:shadow-[0_0_0_1px_rgba(0,0,0,0.08),0_2px_4px_rgba(0,0,0,0.06)]"
+                                  : "bg-white hover:shadow-[0_0_0_1px_rgba(0,0,0,0.08),0_2px_4px_rgba(0,0,0,0.06)]"
+                          )}
+                        >
+
+                          {/* Image - Programa: aspect-square h-full (72px), shadow-borders-base, rounded-[5px], p-px */}
+                          <div className="flex-shrink-0 h-full">
+                            <div className="aspect-square h-full rounded-[5px] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)] bg-white p-px relative">
                               <HoverCard openDelay={300} closeDelay={100}>
                                 <HoverCardTrigger asChild>
                                   <div
                                     className={cn(
-                                      "relative w-12 h-12 lg:w-16 lg:h-16 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden cursor-pointer transition-all",
+                                      "relative w-full h-full bg-stone-50 flex items-center justify-center overflow-hidden cursor-pointer transition-all rounded-[4px]",
                                       (displayItem.thumbnailUrl || displayItem.images?.[0])
-                                        ? "hover:ring-2 hover:ring-purple-400 hover:ring-offset-1"
-                                        : "hover:ring-2 hover:ring-blue-400 hover:ring-offset-1 hover:bg-gray-200",
+                                        ? "hover:brightness-95"
+                                        : "hover:bg-stone-200",
                                       uploadingImageForItem === displayItem.id && "opacity-50"
                                     )}
                                     onClick={(e) => {
@@ -5061,7 +5049,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                     }}
                                   >
                                     {uploadingImageForItem === displayItem.id ? (
-                                      <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />
+                                      <Loader2 className="w-5 h-5 text-stone-400 animate-spin" />
                                     ) : displayItem.thumbnailUrl || displayItem.images?.[0] ? (
                                       <>
                                         <img
@@ -5080,8 +5068,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                       </>
                                     ) : (
                                       <div className="flex flex-col items-center">
-                                        <ImageIcon className="w-5 h-5 text-gray-400" />
-                                        <span className="text-[8px] text-gray-400 mt-0.5">Add</span>
+                                        <ImageIcon className="w-4 h-4 text-stone-300" />
                                       </div>
                                     )}
                                   </div>
@@ -5165,7 +5152,8 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 </HoverCardContent>
                               </HoverCard>
                             </div>
-                            
+                          </div>
+
                             {/* Title & Room - Fixed width */}
                             <div className="flex-shrink-0 w-32">
                               {editingField?.itemId === displayItem.id && editingField?.field === 'name' ? (
@@ -5180,7 +5168,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               ) : (
                                 <div className="flex items-center gap-1">
                                   <p
-                                    className="text-sm font-medium text-gray-900 truncate cursor-text hover:bg-gray-100 rounded px-1 -mx-1 flex-1"
+                                    className="text-sm font-medium text-stone-900 truncate cursor-text hover:bg-stone-100 rounded px-1 -mx-1 flex-1"
                                     onClick={(e) => { e.stopPropagation(); startEditing(displayItem.id, 'name', displayItem.name || '') }}
                                     title={displayItem.name}
                                   >
@@ -6567,7 +6555,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               </Button>
                             </div>
                           </div>
-                        </div>
+                          </div>
                         </div>
                           )}
                         </SortableSpecItem>
@@ -9360,7 +9348,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             {/* Filters */}
             <div className="flex items-center gap-4">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
                 <Input
                   value={programaSearch}
                   onChange={(e) => setProgramaSearch(e.target.value)}
