@@ -28,6 +28,22 @@ export async function GET(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
+    // Debug: check how many rendering versions exist for this project at all
+    const debugAll = await prisma.renderingVersion.findMany({
+      where: { room: { projectId: id } },
+      select: { id: true, status: true, version: true, roomId: true },
+    })
+    console.log(`[renderings] Project ${id}: found ${debugAll.length} total rendering versions`, debugAll.map(v => ({ id: v.id, status: v.status, version: v.version })))
+
+    // Also check asset types for these versions
+    if (debugAll.length > 0) {
+      const debugAssets = await prisma.asset.findMany({
+        where: { renderingVersionId: { in: debugAll.map(v => v.id) } },
+        select: { id: true, type: true, renderingVersionId: true, provider: true, url: true },
+      })
+      console.log(`[renderings] Found ${debugAssets.length} assets for these versions`, debugAssets.map(a => ({ id: a.id, type: a.type, versionId: a.renderingVersionId, provider: a.provider })))
+    }
+
     // Fetch all rendering versions pushed to client for this project's rooms
     const renderingVersions = await prisma.renderingVersion.findMany({
       where: {
@@ -39,7 +55,7 @@ export async function GET(
           select: { id: true, name: true, type: true },
         },
         assets: {
-          where: { type: 'RENDER' },
+          where: { type: { in: ['RENDER', 'IMAGE'] } },
           orderBy: { createdAt: 'asc' },
           select: {
             id: true,
@@ -62,6 +78,8 @@ export async function GET(
         { createdAt: 'desc' },
       ],
     })
+
+    console.log(`[renderings] After filter: ${renderingVersions.length} PUSHED_TO_CLIENT versions, ${renderingVersions.reduce((sum, v) => sum + v.assets.length, 0)} total assets`)
 
     // Build asset URLs — prefer Blob for speed
     const renderings = renderingVersions.map((version) => {
