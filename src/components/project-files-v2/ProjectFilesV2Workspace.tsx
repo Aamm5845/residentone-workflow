@@ -18,6 +18,7 @@ import {
   Download,
   FolderTree,
   Camera,
+  Image as ImageIcon,
 } from 'lucide-react'
 
 // Components
@@ -31,6 +32,7 @@ import NewTransmittalDialog from './NewTransmittalDialog'
 import FilterSidebar from './FilterSidebar'
 import AllFilesBrowser from './AllFilesBrowser'
 import PhotosGallery from './PhotosGallery'
+import RenderingsGallery from './RenderingsGallery'
 import CadFreshnessSummary from './CadFreshnessSummary'
 import CadSourceLinkDialog from './CadSourceLinkDialog'
 import SendFileDialog from './SendFileDialog'
@@ -48,7 +50,7 @@ interface Project {
   client?: { id: string; name: string; email: string } | null
 }
 
-type TabValue = 'all-files' | 'drawings' | 'photos' | 'transmittals' | 'received'
+type TabValue = 'all-files' | 'drawings' | 'photos' | 'renderings' | 'transmittals' | 'received'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -321,6 +323,7 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
                 { value: 'all-files' as TabValue, label: 'All Files', icon: FolderTree },
                 { value: 'drawings' as TabValue, label: 'Drawings', icon: FileText },
                 { value: 'photos' as TabValue, label: 'Photos', icon: Camera },
+                { value: 'renderings' as TabValue, label: 'Renderings', icon: ImageIcon },
                 { value: 'transmittals' as TabValue, label: 'Sent', icon: Send },
                 { value: 'received' as TabValue, label: 'Received', icon: Download },
               ]).map(({ value, label, icon: Icon }) => (
@@ -564,6 +567,13 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
               projectId={project.id}
               dropboxFolder={project.dropboxFolder}
             />
+          </TabsContent>
+
+          {/* ======================================================= */}
+          {/* RENDERINGS TAB                                           */}
+          {/* ======================================================= */}
+          <TabsContent value="renderings">
+            <RenderingsGallery projectId={project.id} />
           </TabsContent>
 
           {/* ======================================================= */}

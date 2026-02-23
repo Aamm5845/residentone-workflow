@@ -5,7 +5,7 @@ import Link from 'next/link'
 import useSWR from 'swr'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, FileText, Camera, Send, FolderTree } from 'lucide-react'
+import { ArrowLeft, FileText, Camera, Send, FolderTree, ArrowUpRight } from 'lucide-react'
 
 // New components
 import FilesTabContent from './FilesTabContent'
@@ -192,15 +192,27 @@ export default function ProjectFilesWorkspace({ project }: { project: Project })
                 <p className="text-sm text-gray-500">{project.name}</p>
               </div>
             </div>
-            <button
-              onClick={() => setShowSendFile(true)}
-              className="group flex items-center gap-2.5 h-10 px-4 rounded-lg
-                border border-gray-900 text-gray-900 hover:bg-gray-900 hover:text-white
-                active:scale-[0.98] transition-all duration-200"
-            >
-              <Send className="w-4 h-4" />
-              <span className="text-sm font-medium">Send Files</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <Link href={`/projects/${project.id}/project-files-v2`}>
+                <button
+                  className="flex items-center gap-2 h-10 px-4 rounded-lg
+                    bg-slate-900 text-white hover:bg-slate-800
+                    active:scale-[0.98] transition-all duration-200"
+                >
+                  <span className="text-sm font-medium">Open V2</span>
+                  <ArrowUpRight className="w-4 h-4" />
+                </button>
+              </Link>
+              <button
+                onClick={() => setShowSendFile(true)}
+                className="group flex items-center gap-2.5 h-10 px-4 rounded-lg
+                  border border-gray-900 text-gray-900 hover:bg-gray-900 hover:text-white
+                  active:scale-[0.98] transition-all duration-200"
+              >
+                <Send className="w-4 h-4" />
+                <span className="text-sm font-medium">Send Files</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
