@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import { Send } from 'lucide-react'
+import { Send, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -68,6 +68,7 @@ interface LatestSentFile {
   recipientCompany: string | null
   sentAt: string | null
   method: string
+  dropboxPath: string | null
 }
 
 interface SectionGroup {
@@ -106,6 +107,7 @@ export function useLatestFilesBySection(transmittals: TransmittalData[]): Sectio
           recipientCompany: t.recipientCompany,
           sentAt: t.sentAt,
           method: t.method,
+          dropboxPath: item.revision?.dropboxPath || item.drawing.dropboxPath || null,
         }
 
         const existing = latestMap.get(key)
@@ -174,9 +176,10 @@ function formatShortDate(date: string): string {
 
 interface LatestFilesBySectionProps {
   sectionGroups: SectionGroup[]
+  onOpenInFiles?: (folderPath: string) => void
 }
 
-export default function LatestFilesBySection({ sectionGroups }: LatestFilesBySectionProps) {
+export default function LatestFilesBySection({ sectionGroups, onOpenInFiles }: LatestFilesBySectionProps) {
   const totalFiles = sectionGroups.reduce((sum, g) => sum + g.files.length, 0)
 
   // Empty state
@@ -235,17 +238,33 @@ export default function LatestFilesBySection({ sectionGroups }: LatestFilesBySec
               {/* Files within section */}
               <div className="divide-y divide-slate-50">
                 {group.files.map((file) => (
-                  <div key={file.key} className="px-4 py-2.5 hover:bg-slate-50/70 transition-colors">
-                    {/* Title + pageNo */}
+                  <div key={file.key} className="group px-4 py-2.5 hover:bg-slate-50/70 transition-colors">
+                    {/* Title + pageNo + open button */}
                     <div className="flex items-start justify-between gap-2">
                       <span className="text-[13px] font-medium text-slate-900 truncate leading-tight">
                         {file.title}
                       </span>
-                      {file.pageNo && (
-                        <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-mono font-medium text-slate-500 whitespace-nowrap">
-                          #{file.pageNo}
-                        </span>
-                      )}
+                      <div className="flex items-center gap-1 shrink-0">
+                        {file.dropboxPath && onOpenInFiles && (
+                          <button
+                            onClick={() => {
+                              const parts = file.dropboxPath!.split('/')
+                              parts.pop()
+                              onOpenInFiles(parts.join('/'))
+                            }}
+                            className="hidden group-hover:inline-flex items-center gap-0.5 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                            title="Open in All Files"
+                          >
+                            <ExternalLink className="h-2.5 w-2.5" />
+                            Open
+                          </button>
+                        )}
+                        {file.pageNo && (
+                          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-mono font-medium text-slate-500 whitespace-nowrap">
+                            #{file.pageNo}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Meta: Rev · Recipient · Date */}

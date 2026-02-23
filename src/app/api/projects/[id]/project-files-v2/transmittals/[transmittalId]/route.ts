@@ -78,6 +78,51 @@ export async function GET(
   }
 }
 
+// DELETE - Delete a transmittal and its items
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string; transmittalId: string }> }
+) {
+  try {
+    const session = await getSession()
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { id, transmittalId } = await params
+
+    const project = await prisma.project.findFirst({
+      where: { id, orgId: session.user.orgId || undefined },
+      select: { id: true }
+    })
+
+    if (!project) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    }
+
+    const existing = await prisma.transmittal.findFirst({
+      where: { id: transmittalId, projectId: id },
+      select: { id: true }
+    })
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Transmittal not found' }, { status: 404 })
+    }
+
+    // Delete items first, then the transmittal
+    await prisma.transmittalItem.deleteMany({ where: { transmittalId } })
+    await prisma.transmittal.delete({ where: { id: transmittalId } })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('[project-files-v2/transmittals/[transmittalId]] Error deleting transmittal:', error)
+    return NextResponse.json(
+      { error: 'Failed to delete transmittal' },
+      { status: 500 }
+    )
+  }
+}
+
 // PATCH - Update transmittal (status, notes, sentAt, sentBy)
 export async function PATCH(
   request: NextRequest,

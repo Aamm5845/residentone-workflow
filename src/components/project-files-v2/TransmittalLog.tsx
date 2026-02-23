@@ -18,6 +18,7 @@ import {
   Check,
   SlidersHorizontal,
   Eye,
+  Trash2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import LatestFilesBySection, { useLatestFilesBySection } from './LatestFilesBySection'
@@ -77,6 +78,7 @@ interface TransmittalData {
 /** Flattened row — one per file sent */
 interface SentFileRow {
   id: string // unique key: transmittalId-itemId
+  transmittalId: string
   title: string
   revisionNumber: number | null
   reviewNo: string | null
@@ -103,6 +105,7 @@ interface TransmittalLogProps {
   isLoading: boolean
   onCreateNew: () => void
   onOpenInFiles?: (folderPath: string) => void
+  mutateTransmittals?: () => void
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -147,6 +150,7 @@ export default function TransmittalLog({
   isLoading,
   onCreateNew,
   onOpenInFiles,
+  mutateTransmittals,
 }: TransmittalLogProps) {
   // ── Filter state ────────────────────────────────────────────────────────
   const [filterSearch, setFilterSearch] = useState('')
@@ -162,6 +166,10 @@ export default function TransmittalLog({
   // ── Dropdown visibility ───────────────────────────────────────────────
   const [showSortDropdown, setShowSortDropdown] = useState(false)
   const [showFilterDropdown, setShowFilterDropdown] = useState(false)
+
+  // ── Selection state ─────────────────────────────────────────────────
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const sortDropdownRef = useRef<HTMLDivElement>(null)
   const filterDropdownRef = useRef<HTMLDivElement>(null)
@@ -216,6 +224,60 @@ export default function TransmittalLog({
     onOpenInFiles?.(folderRelative)
   }, [onOpenInFiles])
 
+  /** Toggle selection of a single row */
+  const toggleSelect = useCallback((rowId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(rowId)) next.delete(rowId)
+      else next.add(rowId)
+      return next
+    })
+  }, [])
+
+  /** Toggle all visible rows */
+  const toggleSelectAll = useCallback((rows: SentFileRow[]) => {
+    setSelectedIds((prev) => {
+      const allSelected = rows.every((r) => prev.has(r.id))
+      if (allSelected) return new Set()
+      return new Set(rows.map((r) => r.id))
+    })
+  }, [])
+
+  /** Delete selected transmittals */
+  const handleDeleteSelected = useCallback(async (rows: SentFileRow[]) => {
+    // Collect unique transmittal IDs from selected rows
+    const selectedRows = rows.filter((r) => selectedIds.has(r.id))
+    const uniqueTransmittalIds = [...new Set(selectedRows.map((r) => r.transmittalId))]
+
+    if (uniqueTransmittalIds.length === 0) return
+
+    const count = selectedRows.length
+    const transmittalCount = uniqueTransmittalIds.length
+    const msg = transmittalCount === 1
+      ? `Delete ${count} selected file${count !== 1 ? 's' : ''} (1 transmittal)? This cannot be undone.`
+      : `Delete ${count} selected file${count !== 1 ? 's' : ''} across ${transmittalCount} transmittals? This cannot be undone.`
+
+    if (!confirm(msg)) return
+
+    setIsDeleting(true)
+    try {
+      await Promise.all(
+        uniqueTransmittalIds.map((tid) =>
+          fetch(`/api/projects/${projectId}/project-files-v2/transmittals/${tid}`, {
+            method: 'DELETE',
+          })
+        )
+      )
+      setSelectedIds(new Set())
+      mutateTransmittals?.()
+    } catch (err) {
+      console.error('Delete error:', err)
+      alert('Failed to delete some transmittals. Please try again.')
+    } finally {
+      setIsDeleting(false)
+    }
+  }, [selectedIds, projectId, mutateTransmittals])
+
   // ── Flatten: one row per file sent ────────────────────────────────────
   const allRows = useMemo(() => {
     const rows: SentFileRow[] = []
@@ -223,6 +285,7 @@ export default function TransmittalLog({
       for (const item of t.items) {
         rows.push({
           id: `${t.id}-${item.id}`,
+          transmittalId: t.id,
           title: item.drawing.title,
           revisionNumber: item.revision?.revisionNumber ?? item.revisionNumber ?? null,
           reviewNo: item.drawing.reviewNo ?? null,
@@ -593,22 +656,56 @@ export default function TransmittalLog({
         </div>
       )}
 
+      {/* ── Floating action bar (when rows selected) ─────────────── */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 rounded-xl border border-slate-900 bg-slate-900 px-4 py-2.5 text-white shadow-lg">
+          <span className="text-sm font-medium">
+            {selectedIds.size} selected
+          </span>
+          <div className="w-px h-4 bg-slate-600" />
+          <button
+            onClick={() => handleDeleteSelected(filteredRows)}
+            disabled={isDeleting}
+            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-colors disabled:opacity-50"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            {isDeleting ? 'Deleting...' : 'Delete'}
+          </button>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="ml-auto inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+          >
+            <X className="h-3.5 w-3.5" />
+            Deselect all
+          </button>
+        </div>
+      )}
+
       {/* ── Table — one row per file ─────────────────────────────── */}
       {filteredRows.length > 0 && (
         <div className="w-full overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full table-fixed border-collapse text-sm">
             <colgroup>
-              <col className="w-[30%]" />   {/* Title */}
+              <col className="w-[40px]" />   {/* Checkbox */}
+              <col className="w-[28%]" />   {/* Title */}
               <col className="w-[5%]" />    {/* Rev */}
               <col className="w-[7%]" />    {/* Page No */}
-              <col className="w-[14%]" />   {/* Section */}
-              <col className="w-[14%]" />   {/* Recipient */}
+              <col className="w-[13%]" />   {/* Section */}
+              <col className="w-[13%]" />   {/* Recipient */}
               <col className="w-[8%]" />    {/* Method */}
               <col className="w-[14%]" />   {/* Sent */}
               <col className="w-[8%]" />    {/* File */}
             </colgroup>
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/80">
+                <th className="px-3 py-3 text-center w-[40px]">
+                  <input
+                    type="checkbox"
+                    checked={filteredRows.length > 0 && filteredRows.every((r) => selectedIds.has(r.id))}
+                    onChange={() => toggleSelectAll(filteredRows)}
+                    className="h-3.5 w-3.5 rounded border-slate-300 text-slate-900 focus:ring-slate-900/20 cursor-pointer"
+                  />
+                </th>
                 <th className="px-4 py-3 text-left">
                   <button onClick={() => handleSort('title')} className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 transition-colors cursor-pointer select-none">
                     Title
@@ -649,7 +746,16 @@ export default function TransmittalLog({
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredRows.map((row) => (
-                <tr key={row.id} className="transition-colors hover:bg-slate-50/70">
+                <tr key={row.id} className={cn('transition-colors hover:bg-slate-50/70', selectedIds.has(row.id) && 'bg-slate-50')}>
+                  {/* Checkbox */}
+                  <td className="px-3 py-3 text-center w-[40px]">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(row.id)}
+                      onChange={() => toggleSelect(row.id)}
+                      className="h-3.5 w-3.5 rounded border-slate-300 text-slate-900 focus:ring-slate-900/20 cursor-pointer"
+                    />
+                  </td>
                   {/* Title */}
                   <td className="px-4 py-3">
                     <span className="font-medium text-slate-900 truncate block">
@@ -767,7 +873,7 @@ export default function TransmittalLog({
     </div>
 
     {/* ── Side panel — latest files by section ──────────────── */}
-    <LatestFilesBySection sectionGroups={sectionGroups} />
+    <LatestFilesBySection sectionGroups={sectionGroups} onOpenInFiles={onOpenInFiles} />
     </div>
   )
 }

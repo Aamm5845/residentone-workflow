@@ -235,7 +235,7 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
       {/* HEADER                                                           */}
       {/* ---------------------------------------------------------------- */}
       <div className="bg-white border-b border-slate-200">
-        <div className="max-w-[1600px] mx-auto px-6 py-4">
+        <div className="max-w-[1920px] mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             {/* Left: back + title */}
             <div className="flex items-center gap-3">
@@ -311,7 +311,7 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
       {/* ---------------------------------------------------------------- */}
       {/* BODY                                                             */}
       {/* ---------------------------------------------------------------- */}
-      <div className="max-w-[1600px] mx-auto px-6 py-6">
+      <div className="max-w-[1920px] mx-auto px-6 py-6">
         <Tabs
           value={activeTab}
           onValueChange={(val) => setActiveTab(val as TabValue)}
@@ -590,6 +590,7 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
                 setAllFilesNavigatePath(folderPath)
                 setActiveTab('all-files')
               }}
+              mutateTransmittals={mutateTransmittals}
             />
           </TabsContent>
 
