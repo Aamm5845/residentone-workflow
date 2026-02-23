@@ -19,6 +19,24 @@ export interface ChangelogEntry {
 export const changelog: ChangelogEntry[] = [
   // ⬇️ ADD NEW UPDATES HERE (at the top) ⬇️
   {
+    id: 'update-2026-02-23-desktop-timer',
+    date: 'February 23, 2026',
+    title: 'StudioFlow Timer — Desktop Time Tracker',
+    description: 'A lightweight desktop app to make tracking your hours easier. It floats on your screen and syncs directly with your projects — no more forgetting to log time.',
+    type: 'feature',
+    icon: 'clock',
+    highlights: [
+      'Always-on-top floating timer so it stays visible while you work',
+      'Syncs with your StudioFlow projects and phases automatically',
+      'Quick start/stop with one click — minimal distraction',
+      'Works on Windows — just download and install'
+    ],
+    link: {
+      href: '/downloads/StudioFlow-Timer-Setup.exe',
+      label: 'Download StudioFlow Timer'
+    }
+  },
+  {
     id: 'update-2025-01-12-procurement',
     date: 'January 12, 2026',
     title: 'Full Procurement Workflow',

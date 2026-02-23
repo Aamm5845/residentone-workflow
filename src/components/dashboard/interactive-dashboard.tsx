@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import useSWR from 'swr'
-import { Users, Clock, CheckCircle, AlertCircle, TrendingUp, Calendar, ChevronDown, ChevronUp, Award, X, Briefcase, Layers3, ArrowRight, CheckSquare, Video, MapPin, Building2 } from 'lucide-react'
+import { Users, Clock, CheckCircle, AlertCircle, TrendingUp, Calendar, ChevronDown, ChevronUp, Award, X, Briefcase, Layers3, ArrowRight, CheckSquare, Video, MapPin, Building2, Timer, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import toast, { Toaster } from 'react-hot-toast'
@@ -153,6 +153,7 @@ export default function InteractiveDashboard({ user }: { user: any }) {
   const [showRecentCompletions, setShowRecentCompletions] = useState(false)
   const [showPendingApprovals, setShowPendingApprovals] = useState(false)
   const [greeting, setGreeting] = useState('Hello')
+  const [showTimerBanner, setShowTimerBanner] = useState(true)
 
   // Set greeting on client-side only to avoid hydration mismatch
   useEffect(() => {
@@ -220,11 +221,41 @@ export default function InteractiveDashboard({ user }: { user: any }) {
             {isLoading ? (
               <span className="animate-pulse">Loading dashboard...</span>
             ) : (
-              `You have ${statsData?.activeProjects || 0} active projects and ${statsData?.activeRooms || 0} active rooms`
+              `You have ${tasksData?.tasks?.length || 0} active ${tasksData?.tasks?.length === 1 ? 'phase' : 'phases'} and ${myTasksData?.tasks?.length || 0} ${myTasksData?.tasks?.length === 1 ? 'task' : 'tasks'} assigned to you`
             )}
           </p>
         </div>
       </div>
+
+      {/* StudioFlow Timer Download Banner */}
+      {showTimerBanner && (
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 border border-emerald-300 p-5 shadow-sm ring-1 ring-emerald-200/50">
+          <button
+            onClick={() => setShowTimerBanner(false)}
+            className="absolute top-3 right-3 p-1 rounded-full hover:bg-emerald-100 transition-colors"
+            aria-label="Dismiss banner"
+          >
+            <X className="w-4 h-4 text-gray-400" />
+          </button>
+          <div className="flex items-center gap-5">
+            <div className="flex-shrink-0 w-11 h-11 bg-emerald-100 rounded-xl flex items-center justify-center">
+              <Timer className="w-6 h-6 text-emerald-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-base font-semibold text-gray-800">Hey team, we made tracking hours easier!</h3>
+              <p className="text-sm text-gray-500 mt-0.5">
+                A small desktop app that floats on your screen and syncs with your projects — give it a try.
+              </p>
+            </div>
+            <a href="/downloads/StudioFlow-Timer-Setup.exe" download className="flex-shrink-0">
+              <Button className="bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm font-semibold h-9 px-5 text-sm">
+                <Download className="w-3.5 h-3.5 mr-1.5" />
+                Try It Out
+              </Button>
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* Quick Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
