@@ -486,6 +486,7 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
                     }}
                     onArchiveDrawing={handleArchiveDrawing}
                     selectedDrawingId={selectedDrawingId}
+                    mutateDrawings={refreshAll}
                   />
                 ) : (
                   <DrawingRegisterCards

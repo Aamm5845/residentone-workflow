@@ -71,7 +71,7 @@ interface FilesTabContentProps {
   onAddToTransmittal: (drawing: any) => void
   onArchiveDrawing: (drawing: any) => void
   onCreateTransmittal: (drawing: any) => void
-  onLinkCadSource: (drawing: any) => void
+  onLinkCadSource?: (drawing: any) => void
 }
 
 // ─── Status options ─────────────────────────────────────────────────────────

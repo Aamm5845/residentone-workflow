@@ -12,6 +12,8 @@ import {
   Archive,
   ChevronUp,
   ChevronDown,
+  Trash2,
+  X,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -81,6 +83,7 @@ interface DrawingRegisterTableProps {
   onAddToTransmittal: (drawing: Drawing) => void
   onArchiveDrawing: (drawing: Drawing) => void
   selectedDrawingId?: string | null
+  mutateDrawings?: () => void
 }
 
 // ─── Sorting helpers ─────────────────────────────────────────────────────────
@@ -177,9 +180,50 @@ export default function DrawingRegisterTable({
   onAddToTransmittal,
   onArchiveDrawing,
   selectedDrawingId,
+  mutateDrawings,
 }: DrawingRegisterTableProps) {
   const [sortColumn, setSortColumn] = useState<SortColumn>('drawingNumber')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  // ── Selection handlers ─────────────────────────────────────────────────
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds((prev) =>
+      prev.size === drawings.length ? new Set() : new Set(drawings.map((d) => d.id))
+    )
+  }, [drawings])
+
+  const handleDeleteSelected = useCallback(async () => {
+    if (selectedIds.size === 0) return
+    const count = selectedIds.size
+    if (!confirm(`Archive ${count} drawing${count > 1 ? 's' : ''}? This will set them to ARCHIVED status.`)) return
+
+    setIsDeleting(true)
+    try {
+      const promises = Array.from(selectedIds).map((id) =>
+        fetch(`/api/projects/${projectId}/project-files-v2/drawings/${id}`, { method: 'DELETE' })
+      )
+      await Promise.all(promises)
+      setSelectedIds(new Set())
+      mutateDrawings?.()
+    } catch (err) {
+      console.error('Bulk archive error:', err)
+      alert('Failed to archive some drawings.')
+    } finally {
+      setIsDeleting(false)
+    }
+  }, [selectedIds, projectId, mutateDrawings])
 
   // ── Sort handler ─────────────────────────────────────────────────────────
 
@@ -245,14 +289,50 @@ export default function DrawingRegisterTable({
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="w-full overflow-x-auto rounded-lg border border-gray-200 bg-white">
-      <table className="w-full border-collapse text-sm">
-        {/* ── Header ──────────────────────────────────────────────────── */}
-        <thead>
-          <tr className="border-b border-gray-200 bg-gray-50/80">
-            {/* Thumbnail column */}
-            <th className="w-[52px] px-2 py-3" />
-            {COLUMNS.map((col) => (
+    <div className="relative">
+      {/* ── Floating action bar ─────────────────────────────────────── */}
+      {selectedIds.size > 0 && (
+        <div className="sticky top-0 z-20 mb-2 flex items-center gap-3 rounded-lg bg-gray-900 px-4 py-2.5 text-white shadow-lg">
+          <span className="text-sm font-medium">
+            {selectedIds.size} selected
+          </span>
+          <div className="h-4 w-px bg-gray-600" />
+          <button
+            onClick={handleDeleteSelected}
+            disabled={isDeleting}
+            className="flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            {isDeleting ? 'Archiving...' : 'Archive'}
+          </button>
+          <div className="flex-1" />
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="flex items-center gap-1 rounded-md px-2 py-1.5 text-xs text-gray-300 hover:text-white transition-colors"
+          >
+            <X className="h-3.5 w-3.5" />
+            Deselect
+          </button>
+        </div>
+      )}
+
+      <div className="w-full overflow-x-auto rounded-lg border border-gray-200 bg-white">
+        <table className="w-full border-collapse text-sm">
+          {/* ── Header ──────────────────────────────────────────────────── */}
+          <thead>
+            <tr className="border-b border-gray-200 bg-gray-50/80">
+              {/* Checkbox column */}
+              <th className="w-[40px] px-2 py-3">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.size === drawings.length && drawings.length > 0}
+                  onChange={toggleSelectAll}
+                  className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-500 cursor-pointer"
+                />
+              </th>
+              {/* Thumbnail column */}
+              <th className="w-[52px] px-2 py-3" />
+              {COLUMNS.map((col) => (
               <th
                 key={col.key}
                 className={cn(
@@ -279,7 +359,8 @@ export default function DrawingRegisterTable({
             const section = drawing.section
             const status = STATUS_CONFIG[drawing.status]
             const typeLabel = drawing.drawingType ? (DRAWING_TYPE_LABELS[drawing.drawingType] ?? drawing.drawingType) : null
-            const isSelected = selectedDrawingId === drawing.id
+            const isDetailSelected = selectedDrawingId === drawing.id
+            const isChecked = selectedIds.has(drawing.id)
 
             return (
               <tr
@@ -287,11 +368,27 @@ export default function DrawingRegisterTable({
                 onClick={() => onSelectDrawing(drawing)}
                 className={cn(
                   'cursor-pointer transition-colors',
-                  isSelected
-                    ? 'bg-blue-50/70 hover:bg-blue-50'
-                    : 'hover:bg-gray-50/70'
+                  isChecked
+                    ? 'bg-slate-50'
+                    : isDetailSelected
+                      ? 'bg-blue-50/70 hover:bg-blue-50'
+                      : 'hover:bg-gray-50/70'
                 )}
               >
+                {/* Checkbox */}
+                <td className="px-2 py-3">
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={(e) => {
+                      e.stopPropagation()
+                      toggleSelect(drawing.id)
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-500 cursor-pointer"
+                  />
+                </td>
+
                 {/* Thumbnail */}
                 <td className="px-2 py-2">
                   <DrawingThumbnail
@@ -503,8 +600,9 @@ export default function DrawingRegisterTable({
               </tr>
             )
           })}
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
