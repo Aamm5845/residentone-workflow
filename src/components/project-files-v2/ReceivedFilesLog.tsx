@@ -12,7 +12,6 @@ import {
   ChevronRight,
   ExternalLink,
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -176,18 +175,18 @@ export default function ReceivedFilesLog({
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-7 w-40 animate-pulse rounded bg-gray-200" />
-            <div className="h-5 w-8 animate-pulse rounded-full bg-gray-200" />
+            <div className="h-7 w-40 animate-pulse rounded bg-slate-200" />
+            <div className="h-5 w-8 animate-pulse rounded-full bg-slate-200" />
           </div>
-          <div className="h-8 w-36 animate-pulse rounded-md bg-gray-200" />
+          <div className="h-9 w-36 animate-pulse rounded-xl bg-slate-200" />
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white">
-          <div className="border-b border-gray-200 bg-gray-50/80 px-4 py-3">
-            <div className="h-4 w-full animate-pulse rounded bg-gray-200" />
+        <div className="rounded-xl border border-slate-200 bg-white">
+          <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-3">
+            <div className="h-4 w-full animate-pulse rounded bg-slate-200" />
           </div>
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="border-b border-gray-100 px-4 py-3.5">
-              <div className="h-4 w-full animate-pulse rounded bg-gray-100" />
+            <div key={i} className="border-b border-slate-100 px-4 py-3.5">
+              <div className="h-4 w-full animate-pulse rounded bg-slate-100" />
             </div>
           ))}
         </div>
@@ -201,20 +200,23 @@ export default function ReceivedFilesLog({
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <h2 className="text-lg font-semibold text-gray-900">Received Files</h2>
+            <h2 className="text-lg font-semibold tracking-tight text-slate-900">Received Files</h2>
           </div>
         </div>
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
-            <Download className="w-8 h-8 text-gray-400" />
+        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/70 px-6 py-16 text-center">
+          <div className="w-16 h-16 bg-white rounded-2xl border border-slate-200 flex items-center justify-center mx-auto mb-4 shadow-sm">
+            <Download className="w-8 h-8 text-slate-400" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-1">No files received yet</h3>
-          <p className="text-sm text-gray-500 max-w-sm mb-4">
+          <h3 className="text-lg font-semibold text-slate-900 mb-1">No files received yet</h3>
+          <p className="text-sm text-slate-500 max-w-sm mx-auto mb-4">
             Log files received from contractors, subs, or clients to keep track of everything.
           </p>
-          <Button onClick={onReceiveNew} size="sm">
-            <Plus className="w-4 h-4 mr-1.5" /> Receive Files
-          </Button>
+          <button
+            onClick={onReceiveNew}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-slate-800 transition-colors"
+          >
+            <Plus className="w-4 h-4" /> Receive Files
+          </button>
         </div>
       </div>
     )
@@ -226,57 +228,60 @@ export default function ReceivedFilesLog({
       {/* Header row */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h2 className="text-lg font-semibold text-gray-900">Received Files</h2>
-          <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700">
+          <h2 className="text-lg font-semibold tracking-tight text-slate-900">Received Files</h2>
+          <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
             {senderGroups.length} {senderGroups.length === 1 ? 'sender' : 'senders'}
             {hasActiveFilters ? ` (${filteredFiles.length} files)` : ''}
           </span>
         </div>
-        <Button onClick={onReceiveNew} size="sm">
-          <Plus className="w-4 h-4 mr-1.5" /> Receive Files
-        </Button>
+        <button
+          onClick={onReceiveNew}
+          className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 active:scale-[0.98] transition-all"
+        >
+          <Plus className="w-4 h-4" /> Receive Files
+        </button>
       </div>
 
       {/* ── Filter bar ──────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3">
-        <Filter className="w-4 h-4 text-gray-400 shrink-0" />
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3">
+        <Filter className="w-4 h-4 text-slate-400 shrink-0" />
 
         <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
           <input
             type="text"
             placeholder="Search sender, title..."
             value={filterSearch}
             onChange={(e) => setFilterSearch(e.target.value)}
-            className="h-8 w-52 rounded-md border border-gray-200 bg-white pl-8 pr-7 text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-300"
+            className="h-8 w-52 rounded-xl border border-slate-200 bg-white pl-8 pr-7 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300"
           />
           {filterSearch && (
             <button
               onClick={() => setFilterSearch('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
             >
               <X className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
 
-        <div className="w-px h-5 bg-gray-200" />
+        <div className="w-px h-5 bg-slate-200" />
 
         <div className="flex items-center gap-1.5">
-          <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+          <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
           <input
             type="date"
             value={filterDateFrom}
             onChange={(e) => setFilterDateFrom(e.target.value)}
-            className="h-8 rounded-md border border-gray-200 bg-white px-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-300"
+            className="h-8 rounded-xl border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300"
             title="From date"
           />
-          <span className="text-xs text-gray-400">to</span>
+          <span className="text-xs text-slate-400">to</span>
           <input
             type="date"
             value={filterDateTo}
             onChange={(e) => setFilterDateTo(e.target.value)}
-            className="h-8 rounded-md border border-gray-200 bg-white px-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-300"
+            className="h-8 rounded-xl border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300"
             title="To date"
           />
         </div>
@@ -284,7 +289,7 @@ export default function ReceivedFilesLog({
         {hasActiveFilters && (
           <button
             onClick={clearAllFilters}
-            className="ml-auto flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800 transition-colors"
+            className="ml-auto flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800 transition-colors"
           >
             <X className="w-3 h-3" />
             Clear
@@ -294,42 +299,45 @@ export default function ReceivedFilesLog({
 
       {/* ── Filtered empty state ───────────────────────────────────── */}
       {filteredFiles.length === 0 && hasActiveFilters && (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mb-3">
-            <Filter className="w-6 h-6 text-gray-400" />
+        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/70 px-6 py-12 text-center">
+          <div className="w-12 h-12 bg-white rounded-2xl border border-slate-200 flex items-center justify-center mx-auto mb-3 shadow-sm">
+            <Filter className="w-6 h-6 text-slate-400" />
           </div>
-          <h3 className="text-sm font-semibold text-gray-900 mb-1">No results found</h3>
-          <p className="text-sm text-gray-500 max-w-sm mb-3">
+          <h3 className="text-sm font-semibold text-slate-900 mb-1">No results found</h3>
+          <p className="text-sm text-slate-500 max-w-sm mx-auto mb-3">
             No received files match your current filters.
           </p>
-          <Button variant="outline" size="sm" onClick={clearAllFilters}>
+          <button
+            onClick={clearAllFilters}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+          >
             Clear Filters
-          </Button>
+          </button>
         </div>
       )}
 
       {/* ── Grouped table ──────────────────────────────────────────── */}
       {senderGroups.length > 0 && (
-        <div className="w-full overflow-x-auto rounded-lg border border-gray-200 bg-white">
+        <div className="w-full overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full border-collapse text-sm">
             <thead>
-              <tr className="border-b border-gray-200 bg-gray-50/80">
+              <tr className="border-b border-slate-200 bg-slate-50/80">
                 <th className="w-[40px] px-2 py-3" />
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[180px]">
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 w-[180px]">
                   Sender
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[150px]">
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 w-[150px]">
                   Company
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[100px]">
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 w-[100px]">
                   Files
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 w-[140px]">
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 w-[140px]">
                   Latest
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-slate-100">
               {senderGroups.map((group) => {
                 const isExpanded = expandedRows.has(group.senderName)
                 return (
@@ -364,14 +372,14 @@ function SenderGroupRow({
     <>
       {/* Main sender row */}
       <tr
-        className="cursor-pointer transition-colors hover:bg-gray-50/70"
+        className="cursor-pointer transition-colors hover:bg-slate-50/70"
         onClick={(e) => onToggleExpand(group.senderName, e)}
       >
         {/* Expand toggle */}
         <td className="px-2 py-3">
           <button
             onClick={(e) => onToggleExpand(group.senderName, e)}
-            className="flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+            className="flex h-6 w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
           >
             {isExpanded ? (
               <ChevronDown className="h-4 w-4" />
@@ -386,46 +394,46 @@ function SenderGroupRow({
           <div className="truncate max-w-[170px]">
             {group.senderType && SENDER_TYPE_LABELS[group.senderType] ? (
               <>
-                <span className="text-xs text-gray-400">{SENDER_TYPE_LABELS[group.senderType]}</span>
-                <span className="text-xs text-gray-300 mx-1">&ndash;</span>
+                <span className="text-xs text-slate-400">{SENDER_TYPE_LABELS[group.senderType]}</span>
+                <span className="text-xs text-slate-300 mx-1">&ndash;</span>
               </>
             ) : null}
-            <span className="text-sm font-medium text-gray-900">{group.senderName}</span>
+            <span className="text-sm font-medium text-slate-900">{group.senderName}</span>
           </div>
         </td>
 
         {/* Company */}
         <td className="px-4 py-3">
           {group.senderCompany ? (
-            <span className="text-sm text-gray-600 truncate max-w-[140px] block">
+            <span className="text-sm text-slate-600 truncate max-w-[140px] block">
               {group.senderCompany}
             </span>
           ) : (
-            <span className="text-gray-300">&mdash;</span>
+            <span className="text-slate-300">&mdash;</span>
           )}
         </td>
 
         {/* Files count */}
         <td className="px-4 py-3">
-          <span className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
+          <span className="inline-flex items-center rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
             {group.files.length} {group.files.length === 1 ? 'file' : 'files'}
           </span>
         </td>
 
         {/* Latest date */}
         <td className="px-4 py-3">
-          <span className="text-sm text-gray-700">{formatDate(group.latestDate)}</span>
+          <span className="text-sm text-slate-700">{formatDate(group.latestDate)}</span>
         </td>
       </tr>
 
       {/* Expanded file rows */}
       {isExpanded && group.files.length > 0 && (
         <tr>
-          <td colSpan={5} className="bg-gray-50/50 px-0 py-0">
+          <td colSpan={5} className="bg-slate-50/50 px-0 py-0">
             <div className="px-12 py-3">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="text-left text-[11px] uppercase tracking-wider text-gray-400">
+                  <tr className="text-left text-[11px] uppercase tracking-[0.12em] text-slate-400">
                     <th className="pb-2 pr-4 font-semibold w-[120px]">Received</th>
                     <th className="pb-2 pr-4 font-semibold">Title</th>
                     <th className="pb-2 pr-4 font-semibold w-[90px]">Section</th>
@@ -435,7 +443,7 @@ function SenderGroupRow({
                     <th className="pb-2 font-semibold w-[60px]">File</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-slate-100">
                   {group.files.map((rf) => {
                     const dt = formatDateTime(rf.receivedDate)
                     return (
@@ -443,17 +451,17 @@ function SenderGroupRow({
                         {/* Date */}
                         <td className="py-2 pr-4">
                           <div>
-                            <span className="text-gray-700 block">{dt.date}</span>
-                            <span className="text-[10px] text-gray-400">{dt.time}</span>
+                            <span className="text-slate-700 block">{dt.date}</span>
+                            <span className="text-[10px] text-slate-400">{dt.time}</span>
                           </div>
                         </td>
 
                         {/* Title + notes */}
                         <td className="py-2 pr-4">
                           <div className="flex flex-col min-w-0">
-                            <span className="font-medium text-gray-800 truncate">{rf.title}</span>
+                            <span className="font-medium text-slate-800 truncate">{rf.title}</span>
                             {rf.notes && (
-                              <span className="text-[10px] text-gray-400 truncate mt-0.5 italic">
+                              <span className="text-[10px] text-slate-400 truncate mt-0.5 italic">
                                 {rf.notes}
                               </span>
                             )}
@@ -465,46 +473,46 @@ function SenderGroupRow({
                           {rf.section ? (
                             <span className={cn(
                               'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium',
-                              'bg-gray-50 text-gray-700 border border-gray-200'
+                              'bg-slate-50 text-slate-700 ring-1 ring-slate-200'
                             )}>
-                              <span className={cn('h-1.5 w-1.5 rounded-full', rf.section.color || 'bg-gray-400')} />
+                              <span className={cn('h-1.5 w-1.5 rounded-full', rf.section.color || 'bg-slate-400')} />
                               {rf.section.shortName}
                             </span>
                           ) : (
-                            <span className="text-gray-300">&mdash;</span>
+                            <span className="text-slate-300">&mdash;</span>
                           )}
                         </td>
 
                         {/* Drawing # */}
                         <td className="py-2 pr-4">
                           {rf.drawing ? (
-                            <span className="font-mono font-medium text-gray-800">
+                            <span className="font-mono font-medium text-slate-800">
                               {rf.drawing.drawingNumber}
                             </span>
                           ) : (
-                            <span className="text-gray-300">&mdash;</span>
+                            <span className="text-slate-300">&mdash;</span>
                           )}
                         </td>
 
                         {/* Rev */}
                         <td className="py-2 pr-4">
                           {rf.drawing ? (
-                            <span className="inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-600">
+                            <span className="inline-flex items-center rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-600">
                               Rev {rf.drawing.currentRevision}
                             </span>
                           ) : (
-                            <span className="text-gray-300">&mdash;</span>
+                            <span className="text-slate-300">&mdash;</span>
                           )}
                         </td>
 
                         {/* Logged By */}
                         <td className="py-2 pr-4">
                           {rf.creator?.name ? (
-                            <span className="text-gray-600 truncate max-w-[90px] block">
+                            <span className="text-slate-600 truncate max-w-[90px] block">
                               {rf.creator.name}
                             </span>
                           ) : (
-                            <span className="text-gray-300">&mdash;</span>
+                            <span className="text-slate-300">&mdash;</span>
                           )}
                         </td>
 
@@ -518,13 +526,13 @@ function SenderGroupRow({
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
-                                className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition-colors"
+                                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
                               >
                                 <ExternalLink className="h-3 w-3" />
                                 Open
                               </a>
                             ) : (
-                              <span className="text-gray-300">&mdash;</span>
+                              <span className="text-slate-300">&mdash;</span>
                             )
                           })()}
                         </td>

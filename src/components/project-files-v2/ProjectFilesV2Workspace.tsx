@@ -3,9 +3,9 @@
 import { useState, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import useSWR from 'swr'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { Button } from '@/components/ui/button'
+import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils'
 import {
   ArrowLeft,
   Plus,
@@ -228,57 +228,57 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
   // RENDER
   // ===================================================================
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       {/* ---------------------------------------------------------------- */}
       {/* HEADER                                                           */}
       {/* ---------------------------------------------------------------- */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white border-b border-slate-200">
         <div className="max-w-[1600px] mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             {/* Left: back + title */}
             <div className="flex items-center gap-3">
               <Link href={`/projects/${project.id}`}>
-                <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-900 -ml-2">
-                  <ArrowLeft className="w-4 h-4" />
-                </Button>
+                <button className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-slate-600 hover:bg-slate-50 transition-colors">
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                </button>
               </Link>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">Project Files</h1>
-                <p className="text-sm text-gray-500">{project.name}</p>
+                <h1 className="text-xl font-semibold tracking-tight text-slate-900">Project Files</h1>
+                <p className="text-sm text-slate-500">{project.name}</p>
               </div>
             </div>
 
             {/* Right: actions */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               {/* Receive Files button — always visible */}
               <button
                 onClick={() => setShowReceiveFile(true)}
-                className="group flex items-center gap-2.5 h-10 px-4 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 active:scale-[0.98] transition-all duration-200"
+                className="inline-flex items-center gap-2 h-9 px-4 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 active:scale-[0.98] transition-all"
               >
                 <Download className="w-4 h-4" />
-                <span className="text-sm font-medium">Receive Files</span>
+                Receive Files
               </button>
 
               {/* Send Files button — always visible */}
               <button
                 onClick={() => setShowSendFile(true)}
-                className="group flex items-center gap-2.5 h-10 px-4 rounded-lg border border-gray-900 text-gray-900 hover:bg-gray-900 hover:text-white active:scale-[0.98] transition-all duration-200"
+                className="inline-flex items-center gap-2 h-9 px-4 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 active:scale-[0.98] transition-all"
               >
                 <Send className="w-4 h-4" />
-                <span className="text-sm font-medium">Send Files</span>
+                Send Files
               </button>
 
               {/* Search + Add Drawing — drawings tab only */}
               {activeTab === 'drawings' && (
                 <>
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <Input
                       placeholder="Search drawings..."
                       value={searchInput}
                       onChange={(e) => setSearchInput(e.target.value)}
                       onKeyDown={handleSearchKeyDown}
-                      className="pl-9 w-64 h-9 text-sm"
+                      className="h-9 w-64 rounded-xl border-slate-200 pl-9 text-sm"
                     />
                     {searchInput && (
                       <button
@@ -286,16 +286,19 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
                           setSearchInput('')
                           setFilters((prev) => ({ ...prev, search: '' }))
                         }}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
                     )}
                   </div>
-                  <Button size="sm" onClick={() => setShowAddDrawing(true)}>
-                    <Plus className="w-4 h-4 mr-1.5" />
+                  <button
+                    onClick={() => setShowAddDrawing(true)}
+                    className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 active:scale-[0.98] transition-all"
+                  >
+                    <Plus className="w-4 h-4" />
                     Add Drawing
-                  </Button>
+                  </button>
                 </>
               )}
             </div>
@@ -312,51 +315,54 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
           onValueChange={(val) => setActiveTab(val as TabValue)}
         >
           {/* Tab bar + view toggle */}
-          <div className="flex items-center justify-between mb-4">
-            <TabsList>
-              <TabsTrigger value="all-files" className="gap-1.5">
-                <FolderTree className="w-4 h-4" />
-                All Files
-              </TabsTrigger>
-              <TabsTrigger value="drawings" className="gap-1.5">
-                <FileText className="w-4 h-4" />
-                Drawings
-              </TabsTrigger>
-              <TabsTrigger value="photos" className="gap-1.5">
-                <Camera className="w-4 h-4" />
-                Photos
-              </TabsTrigger>
-              <TabsTrigger value="transmittals" className="gap-1.5">
-                <Send className="w-4 h-4" />
-                Sent
-              </TabsTrigger>
-              <TabsTrigger value="received" className="gap-1.5">
-                <Download className="w-4 h-4" />
-                Received
-              </TabsTrigger>
-            </TabsList>
+          <div className="flex items-center justify-between mb-5">
+            <div className="inline-flex w-fit rounded-xl bg-slate-100 p-1">
+              {([
+                { value: 'all-files' as TabValue, label: 'All Files', icon: FolderTree },
+                { value: 'drawings' as TabValue, label: 'Drawings', icon: FileText },
+                { value: 'photos' as TabValue, label: 'Photos', icon: Camera },
+                { value: 'transmittals' as TabValue, label: 'Sent', icon: Send },
+                { value: 'received' as TabValue, label: 'Received', icon: Download },
+              ]).map(({ value, label, icon: Icon }) => (
+                <button
+                  key={value}
+                  onClick={() => setActiveTab(value)}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-all',
+                    activeTab === value
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  )}
+                >
+                  <Icon className="w-4 h-4" />
+                  {label}
+                </button>
+              ))}
+            </div>
 
             {/* View toggle - only for drawings tab */}
             {activeTab === 'drawings' && (
-              <div className="flex items-center bg-white border border-gray-200 rounded-lg p-0.5">
+              <div className="inline-flex items-center rounded-xl bg-slate-100 p-1">
                 <button
                   onClick={() => setViewMode('table')}
-                  className={`p-1.5 rounded-md transition-colors ${
+                  className={cn(
+                    'p-1.5 rounded-lg transition-all',
                     viewMode === 'table'
-                      ? 'bg-gray-100 text-gray-900'
-                      : 'text-gray-400 hover:text-gray-600'
-                  }`}
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-600'
+                  )}
                   title="Table view"
                 >
                   <List className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setViewMode('cards')}
-                  className={`p-1.5 rounded-md transition-colors ${
+                  className={cn(
+                    'p-1.5 rounded-lg transition-all',
                     viewMode === 'cards'
-                      ? 'bg-gray-100 text-gray-900'
-                      : 'text-gray-400 hover:text-gray-600'
-                  }`}
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-600'
+                  )}
                   title="Card view"
                 >
                   <LayoutGrid className="w-4 h-4" />
@@ -418,7 +424,7 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
               <FilterSidebar
                 selectedSectionId={filters.sectionId}
                 onSectionChange={(s) => setFilters((prev) => ({ ...prev, sectionId: s }))}
-                sections={Array.isArray(sections) ? sections.map((s: any) => ({ id: s.id, name: s.name, shortName: s.shortName || '', color: s.color || 'bg-gray-500' })) : []}
+                sections={Array.isArray(sections) ? sections.map((s: any) => ({ id: s.id, name: s.name, shortName: s.shortName || '', color: s.color || 'bg-slate-500' })) : []}
                 sectionCounts={sectionCounts}
                 selectedFloorId={filters.floorId}
                 onFloorChange={(f) => setFilters((prev) => ({ ...prev, floorId: f }))}
@@ -440,25 +446,25 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
                 {drawingsLoading ? (
                   <DrawingsLoadingSkeleton viewMode={viewMode} />
                 ) : drawings.length === 0 ? (
-                  <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-                    <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <FileText className="w-7 h-7 text-gray-400" />
+                  <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/70 px-6 py-12 text-center">
+                    <div className="w-14 h-14 bg-white rounded-2xl border border-slate-200 flex items-center justify-center mx-auto mb-4 shadow-sm">
+                      <FileText className="w-7 h-7 text-slate-400" />
                     </div>
-                    <h3 className="text-base font-semibold text-gray-900 mb-1">No drawings found</h3>
-                    <p className="text-sm text-gray-500 mb-5 max-w-sm mx-auto">
+                    <h3 className="text-base font-semibold text-slate-900 mb-1">No drawings found</h3>
+                    <p className="text-sm text-slate-500 mb-5 max-w-sm mx-auto">
                       {hasActiveFilters
                         ? 'No drawings match your current filters. Try adjusting or clearing your filters.'
                         : 'Get started by adding your first drawing to this project.'}
                     </p>
                     {hasActiveFilters ? (
-                      <Button variant="outline" size="sm" onClick={clearFilters}>
+                      <button onClick={clearFilters} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
                         Clear Filters
-                      </Button>
+                      </button>
                     ) : (
-                      <Button size="sm" onClick={() => setShowAddDrawing(true)}>
-                        <Plus className="w-4 h-4 mr-1.5" />
+                      <button onClick={() => setShowAddDrawing(true)} className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-slate-800 transition-colors">
+                        <Plus className="w-4 h-4" />
                         Add Drawing
-                      </Button>
+                      </button>
                     )}
                   </div>
                 ) : viewMode === 'table' ? (
@@ -714,16 +720,16 @@ function DrawingsLoadingSkeleton({ viewMode }: { viewMode: 'table' | 'cards' }) 
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="bg-white rounded-xl border border-gray-200 p-4 animate-pulse">
+          <div key={i} className="bg-white rounded-xl border border-slate-200 p-4 animate-pulse">
             <div className="flex items-start justify-between mb-3">
-              <div className="h-3 bg-gray-200 rounded w-16" />
-              <div className="w-2.5 h-2.5 bg-gray-200 rounded-full" />
+              <div className="h-3 bg-slate-200 rounded w-16" />
+              <div className="w-2.5 h-2.5 bg-slate-200 rounded-full" />
             </div>
-            <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
-            <div className="h-3 bg-gray-200 rounded w-1/2 mb-3" />
+            <div className="h-4 bg-slate-200 rounded w-3/4 mb-2" />
+            <div className="h-3 bg-slate-200 rounded w-1/2 mb-3" />
             <div className="flex items-center justify-between">
-              <div className="h-5 bg-gray-200 rounded-full w-14" />
-              <div className="h-3 bg-gray-200 rounded w-10" />
+              <div className="h-5 bg-slate-200 rounded-full w-14" />
+              <div className="h-3 bg-slate-200 rounded w-10" />
             </div>
           </div>
         ))}
@@ -732,17 +738,17 @@ function DrawingsLoadingSkeleton({ viewMode }: { viewMode: 'table' | 'cards' }) 
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-      <div className="px-4 py-3 border-b border-gray-100">
-        <div className="h-4 bg-gray-200 rounded w-24 animate-pulse" />
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div className="px-4 py-3 border-b border-slate-100">
+        <div className="h-4 bg-slate-200 rounded w-24 animate-pulse" />
       </div>
-      <div className="divide-y divide-gray-100">
+      <div className="divide-y divide-slate-100">
         {Array.from({ length: 8 }).map((_, i) => (
           <div key={i} className="flex items-center gap-4 px-4 py-3 animate-pulse">
-            <div className="h-3 bg-gray-200 rounded w-20" />
-            <div className="h-3 bg-gray-200 rounded flex-1 max-w-xs" />
-            <div className="h-5 bg-gray-200 rounded-full w-12" />
-            <div className="h-3 bg-gray-200 rounded w-12" />
+            <div className="h-3 bg-slate-200 rounded w-20" />
+            <div className="h-3 bg-slate-200 rounded flex-1 max-w-xs" />
+            <div className="h-5 bg-slate-200 rounded-full w-12" />
+            <div className="h-3 bg-slate-200 rounded w-12" />
           </div>
         ))}
       </div>
