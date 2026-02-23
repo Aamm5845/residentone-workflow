@@ -109,7 +109,8 @@ import {
   ChevronRight,
   LayoutGrid,
   List,
-  ThumbsUp
+  ThumbsUp,
+  Phone
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CropFromRenderingDialog from '@/components/image/CropFromRenderingDialog'
@@ -6145,50 +6146,128 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               </>
                             )}
                             
-                            {/* Supplier - Flexible to fill space with minimum width, allows 2 lines */}
-                            <div className="flex-1 min-w-[80px] lg:min-w-[120px] h-9 relative" onClick={(e) => e.stopPropagation()}>
+                            {/* Supplier - Fixed width column */}
+                            <div className="w-28 lg:w-40 min-w-[100px] h-9 relative flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                               <p className="text-[9px] text-stone-400 uppercase tracking-wide mb-0.5">Supplier</p>
-                              <Popover open={supplierPickerItem === item.id} onOpenChange={(open) => setSupplierPickerItem(open ? item.id : null)}>
-                                <PopoverTrigger asChild>
-                                  <button
-                                    className="w-full text-left cursor-pointer hover:bg-stone-100 rounded px-1 -mx-1 py-0.5"
-                                    onClick={(e) => e.stopPropagation()}
-                                    title={item.supplierName || undefined}
-                                  >
-                                    {item.supplierName || item.supplierId ? (
-                                      (() => {
-                                        // First try to look up supplier from phonebook for full info
-                                        const phonebookSupplier = item.supplierId
-                                          ? suppliers.find(s => s.id === item.supplierId)
-                                          : suppliers.find(s => s.name === item.supplierName?.split(' / ')[0])
-
-                                        let businessName = ''
-                                        let contactName: string | null = null
-
-                                        if (phonebookSupplier) {
-                                          // Use phonebook data for consistent display
-                                          businessName = phonebookSupplier.name
-                                          contactName = phonebookSupplier.contactName || null
-                                        } else if (item.supplierName) {
-                                          // Fall back to parsing supplierName field
-                                          const parts = item.supplierName.split(' / ')
-                                          businessName = parts[0]
-                                          contactName = parts.length > 1 ? parts.slice(1).join(' / ') : null
-                                        }
-
-                                        return (
+                              {/* Supplier display with hover contact card */}
+                              {(item.supplierName || item.supplierId) ? (
+                                (() => {
+                                  const phonebookSupplier = item.supplierId
+                                    ? suppliers.find(s => s.id === item.supplierId)
+                                    : suppliers.find(s => s.name === item.supplierName?.split(' / ')[0])
+                                  let businessName = ''
+                                  let contactName: string | null = null
+                                  if (phonebookSupplier) {
+                                    businessName = phonebookSupplier.name
+                                    contactName = phonebookSupplier.contactName || null
+                                  } else if (item.supplierName) {
+                                    const parts = item.supplierName.split(' / ')
+                                    businessName = parts[0]
+                                    contactName = parts.length > 1 ? parts.slice(1).join(' / ') : null
+                                  }
+                                  return (
+                                    <HoverCard openDelay={300} closeDelay={100}>
+                                      <HoverCardTrigger asChild>
+                                        <button
+                                          className="w-full text-left cursor-pointer hover:bg-stone-100 rounded px-1 -mx-1 py-0.5"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            setSupplierPickerItem(item.id)
+                                          }}
+                                          title={item.supplierName || undefined}
+                                        >
                                           <div className="leading-tight">
                                             <span className="text-xs text-stone-700 truncate block">{businessName}</span>
                                             {contactName && (
                                               <span className="text-[10px] text-stone-400 truncate block">{contactName}</span>
                                             )}
                                           </div>
-                                        )
-                                      })()
-                                    ) : (
-                                      <span className="text-xs text-stone-400">Select Supplier</span>
-                                    )}
-                                  </button>
+                                        </button>
+                                      </HoverCardTrigger>
+                                      <HoverCardContent className="w-72 p-0" align="start" side="bottom">
+                                        <div className="p-3">
+                                          <div className="flex items-start gap-3">
+                                            <div className="w-9 h-9 rounded-lg bg-stone-100 flex items-center justify-center text-stone-600 font-semibold text-sm flex-shrink-0">
+                                              {businessName.charAt(0).toUpperCase()}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                              <p className="text-sm font-medium text-stone-900 truncate">{businessName}</p>
+                                              {contactName && <p className="text-xs text-stone-500">{contactName}</p>}
+                                            </div>
+                                          </div>
+                                        </div>
+                                        {phonebookSupplier && (phonebookSupplier.email || phonebookSupplier.phone || phonebookSupplier.website) && (
+                                          <div className="border-t border-stone-100 px-3 py-2.5 space-y-1.5">
+                                            {phonebookSupplier.email && (
+                                              <div className="flex items-center gap-2 text-xs">
+                                                <Mail className="w-3 h-3 text-stone-400 flex-shrink-0" />
+                                                <a href={`mailto:${phonebookSupplier.email}`} className="text-stone-600 hover:text-stone-900 truncate" onClick={(e) => e.stopPropagation()}>
+                                                  {phonebookSupplier.email}
+                                                </a>
+                                              </div>
+                                            )}
+                                            {phonebookSupplier.phone && (
+                                              <div className="flex items-center gap-2 text-xs">
+                                                <Phone className="w-3 h-3 text-stone-400 flex-shrink-0" />
+                                                <a href={`tel:${phonebookSupplier.phone}`} className="text-stone-600 hover:text-stone-900" onClick={(e) => e.stopPropagation()}>
+                                                  {phonebookSupplier.phone}
+                                                </a>
+                                              </div>
+                                            )}
+                                            {phonebookSupplier.website && (
+                                              <div className="flex items-center gap-2 text-xs">
+                                                <Globe className="w-3 h-3 text-stone-400 flex-shrink-0" />
+                                                <a href={phonebookSupplier.website.startsWith('http') ? phonebookSupplier.website : `https://${phonebookSupplier.website}`} target="_blank" rel="noopener noreferrer" className="text-stone-600 hover:text-stone-900 truncate" onClick={(e) => e.stopPropagation()}>
+                                                  {phonebookSupplier.website.replace(/^https?:\/\//, '')}
+                                                </a>
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
+                                        <div className="border-t border-stone-100 px-3 py-2 flex items-center gap-2">
+                                          <button
+                                            className="text-xs text-stone-500 hover:text-stone-700 transition-colors"
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              setSupplierPickerItem(item.id)
+                                            }}
+                                          >
+                                            Change Supplier
+                                          </button>
+                                          {phonebookSupplier && (
+                                            <>
+                                              <span className="text-stone-200">·</span>
+                                              <button
+                                                className="text-xs text-stone-500 hover:text-stone-700 transition-colors"
+                                                onClick={(e) => {
+                                                  e.stopPropagation()
+                                                  window.open(`/suppliers/${phonebookSupplier.id}`, '_blank')
+                                                }}
+                                              >
+                                                View Contact
+                                              </button>
+                                            </>
+                                          )}
+                                        </div>
+                                      </HoverCardContent>
+                                    </HoverCard>
+                                  )
+                                })()
+                              ) : (
+                                <button
+                                  className="w-full text-left cursor-pointer hover:bg-stone-100 rounded px-1 -mx-1 py-0.5"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setSupplierPickerItem(item.id)
+                                  }}
+                                >
+                                  <span className="text-xs text-stone-400">-</span>
+                                </button>
+                              )}
+                              {/* Supplier Picker Popover - always present, triggered by state */}
+                              <Popover open={supplierPickerItem === item.id} onOpenChange={(open) => setSupplierPickerItem(open ? item.id : null)}>
+                                <PopoverTrigger asChild>
+                                  <span className="absolute top-0 left-0 w-0 h-0 overflow-hidden" />
                                 </PopoverTrigger>
                                 <PopoverContent className="w-64 p-0" align="start" onClick={(e) => e.stopPropagation()}>
                                   <Command>
