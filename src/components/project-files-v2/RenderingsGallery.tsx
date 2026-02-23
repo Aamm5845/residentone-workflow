@@ -421,7 +421,7 @@ export default function RenderingsGallery({ projectId }: RenderingsGalleryProps)
               {/* Image with zoom + pan */}
               <div
                 ref={imageContainerRef}
-                className="flex-1 relative flex items-center justify-center overflow-hidden select-none"
+                className="flex-1 min-h-0 relative flex items-center justify-center overflow-hidden select-none"
                 onWheel={handleWheel}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
@@ -436,6 +436,7 @@ export default function RenderingsGallery({ projectId }: RenderingsGalleryProps)
                   className="max-w-full max-h-full object-contain transition-transform duration-100"
                   style={{
                     transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`,
+                    transformOrigin: 'center center',
                   }}
                   draggable={false}
                 />
