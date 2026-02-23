@@ -54,7 +54,6 @@ import {
   HoverCardTrigger,
 } from '@/components/ui/hover-card'
 import {
-  ArrowLeft,
   Search,
   Filter,
   SortAsc,
@@ -3403,350 +3402,34 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         onChange={handleItemImageUpload}
       />
       
-      {/* Sticky Header - Compact single bar */}
+      {/* Sticky Header - Two-row layout */}
       <div className="sticky top-0 z-30 bg-stone-50">
-        {/* Row 1: Navigation + Tabs + Search/Tools */}
+        {/* Row 1: Breadcrumb Navigation */}
         <div className="border-b border-stone-200">
-          <div className="max-w-full mx-auto px-6 py-2">
+          <div className="max-w-full mx-auto px-6 py-2.5">
             <div className="flex items-center justify-between">
-              {/* Left: Back + Title + Tabs */}
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 text-sm">
+                <button
+                  onClick={() => router.push('/projects')}
+                  className="text-stone-400 hover:text-stone-600 transition-colors"
+                >
+                  Projects
+                </button>
+                <ChevronDown className="w-3.5 h-3.5 text-stone-300 -rotate-90" />
                 <button
                   onClick={() => router.push(`/projects/${project.id}`)}
                   className="text-stone-400 hover:text-stone-600 transition-colors"
-                  title="Back to project"
                 >
-                  <ArrowLeft className="w-4 h-4" />
+                  {project.name}
                 </button>
-                <div className="flex items-baseline gap-2">
-                  <h1 className="text-sm font-semibold text-stone-900">All Specs</h1>
-                  <span className="text-xs text-stone-400">{project.name}</span>
-                  {specs.length > 0 && (
-                    <span className="text-xs text-stone-400">· {filteredSpecs.length} items</span>
-                  )}
-                </div>
-
-                <div className="w-px h-4 bg-stone-200" />
-
-                {/* Tabs inline */}
-                <div className="flex items-center gap-0.5">
-                  <button
-                    onClick={() => setActiveTab('summary')}
-                    className={cn(
-                      "px-3 py-1 text-[13px] rounded-md transition-all",
-                      activeTab === 'summary'
-                        ? "bg-stone-200/70 text-stone-900 font-medium"
-                        : "text-stone-500 hover:text-stone-700"
-                    )}
-                  >
-                    Summary
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('financial')}
-                    className={cn(
-                      "px-3 py-1 text-[13px] rounded-md transition-all",
-                      activeTab === 'financial'
-                        ? "bg-stone-200/70 text-stone-900 font-medium"
-                        : "text-stone-500 hover:text-stone-700"
-                    )}
-                  >
-                    Financial
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('needs')}
-                    className={cn(
-                      "px-3 py-1 text-[13px] rounded-md transition-all",
-                      activeTab === 'needs'
-                        ? "bg-stone-200/70 text-stone-900 font-medium"
-                        : "text-stone-500 hover:text-stone-700"
-                    )}
-                  >
-                    <span className="flex items-center gap-1">
-                      Needs Selection
-                      {ffeItems.length > 0 && (() => {
-                        const filteredCount = filteredFfeItems.reduce((acc, room) =>
-                          acc + room.sections.reduce((sAcc, section) =>
-                            sAcc + section.items.filter(item => !item.hasLinkedSpecs).length, 0
-                          ), 0
-                        )
-                        const totalCount = ffeItems.reduce((acc, room) =>
-                          acc + room.sections.reduce((sAcc, section) =>
-                            sAcc + section.items.filter(item => !item.hasLinkedSpecs).length, 0
-                          ), 0
-                        )
-                        const isFiltered = filterRoom !== 'all' || filterSection !== 'all'
-                        return (
-                          <span className="text-stone-400 font-normal text-[11px]">
-                            {isFiltered ? `${filteredCount}/${totalCount}` : filteredCount}
-                          </span>
-                        )
-                      })()}
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('all-ffe')}
-                    className={cn(
-                      "px-3 py-1 text-[13px] rounded-md transition-all",
-                      activeTab === 'all-ffe'
-                        ? "bg-stone-200/70 text-stone-900 font-medium"
-                        : "text-stone-500 hover:text-stone-700"
-                    )}
-                  >
-                    <span className="flex items-center gap-1">
-                      All FFE
-                      {ffeItems.length > 0 && (() => {
-                        const totalCount = ffeItems.reduce((acc, room) =>
-                          acc + room.sections.reduce((sAcc, section) =>
-                            sAcc + section.items.length, 0
-                          ), 0
-                        )
-                        return totalCount > 0 ? (
-                          <span className="text-stone-400 font-normal text-[11px]">{totalCount}</span>
-                        ) : null
-                      })()}
-                    </span>
-                  </button>
-                </div>
+                <ChevronDown className="w-3.5 h-3.5 text-stone-300 -rotate-90" />
+                <span className="text-stone-900 font-medium">Specs</span>
+                {specs.length > 0 && (
+                  <span className="text-xs text-stone-400 ml-1">{filteredSpecs.length} items</span>
+                )}
               </div>
 
-              {/* Right: Search + Filter/Sort/View + Actions dropdown */}
-              <div className="flex items-center gap-1.5">
-              {/* Search */}
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-400" />
-                <Input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search"
-                  className="pl-8 w-44 h-8 text-sm bg-transparent border-stone-200 rounded-lg placeholder:text-stone-400"
-                />
-              </div>
-
-              {/* Filter Dropdown - Icon only */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className={cn(
-                    "h-8 w-8 p-0",
-                    (filterStatus !== 'all' || filterRoom !== 'all' || filterSection !== 'all' || filterCurrency !== 'all' || summaryFilter !== 'all') ? "text-stone-900" : "text-stone-400"
-                  )}>
-                    <Filter className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-72 p-4">
-                  <div className="space-y-4">
-                    {/* Section Filter */}
-                    <div className="space-y-2">
-                      <Label className="text-xs font-medium text-stone-500 uppercase tracking-wider">Section</Label>
-                      <Select value={filterSection} onValueChange={setFilterSection}>
-                        <SelectTrigger className="h-9 text-sm">
-                          <SelectValue placeholder="All Sections" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Sections</SelectItem>
-                          {groupedSpecs.map((group) => (
-                            <SelectItem key={group.sectionId || group.name} value={group.sectionId || 'all'}>
-                              <div className="flex items-center justify-between w-full">
-                                <span>{group.name}</span>
-                                <span className="text-stone-400 text-xs ml-2">({group.items.length})</span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    {/* Status Filter */}
-                    <div className="space-y-2">
-                      <Label className="text-xs font-medium text-stone-500 uppercase tracking-wider">Status</Label>
-                      <Select value={filterStatus} onValueChange={setFilterStatus}>
-                        <SelectTrigger className="h-9 text-sm">
-                          <SelectValue placeholder="All Statuses" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Statuses</SelectItem>
-                          {ITEM_STATUS_OPTIONS.map(option => (
-                            <SelectItem key={option.value} value={option.value}>
-                              <div className="flex items-center gap-2">
-                                <option.icon className={cn("w-3.5 h-3.5", option.color)} />
-                                {option.label}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    {/* Room Filter */}
-                    <div className="space-y-2">
-                      <Label className="text-xs font-medium text-stone-500 uppercase tracking-wider">Room</Label>
-                      <Select value={filterRoom} onValueChange={setFilterRoom}>
-                        <SelectTrigger className="h-9 text-sm">
-                          <SelectValue placeholder="All Rooms" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Rooms</SelectItem>
-                          {uniqueRooms.map(room => (
-                            <SelectItem key={room} value={room}>{room}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Currency Filter */}
-                    <div className="space-y-2">
-                      <Label className="text-xs font-medium text-stone-500 uppercase tracking-wider">Currency</Label>
-                      <Select value={filterCurrency} onValueChange={(v) => setFilterCurrency(v as 'all' | 'CAD' | 'USD')}>
-                        <SelectTrigger className="h-9 text-sm">
-                          <SelectValue placeholder="All Currencies" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Currencies</SelectItem>
-                          <SelectItem value="CAD">CAD Only</SelectItem>
-                          <SelectItem value="USD">USD Only</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Approval / Price Filter */}
-                    <div className="space-y-2">
-                      <Label className="text-xs font-medium text-stone-500 uppercase tracking-wider">Quick Filter</Label>
-                      <Select value={summaryFilter} onValueChange={(v) => setSummaryFilter(v as 'all' | 'needs_approval' | 'needs_price')}>
-                        <SelectTrigger className="h-9 text-sm">
-                          <SelectValue placeholder="All Items" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">
-                            <div className="flex items-center gap-2">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                              All Items ({filteredSpecs.filter(s => s.clientApproved).length} approved)
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="needs_approval">
-                            <div className="flex items-center gap-2">
-                              <Clock className="w-3.5 h-3.5 text-amber-500" />
-                              Need Approval ({filteredSpecs.filter(s => !s.clientApproved && !['CONTRACTOR_TO_ORDER', 'CLIENT_TO_ORDER'].includes(s.specStatus || '')).length})
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="needs_price">
-                            <div className="flex items-center gap-2">
-                              <DollarSign className="w-3.5 h-3.5 text-red-500" />
-                              Need Price ({filteredSpecs.filter(s => !s.rrp && s.specStatus !== 'CONTRACTOR_TO_ORDER').length})
-                            </div>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Show Archived Toggle - only shown if there are archived items */}
-                    {archivedCount > 0 && (
-                      <div className="flex items-center justify-between py-2 border-t">
-                        <div className="flex items-center gap-2">
-                          <Archive className="w-4 h-4 text-stone-400" />
-                          <Label htmlFor="show-archived" className="text-sm text-stone-600 cursor-pointer">
-                            Show archived ({archivedCount})
-                          </Label>
-                        </div>
-                        <Switch
-                          id="show-archived"
-                          checked={showArchived}
-                          onCheckedChange={setShowArchived}
-                        />
-                      </div>
-                    )}
-
-                    {/* Clear Filters */}
-                    {(filterStatus !== 'all' || filterRoom !== 'all' || filterSection !== 'all' || filterCurrency !== 'all' || summaryFilter !== 'all') && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full h-8 text-xs text-stone-500 hover:text-stone-700"
-                        onClick={() => {
-                          setFilterStatus('all')
-                          setFilterRoom('all')
-                          setFilterSection('all')
-                          setFilterCurrency('all')
-                          setSummaryFilter('all')
-                        }}
-                      >
-                        Clear All Filters
-                      </Button>
-                    )}
-                  </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              {/* Sort Dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className={cn(
-                    "h-8 w-8 p-0",
-                    itemSortBy !== 'default' ? "text-stone-900" : "text-stone-400"
-                  )}>
-                    <SortAsc className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <div className="px-2 py-1.5 text-xs font-medium text-stone-500">Group by</div>
-                  <DropdownMenuItem onClick={() => setSortBy('category')} className={cn(sortBy === 'category' && "bg-stone-100")}>
-                    Category
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setSortBy('room')} className={cn(sortBy === 'room' && "bg-stone-100")}>
-                    Room
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <div className="px-2 py-1.5 text-xs font-medium text-stone-500">Sort items by</div>
-                  <DropdownMenuItem onClick={() => setItemSortBy('default')} className={cn(itemSortBy === 'default' && "bg-stone-100")}>
-                    Default Order
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setItemSortBy('name')} className={cn(itemSortBy === 'name' && "bg-stone-100")}>
-                    Name (A-Z)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setItemSortBy('brand')} className={cn(itemSortBy === 'brand' && "bg-stone-100")}>
-                    Brand (A-Z)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setItemSortBy('price_asc')} className={cn(itemSortBy === 'price_asc' && "bg-stone-100")}>
-                    Price (Low → High)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setItemSortBy('price_desc')} className={cn(itemSortBy === 'price_desc' && "bg-stone-100")}>
-                    Price (High → Low)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setItemSortBy('status')} className={cn(itemSortBy === 'status' && "bg-stone-100")}>
-                    Status
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              {/* View Toggle */}
-              <div className="flex items-center border border-stone-200 rounded-lg bg-stone-100/50">
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={cn(
-                    "p-1.5 rounded-l-lg transition-colors",
-                    viewMode === 'list'
-                      ? "bg-white text-stone-900 shadow-sm"
-                      : "text-stone-400 hover:text-stone-600"
-                  )}
-                  title="List view"
-                >
-                  <List className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setViewMode('board')}
-                  className={cn(
-                    "p-1.5 rounded-r-lg transition-colors",
-                    viewMode === 'board'
-                      ? "bg-white text-stone-900 shadow-sm"
-                      : "text-stone-400 hover:text-stone-600"
-                  )}
-                  title="Board view"
-                >
-                  <LayoutGrid className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="w-px h-4 bg-stone-200" />
-
-              {/* Actions dropdown - combines share, export, select */}
+              {/* Actions dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-stone-400 hover:text-stone-600">
@@ -3796,6 +3479,333 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
               </DropdownMenu>
             </div>
           </div>
+        </div>
+
+        {/* Row 2: Tabs + Search/Filter/Sort/View */}
+        <div className="border-b border-stone-200">
+          <div className="max-w-full mx-auto px-6 py-2">
+            <div className="flex items-center justify-between">
+              {/* Left: Tabs - white pill style with shadow */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setActiveTab('summary')}
+                  className={cn(
+                    "px-3.5 py-1.5 text-sm rounded-lg transition-all",
+                    activeTab === 'summary'
+                      ? "bg-white text-stone-900 font-medium shadow-sm border border-stone-200"
+                      : "text-stone-500 hover:text-stone-700 hover:bg-stone-100"
+                  )}
+                >
+                  Summary
+                </button>
+                <button
+                  onClick={() => setActiveTab('financial')}
+                  className={cn(
+                    "px-3.5 py-1.5 text-sm rounded-lg transition-all",
+                    activeTab === 'financial'
+                      ? "bg-white text-stone-900 font-medium shadow-sm border border-stone-200"
+                      : "text-stone-500 hover:text-stone-700 hover:bg-stone-100"
+                  )}
+                >
+                  Financial
+                </button>
+                <button
+                  onClick={() => setActiveTab('needs')}
+                  className={cn(
+                    "px-3.5 py-1.5 text-sm rounded-lg transition-all",
+                    activeTab === 'needs'
+                      ? "bg-white text-stone-900 font-medium shadow-sm border border-stone-200"
+                      : "text-stone-500 hover:text-stone-700 hover:bg-stone-100"
+                  )}
+                >
+                  <span className="flex items-center gap-1.5">
+                    Needs Selection
+                    {ffeItems.length > 0 && (() => {
+                      const filteredCount = filteredFfeItems.reduce((acc, room) =>
+                        acc + room.sections.reduce((sAcc, section) =>
+                          sAcc + section.items.filter(item => !item.hasLinkedSpecs).length, 0
+                        ), 0
+                      )
+                      const totalCount = ffeItems.reduce((acc, room) =>
+                        acc + room.sections.reduce((sAcc, section) =>
+                          sAcc + section.items.filter(item => !item.hasLinkedSpecs).length, 0
+                        ), 0
+                      )
+                      const isFiltered = filterRoom !== 'all' || filterSection !== 'all'
+                      return (
+                        <span className="text-stone-400 font-normal text-[11px]">
+                          {isFiltered ? `${filteredCount}/${totalCount}` : filteredCount}
+                        </span>
+                      )
+                    })()}
+                  </span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('all-ffe')}
+                  className={cn(
+                    "px-3.5 py-1.5 text-sm rounded-lg transition-all",
+                    activeTab === 'all-ffe'
+                      ? "bg-white text-stone-900 font-medium shadow-sm border border-stone-200"
+                      : "text-stone-500 hover:text-stone-700 hover:bg-stone-100"
+                  )}
+                >
+                  <span className="flex items-center gap-1.5">
+                    All FFE
+                    {ffeItems.length > 0 && (() => {
+                      const totalCount = ffeItems.reduce((acc, room) =>
+                        acc + room.sections.reduce((sAcc, section) =>
+                          sAcc + section.items.length, 0
+                        ), 0
+                      )
+                      return totalCount > 0 ? (
+                        <span className="text-stone-400 font-normal text-[11px]">{totalCount}</span>
+                      ) : null
+                    })()}
+                  </span>
+                </button>
+
+              </div>
+
+              {/* Right: Search + Filter/Sort/View + New */}
+              <div className="flex items-center gap-1.5">
+                {/* Search */}
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-400" />
+                  <Input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search"
+                    className="pl-8 w-44 h-8 text-sm bg-transparent border-stone-200 rounded-lg placeholder:text-stone-400"
+                  />
+                </div>
+
+                {/* Filter Dropdown */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className={cn(
+                      "flex items-center justify-center h-8 w-8 rounded-lg transition-colors",
+                      (filterStatus !== 'all' || filterRoom !== 'all' || filterSection !== 'all' || filterCurrency !== 'all' || summaryFilter !== 'all')
+                        ? "text-stone-900 bg-stone-100"
+                        : "text-stone-400 hover:text-stone-600 hover:bg-stone-100"
+                    )}>
+                      <Filter className="w-4 h-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-72 p-4">
+                    <div className="space-y-4">
+                      {/* Section Filter */}
+                      <div className="space-y-2">
+                        <Label className="text-xs font-medium text-stone-500 uppercase tracking-wider">Section</Label>
+                        <Select value={filterSection} onValueChange={setFilterSection}>
+                          <SelectTrigger className="h-9 text-sm">
+                            <SelectValue placeholder="All Sections" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Sections</SelectItem>
+                            {groupedSpecs.map((group) => (
+                              <SelectItem key={group.sectionId || group.name} value={group.sectionId || 'all'}>
+                                <div className="flex items-center justify-between w-full">
+                                  <span>{group.name}</span>
+                                  <span className="text-stone-400 text-xs ml-2">({group.items.length})</span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Status Filter */}
+                      <div className="space-y-2">
+                        <Label className="text-xs font-medium text-stone-500 uppercase tracking-wider">Status</Label>
+                        <Select value={filterStatus} onValueChange={setFilterStatus}>
+                          <SelectTrigger className="h-9 text-sm">
+                            <SelectValue placeholder="All Statuses" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Statuses</SelectItem>
+                            {ITEM_STATUS_OPTIONS.map(option => (
+                              <SelectItem key={option.value} value={option.value}>
+                                <div className="flex items-center gap-2">
+                                  <option.icon className={cn("w-3.5 h-3.5", option.color)} />
+                                  {option.label}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Room Filter */}
+                      <div className="space-y-2">
+                        <Label className="text-xs font-medium text-stone-500 uppercase tracking-wider">Room</Label>
+                        <Select value={filterRoom} onValueChange={setFilterRoom}>
+                          <SelectTrigger className="h-9 text-sm">
+                            <SelectValue placeholder="All Rooms" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Rooms</SelectItem>
+                            {uniqueRooms.map(room => (
+                              <SelectItem key={room} value={room}>{room}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Currency Filter */}
+                      <div className="space-y-2">
+                        <Label className="text-xs font-medium text-stone-500 uppercase tracking-wider">Currency</Label>
+                        <Select value={filterCurrency} onValueChange={(v) => setFilterCurrency(v as 'all' | 'CAD' | 'USD')}>
+                          <SelectTrigger className="h-9 text-sm">
+                            <SelectValue placeholder="All Currencies" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Currencies</SelectItem>
+                            <SelectItem value="CAD">CAD Only</SelectItem>
+                            <SelectItem value="USD">USD Only</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Approval / Price Filter */}
+                      <div className="space-y-2">
+                        <Label className="text-xs font-medium text-stone-500 uppercase tracking-wider">Quick Filter</Label>
+                        <Select value={summaryFilter} onValueChange={(v) => setSummaryFilter(v as 'all' | 'needs_approval' | 'needs_price')}>
+                          <SelectTrigger className="h-9 text-sm">
+                            <SelectValue placeholder="All Items" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">
+                              <div className="flex items-center gap-2">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                                All Items ({filteredSpecs.filter(s => s.clientApproved).length} approved)
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="needs_approval">
+                              <div className="flex items-center gap-2">
+                                <Clock className="w-3.5 h-3.5 text-amber-500" />
+                                Need Approval ({filteredSpecs.filter(s => !s.clientApproved && !['CONTRACTOR_TO_ORDER', 'CLIENT_TO_ORDER'].includes(s.specStatus || '')).length})
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="needs_price">
+                              <div className="flex items-center gap-2">
+                                <DollarSign className="w-3.5 h-3.5 text-red-500" />
+                                Need Price ({filteredSpecs.filter(s => !s.rrp && s.specStatus !== 'CONTRACTOR_TO_ORDER').length})
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Show Archived Toggle - only shown if there are archived items */}
+                      {archivedCount > 0 && (
+                        <div className="flex items-center justify-between py-2 border-t">
+                          <div className="flex items-center gap-2">
+                            <Archive className="w-4 h-4 text-stone-400" />
+                            <Label htmlFor="show-archived" className="text-sm text-stone-600 cursor-pointer">
+                              Show archived ({archivedCount})
+                            </Label>
+                          </div>
+                          <Switch
+                            id="show-archived"
+                            checked={showArchived}
+                            onCheckedChange={setShowArchived}
+                          />
+                        </div>
+                      )}
+
+                      {/* Clear Filters */}
+                      {(filterStatus !== 'all' || filterRoom !== 'all' || filterSection !== 'all' || filterCurrency !== 'all' || summaryFilter !== 'all') && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full h-8 text-xs text-stone-500 hover:text-stone-700"
+                          onClick={() => {
+                            setFilterStatus('all')
+                            setFilterRoom('all')
+                            setFilterSection('all')
+                            setFilterCurrency('all')
+                            setSummaryFilter('all')
+                          }}
+                        >
+                          Clear All Filters
+                        </Button>
+                      )}
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                {/* Sort Dropdown */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className={cn(
+                      "flex items-center justify-center h-8 w-8 rounded-lg transition-colors",
+                      itemSortBy !== 'default'
+                        ? "text-stone-900 bg-stone-100"
+                        : "text-stone-400 hover:text-stone-600 hover:bg-stone-100"
+                    )}>
+                      <SortAsc className="w-4 h-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <div className="px-2 py-1.5 text-xs font-medium text-stone-500">Group by</div>
+                    <DropdownMenuItem onClick={() => setSortBy('category')} className={cn(sortBy === 'category' && "bg-stone-100")}>
+                      Category
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setSortBy('room')} className={cn(sortBy === 'room' && "bg-stone-100")}>
+                      Room
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <div className="px-2 py-1.5 text-xs font-medium text-stone-500">Sort items by</div>
+                    <DropdownMenuItem onClick={() => setItemSortBy('default')} className={cn(itemSortBy === 'default' && "bg-stone-100")}>
+                      Default Order
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setItemSortBy('name')} className={cn(itemSortBy === 'name' && "bg-stone-100")}>
+                      Name (A-Z)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setItemSortBy('brand')} className={cn(itemSortBy === 'brand' && "bg-stone-100")}>
+                      Brand (A-Z)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setItemSortBy('price_asc')} className={cn(itemSortBy === 'price_asc' && "bg-stone-100")}>
+                      Price (Low → High)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setItemSortBy('price_desc')} className={cn(itemSortBy === 'price_desc' && "bg-stone-100")}>
+                      Price (High → Low)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setItemSortBy('status')} className={cn(itemSortBy === 'status' && "bg-stone-100")}>
+                      Status
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                {/* View Toggle */}
+                <div className="flex items-center border border-stone-200 rounded-lg bg-stone-100/50">
+                  <button
+                    onClick={() => setViewMode('list')}
+                    className={cn(
+                      "p-1.5 rounded-l-lg transition-colors",
+                      viewMode === 'list'
+                        ? "bg-white text-stone-900 shadow-sm"
+                        : "text-stone-400 hover:text-stone-600"
+                    )}
+                    title="List view"
+                  >
+                    <List className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setViewMode('board')}
+                    className={cn(
+                      "p-1.5 rounded-r-lg transition-colors",
+                      viewMode === 'board'
+                        ? "bg-white text-stone-900 shadow-sm"
+                        : "text-stone-400 hover:text-stone-600"
+                    )}
+                    title="Board view"
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -3923,7 +3933,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
       {/* Needs Selection Tab Content */}
       {activeTab === 'needs' && (
-        <div className="max-w-full mx-auto px-4 py-4">
+        <div className="max-w-full mx-auto px-6 py-4">
           <div className="bg-white rounded-xl border border-stone-200 p-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-stone-400 to-stone-500 flex items-center justify-center shadow-sm">
@@ -4309,7 +4319,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
       {/* All FFE Items Tab Content */}
       {activeTab === 'all-ffe' && (
-        <div className="max-w-full mx-auto px-4 py-4">
+        <div className="max-w-full mx-auto px-6 py-4">
           <div className="bg-white rounded-xl border border-stone-200 p-6">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
@@ -4637,7 +4647,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             />
           </div>
         ) : (
-        <div className="max-w-full mx-auto px-4 py-4">
+        <div className="max-w-full mx-auto px-6 py-4">
         {groupedSpecs.length === 0 ? (
           <div className="bg-white rounded-xl border border-stone-200 p-8">
             {/* Show available sections if any - deduplicated by section name */}
@@ -4760,7 +4770,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
             )}
           </div>
         ) : (
-          <div className="space-y-3 px-1.5 py-2">
+          <div className="space-y-3 py-2">
             {groupedSpecs.map((group) => (
               <div
                 key={group.name}
@@ -4770,57 +4780,55 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                 onMouseLeave={() => setHoveredSection(null)}
               >
                 {/* Category Header - Programa style */}
-                <div className="flex items-center justify-between px-1 pb-2 pt-1">
-                  <div className="flex items-center gap-3">
-                    {/* Select all checkbox - show on hover */}
-                    <div className={cn(
-                      "transition-opacity duration-150",
-                      hoveredSection === group.name || group.items.some(i => selectedItems.has(i.id)) ? "opacity-100" : "opacity-0"
-                    )}>
-                      <Checkbox
-                        checked={group.items.every(i => selectedItems.has(i.id))}
-                        onCheckedChange={(checked) => {
-                          setSelectedItems(prev => {
-                            const newSet = new Set(prev)
-                            if (checked) {
-                              group.items.forEach(i => newSet.add(i.id))
-                            } else {
-                              group.items.forEach(i => newSet.delete(i.id))
-                            }
-                            return newSet
-                          })
-                        }}
-                        className="h-4 w-4"
-                        title={`Select all in ${group.name}`}
-                      />
-                    </div>
-                    <button
-                      onClick={() => toggleCategory(group.name)}
-                      className="flex items-center gap-2 hover:opacity-70 transition-opacity"
-                    >
-                      <h2 className="text-base font-semibold text-stone-800">{group.name}</h2>
-                      <span className="text-sm font-normal text-stone-400">{group.items.length}</span>
-                      {activeTab === 'financial' && (
-                        <span className="text-sm font-medium ml-3 flex items-center gap-3">
-                          {(() => {
-                            const totals = getSectionTotals(group.items)
-                            return (
-                              <>
-                                <span className="text-stone-600">
-                                  <span className="text-[10px] text-stone-400 uppercase mr-1">Trade:</span>
-                                  {formatCurrency(totals.tradeTotal)}
-                                </span>
-                                <span className="text-stone-400">
-                                  <span className="text-[10px] uppercase mr-1">RRP:</span>
-                                  {formatCurrency(totals.rrpTotal)}
-                                </span>
-                              </>
-                            )
-                          })()}
-                        </span>
-                      )}
-                    </button>
+                <div className="relative flex items-center justify-between pb-2 pt-1">
+                  {/* Select all checkbox - absolutely positioned to the left */}
+                  <div className={cn(
+                    "absolute -left-6 top-1/2 -translate-y-1/2 transition-opacity duration-150",
+                    hoveredSection === group.name || group.items.some(i => selectedItems.has(i.id)) ? "opacity-100" : "opacity-0"
+                  )}>
+                    <Checkbox
+                      checked={group.items.every(i => selectedItems.has(i.id))}
+                      onCheckedChange={(checked) => {
+                        setSelectedItems(prev => {
+                          const newSet = new Set(prev)
+                          if (checked) {
+                            group.items.forEach(i => newSet.add(i.id))
+                          } else {
+                            group.items.forEach(i => newSet.delete(i.id))
+                          }
+                          return newSet
+                        })
+                      }}
+                      className="h-4 w-4"
+                      title={`Select all in ${group.name}`}
+                    />
                   </div>
+                  <button
+                    onClick={() => toggleCategory(group.name)}
+                    className="flex items-center gap-2 hover:opacity-70 transition-opacity"
+                  >
+                    <h2 className="text-base font-semibold text-stone-800">{group.name}</h2>
+                    <span className="text-sm font-normal text-stone-400">{group.items.length}</span>
+                    {activeTab === 'financial' && (
+                      <span className="text-sm font-medium ml-3 flex items-center gap-3">
+                        {(() => {
+                          const totals = getSectionTotals(group.items)
+                          return (
+                            <>
+                              <span className="text-stone-600">
+                                <span className="text-[10px] text-stone-400 uppercase mr-1">Trade:</span>
+                                {formatCurrency(totals.tradeTotal)}
+                              </span>
+                              <span className="text-stone-400">
+                                <span className="text-[10px] uppercase mr-1">RRP:</span>
+                                {formatCurrency(totals.rrpTotal)}
+                              </span>
+                            </>
+                          )
+                        })()}
+                      </span>
+                    )}
+                  </button>
                   {/* Collapse/Expand - show on hover */}
                   <div className={cn(
                     "flex items-center gap-2 transition-opacity duration-150",
@@ -4897,7 +4905,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                         >
                           {/* Option Tabs - show when multiple specs share same FFE requirement */}
                           {hasMultipleOptions && ffeId && (
-                            <div className="flex items-center gap-2 px-4 py-2 bg-purple-50 border-b border-purple-100">
+                            <div className="flex items-center gap-2 pl-6 pr-4 py-2 bg-purple-50 border-b border-purple-100">
                               <span className="text-xs font-medium text-purple-700 mr-2">
                                 <Layers className="w-3.5 h-3.5 inline mr-1" />
                                 {optionSpecs.length} Options for: {item.linkedFfeItems?.[0]?.ffeItemName || 'FFE Item'}
@@ -4928,10 +4936,10 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                           )}
 
                           {/* Item row wrapper: hover controls + card */}
-                          <div className="flex items-center">
-                          {/* Hover Actions - Outside card, to the left */}
+                          <div className="relative">
+                          {/* Hover Actions - Absolutely positioned to the left of card */}
                           <div className={cn(
-                            "flex-shrink-0 flex flex-col items-center justify-center w-6 h-[88px] gap-1 transition-opacity duration-150",
+                            "absolute -left-6 top-0 flex flex-col items-center justify-center w-5 h-[88px] gap-0.5 transition-opacity duration-150",
                             hoveredItem === displayItem.id || selectedItems.has(item.id) ? "opacity-100" : "opacity-0"
                           )}>
                             <Checkbox
@@ -4953,7 +4961,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                           id={`spec-item-${displayItem.id}`}
                           data-item-id={displayItem.id}
                           className={cn(
-                            "group/item relative flex items-center flex-1 min-w-0 transition-all rounded-lg h-[88px] p-2 gap-2 overflow-hidden shadow-[0_0_0_1px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)]",
+                            "group/item relative flex items-center min-w-0 transition-all rounded-lg h-[88px] p-2 gap-2 overflow-hidden shadow-[0_0_0_1px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)]",
                             highlightedItemId === displayItem.id
                               ? "bg-emerald-50 ring-2 ring-emerald-200"
                               : selectedItems.has(displayItem.id)
@@ -4966,7 +4974,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
                           {/* Image - Programa: aspect-square h-full (72px), shadow-borders-base, rounded-[5px], p-px */}
                           <div className="flex-shrink-0 h-full">
-                            <div className="aspect-square h-full rounded-[5px] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)] bg-white p-px relative">
+                            <div className="aspect-square h-full rounded-lg shadow-sm ring-1 ring-stone-200/50 bg-white p-px relative">
                               <HoverCard openDelay={300} closeDelay={100}>
                                 <HoverCardTrigger asChild>
                                   <div
@@ -5025,7 +5033,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                         <img
                                           src={displayItem.thumbnailUrl || displayItem.images?.[0]}
                                           alt={displayItem.name}
-                                          className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
+                                          className="w-16 h-16 rounded-lg object-cover flex-shrink-0 shadow-sm ring-1 ring-stone-200/50"
                                           loading="eager"
                                           decoding="async"
                                         />
@@ -5189,7 +5197,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                             <PopoverTrigger asChild>
                                               <button
                                                 onClick={(e) => e.stopPropagation()}
-                                                className="flex-shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-violet-100 text-violet-700 rounded text-[9px] font-medium hover:bg-violet-200 transition-colors"
+                                                className="flex-shrink-0 inline-flex items-center gap-0.5 px-1 py-0.5 text-stone-400 rounded text-[9px] font-medium hover:text-stone-600 hover:bg-stone-100 transition-colors"
                                                 title={`Grouped with ${linkedItems.length} item(s)`}
                                               >
                                                 <Layers className="w-2.5 h-2.5" />
@@ -5263,7 +5271,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                                           <img
                                                             src={childSpec.thumbnailUrl}
                                                             alt={childName}
-                                                            className="w-8 h-8 rounded object-cover flex-shrink-0"
+                                                            className="w-8 h-8 rounded object-cover flex-shrink-0 shadow-sm"
                                                           />
                                                         )}
                                                       </div>
@@ -5443,11 +5451,11 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                         <PopoverTrigger asChild>
                                           <button
                                             onClick={(e) => e.stopPropagation()}
-                                            className="inline-flex items-center gap-1 text-[10px] text-blue-600 hover:text-blue-700 mt-0.5 truncate hover:underline"
+                                            className="inline-flex items-center gap-1 text-[10px] text-stone-500 hover:text-stone-700 mt-0.5 truncate hover:underline"
                                           >
                                             <LinkIcon className="w-2.5 h-2.5 flex-shrink-0" />
                                             {firstItem.ffeItemName}
-                                            <span className="ml-1 px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[9px] font-medium">
+                                            <span className="ml-1 px-1.5 py-0.5 bg-stone-100 text-stone-600 rounded-full text-[9px] font-medium">
                                               +{additionalNamesCount}
                                             </span>
                                           </button>
@@ -5495,7 +5503,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                     <a
                                       href={`/ffe/${firstItem.roomId}/workspace?highlight=${firstItem.ffeItemId}`}
                                       onClick={(e) => e.stopPropagation()}
-                                      className="inline-flex items-center gap-1 text-[10px] text-blue-600 hover:text-blue-700 mt-0.5 truncate"
+                                      className="inline-flex items-center gap-1 text-[10px] text-stone-500 hover:text-stone-700 mt-0.5 truncate"
                                       title={`FFE: ${firstItem.ffeItemName}`}
                                     >
                                       <LinkIcon className="w-2.5 h-2.5 flex-shrink-0" />
@@ -5508,7 +5516,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 <a
                                   href={`/ffe/${item.roomId}/workspace?highlight=${item.ffeRequirementId}`}
                                   onClick={(e) => e.stopPropagation()}
-                                  className="inline-flex items-center gap-1 text-[10px] text-blue-600 hover:text-blue-700 mt-0.5 truncate"
+                                  className="inline-flex items-center gap-1 text-[10px] text-stone-500 hover:text-stone-700 mt-0.5 truncate"
                                   title={`FFE: ${item.ffeRequirementName}`}
                                 >
                                   <LinkIcon className="w-2.5 h-2.5 flex-shrink-0" />
@@ -5532,22 +5540,22 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                               ) : (
                                 <div className="w-8 flex justify-center">
                                   {item.supplierLink ? (
-                                    <a 
-                                      href={item.supplierLink} 
-                                      target="_blank" 
+                                    <a
+                                      href={item.supplierLink}
+                                      target="_blank"
                                       rel="noopener noreferrer"
-                                      className="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-full transition-colors"
+                                      className="p-1.5 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-full transition-colors"
                                       title="Open product page"
                                     >
-                                      <ExternalLink className="w-4 h-4" />
+                                      <ExternalLink className="w-3.5 h-3.5" />
                                     </a>
                                   ) : (
-                                    <button 
-                                      className="p-1.5 text-stone-300 hover:text-blue-500 hover:bg-blue-50 rounded-full transition-colors"
+                                    <button
+                                      className="p-1.5 text-stone-300 hover:text-stone-500 hover:bg-stone-100 rounded-full transition-colors"
                                       onClick={(e) => { e.stopPropagation(); startEditing(item.id, 'supplierLink', '') }}
                                       title="Add product link"
                                     >
-                                      <LinkIcon className="w-4 h-4" />
+                                      <LinkIcon className="w-3.5 h-3.5" />
                                     </button>
                                   )}
                                 </div>
@@ -5623,22 +5631,22 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                 if (docCodes.length === 0) {
                                   return (
                                     <p
-                                      className="text-xs text-red-500 bg-red-50 hover:bg-red-100 font-medium rounded px-1 -mx-1 cursor-text truncate"
+                                      className="text-xs text-stone-700 truncate cursor-text hover:bg-stone-100 rounded px-1 -mx-1"
                                       onClick={(e) => {
                                         e.stopPropagation()
                                         startEditing(item.id, 'docCode', item.docCode || '')
                                       }}
                                       title="Click to add doc code"
                                     >
-                                      Add
+                                      -
                                     </p>
                                   )
                                 }
 
                                 if (docCodes.length === 1) {
                                   return (
-                                    <span
-                                      className="inline-flex items-center text-[11px] font-mono font-medium text-stone-700 cursor-text hover:text-indigo-600 transition-colors truncate"
+                                    <p
+                                      className="text-xs text-stone-700 truncate cursor-text hover:bg-stone-100 rounded px-1 -mx-1"
                                       onClick={(e) => {
                                         e.stopPropagation()
                                         const prefixMatch = docCodes[0].match(/^([A-Z]{1,3})-(\d+)$/)
@@ -5651,7 +5659,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                       title={docCodes[0]}
                                     >
                                       {docCodes[0]}
-                                    </span>
+                                    </p>
                                   )
                                 }
 
@@ -5661,11 +5669,11 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                     <PopoverTrigger asChild>
                                       <button
                                         onClick={(e) => e.stopPropagation()}
-                                        className="inline-flex items-center gap-0.5 text-[11px] font-mono font-medium text-stone-700 hover:text-indigo-600 transition-colors truncate"
+                                        className="inline-flex items-center gap-1 text-xs text-stone-700 hover:bg-stone-100 rounded px-1 -mx-1 truncate"
                                         title={docCodes.join(', ')}
                                       >
                                         {docCodes[0]}
-                                        <span className="ml-0.5 px-1 py-0 bg-indigo-200 text-indigo-800 rounded-full text-[8px] font-bold">
+                                        <span className="px-1 py-0 bg-stone-200 text-stone-600 rounded-full text-[9px] font-medium">
                                           +{docCodes.length - 1}
                                         </span>
                                       </button>
@@ -6687,7 +6695,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       <img 
                         src={img} 
                         alt="Product" 
-                        className="w-16 h-16 object-cover rounded border bg-white"
+                        className="w-16 h-16 object-cover rounded-lg border border-stone-200/60 bg-white shadow-sm"
                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
                       />
                       <button
@@ -7171,7 +7179,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                       <img 
                         src={img} 
                         alt="Product" 
-                        className="w-16 h-16 object-cover rounded border bg-white"
+                        className="w-16 h-16 object-cover rounded-lg border border-stone-200/60 bg-white shadow-sm"
                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
                       />
                       <button
@@ -9405,7 +9413,7 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                                       <img
                                         src={item.imageUrl}
                                         alt={item.name}
-                                        className="w-12 h-12 object-cover rounded border flex-shrink-0"
+                                        className="w-12 h-12 object-cover rounded-lg border border-stone-200/60 flex-shrink-0 shadow-sm"
                                       />
                                     ) : (
                                       <div className="w-12 h-12 bg-stone-100 rounded border flex items-center justify-center flex-shrink-0">

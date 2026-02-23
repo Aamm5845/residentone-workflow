@@ -178,7 +178,7 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
           {mainNavigation.map((item) => {
             const Icon = item.icon
             const badge = 'badgeCount' in item ? (item as { badgeCount?: number; badgeColor?: string }).badgeCount : undefined
-            const showBadge = badge && badge > 0
+            const showBadge = badge !== undefined && badge > 0
             const active = isActive(item.href)
 
             return (
@@ -208,7 +208,7 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
         <div className="space-y-1 border-t border-stone-200 pt-4">
           {updatesNavigation.map((item) => {
             const Icon = item.icon
-            const showBadge = item.badgeCount && item.badgeCount > 0
+            const showBadge = item.badgeCount !== undefined && item.badgeCount > 0
             const active = isActive(item.href)
             return (
               <Link
@@ -246,7 +246,7 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
           {mainNavigationBefore.map((item) => {
             const Icon = item.icon
             const badge = 'badgeCount' in item ? (item as { badgeCount?: number; badgeColor?: string }).badgeCount : undefined
-            const showBadge = badge && badge > 0
+            const showBadge = badge !== undefined && badge > 0
             const active = isActive(item.href)
             return (
               <Link
@@ -323,7 +323,7 @@ export function NavigationMenu({ sidebarCollapsed, userRole, canSeeFinancials }:
         <nav className="space-y-0.5">
           {updatesNavigation.map((item) => {
             const Icon = item.icon
-            const showBadge = item.badgeCount && item.badgeCount > 0
+            const showBadge = item.badgeCount !== undefined && item.badgeCount > 0
             const active = isActive(item.href)
             return (
               <Link
