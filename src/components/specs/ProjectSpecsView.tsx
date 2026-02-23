@@ -3403,310 +3403,114 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
         onChange={handleItemImageUpload}
       />
       
-      {/* Sticky Header - Action Bar + Tabs (top-0 since main content is the scroll container) */}
-      <div className="sticky top-0 z-30 bg-stone-50 shadow-sm">
-        {/* Action Bar */}
+      {/* Sticky Header - Compact single bar */}
+      <div className="sticky top-0 z-30 bg-stone-50">
+        {/* Row 1: Navigation + Tabs + Search/Tools */}
         <div className="border-b border-stone-200">
-          <div className="max-w-full mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              <Button
-                onClick={() => router.push(`/projects/${project.id}`)}
-                variant="ghost"
-                size="sm"
-                className="text-stone-500 hover:text-stone-900 -ml-2"
-              >
-                <ArrowLeft className="w-4 h-4 mr-1.5" />
-                Back
-              </Button>
-              <div className="h-8 w-px bg-stone-200" />
-              <div>
-                <h1 className="text-xl font-semibold text-stone-900">All Specs</h1>
-                <p className="text-sm text-stone-500 mt-0.5">{project.name}</p>
-              </div>
-              {specs.length > 0 && (
-                <>
-                  <div className="h-6 w-px bg-stone-200" />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 text-xs text-stone-600 hover:text-stone-900"
-                    onClick={() => {
-                      if (selectedItems.size === specs.length) {
-                        setSelectedItems(new Set())
-                      } else {
-                        setSelectedItems(new Set(specs.map(s => s.id)))
-                      }
-                    }}
+          <div className="max-w-full mx-auto px-6 py-2">
+            <div className="flex items-center justify-between">
+              {/* Left: Back + Title + Tabs */}
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => router.push(`/projects/${project.id}`)}
+                  className="text-stone-400 hover:text-stone-600 transition-colors"
+                  title="Back to project"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
+                <div className="flex items-baseline gap-2">
+                  <h1 className="text-sm font-semibold text-stone-900">All Specs</h1>
+                  <span className="text-xs text-stone-400">{project.name}</span>
+                  {specs.length > 0 && (
+                    <span className="text-xs text-stone-400">· {filteredSpecs.length} items</span>
+                  )}
+                </div>
+
+                <div className="w-px h-4 bg-stone-200" />
+
+                {/* Tabs inline */}
+                <div className="flex items-center gap-0.5">
+                  <button
+                    onClick={() => setActiveTab('summary')}
+                    className={cn(
+                      "px-3 py-1 text-[13px] rounded-md transition-all",
+                      activeTab === 'summary'
+                        ? "bg-stone-200/70 text-stone-900 font-medium"
+                        : "text-stone-500 hover:text-stone-700"
+                    )}
                   >
-                    {selectedItems.size === specs.length ? 'Deselect All' : 'Select All'}
-                  </Button>
-                  {selectedItems.size > 0 && (
-                    <span className="text-sm font-medium text-blue-600">
-                      {selectedItems.size} selected
+                    Summary
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('financial')}
+                    className={cn(
+                      "px-3 py-1 text-[13px] rounded-md transition-all",
+                      activeTab === 'financial'
+                        ? "bg-stone-200/70 text-stone-900 font-medium"
+                        : "text-stone-500 hover:text-stone-700"
+                    )}
+                  >
+                    Financial
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('needs')}
+                    className={cn(
+                      "px-3 py-1 text-[13px] rounded-md transition-all",
+                      activeTab === 'needs'
+                        ? "bg-stone-200/70 text-stone-900 font-medium"
+                        : "text-stone-500 hover:text-stone-700"
+                    )}
+                  >
+                    <span className="flex items-center gap-1">
+                      Needs Selection
+                      {ffeItems.length > 0 && (() => {
+                        const filteredCount = filteredFfeItems.reduce((acc, room) =>
+                          acc + room.sections.reduce((sAcc, section) =>
+                            sAcc + section.items.filter(item => !item.hasLinkedSpecs).length, 0
+                          ), 0
+                        )
+                        const totalCount = ffeItems.reduce((acc, room) =>
+                          acc + room.sections.reduce((sAcc, section) =>
+                            sAcc + section.items.filter(item => !item.hasLinkedSpecs).length, 0
+                          ), 0
+                        )
+                        const isFiltered = filterRoom !== 'all' || filterSection !== 'all'
+                        return (
+                          <span className="text-stone-400 font-normal text-[11px]">
+                            {isFiltered ? `${filteredCount}/${totalCount}` : filteredCount}
+                          </span>
+                        )
+                      })()}
                     </span>
-                  )}
-                </>
-              )}
-            </div>
-
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  if (selectedItems.size === 0) {
-                    toast.error('Please select items first')
-                    return
-                  }
-                  setQuickQuoteItems(Array.from(selectedItems))
-                  setQuickQuoteDialogOpen(true)
-                }}
-                disabled={selectedItems.size === 0}
-                className="h-8 text-stone-600 hover:text-stone-800 hover:bg-stone-100 disabled:opacity-50"
-              >
-                <Mail className="w-3.5 h-3.5 mr-1.5" />
-                Request Quotes {selectedItems.size > 0 && `(${selectedItems.size})`}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  if (selectedItems.size === 0) {
-                    toast.error('Please select items first')
-                    return
-                  }
-                  setClientQuotePreselectedItems(Array.from(selectedItems))
-                  setClientQuoteDialogOpen(true)
-                }}
-                disabled={selectedItems.size === 0}
-                className="h-8 text-stone-600 hover:text-stone-800 hover:bg-stone-100 disabled:opacity-50"
-              >
-                <DollarSign className="w-3.5 h-3.5 mr-1.5" />
-                Client Invoice {selectedItems.size > 0 && `(${selectedItems.size})`}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  if (selectedItems.size === 0) {
-                    toast.error('Please select items first')
-                    return
-                  }
-                  setBudgetApprovalDialogOpen(true)
-                }}
-                disabled={selectedItems.size === 0}
-                className="h-8 text-stone-600 hover:text-stone-800 hover:bg-stone-100 disabled:opacity-50"
-              >
-                <DollarSign className="w-3.5 h-3.5 mr-1.5" />
-                Budget Approval {selectedItems.size > 0 && `(${selectedItems.size})`}
-              </Button>
-              <div className="h-5 w-px bg-stone-200 mx-0.5" />
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 text-stone-600 hover:text-stone-800 hover:bg-stone-100"
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('all-ffe')}
+                    className={cn(
+                      "px-3 py-1 text-[13px] rounded-md transition-all",
+                      activeTab === 'all-ffe'
+                        ? "bg-stone-200/70 text-stone-900 font-medium"
+                        : "text-stone-500 hover:text-stone-700"
+                    )}
                   >
-                    <Share2 className="w-3.5 h-3.5 mr-1.5" />
-                    Share
-                    <ChevronDown className="w-3 h-3 ml-1.5 opacity-50" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem
-                    className="text-sm cursor-pointer"
-                    onClick={() => {
-                      loadShareSettings()
-                      loadShareLinks()
-                      setShareModal(true)
-                    }}
-                  >
-                    <Link2 className="w-4 h-4 mr-2" />
-                    Share Link
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="text-sm cursor-pointer"
-                    onClick={() => setPdfExportDialogOpen(true)}
-                  >
-                    <FileDown className="w-4 h-4 mr-2" />
-                    Export PDF
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="text-sm cursor-pointer"
-                    onClick={handleExportExcel}
-                  >
-                    <FileDown className="w-4 h-4 mr-2" />
-                    Export Excel {selectedItems.size > 0 && `(${selectedItems.size} selected)`}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              {selectedItems.size > 0 && (
-                <>
-                  <div className="h-5 w-px bg-stone-200" />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 text-xs gap-1.5 text-stone-600 hover:text-stone-800 hover:bg-stone-100"
-                    onClick={handleBulkDuplicate}
-                    disabled={bulkDuplicating}
-                    title="Duplicate selected items"
-                  >
-                    {bulkDuplicating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 text-xs gap-1.5 text-stone-600 hover:text-stone-800 hover:bg-stone-100"
-                    onClick={() => setBulkMoveModal(true)}
-                    title="Move to section"
-                  >
-                    <Layers className="w-3.5 h-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 text-xs gap-1.5 text-stone-600 hover:text-stone-800 hover:bg-stone-100"
-                    onClick={() => setBulkStatusModal(true)}
-                    title="Update status"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 text-xs gap-1.5 text-stone-600 hover:text-stone-800 hover:bg-stone-100"
-                    onClick={handleBulkApprove}
-                    disabled={bulkApproving}
-                    title="Approve selected items"
-                  >
-                    {bulkApproving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ThumbsUp className="w-3.5 h-3.5" />}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 text-xs gap-1.5 text-red-600 hover:bg-red-50"
-                    onClick={handleBulkDelete}
-                    title="Delete selected items"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 text-xs text-stone-400 hover:text-stone-600"
-                    onClick={() => setSelectedItems(new Set())}
-                    title="Clear selection"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </Button>
-                </>
-              )}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                    <MoreVertical className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setCsvExportDialogOpen(true)}>Export to CSV</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setPdfExportDialogOpen(true)}>Export to PDF</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-          </div>
-        </div>
-
-        {/* Tabs Row */}
-        <div className="border-b border-stone-200">
-          <div className="max-w-full mx-auto px-6 py-3">
-            {/* Tabs Row - Clean Style */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              {/* Primary Tabs - Pill style like Programa */}
-              <div className="flex items-center gap-0.5">
-                <button
-                  onClick={() => setActiveTab('summary')}
-                  className={cn(
-                    "px-4 py-1.5 text-sm rounded-full transition-all",
-                    activeTab === 'summary'
-                      ? "bg-white text-stone-900 font-medium shadow-sm border border-stone-200/80"
-                      : "text-stone-500 hover:text-stone-700 font-normal"
-                  )}
-                >
-                  Summary
-                </button>
-                <button
-                  onClick={() => setActiveTab('financial')}
-                  className={cn(
-                    "px-4 py-1.5 text-sm rounded-full transition-all",
-                    activeTab === 'financial'
-                      ? "bg-white text-stone-900 font-medium shadow-sm border border-stone-200/80"
-                      : "text-stone-500 hover:text-stone-700 font-normal"
-                  )}
-                >
-                  Financial
-                </button>
-                <button
-                  onClick={() => setActiveTab('needs')}
-                  className={cn(
-                    "px-4 py-1.5 text-sm rounded-full transition-all",
-                    activeTab === 'needs'
-                      ? "bg-white text-stone-900 font-medium shadow-sm border border-stone-200/80"
-                      : "text-stone-500 hover:text-stone-700 font-normal"
-                  )}
-                >
-                  <span className="flex items-center gap-1.5">
-                    Needs Selection
-                    {ffeItems.length > 0 && (() => {
-                      const filteredCount = filteredFfeItems.reduce((acc, room) =>
-                        acc + room.sections.reduce((sAcc, section) =>
-                          sAcc + section.items.filter(item => !item.hasLinkedSpecs).length, 0
-                        ), 0
-                      )
-                      const totalCount = ffeItems.reduce((acc, room) =>
-                        acc + room.sections.reduce((sAcc, section) =>
-                          sAcc + section.items.filter(item => !item.hasLinkedSpecs).length, 0
-                        ), 0
-                      )
-                      const isFiltered = filterRoom !== 'all' || filterSection !== 'all'
-                      return (
-                        <span className="text-stone-400 font-normal text-xs">
-                          {isFiltered ? `${filteredCount}/${totalCount}` : filteredCount}
-                        </span>
-                      )
-                    })()}
-                  </span>
-                </button>
-                <button
-                  onClick={() => setActiveTab('all-ffe')}
-                  className={cn(
-                    "px-4 py-1.5 text-sm rounded-full transition-all",
-                    activeTab === 'all-ffe'
-                      ? "bg-white text-stone-900 font-medium shadow-sm border border-stone-200/80"
-                      : "text-stone-500 hover:text-stone-700 font-normal"
-                  )}
-                >
-                  <span className="flex items-center gap-1.5">
-                    All FFE Items
-                    {ffeItems.length > 0 && (() => {
-                      const totalCount = ffeItems.reduce((acc, room) =>
-                        acc + room.sections.reduce((sAcc, section) =>
-                          sAcc + section.items.length, 0
-                        ), 0
-                      )
-                      return totalCount > 0 ? (
-                        <span className="text-stone-400 font-normal text-xs">{totalCount}</span>
-                      ) : null
-                    })()}
-                  </span>
-                </button>
+                    <span className="flex items-center gap-1">
+                      All FFE
+                      {ffeItems.length > 0 && (() => {
+                        const totalCount = ffeItems.reduce((acc, room) =>
+                          acc + room.sections.reduce((sAcc, section) =>
+                            sAcc + section.items.length, 0
+                          ), 0
+                        )
+                        return totalCount > 0 ? (
+                          <span className="text-stone-400 font-normal text-[11px]">{totalCount}</span>
+                        ) : null
+                      })()}
+                    </span>
+                  </button>
+                </div>
               </div>
-            </div>
-            
-            <div className="flex items-center gap-1.5">
+
+              {/* Right: Search + Filter/Sort/View + Actions dropdown */}
+              <div className="flex items-center gap-1.5">
               {/* Search */}
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-400" />
@@ -3939,41 +3743,182 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
                   <LayoutGrid className="w-4 h-4" />
                 </button>
               </div>
+
+              <div className="w-px h-4 bg-stone-200" />
+
+              {/* Actions dropdown - combines share, export, select */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-stone-400 hover:text-stone-600">
+                    <MoreVertical className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52">
+                  {specs.length > 0 && (
+                    <>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          if (selectedItems.size === specs.length) {
+                            setSelectedItems(new Set())
+                          } else {
+                            setSelectedItems(new Set(specs.map(s => s.id)))
+                          }
+                        }}
+                      >
+                        {selectedItems.size === specs.length ? 'Deselect All' : 'Select All'}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
+                  <DropdownMenuItem
+                    onClick={() => {
+                      loadShareSettings()
+                      loadShareLinks()
+                      setShareModal(true)
+                    }}
+                  >
+                    <Link2 className="w-4 h-4 mr-2" />
+                    Share Link
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setPdfExportDialogOpen(true)}>
+                    <FileDown className="w-4 h-4 mr-2" />
+                    Export PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExportExcel}>
+                    <FileDown className="w-4 h-4 mr-2" />
+                    Export Excel
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setCsvExportDialogOpen(true)}>
+                    <FileDown className="w-4 h-4 mr-2" />
+                    Export CSV
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
-          
-          {/* Item count bar */}
-          {specs.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-stone-100">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm text-stone-500">
-                  {filteredSpecs.length} {filteredSpecs.length !== specs.length ? `of ${specs.length}` : ''} items
-                  {summaryFilter === 'needs_approval' && <span className="text-amber-600 ml-1">(Need Approval)</span>}
-                  {summaryFilter === 'needs_price' && <span className="text-red-600 ml-1">(Need Price)</span>}
-                </span>
-              </div>
-            </div>
-          )}
-          
-          {/* Financial Summary Bar - Only in Financial Tab */}
-          {activeTab === 'financial' && (
-            <div className="flex items-center gap-6 mt-3 pt-3 border-t border-stone-100 flex-wrap">
-              {/* RRP CAD */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-stone-500 uppercase">RRP (CAD)</span>
-                <span className="text-lg font-semibold text-stone-900">${(financials?.totalRRPCAD ?? 0).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-              </div>
-              {/* RRP USD - Only show if there are USD items */}
-              {(financials?.totalRRPUSD ?? 0) > 0 && (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-blue-500 uppercase">RRP (USD)</span>
-                  <span className="text-lg font-semibold text-blue-600">${(financials?.totalRRPUSD ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                </div>
-              )}
-            </div>
-          )}
           </div>
         </div>
+
+        {/* Row 2: Selection actions - only visible when items selected */}
+        {selectedItems.size > 0 && (
+          <div className="border-b border-stone-200 bg-stone-100/50">
+            <div className="max-w-full mx-auto px-6 py-1.5">
+              <div className="flex items-center gap-1">
+                <span className="text-xs font-medium text-stone-900 mr-2">{selectedItems.size} selected</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setQuickQuoteItems(Array.from(selectedItems))
+                    setQuickQuoteDialogOpen(true)
+                  }}
+                  className="h-7 text-xs text-stone-600 hover:text-stone-800 hover:bg-stone-200/50"
+                >
+                  <Mail className="w-3.5 h-3.5 mr-1" />
+                  Quotes
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setClientQuotePreselectedItems(Array.from(selectedItems))
+                    setClientQuoteDialogOpen(true)
+                  }}
+                  className="h-7 text-xs text-stone-600 hover:text-stone-800 hover:bg-stone-200/50"
+                >
+                  <DollarSign className="w-3.5 h-3.5 mr-1" />
+                  Invoice
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setBudgetApprovalDialogOpen(true)}
+                  className="h-7 text-xs text-stone-600 hover:text-stone-800 hover:bg-stone-200/50"
+                >
+                  <DollarSign className="w-3.5 h-3.5 mr-1" />
+                  Budget
+                </Button>
+                <div className="w-px h-4 bg-stone-300 mx-0.5" />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs text-stone-600 hover:text-stone-800 hover:bg-stone-200/50"
+                  onClick={handleBulkDuplicate}
+                  disabled={bulkDuplicating}
+                  title="Duplicate"
+                >
+                  {bulkDuplicating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs text-stone-600 hover:text-stone-800 hover:bg-stone-200/50"
+                  onClick={() => setBulkMoveModal(true)}
+                  title="Move"
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs text-stone-600 hover:text-stone-800 hover:bg-stone-200/50"
+                  onClick={() => setBulkStatusModal(true)}
+                  title="Status"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs text-stone-600 hover:text-stone-800 hover:bg-stone-200/50"
+                  onClick={handleBulkApprove}
+                  disabled={bulkApproving}
+                  title="Approve"
+                >
+                  {bulkApproving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ThumbsUp className="w-3.5 h-3.5" />}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs text-red-500 hover:bg-red-50"
+                  onClick={handleBulkDelete}
+                  title="Delete"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs text-stone-400 hover:text-stone-600"
+                  onClick={() => setSelectedItems(new Set())}
+                  title="Clear"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Financial Summary - compact inline bar */}
+        {activeTab === 'financial' && (
+          <div className="border-b border-stone-200">
+            <div className="max-w-full mx-auto px-6 py-1.5">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] text-stone-400 uppercase">RRP (CAD)</span>
+                  <span className="text-sm font-semibold text-stone-900">${(financials?.totalRRPCAD ?? 0).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+                {(financials?.totalRRPUSD ?? 0) > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-blue-400 uppercase">RRP (USD)</span>
+                    <span className="text-sm font-semibold text-blue-600">${(financials?.totalRRPUSD ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Needs Selection Tab Content */}
