@@ -1108,9 +1108,9 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
 
       {/* Lightbox Dialog */}
       <Dialog open={lightboxIndex !== null} onOpenChange={(open) => { if (!open) closeLightbox() }}>
-        <DialogContent className="max-w-[95vw] w-[95vw] h-[95vh] p-0 gap-0 bg-black border-none overflow-hidden [&>button]:hidden">
+        <DialogContent className="max-w-[95vw] w-[95vw] h-[95vh] p-0 gap-0 border-none overflow-hidden [&>button]:hidden flex flex-col bg-black">
           {lightboxPhoto && (
-            <div className="relative w-full h-full flex flex-col">
+            <>
               {/* Top bar */}
               <div className="flex items-center justify-between px-4 py-3 bg-black/80 shrink-0">
                 <div className="min-w-0">
@@ -1222,55 +1222,57 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
                 />
               </div>
 
-              {/* Image / Video with zoom + pan */}
-              <div
-                ref={imageContainerRef}
-                className="flex-1 min-h-0 relative flex items-center justify-center overflow-hidden select-none"
-                onWheel={handleWheel}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
-                onDoubleClick={handleDoubleClick}
-                style={{ cursor: zoom > 1 ? (isPanning ? 'grabbing' : 'grab') : 'default' }}
-              >
-                {isVideoFile(lightboxPhoto.name) ? (
-                  <video
-                    src={lightboxPhoto.url}
-                    controls
-                    autoPlay
-                    className="max-w-full max-h-full object-contain"
-                  />
-                ) : (
-                  <img
-                    src={lightboxPhoto.url}
-                    alt={lightboxPhoto.name}
-                    className="max-w-full max-h-full object-contain transition-transform duration-100"
-                    style={{
-                      transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`,
-                      transformOrigin: 'center center',
-                    }}
-                    draggable={false}
-                  />
-                )}
+              {/* Image / Video with zoom + pan — uses relative+absolute to decouple from content size */}
+              <div className="flex-1 min-h-0 relative">
+                <div
+                  ref={imageContainerRef}
+                  className="absolute inset-0 flex items-center justify-center overflow-hidden select-none"
+                  onWheel={handleWheel}
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseUp}
+                  onDoubleClick={handleDoubleClick}
+                  style={{ cursor: zoom > 1 ? (isPanning ? 'grabbing' : 'grab') : 'default' }}
+                >
+                  {isVideoFile(lightboxPhoto.name) ? (
+                    <video
+                      src={lightboxPhoto.url}
+                      controls
+                      autoPlay
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  ) : (
+                    <img
+                      src={lightboxPhoto.url}
+                      alt={lightboxPhoto.name}
+                      className="max-w-full max-h-full object-contain transition-transform duration-100"
+                      style={{
+                        transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`,
+                        transformOrigin: 'center center',
+                      }}
+                      draggable={false}
+                    />
+                  )}
 
-                {/* Prev/Next arrows */}
-                {lightboxIndex !== null && lightboxIndex > 0 && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); goToPrev() }}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10"
-                  >
-                    <ChevronLeft className="w-5 h-5" />
-                  </button>
-                )}
-                {lightboxIndex !== null && lightboxIndex < filteredPhotos.length - 1 && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); goToNext() }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10"
-                  >
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
-                )}
+                  {/* Prev/Next arrows */}
+                  {lightboxIndex !== null && lightboxIndex > 0 && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); goToPrev() }}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                  )}
+                  {lightboxIndex !== null && lightboxIndex < filteredPhotos.length - 1 && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); goToNext() }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Bottom counter */}
@@ -1279,7 +1281,7 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
                   {(lightboxIndex ?? 0) + 1} of {filteredPhotos.length}
                 </span>
               </div>
-            </div>
+            </>
           )}
         </DialogContent>
       </Dialog>
