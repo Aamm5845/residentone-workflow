@@ -1207,19 +1207,47 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
                     </button>
                   </span>
                 ))}
-                <input
-                  type="text"
-                  placeholder="Add tag…"
-                  value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value)}
-                  className="bg-white/10 text-white text-xs rounded-full px-2.5 py-1 border border-white/20 placeholder-white/40 outline-none focus:border-white/40 w-24"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && tagInput.trim()) {
-                      addTag(lightboxPhoto, tagInput.trim())
-                      setTagInput('')
-                    }
-                  }}
-                />
+                {/* Tag input with autocomplete suggestions */}
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Add tag…"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    className="bg-white/10 text-white text-xs rounded-full px-2.5 py-1 border border-white/20 placeholder-white/40 outline-none focus:border-white/40 w-28"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && tagInput.trim()) {
+                        addTag(lightboxPhoto, tagInput.trim())
+                        setTagInput('')
+                      }
+                    }}
+                  />
+                  {/* Suggestions dropdown */}
+                  {tagInput.trim().length > 0 && (() => {
+                    const currentTags = lightboxPhoto.tags || []
+                    const query = tagInput.trim().toLowerCase()
+                    const suggestions = allTags.filter(
+                      t => t.toLowerCase().includes(query) && !currentTags.includes(t)
+                    )
+                    if (suggestions.length === 0) return null
+                    return (
+                      <div className="absolute left-0 bottom-full mb-1 w-44 max-h-36 overflow-y-auto bg-gray-900 border border-white/20 rounded-lg shadow-xl z-50 py-1">
+                        {suggestions.map(tag => (
+                          <button
+                            key={tag}
+                            onClick={() => {
+                              addTag(lightboxPhoto, tag)
+                              setTagInput('')
+                            }}
+                            className="w-full text-left px-3 py-1.5 text-xs text-white/80 hover:bg-white/10 hover:text-white transition-colors"
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
+                    )
+                  })()}
+                </div>
               </div>
 
               {/* Image / Video with zoom + pan — uses relative+absolute to decouple from content size */}
