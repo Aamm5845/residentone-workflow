@@ -26,6 +26,9 @@ import {
   Ruler,
   Play,
   Video,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -272,8 +275,11 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
 
   // Add tag to a photo
   const addTag = useCallback(async (photo: PhotoItem, newTag: string) => {
-    const tag = newTag.toLowerCase().trim()
-    if (!tag || photo.tags?.includes(tag)) return
+    const trimmed = newTag.trim()
+    if (!trimmed) return
+    // Capitalize first letter of each word
+    const tag = trimmed.replace(/\b\w/g, c => c.toUpperCase())
+    if (photo.tags?.includes(tag)) return
 
     const updatedTags = [...(photo.tags || []), tag]
 
@@ -475,30 +481,102 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
     setRenameValue('')
   }, [renameTarget, renameValue, projectId, mutate])
 
+  // Zoom state for lightbox
+  const [zoom, setZoom] = useState(1)
+  const [pan, setPan] = useState({ x: 0, y: 0 })
+  const [isPanning, setIsPanning] = useState(false)
+  const panStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 })
+  const imageContainerRef = useRef<HTMLDivElement>(null)
+
+  const resetZoom = useCallback(() => {
+    setZoom(1)
+    setPan({ x: 0, y: 0 })
+  }, [])
+
   // Lightbox navigation
   const openLightbox = useCallback((index: number) => {
     setLightboxIndex(index)
     setTagInput('')
-  }, [])
+    resetZoom()
+  }, [resetZoom])
 
   const closeLightbox = useCallback(() => {
     setLightboxIndex(null)
     setTagInput('')
-  }, [])
+    resetZoom()
+  }, [resetZoom])
 
   const goToNext = useCallback(() => {
     if (lightboxIndex !== null && lightboxIndex < filteredPhotos.length - 1) {
       setLightboxIndex(lightboxIndex + 1)
       setTagInput('')
+      resetZoom()
     }
-  }, [lightboxIndex, filteredPhotos.length])
+  }, [lightboxIndex, filteredPhotos.length, resetZoom])
 
   const goToPrev = useCallback(() => {
     if (lightboxIndex !== null && lightboxIndex > 0) {
       setLightboxIndex(lightboxIndex - 1)
       setTagInput('')
+      resetZoom()
     }
-  }, [lightboxIndex])
+  }, [lightboxIndex, resetZoom])
+
+  // Zoom controls
+  const handleZoomIn = useCallback(() => {
+    setZoom(z => Math.min(z + 0.5, 4))
+  }, [])
+
+  const handleZoomOut = useCallback(() => {
+    setZoom(z => {
+      const newZ = Math.max(z - 0.5, 1)
+      if (newZ === 1) setPan({ x: 0, y: 0 })
+      return newZ
+    })
+  }, [])
+
+  const handleResetZoom = useCallback(() => {
+    resetZoom()
+  }, [resetZoom])
+
+  // Mouse wheel zoom
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault()
+    const delta = e.deltaY > 0 ? -0.25 : 0.25
+    setZoom(z => {
+      const newZ = Math.min(Math.max(z + delta, 1), 4)
+      if (newZ === 1) setPan({ x: 0, y: 0 })
+      return newZ
+    })
+  }, [])
+
+  // Pan with mouse drag when zoomed
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (zoom <= 1) return
+    e.preventDefault()
+    setIsPanning(true)
+    panStartRef.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y }
+  }, [zoom, pan])
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isPanning) return
+    const dx = e.clientX - panStartRef.current.x
+    const dy = e.clientY - panStartRef.current.y
+    setPan({ x: panStartRef.current.panX + dx, y: panStartRef.current.panY + dy })
+  }, [isPanning])
+
+  const handleMouseUp = useCallback(() => {
+    setIsPanning(false)
+  }, [])
+
+  // Double-click to toggle zoom
+  const handleDoubleClick = useCallback(() => {
+    if (zoom > 1) {
+      resetZoom()
+    } else {
+      setZoom(2)
+    }
+  }, [zoom, resetZoom])
 
   // Keyboard navigation for lightbox
   useEffect(() => {
@@ -509,10 +587,13 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
       if (e.key === 'ArrowRight') goToNext()
       else if (e.key === 'ArrowLeft') goToPrev()
       else if (e.key === 'Escape') closeLightbox()
+      else if (e.key === '+' || e.key === '=') handleZoomIn()
+      else if (e.key === '-') handleZoomOut()
+      else if (e.key === '0') handleResetZoom()
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [lightboxIndex, goToNext, goToPrev, closeLightbox])
+  }, [lightboxIndex, goToNext, goToPrev, closeLightbox, handleZoomIn, handleZoomOut, handleResetZoom])
 
   // No Dropbox folder
   if (!dropboxFolder) {
@@ -920,14 +1001,25 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
                   {photo.folder}
                 </div>
               )}
-              {/* Tag count badge */}
+              {/* Tag name badges */}
               {photo.tags && photo.tags.length > 0 && (
                 <div className={cn(
-                  'absolute top-2 px-1.5 py-0.5 rounded bg-purple-600/80 text-[10px] text-white font-medium backdrop-blur-sm flex items-center gap-0.5 pointer-events-none',
-                  selectMode ? 'right-2' : 'right-8'
+                  'absolute bottom-2 left-2 right-2 flex flex-wrap gap-1 pointer-events-none',
+                  'group-hover:opacity-0 transition-opacity'
                 )}>
-                  <Tag className="w-2.5 h-2.5" />
-                  {photo.tags.length}
+                  {photo.tags.slice(0, 3).map(tag => (
+                    <span
+                      key={tag}
+                      className="px-1.5 py-0.5 rounded bg-purple-600/80 text-[10px] text-white font-medium backdrop-blur-sm truncate max-w-[80px]"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                  {photo.tags.length > 3 && (
+                    <span className="px-1.5 py-0.5 rounded bg-black/50 text-[10px] text-white font-medium backdrop-blur-sm">
+                      +{photo.tags.length - 3}
+                    </span>
+                  )}
                 </div>
               )}
 
@@ -1016,11 +1108,11 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
 
       {/* Lightbox Dialog */}
       <Dialog open={lightboxIndex !== null} onOpenChange={(open) => { if (!open) closeLightbox() }}>
-        <DialogContent className="max-w-5xl h-[85vh] p-0 gap-0 bg-black border-none overflow-hidden [&>button]:hidden">
+        <DialogContent className="max-w-[95vw] w-[95vw] h-[95vh] p-0 gap-0 bg-black border-none overflow-hidden [&>button]:hidden">
           {lightboxPhoto && (
             <div className="relative w-full h-full flex flex-col">
               {/* Top bar */}
-              <div className="flex items-center justify-between px-4 py-3 bg-black/80">
+              <div className="flex items-center justify-between px-4 py-3 bg-black/80 shrink-0">
                 <div className="min-w-0">
                   <p className="text-sm text-white font-medium truncate">{lightboxPhoto.name}</p>
                   <p className="text-xs text-white/50">
@@ -1029,6 +1121,36 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
                   </p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
+                  {/* Zoom controls */}
+                  <button
+                    onClick={handleZoomOut}
+                    disabled={zoom <= 1}
+                    className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Zoom out (−)"
+                  >
+                    <ZoomOut className="w-4 h-4" />
+                  </button>
+                  <span className="text-xs text-white/50 min-w-[3rem] text-center tabular-nums">
+                    {Math.round(zoom * 100)}%
+                  </span>
+                  <button
+                    onClick={handleZoomIn}
+                    disabled={zoom >= 4}
+                    className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Zoom in (+)"
+                  >
+                    <ZoomIn className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={handleResetZoom}
+                    className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+                    title="Reset zoom (0)"
+                  >
+                    <Maximize2 className="w-4 h-4" />
+                  </button>
+
+                  <div className="w-px h-5 bg-white/20 mx-1" />
+
                   <button
                     onClick={() => {
                       setRenameTarget(lightboxPhoto)
@@ -1061,7 +1183,7 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
                   <button
                     onClick={closeLightbox}
                     className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
-                    title="Close"
+                    title="Close (Esc)"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -1069,7 +1191,7 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
               </div>
 
               {/* Tags bar */}
-              <div className="flex items-center gap-2 px-4 py-2 bg-black/60 flex-wrap">
+              <div className="flex items-center gap-2 px-4 py-2 bg-black/60 flex-wrap shrink-0">
                 <Tag className="w-3.5 h-3.5 text-white/40 shrink-0" />
                 {lightboxPhoto.tags?.map(tag => (
                   <span
@@ -1100,8 +1222,18 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
                 />
               </div>
 
-              {/* Image / Video */}
-              <div className="flex-1 relative flex items-center justify-center overflow-hidden">
+              {/* Image / Video with zoom + pan */}
+              <div
+                ref={imageContainerRef}
+                className="flex-1 min-h-0 relative flex items-center justify-center overflow-hidden select-none"
+                onWheel={handleWheel}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
+                onDoubleClick={handleDoubleClick}
+                style={{ cursor: zoom > 1 ? (isPanning ? 'grabbing' : 'grab') : 'default' }}
+              >
                 {isVideoFile(lightboxPhoto.name) ? (
                   <video
                     src={lightboxPhoto.url}
@@ -1113,23 +1245,28 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
                   <img
                     src={lightboxPhoto.url}
                     alt={lightboxPhoto.name}
-                    className="max-w-full max-h-full object-contain"
+                    className="max-w-full max-h-full object-contain transition-transform duration-100"
+                    style={{
+                      transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`,
+                      transformOrigin: 'center center',
+                    }}
+                    draggable={false}
                   />
                 )}
 
                 {/* Prev/Next arrows */}
                 {lightboxIndex !== null && lightboxIndex > 0 && (
                   <button
-                    onClick={goToPrev}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+                    onClick={(e) => { e.stopPropagation(); goToPrev() }}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10"
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </button>
                 )}
                 {lightboxIndex !== null && lightboxIndex < filteredPhotos.length - 1 && (
                   <button
-                    onClick={goToNext}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+                    onClick={(e) => { e.stopPropagation(); goToNext() }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10"
                   >
                     <ChevronRight className="w-5 h-5" />
                   </button>
@@ -1137,7 +1274,7 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
               </div>
 
               {/* Bottom counter */}
-              <div className="text-center py-2 bg-black/80">
+              <div className="text-center py-2 bg-black/80 shrink-0">
                 <span className="text-xs text-white/50">
                   {(lightboxIndex ?? 0) + 1} of {filteredPhotos.length}
                 </span>
