@@ -136,33 +136,35 @@ export async function GET(
       })
     )
 
-    // Build room groups — only include rooms that have assets
-    const roomMap = new Map<string, {
-      roomId: string
-      roomName: string | null
-      versions: typeof renderings
-    }>()
-
+    // Keep only the latest version per room (most recent pushedToClientAt)
+    const latestByRoom = new Map<string, typeof renderings[number]>()
     for (const r of renderings) {
       if (r.assets.length === 0) continue // skip versions with no displayable assets
-      if (!roomMap.has(r.roomId)) {
-        roomMap.set(r.roomId, {
-          roomId: r.roomId,
-          roomName: r.roomName,
-          versions: [],
-        })
+      const existing = latestByRoom.get(r.roomId)
+      if (!existing) {
+        latestByRoom.set(r.roomId, r)
+      } else {
+        // Compare pushedToClientAt — keep the more recent one
+        const existingDate = existing.pushedToClientAt ? new Date(existing.pushedToClientAt).getTime() : 0
+        const currentDate = r.pushedToClientAt ? new Date(r.pushedToClientAt).getTime() : 0
+        if (currentDate > existingDate) {
+          latestByRoom.set(r.roomId, r)
+        }
       }
-      roomMap.get(r.roomId)!.versions.push(r)
     }
 
-    const rooms = Array.from(roomMap.values()).sort((a, b) => {
-      const nameA = a.roomName || ''
-      const nameB = b.roomName || ''
-      return nameA.localeCompare(nameB)
-    })
+    const latestRenderings = Array.from(latestByRoom.values())
+
+    // Build room groups
+    const rooms = latestRenderings
+      .map((r) => ({
+        roomId: r.roomId,
+        roomName: r.roomName,
+      }))
+      .sort((a, b) => (a.roomName || '').localeCompare(b.roomName || ''))
 
     // Flatten all assets for the gallery (with room/version context)
-    const allAssets = renderings.flatMap((r) =>
+    const allAssets = latestRenderings.flatMap((r) =>
       r.assets.map((a) => ({
         id: a.id,
         title: a.title,

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import useSWR from 'swr'
 import {
   Dialog,
@@ -12,7 +12,9 @@ import {
   Download,
   X,
   Image as ImageIcon,
-  Loader2,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -79,6 +81,13 @@ export default function RenderingsGallery({ projectId }: RenderingsGalleryProps)
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null)
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
 
+  // Zoom state
+  const [zoom, setZoom] = useState(1)
+  const [pan, setPan] = useState({ x: 0, y: 0 })
+  const [isPanning, setIsPanning] = useState(false)
+  const panStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 })
+  const imageContainerRef = useRef<HTMLDivElement>(null)
+
   const apiUrl = `/api/projects/${projectId}/project-files-v2/renderings`
   const { data, isLoading, error } = useSWR<RenderingsResponse>(apiUrl, fetcher)
 
@@ -101,26 +110,92 @@ export default function RenderingsGallery({ projectId }: RenderingsGalleryProps)
     return Array.from(names).sort()
   }, [allAssets])
 
+  // Reset zoom when switching images
+  const resetZoom = useCallback(() => {
+    setZoom(1)
+    setPan({ x: 0, y: 0 })
+  }, [])
+
   // Lightbox
   const openLightbox = useCallback((index: number) => {
     setLightboxIndex(index)
-  }, [])
+    resetZoom()
+  }, [resetZoom])
 
   const closeLightbox = useCallback(() => {
     setLightboxIndex(null)
-  }, [])
+    resetZoom()
+  }, [resetZoom])
 
   const goToNext = useCallback(() => {
     if (lightboxIndex !== null && lightboxIndex < filteredAssets.length - 1) {
       setLightboxIndex(lightboxIndex + 1)
+      resetZoom()
     }
-  }, [lightboxIndex, filteredAssets.length])
+  }, [lightboxIndex, filteredAssets.length, resetZoom])
 
   const goToPrev = useCallback(() => {
     if (lightboxIndex !== null && lightboxIndex > 0) {
       setLightboxIndex(lightboxIndex - 1)
+      resetZoom()
     }
-  }, [lightboxIndex])
+  }, [lightboxIndex, resetZoom])
+
+  // Zoom controls
+  const handleZoomIn = useCallback(() => {
+    setZoom(z => Math.min(z + 0.5, 4))
+  }, [])
+
+  const handleZoomOut = useCallback(() => {
+    setZoom(z => {
+      const newZ = Math.max(z - 0.5, 1)
+      if (newZ === 1) setPan({ x: 0, y: 0 })
+      return newZ
+    })
+  }, [])
+
+  const handleResetZoom = useCallback(() => {
+    resetZoom()
+  }, [resetZoom])
+
+  // Mouse wheel zoom
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault()
+    const delta = e.deltaY > 0 ? -0.25 : 0.25
+    setZoom(z => {
+      const newZ = Math.min(Math.max(z + delta, 1), 4)
+      if (newZ === 1) setPan({ x: 0, y: 0 })
+      return newZ
+    })
+  }, [])
+
+  // Pan with mouse drag when zoomed
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (zoom <= 1) return
+    e.preventDefault()
+    setIsPanning(true)
+    panStartRef.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y }
+  }, [zoom, pan])
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isPanning) return
+    const dx = e.clientX - panStartRef.current.x
+    const dy = e.clientY - panStartRef.current.y
+    setPan({ x: panStartRef.current.panX + dx, y: panStartRef.current.panY + dy })
+  }, [isPanning])
+
+  const handleMouseUp = useCallback(() => {
+    setIsPanning(false)
+  }, [])
+
+  // Double-click to toggle zoom
+  const handleDoubleClick = useCallback(() => {
+    if (zoom > 1) {
+      resetZoom()
+    } else {
+      setZoom(2)
+    }
+  }, [zoom, resetZoom])
 
   // Keyboard navigation for lightbox
   useEffect(() => {
@@ -129,10 +204,13 @@ export default function RenderingsGallery({ projectId }: RenderingsGalleryProps)
       if (e.key === 'ArrowRight') goToNext()
       else if (e.key === 'ArrowLeft') goToPrev()
       else if (e.key === 'Escape') closeLightbox()
+      else if (e.key === '+' || e.key === '=') handleZoomIn()
+      else if (e.key === '-') handleZoomOut()
+      else if (e.key === '0') handleResetZoom()
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [lightboxIndex, goToNext, goToPrev, closeLightbox])
+  }, [lightboxIndex, goToNext, goToPrev, closeLightbox, handleZoomIn, handleZoomOut, handleResetZoom])
 
   // Loading
   if (isLoading) {
@@ -273,11 +351,11 @@ export default function RenderingsGallery({ projectId }: RenderingsGalleryProps)
 
       {/* Lightbox Dialog */}
       <Dialog open={lightboxIndex !== null} onOpenChange={(open) => { if (!open) closeLightbox() }}>
-        <DialogContent className="max-w-5xl h-[85vh] p-0 gap-0 bg-black border-none overflow-hidden [&>button]:hidden">
+        <DialogContent className="max-w-[95vw] w-[95vw] h-[95vh] p-0 gap-0 bg-black border-none overflow-hidden [&>button]:hidden">
           {lightboxAsset && (
             <div className="relative w-full h-full flex flex-col">
               {/* Top bar */}
-              <div className="flex items-center justify-between px-4 py-3 bg-black/80">
+              <div className="flex items-center justify-between px-4 py-3 bg-black/80 shrink-0">
                 <div className="min-w-0">
                   <p className="text-sm text-white font-medium truncate">
                     {lightboxAsset.title || lightboxAsset.filename || 'Rendering'}
@@ -290,6 +368,36 @@ export default function RenderingsGallery({ projectId }: RenderingsGalleryProps)
                   </p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
+                  {/* Zoom controls */}
+                  <button
+                    onClick={handleZoomOut}
+                    disabled={zoom <= 1}
+                    className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Zoom out (−)"
+                  >
+                    <ZoomOut className="w-4 h-4" />
+                  </button>
+                  <span className="text-xs text-white/50 min-w-[3rem] text-center tabular-nums">
+                    {Math.round(zoom * 100)}%
+                  </span>
+                  <button
+                    onClick={handleZoomIn}
+                    disabled={zoom >= 4}
+                    className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Zoom in (+)"
+                  >
+                    <ZoomIn className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={handleResetZoom}
+                    className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+                    title="Reset zoom (0)"
+                  >
+                    <Maximize2 className="w-4 h-4" />
+                  </button>
+
+                  <div className="w-px h-5 bg-white/20 mx-1" />
+
                   <a
                     href={lightboxAsset.url}
                     download={lightboxAsset.filename || lightboxAsset.title || 'rendering.jpg'}
@@ -303,34 +411,48 @@ export default function RenderingsGallery({ projectId }: RenderingsGalleryProps)
                   <button
                     onClick={closeLightbox}
                     className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
-                    title="Close"
+                    title="Close (Esc)"
                   >
                     <X className="w-4 h-4" />
                   </button>
                 </div>
               </div>
 
-              {/* Image */}
-              <div className="flex-1 relative flex items-center justify-center overflow-hidden">
+              {/* Image with zoom + pan */}
+              <div
+                ref={imageContainerRef}
+                className="flex-1 relative flex items-center justify-center overflow-hidden select-none"
+                onWheel={handleWheel}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
+                onDoubleClick={handleDoubleClick}
+                style={{ cursor: zoom > 1 ? (isPanning ? 'grabbing' : 'grab') : 'default' }}
+              >
                 <img
                   src={lightboxAsset.url}
                   alt={lightboxAsset.title || 'Rendering'}
-                  className="max-w-full max-h-full object-contain"
+                  className="max-w-full max-h-full object-contain transition-transform duration-100"
+                  style={{
+                    transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`,
+                  }}
+                  draggable={false}
                 />
 
                 {/* Prev/Next arrows */}
                 {lightboxIndex !== null && lightboxIndex > 0 && (
                   <button
-                    onClick={goToPrev}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+                    onClick={(e) => { e.stopPropagation(); goToPrev() }}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10"
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </button>
                 )}
                 {lightboxIndex !== null && lightboxIndex < filteredAssets.length - 1 && (
                   <button
-                    onClick={goToNext}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+                    onClick={(e) => { e.stopPropagation(); goToNext() }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10"
                   >
                     <ChevronRight className="w-5 h-5" />
                   </button>
@@ -338,7 +460,7 @@ export default function RenderingsGallery({ projectId }: RenderingsGalleryProps)
               </div>
 
               {/* Bottom counter */}
-              <div className="text-center py-2 bg-black/80">
+              <div className="text-center py-2 bg-black/80 shrink-0">
                 <span className="text-xs text-white/50">
                   {(lightboxIndex ?? 0) + 1} of {filteredAssets.length}
                 </span>
