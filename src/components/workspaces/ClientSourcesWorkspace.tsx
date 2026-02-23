@@ -2,6 +2,7 @@
 
 import { useState, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import useSWR from 'swr'
 import { Button } from '@/components/ui/button'
 import { RichTextEditor, RichTextDisplay } from '@/components/ui/RichTextEditor'
@@ -42,7 +43,8 @@ import {
   User,
   Folder,
   FolderPlus,
-  Edit2
+  Edit2,
+  ArrowUpRight
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -535,6 +537,14 @@ export function ClientSourcesWorkspace({ project }: ClientSourcesWorkspaceProps)
             </div>
             
             <div className="flex items-center gap-3">
+              {/* Temp V2 link */}
+              <Link href={`/projects/${project.id}/project-files-v2`}>
+                <Button className="gap-2 bg-slate-900 hover:bg-slate-800 text-white">
+                  Open V2
+                  <ArrowUpRight className="w-4 h-4" />
+                </Button>
+              </Link>
+
               {/* View Toggle */}
               <div className="flex bg-gray-100 rounded-lg p-1 gap-0.5">
                 <button
