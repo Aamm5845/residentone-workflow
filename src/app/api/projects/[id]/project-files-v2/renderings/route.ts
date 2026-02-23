@@ -53,6 +53,11 @@ export async function GET(
             provider: true,
             metadata: true,
             createdAt: true,
+            // Include ClientApprovalAsset to get blob URLs (copied during push-to-client)
+            clientApprovalAssets: {
+              select: { blobUrl: true },
+              take: 1,
+            },
           },
         },
         createdBy: {
@@ -65,11 +70,38 @@ export async function GET(
       ],
     })
 
-    // Build asset URLs — prefer Blob, fallback to Dropbox temporary links
-    const renderings = await Promise.all(
-      renderingVersions.map(async (version) => {
+    // ── Step 1: Filter to latest version per room BEFORE resolving URLs ──
+    // This avoids wasting Dropbox API calls on versions we'd discard
+    const latestVersionByRoom = new Map<string, typeof renderingVersions[number]>()
+    for (const v of renderingVersions) {
+      const roomId = v.room.id
+      if (v.assets.length === 0) continue
+      const existing = latestVersionByRoom.get(roomId)
+      if (!existing) {
+        latestVersionByRoom.set(roomId, v)
+      } else {
+        const existingDate = existing.pushedToClientAt ? new Date(existing.pushedToClientAt).getTime() : 0
+        const currentDate = v.pushedToClientAt ? new Date(v.pushedToClientAt).getTime() : 0
+        if (currentDate > existingDate) {
+          latestVersionByRoom.set(roomId, v)
+        }
+      }
+    }
+
+    const latestVersions = Array.from(latestVersionByRoom.values())
+
+    // ── Step 2: Resolve display URLs only for latest versions ──
+    // Priority: ClientApprovalAsset blobUrl → Asset metadata blobUrl → blob provider → http url → Dropbox temp link
+    const latestRenderings = await Promise.all(
+      latestVersions.map(async (version) => {
         const assetsWithUrls = await Promise.all(
           version.assets.map(async (asset) => {
+            // Priority 0: blobUrl from ClientApprovalAsset (fastest — copied to Blob during push-to-client)
+            const approvalBlobUrl = asset.clientApprovalAssets?.[0]?.blobUrl
+            if (approvalBlobUrl && approvalBlobUrl.startsWith('http')) {
+              return { ...asset, displayUrl: approvalBlobUrl }
+            }
+
             let metadata: Record<string, any> = {}
             try {
               if (typeof asset.metadata === 'string') {
@@ -81,7 +113,7 @@ export async function GET(
               metadata = {}
             }
 
-            // Priority 1: blobUrl from metadata
+            // Priority 1: blobUrl from asset metadata
             if (metadata.blobUrl && metadata.blobUrl.startsWith('http')) {
               return { ...asset, displayUrl: metadata.blobUrl }
             }
@@ -135,25 +167,6 @@ export async function GET(
         }
       })
     )
-
-    // Keep only the latest version per room (most recent pushedToClientAt)
-    const latestByRoom = new Map<string, typeof renderings[number]>()
-    for (const r of renderings) {
-      if (r.assets.length === 0) continue // skip versions with no displayable assets
-      const existing = latestByRoom.get(r.roomId)
-      if (!existing) {
-        latestByRoom.set(r.roomId, r)
-      } else {
-        // Compare pushedToClientAt — keep the more recent one
-        const existingDate = existing.pushedToClientAt ? new Date(existing.pushedToClientAt).getTime() : 0
-        const currentDate = r.pushedToClientAt ? new Date(r.pushedToClientAt).getTime() : 0
-        if (currentDate > existingDate) {
-          latestByRoom.set(r.roomId, r)
-        }
-      }
-    }
-
-    const latestRenderings = Array.from(latestByRoom.values())
 
     // Build room groups
     const rooms = latestRenderings
