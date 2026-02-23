@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { headers } from 'next/headers'
-import { sendProposalSignedNotification } from '@/lib/email'
+import { sendProposalSignedNotification, sendSignedProposalToClient } from '@/lib/email'
 
 // Schema for signing the proposal
 const signProposalSchema = z.object({
@@ -37,14 +37,14 @@ async function generateInvoiceNumber(orgId: string): Promise<string> {
   return `${prefix}${nextNumber.toString().padStart(3, '0')}`
 }
 
-// Helper to create deposit invoice after signing
-async function createDepositInvoice(proposal: any): Promise<void> {
+// Helper to create deposit invoice after signing. Returns the invoice ID if created.
+async function createDepositInvoice(proposal: any): Promise<string | null> {
   // Get deposit amount from payment schedule
   const paymentSchedule = proposal.paymentSchedule as any[] || []
   const depositItem = paymentSchedule.find((item: any) => item.dueOn === 'signing')
 
   if (!depositItem || !depositItem.amount || depositItem.amount <= 0) {
-    return // No deposit required
+    return null // No deposit required
   }
 
   const depositAmount = depositItem.amount
@@ -67,11 +67,11 @@ async function createDepositInvoice(proposal: any): Promise<void> {
 
   if (!orgUser) {
     console.error('No user found for org:', proposal.orgId)
-    return
+    return null
   }
 
   // Create the deposit invoice
-  await prisma.billingInvoice.create({
+  const newInvoice = await prisma.billingInvoice.create({
     data: {
       orgId: proposal.orgId,
       projectId: proposal.projectId,
@@ -80,7 +80,7 @@ async function createDepositInvoice(proposal: any): Promise<void> {
       title: `${proposal.title} - Deposit`,
       description: `Deposit payment for ${proposal.proposalNumber}`,
       type: 'DEPOSIT',
-      status: 'DRAFT', // Save as draft for review before sending
+      status: 'DRAFT',
       clientName: proposal.clientName,
       clientEmail: proposal.clientEmail,
       clientPhone: proposal.clientPhone,
@@ -123,7 +123,7 @@ async function createDepositInvoice(proposal: any): Promise<void> {
     data: {
       proposalId: proposal.id,
       type: 'DEPOSIT_INVOICE_CREATED',
-      message: `Deposit invoice ${invoiceNumber} created as draft for ${depositAmount.toLocaleString('en-CA', { style: 'currency', currency: 'CAD' })}`,
+      message: `Deposit invoice ${invoiceNumber} created for ${depositAmount.toLocaleString('en-CA', { style: 'currency', currency: 'CAD' })}`,
       metadata: {
         invoiceNumber,
         depositAmount,
@@ -131,6 +131,8 @@ async function createDepositInvoice(proposal: any): Promise<void> {
       },
     },
   })
+
+  return newInvoice.id
 }
 
 // GET - View proposal by access token (public)
@@ -323,9 +325,34 @@ export async function POST(
       },
     })
 
-    // Send email notifications to organization owners and admins
+    // Get project info for notifications and Dropbox upload
+    const project = await prisma.project.findUnique({
+      where: { id: proposal.projectId },
+      select: { name: true, dropboxFolder: true },
+    })
+
+    // Get organization info for PDF generation and branding
+    const org = await prisma.organization.findFirst({
+      where: { id: proposal.orgId },
+      select: {
+        name: true,
+        businessName: true,
+        logoUrl: true,
+        businessEmail: true,
+        businessPhone: true,
+        businessAddress: true,
+        businessCity: true,
+        businessProvince: true,
+        businessPostal: true,
+        gstNumber: true,
+        qstNumber: true,
+      },
+    })
+
+    const companyName = org?.businessName || org?.name || 'Company'
+
+    // 1. Send email notification to Aaron / org owners & admins
     try {
-      // Get organization owners and admins to notify
       const notifyUsers = await prisma.user.findMany({
         where: {
           orgId: proposal.orgId,
@@ -337,13 +364,6 @@ export async function POST(
         },
       })
 
-      // Get project name for the notification
-      const project = await prisma.project.findUnique({
-        where: { id: proposal.projectId },
-        select: { name: true },
-      })
-
-      // Send notification to each owner/admin
       for (const user of notifyUsers) {
         if (user.email) {
           await sendProposalSignedNotification(
@@ -365,16 +385,79 @@ export async function POST(
       }
     } catch (emailError) {
       console.error('Error sending proposal signed notifications:', emailError)
-      // Don't fail the signing if email notifications fail
     }
 
-    // Auto-create deposit invoice if not already created
+    // 2. Generate signed PDF, upload to Dropbox, and email to client
+    try {
+      const { generateProposalPdfBuffer } = await import('@/lib/proposal-pdf')
+      const pdfBuffer = await generateProposalPdfBuffer(updatedProposal, org)
+
+      // Upload signed PDF to Dropbox under 6- Documents/Proposals/
+      if (project?.dropboxFolder) {
+        try {
+          const { dropboxService } = await import('@/lib/dropbox-service')
+          const pdfFilename = `${proposal.proposalNumber}-${proposal.clientName.replace(/[<>:"|?*\s]+/g, '-')}-Signed.pdf`
+          const dropboxPath = `${project.dropboxFolder}/6- Documents/Proposals/${pdfFilename}`
+
+          await dropboxService.uploadFile(dropboxPath, pdfBuffer, { mode: 'overwrite' })
+
+          // Save the Dropbox path on the proposal record
+          await prisma.proposal.update({
+            where: { id: proposal.id },
+            data: { signedPdfUrl: dropboxPath },
+          })
+
+          await prisma.proposalActivity.create({
+            data: {
+              proposalId: proposal.id,
+              type: 'PDF_UPLOADED',
+              message: `Signed proposal PDF uploaded to Dropbox: 6- Documents/Proposals/${pdfFilename}`,
+              metadata: { dropboxPath },
+            },
+          })
+        } catch (uploadError) {
+          console.error('Error uploading signed PDF to Dropbox:', uploadError)
+        }
+      }
+
+      // Send signed PDF to client via email
+      try {
+        await sendSignedProposalToClient(
+          validatedData.signedByEmail,
+          validatedData.signedByName,
+          {
+            proposalNumber: proposal.proposalNumber,
+            title: proposal.title,
+            totalAmount: Number(proposal.totalAmount),
+            signedAt: updatedProposal.signedAt!,
+            projectName: project?.name,
+          },
+          companyName,
+          pdfBuffer
+        )
+      } catch (clientEmailError) {
+        console.error('Error sending signed proposal to client:', clientEmailError)
+      }
+    } catch (pdfError) {
+      console.error('Error generating signed proposal PDF:', pdfError)
+    }
+
+    // 3. Auto-create deposit invoice and send it to client
     if (!proposal.depositInvoiceCreated) {
       try {
-        await createDepositInvoice(updatedProposal)
+        const invoiceId = await createDepositInvoice(updatedProposal)
+
+        // Auto-send the deposit invoice to the client
+        if (invoiceId) {
+          try {
+            const { sendInvoiceEmail } = await import('@/lib/send-invoice-email')
+            await sendInvoiceEmail(invoiceId, proposal.orgId)
+          } catch (sendError) {
+            console.error('Error auto-sending deposit invoice:', sendError)
+          }
+        }
       } catch (invoiceError) {
         console.error('Error creating deposit invoice:', invoiceError)
-        // Don't fail the signing if invoice creation fails
       }
     }
 

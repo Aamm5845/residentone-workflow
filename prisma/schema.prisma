@@ -4471,6 +4471,9 @@ model Proposal {
   // Deposit invoice auto-created on signing
   depositInvoiceCreated Boolean @default(false)
 
+  // Signed PDF stored in blob storage
+  signedPdfUrl  String?
+
   // Metadata
   notes       String?  @db.Text
   createdById String

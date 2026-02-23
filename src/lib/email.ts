@@ -3,7 +3,7 @@
  * This file maintains backward compatibility while using the new Resend-based email service
  */
 import { sendEmail as sendResendEmail } from '@/lib/email-service'
-import { getBaseUrl } from '@/lib/get-base-url'
+import { getBaseUrl, getClientBaseUrl } from '@/lib/get-base-url'
 
 interface SendEmailOptions {
   to: string
@@ -1131,4 +1131,133 @@ export const sendWelcomeEmail = async (email: string, name: string): Promise<boo
     html,
     text
   })
+}
+
+export const sendSignedProposalToClient = async (
+  clientEmail: string,
+  clientName: string,
+  proposal: {
+    proposalNumber: string
+    title: string
+    totalAmount: number
+    signedAt: Date
+    projectName?: string
+  },
+  companyName: string,
+  pdfBuffer: Buffer
+): Promise<boolean> => {
+  const appUrl = getClientBaseUrl()
+
+  const formattedAmount = proposal.totalAmount.toLocaleString('en-CA', {
+    style: 'currency',
+    currency: 'CAD'
+  })
+
+  const signedDate = new Date(proposal.signedAt).toLocaleString('en-CA', {
+    dateStyle: 'long',
+    timeStyle: 'short'
+  })
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Signed Proposal - ${companyName}</title>
+      </head>
+      <body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f1f5f9;">
+          <tr>
+            <td style="padding: 40px 20px;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
+
+                <!-- Header -->
+                <tr>
+                  <td style="background-color: #22c55e; padding: 32px 40px; text-align: center;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 700;">Thank You for Signing!</h1>
+                  </td>
+                </tr>
+
+                <!-- Main Content -->
+                <tr>
+                  <td style="padding: 40px;">
+                    <p style="color: #334155; font-size: 16px; line-height: 1.6; margin: 0 0 16px;">
+                      Hi ${clientName},
+                    </p>
+                    <p style="color: #475569; font-size: 16px; line-height: 1.6; margin: 0 0 24px;">
+                      Thank you for signing the proposal for <strong style="color: #1e293b;">${proposal.projectName || proposal.title}</strong>. Please find your signed copy attached to this email.
+                    </p>
+
+                    <!-- Proposal Details Card -->
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f8fafc; border-radius: 12px; margin-bottom: 32px;">
+                      <tr>
+                        <td style="padding: 24px;">
+                          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                            <tr>
+                              <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
+                                <span style="color: #64748b; font-size: 14px;">Proposal</span>
+                                <span style="color: #1e293b; font-size: 14px; font-weight: 600; float: right;">${proposal.proposalNumber}</span>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
+                                <span style="color: #64748b; font-size: 14px;">Signed On</span>
+                                <span style="color: #1e293b; font-size: 14px; font-weight: 500; float: right;">${signedDate}</span>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td style="padding: 8px 0;">
+                                <span style="color: #64748b; font-size: 14px;">Contract Value</span>
+                                <span style="color: #166534; font-size: 16px; font-weight: 700; float: right;">${formattedAmount}</span>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 8px;">
+                      A deposit invoice will follow shortly. If you have any questions, please don't hesitate to reach out.
+                    </p>
+                  </td>
+                </tr>
+
+                <!-- Footer -->
+                <tr>
+                  <td style="background-color: #1e293b; padding: 24px 40px; text-align: center;">
+                    <p style="color: #94a3b8; font-size: 13px; margin: 0 0 8px;">
+                      This email was sent by <strong style="color: #cbd5e1;">${companyName}</strong>
+                    </p>
+                    <p style="color: #64748b; font-size: 12px; margin: 0;">
+                      The signed proposal PDF is attached to this email.
+                    </p>
+                  </td>
+                </tr>
+
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+    </html>
+  `
+
+  try {
+    // Use sendResendEmail directly (not the wrapper) because it supports attachments
+    await sendResendEmail({
+      to: clientEmail,
+      subject: `Your Signed Proposal - ${proposal.proposalNumber} from ${companyName}`,
+      html,
+      attachments: [{
+        filename: `${proposal.proposalNumber}-Signed.pdf`,
+        content: pdfBuffer,
+        contentType: 'application/pdf',
+      }],
+    })
+    return true
+  } catch (error) {
+    console.error('Failed to send signed proposal to client:', error)
+    return false
+  }
 }
