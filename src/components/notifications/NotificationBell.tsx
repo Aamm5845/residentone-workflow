@@ -105,21 +105,16 @@ export function NotificationBell({ className }: NotificationBellProps) {
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className={`relative p-2 ${className}`}
+        <button
+          className={`relative flex items-center justify-center w-9 h-9 rounded-lg text-stone-500 hover:text-stone-700 hover:bg-stone-100 transition-colors touch-target ${className || ''}`}
         >
-          <Bell size={18} />
+          <Bell className="w-5 h-5" />
           {hasUnread && (
-            <Badge 
-              variant="destructive" 
-              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
-            >
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </Badge>
+            <span className="absolute -top-0.5 -right-0.5 text-[10px] font-semibold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 bg-red-500 text-white border-2 border-stone-50">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
           )}
-        </Button>
+        </button>
       </DropdownMenuTrigger>
       
       <DropdownMenuContent align="end" className="w-96">

@@ -112,18 +112,17 @@ export function TimerButton() {
   if (!activeEntry) {
     return (
       <>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="h-9 px-3 border-[#14b8a6]/30 text-[#14b8a6] hover:bg-[#14b8a6]/10 hover:border-[#14b8a6]/50"
+        <button
+          className="flex items-center h-9 px-2.5 rounded-lg text-stone-500 hover:text-stone-700 hover:bg-stone-100 transition-colors"
           onClick={() => setShowModal(true)}
+          title="Track Time"
         >
-          <Play className="w-4 h-4 md:mr-1.5" />
-          <span className="hidden md:inline text-sm">Track Time</span>
-        </Button>
-        <TimeEntryModal 
-          isOpen={showModal} 
-          onClose={() => setShowModal(false)} 
+          <Play className="w-[18px] h-[18px] md:mr-1.5" />
+          <span className="hidden md:inline text-sm font-medium">Track Time</span>
+        </button>
+        <TimeEntryModal
+          isOpen={showModal}
+          onClose={() => setShowModal(false)}
         />
       </>
     )
@@ -134,67 +133,65 @@ export function TimerButton() {
     <>
       <Popover open={showPopover} onOpenChange={setShowPopover}>
         <PopoverTrigger asChild>
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <button
             className={cn(
-              "min-w-[120px] justify-start font-mono",
-              isRunning && "border-green-300 bg-green-50 text-green-700 hover:bg-green-100",
-              isPaused && "border-yellow-300 bg-yellow-50 text-yellow-700 hover:bg-yellow-100"
+              "flex items-center h-9 px-3 rounded-lg text-sm font-mono transition-colors",
+              isRunning && "bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
+              isPaused && "bg-amber-50 text-amber-700 hover:bg-amber-100"
             )}
           >
             {isRunning ? (
-              <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse" />
+              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-2 animate-pulse" />
             ) : isPaused ? (
-              <Pause className="w-4 h-4 mr-2 text-yellow-600" />
+              <Pause className="w-3.5 h-3.5 mr-2 text-amber-500" />
             ) : null}
-            <span className="font-medium">{formatElapsedTime(elapsedSeconds)}</span>
-            <ChevronDown className="w-4 h-4 ml-2 opacity-50" />
-          </Button>
+            <span className="font-medium text-[13px]">{formatElapsedTime(elapsedSeconds)}</span>
+            <ChevronDown className="w-3.5 h-3.5 ml-1.5 opacity-40" />
+          </button>
         </PopoverTrigger>
-        <PopoverContent className="w-80 p-4" align="end">
-          <div className="space-y-4">
+        <PopoverContent className="w-72 p-4 rounded-xl" align="end">
+          <div className="space-y-3">
             {/* Timer Display */}
             <div className="text-center">
-              <div className="text-3xl font-mono font-bold text-gray-900">
+              <div className="text-2xl font-mono font-bold text-stone-900">
                 {formatElapsedTime(elapsedSeconds)}
               </div>
-              <div className="text-sm text-gray-500 mt-1">
+              <div className="text-xs text-stone-400 mt-0.5">
                 {isRunning ? 'Running' : isPaused ? 'Paused' : 'Stopped'}
               </div>
             </div>
 
             {/* Entry Details */}
-            <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+            <div className="bg-stone-50 rounded-lg p-2.5 space-y-1.5">
               {activeEntry.project && (
                 <div className="flex items-center text-sm">
-                  <FolderOpen className="w-4 h-4 text-gray-400 mr-2" />
-                  <span className="text-gray-700">{activeEntry.project.name}</span>
+                  <FolderOpen className="w-3.5 h-3.5 text-stone-400 mr-2" />
+                  <span className="text-stone-600">{activeEntry.project.name}</span>
                 </div>
               )}
               {activeEntry.room && (
                 <div className="flex items-center text-sm">
-                  <Home className="w-4 h-4 text-gray-400 mr-2" />
-                  <span className="text-gray-700">
+                  <Home className="w-3.5 h-3.5 text-stone-400 mr-2" />
+                  <span className="text-stone-600">
                     {activeEntry.room.name || activeEntry.room.type.replace(/_/g, ' ')}
                   </span>
                 </div>
               )}
               {activeEntry.stage && (
                 <div className="flex items-center text-sm">
-                  <Layers className="w-4 h-4 text-gray-400 mr-2" />
-                  <span className="text-gray-700">
+                  <Layers className="w-3.5 h-3.5 text-stone-400 mr-2" />
+                  <span className="text-stone-600">
                     {formatStageType(activeEntry.stage.type)}
                   </span>
                 </div>
               )}
               {activeEntry.description && (
-                <div className="text-sm text-gray-600 mt-2 pt-2 border-t border-gray-200">
+                <div className="text-sm text-stone-500 mt-1.5 pt-1.5 border-t border-stone-200">
                   {activeEntry.description}
                 </div>
               )}
               {!activeEntry.project && !activeEntry.room && !activeEntry.description && (
-                <div className="text-sm text-gray-400 italic">
+                <div className="text-sm text-stone-400 italic">
                   No project or description
                 </div>
               )}
@@ -202,36 +199,34 @@ export function TimerButton() {
 
             {/* Controls */}
             <div className="flex gap-2">
-              <Button
-                variant="outline"
+              <button
                 className={cn(
-                  "flex-1",
-                  isRunning 
-                    ? "border-yellow-300 text-yellow-700 hover:bg-yellow-50" 
-                    : "border-green-300 text-green-700 hover:bg-green-50"
+                  "flex-1 flex items-center justify-center h-9 rounded-lg text-sm font-medium transition-colors",
+                  isRunning
+                    ? "bg-amber-50 text-amber-700 hover:bg-amber-100"
+                    : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                 )}
                 onClick={handlePauseResume}
               >
                 {isRunning ? (
                   <>
-                    <Pause className="w-4 h-4 mr-2" />
+                    <Pause className="w-4 h-4 mr-1.5" />
                     Pause
                   </>
                 ) : (
                   <>
-                    <Play className="w-4 h-4 mr-2" />
+                    <Play className="w-4 h-4 mr-1.5" />
                     Resume
                   </>
                 )}
-              </Button>
-              <Button
-                variant="outline"
-                className="flex-1 border-red-300 text-red-700 hover:bg-red-50"
+              </button>
+              <button
+                className="flex-1 flex items-center justify-center h-9 rounded-lg text-sm font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
                 onClick={handleStopClick}
               >
-                <Square className="w-4 h-4 mr-2" />
+                <Square className="w-4 h-4 mr-1.5" />
                 Stop
-              </Button>
+              </button>
             </div>
           </div>
         </PopoverContent>

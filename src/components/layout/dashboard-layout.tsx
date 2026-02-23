@@ -6,9 +6,9 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import Providers from '@/components/providers'
 import { Session } from 'next-auth'
-import { 
-  Building, 
-  Settings, 
+import {
+  Building,
+  Settings,
   Menu,
   X,
   LogOut,
@@ -17,9 +17,7 @@ import {
   Box,
   FileText,
   CheckSquare,
-  Plus,
   Search,
-  AlertCircle
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -105,67 +103,55 @@ export default function DashboardLayout({ children, session }: DashboardLayoutPr
             </div>
 
             {/* Right: Actions and Profile */}
-            <div className="flex items-center space-x-2 md:space-x-4">
-              {/* New Project Button */}
-              <Button asChild size="sm" className="h-9 px-3 bg-[#a657f0] hover:bg-[#a657f0]/90 text-white">
-                <Link href="/projects/new" className="flex items-center">
-                  <Plus className="w-4 h-4 md:mr-1.5" />
-                  <span className="hidden md:inline text-sm">New Project</span>
-                </Link>
-              </Button>
-              
+            <div className="flex items-center gap-0.5">
               {/* Timer Button */}
               <TimerButton />
-              
-              {/* Report Issue */}
-              <Button
-                variant="outline" 
-                size="sm" 
-                onClick={() => setIssueModalOpen(true)}
-                className="h-9 px-3 hidden sm:flex border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
-              >
-                <AlertCircle className="w-4 h-4 md:mr-1.5" />
-                <span className="hidden lg:inline text-sm">Report Issue</span>
-              </Button>
-              
-              <IssueNotification />
+
+              {/* Divider */}
+              <div className="hidden sm:block w-px h-5 bg-stone-200 mx-1" />
+
+              {/* Issues (Report + View) */}
+              <IssueNotification onReportIssue={() => setIssueModalOpen(true)} />
               <NotificationBell />
-              
+
               {/* Settings - Hide on mobile */}
-              <Button variant="ghost" size="icon" asChild className="hidden sm:flex touch-target">
-                <Link href="/preferences">
-                  <Settings className="h-5 w-5" />
-                </Link>
-              </Button>
-              
+              <Link
+                href="/preferences"
+                className="hidden sm:flex items-center justify-center w-9 h-9 rounded-lg text-stone-500 hover:text-stone-700 hover:bg-stone-100 transition-colors touch-target"
+                title="Settings"
+              >
+                <Settings className="h-5 w-5" />
+              </Link>
+
+              {/* Divider */}
+              <div className="hidden md:block w-px h-5 bg-stone-200 mx-1" />
+
               {/* User Profile */}
-              <div className="flex items-center space-x-2 md:space-x-3">
+              <div className="flex items-center gap-2 ml-1">
                 {session?.user?.image ? (
-                  <img 
-                    src={session.user.image} 
+                  <img
+                    src={session.user.image}
                     alt={session?.user?.name || 'Profile'}
-                    className="w-8 h-8 rounded-full object-cover border border-stone-200"
+                    className="w-8 h-8 rounded-full object-cover ring-2 ring-stone-100"
                   />
                 ) : (
-                  <div className="w-8 h-8 bg-[#a657f0] rounded-full flex items-center justify-center">
+                  <div className="w-8 h-8 bg-stone-300 rounded-full flex items-center justify-center ring-2 ring-stone-100">
                     <span className="text-white text-sm font-semibold">
                       {session?.user?.name?.charAt(0) || 'U'}
                     </span>
                   </div>
                 )}
                 <div className="hidden md:block">
-                  <p className="text-sm font-medium text-stone-900">{session?.user?.name}</p>
-                  <p className="text-xs text-stone-500">{session?.user?.role}</p>
+                  <p className="text-sm font-medium text-stone-800 leading-tight">{session?.user?.name}</p>
+                  <p className="text-[11px] text-stone-400 leading-tight">{session?.user?.role}</p>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
+                <button
                   onClick={() => signOut()}
                   title="Sign out"
-                  className="hidden md:flex touch-target"
+                  className="hidden md:flex items-center justify-center w-8 h-8 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition-colors"
                 >
                   <LogOut className="h-4 w-4" />
-                </Button>
+                </button>
               </div>
             </div>
           </div>
