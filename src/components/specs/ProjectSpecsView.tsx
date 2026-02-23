@@ -3811,100 +3811,96 @@ export default function ProjectSpecsView({ project }: ProjectSpecsViewProps) {
 
         {/* Row 2: Selection actions - only visible when items selected */}
         {selectedItems.size > 0 && (
-          <div className="border-b border-stone-200 bg-stone-100/50">
+          <div className="border-b border-stone-200 bg-stone-50/80">
             <div className="max-w-full mx-auto px-6 py-1.5">
-              <div className="flex items-center gap-1">
-                <span className="text-xs font-medium text-stone-900 mr-2">{selectedItems.size} selected</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setQuickQuoteItems(Array.from(selectedItems))
-                    setQuickQuoteDialogOpen(true)
-                  }}
-                  className="h-7 text-xs text-stone-600 hover:text-stone-800 hover:bg-stone-200/50"
-                >
-                  <Mail className="w-3.5 h-3.5 mr-1" />
-                  Quotes
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setClientQuotePreselectedItems(Array.from(selectedItems))
-                    setClientQuoteDialogOpen(true)
-                  }}
-                  className="h-7 text-xs text-stone-600 hover:text-stone-800 hover:bg-stone-200/50"
-                >
-                  <DollarSign className="w-3.5 h-3.5 mr-1" />
-                  Invoice
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setBudgetApprovalDialogOpen(true)}
-                  className="h-7 text-xs text-stone-600 hover:text-stone-800 hover:bg-stone-200/50"
-                >
-                  <DollarSign className="w-3.5 h-3.5 mr-1" />
-                  Budget
-                </Button>
-                <div className="w-px h-4 bg-stone-300 mx-0.5" />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs text-stone-600 hover:text-stone-800 hover:bg-stone-200/50"
-                  onClick={handleBulkDuplicate}
-                  disabled={bulkDuplicating}
-                  title="Duplicate"
-                >
-                  {bulkDuplicating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs text-stone-600 hover:text-stone-800 hover:bg-stone-200/50"
-                  onClick={() => setBulkMoveModal(true)}
-                  title="Move"
-                >
-                  <Layers className="w-3.5 h-3.5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs text-stone-600 hover:text-stone-800 hover:bg-stone-200/50"
-                  onClick={() => setBulkStatusModal(true)}
-                  title="Status"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs text-stone-600 hover:text-stone-800 hover:bg-stone-200/50"
-                  onClick={handleBulkApprove}
-                  disabled={bulkApproving}
-                  title="Approve"
-                >
-                  {bulkApproving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ThumbsUp className="w-3.5 h-3.5" />}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs text-red-500 hover:bg-red-50"
-                  onClick={handleBulkDelete}
-                  title="Delete"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs text-stone-400 hover:text-stone-600"
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-stone-900">{selectedItems.size} selected</span>
+
+                <div className="w-px h-4 bg-stone-200" />
+
+                {/* Actions Dropdown */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="inline-flex items-center gap-1.5 h-7 px-3 text-xs font-medium text-stone-700 bg-white border border-stone-200 rounded-lg shadow-sm hover:bg-stone-50 hover:border-stone-300 transition-all">
+                      Actions
+                      <ChevronDown className="w-3 h-3 text-stone-400" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-44">
+                    <DropdownMenuItem
+                      onClick={handleBulkDuplicate}
+                      disabled={bulkDuplicating}
+                    >
+                      {bulkDuplicating ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <Copy className="w-3.5 h-3.5 mr-2" />}
+                      Duplicate
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setBulkMoveModal(true)}>
+                      <Layers className="w-3.5 h-3.5 mr-2" />
+                      Move to Section
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setBulkStatusModal(true)}>
+                      <RefreshCw className="w-3.5 h-3.5 mr-2" />
+                      Change Status
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={handleBulkApprove}
+                      disabled={bulkApproving}
+                    >
+                      {bulkApproving ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <ThumbsUp className="w-3.5 h-3.5 mr-2" />}
+                      Approve
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={handleBulkDelete}
+                      className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 mr-2" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                {/* Procurement Dropdown */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="inline-flex items-center gap-1.5 h-7 px-3 text-xs font-medium text-stone-700 bg-white border border-stone-200 rounded-lg shadow-sm hover:bg-stone-50 hover:border-stone-300 transition-all">
+                      Procurement
+                      <ChevronDown className="w-3 h-3 text-stone-400" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-44">
+                    <DropdownMenuItem onClick={() => {
+                      setQuickQuoteItems(Array.from(selectedItems))
+                      setQuickQuoteDialogOpen(true)
+                    }}>
+                      <Mail className="w-3.5 h-3.5 mr-2" />
+                      Request Quotes
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => {
+                      setClientQuotePreselectedItems(Array.from(selectedItems))
+                      setClientQuoteDialogOpen(true)
+                    }}>
+                      <DollarSign className="w-3.5 h-3.5 mr-2" />
+                      Create Invoice
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setBudgetApprovalDialogOpen(true)}>
+                      <CreditCard className="w-3.5 h-3.5 mr-2" />
+                      Budget Approval
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                {/* Spacer */}
+                <div className="flex-1" />
+
+                {/* Clear selection */}
+                <button
                   onClick={() => setSelectedItems(new Set())}
-                  title="Clear"
+                  className="inline-flex items-center gap-1 h-7 px-2 text-xs text-stone-400 hover:text-stone-600 rounded-md hover:bg-stone-100 transition-colors"
                 >
                   <X className="w-3.5 h-3.5" />
-                </Button>
+                  Clear
+                </button>
               </div>
             </div>
           </div>
