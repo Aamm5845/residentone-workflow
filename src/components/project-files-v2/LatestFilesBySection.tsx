@@ -182,7 +182,7 @@ export default function LatestFilesBySection({ sectionGroups }: LatestFilesBySec
   // Empty state
   if (sectionGroups.length === 0) {
     return (
-      <aside className="xl:sticky xl:top-4 xl:self-start">
+      <aside className="lg:sticky lg:top-4 lg:self-start">
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 px-4 py-3">
             <div className="text-[11px] uppercase tracking-[0.12em] text-slate-400">Summary</div>
@@ -200,7 +200,7 @@ export default function LatestFilesBySection({ sectionGroups }: LatestFilesBySec
   }
 
   return (
-    <aside className="xl:sticky xl:top-4 xl:self-start">
+    <aside className="lg:sticky lg:top-4 lg:self-start">
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         {/* Panel header */}
         <div className="border-b border-slate-200 px-4 py-3">
@@ -242,8 +242,8 @@ export default function LatestFilesBySection({ sectionGroups }: LatestFilesBySec
                         {file.title}
                       </span>
                       {file.pageNo && (
-                        <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-mono font-medium text-slate-500">
-                          {file.pageNo}
+                        <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-mono font-medium text-slate-500 whitespace-nowrap">
+                          #{file.pageNo}
                         </span>
                       )}
                     </div>

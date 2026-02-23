@@ -360,7 +360,7 @@ export default function TransmittalLog({
 
   // ── Render ────────────────────────────────────────────────────────────
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
     <div className="space-y-4 min-w-0">
       {/* Header row */}
       <div className="flex items-center justify-between">
@@ -618,8 +618,8 @@ export default function TransmittalLog({
                 <th className="px-3 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
                   Rev
                 </th>
-                <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-                  Page No
+                <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 whitespace-nowrap">
+                  Page #
                 </th>
                 <th className="px-4 py-3 text-left">
                   <button onClick={() => handleSort('section')} className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 transition-colors cursor-pointer select-none">
