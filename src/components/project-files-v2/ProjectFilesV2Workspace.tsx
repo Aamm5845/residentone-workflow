@@ -226,6 +226,17 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
     }
   }, [project.id, refreshAll, selectedDrawingId])
 
+  const tabItems: Array<{ value: TabValue; label: string; icon: any; description: string }> = [
+    { value: 'all-files', label: 'All Files', icon: FolderTree, description: 'Dropbox-linked folders and files' },
+    { value: 'drawings', label: 'Drawings', icon: FileText, description: 'Registered drawing log and revisions' },
+    { value: 'photos', label: 'Photos', icon: Camera, description: 'Field and progress photo gallery' },
+    { value: 'renderings', label: 'Renderings', icon: ImageIcon, description: 'Rendered presentation images' },
+    { value: 'transmittals', label: 'Sent', icon: Send, description: 'Sent files, transmittals, and tracking' },
+    { value: 'received', label: 'Received', icon: Download, description: 'Incoming files and deliveries' },
+  ]
+
+  const activeTabMeta = tabItems.find((tab) => tab.value === activeTab) ?? tabItems[0]
+
   // ===================================================================
   // RENDER
   // ===================================================================
@@ -234,39 +245,54 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
       {/* ---------------------------------------------------------------- */}
       {/* HEADER                                                           */}
       {/* ---------------------------------------------------------------- */}
-      <div className="bg-white border-b border-slate-200">
-        <div className="max-w-[1600px] mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
+      <div className="relative border-b border-slate-200/90 bg-gradient-to-b from-white via-white to-slate-50/70">
+        <div className="max-w-[1600px] mx-auto px-6 py-5">
+          <div className="flex flex-col gap-4 rounded-3xl border border-slate-200/80 bg-white/85 px-5 py-5 shadow-[0_14px_40px_rgba(15,23,42,0.06)] backdrop-blur xl:flex-row xl:items-start xl:justify-between">
             {/* Left: back + title */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-start gap-3 min-w-0">
               <Link href={`/projects/${project.id}`}>
-                <button className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-slate-600 hover:bg-slate-50 transition-colors">
-                  <ArrowLeft className="w-3.5 h-3.5" />
+                <button className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900">
+                  <ArrowLeft className="h-4 w-4" />
                 </button>
               </Link>
-              <div>
-                <h1 className="text-xl font-semibold tracking-tight text-slate-900">Project Files</h1>
-                <p className="text-sm text-slate-500">{project.name}</p>
+              <div className="min-w-0">
+                <div className="mb-1 flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-600">
+                    Project Files v2
+                  </span>
+                  <span className="inline-flex items-center rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-white">
+                    {activeTabMeta.label}
+                  </span>
+                </div>
+                <h1 className="truncate text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">
+                  {project.name}
+                </h1>
+                <p className="mt-1 text-sm text-slate-500">{activeTabMeta.description}</p>
+                {project.client?.name && (
+                  <div className="mt-3 inline-flex items-center rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 shadow-sm">
+                    Client: <span className="ml-1 font-medium text-slate-900">{project.client.name}</span>
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Right: actions */}
-            <div className="flex items-center gap-2.5">
+            <div className="flex flex-wrap items-center gap-2.5">
               {/* Receive Files button — always visible */}
               <button
                 onClick={() => setShowReceiveFile(true)}
-                className="inline-flex items-center gap-2 h-9 px-4 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 active:scale-[0.98] transition-all"
+                className="inline-flex h-10 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:text-slate-900 active:translate-y-0"
               >
-                <Download className="w-4 h-4" />
+                <Download className="h-4 w-4" />
                 Receive Files
               </button>
 
               {/* Send Files button — always visible */}
               <button
                 onClick={() => setShowSendFile(true)}
-                className="inline-flex items-center gap-2 h-9 px-4 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 active:scale-[0.98] transition-all"
+                className="inline-flex h-10 items-center gap-2 rounded-2xl bg-slate-900 px-4 text-sm font-medium text-white shadow-[0_10px_20px_rgba(15,23,42,0.16)] transition-all hover:-translate-y-0.5 hover:bg-slate-800 active:translate-y-0"
               >
-                <Send className="w-4 h-4" />
+                <Send className="h-4 w-4" />
                 Send Files
               </button>
 
@@ -274,13 +300,13 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
               {activeTab === 'drawings' && (
                 <>
                   <div className="relative">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                     <Input
                       placeholder="Search drawings..."
                       value={searchInput}
                       onChange={(e) => setSearchInput(e.target.value)}
                       onKeyDown={handleSearchKeyDown}
-                      className="h-9 w-64 rounded-xl border-slate-200 pl-9 text-sm"
+                      className="h-10 w-[min(20rem,70vw)] rounded-2xl border-slate-200 bg-white pl-9 pr-20 text-sm shadow-sm focus-visible:ring-slate-900/20"
                     />
                     {searchInput && (
                       <button
@@ -288,17 +314,32 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
                           setSearchInput('')
                           setFilters((prev) => ({ ...prev, search: '' }))
                         }}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        className="absolute right-9 top-1/2 -translate-y-1/2 rounded-md p-0.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
                       >
-                        <X className="w-3.5 h-3.5" />
+                        <X className="h-3.5 w-3.5" />
                       </button>
                     )}
+                    <button
+                      onClick={handleSearchSubmit}
+                      className="absolute right-2 top-1/2 inline-flex h-7 -translate-y-1/2 items-center rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                    >
+                      Go
+                    </button>
                   </div>
+                  {hasActiveFilters && (
+                    <button
+                      onClick={clearFilters}
+                      className="inline-flex h-10 items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900"
+                    >
+                      <X className="h-4 w-4" />
+                      Clear Filters
+                    </button>
+                  )}
                   <button
                     onClick={() => setShowAddDrawing(true)}
-                    className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 active:scale-[0.98] transition-all"
+                    className="inline-flex h-10 items-center gap-1.5 rounded-2xl bg-slate-900 px-4 text-sm font-medium text-white shadow-[0_10px_20px_rgba(15,23,42,0.16)] transition-all hover:-translate-y-0.5 hover:bg-slate-800 active:translate-y-0"
                   >
-                    <Plus className="w-4 h-4" />
+                    <Plus className="h-4 w-4" />
                     Add Drawing
                   </button>
                 </>
@@ -317,61 +358,61 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
           onValueChange={(val) => setActiveTab(val as TabValue)}
         >
           {/* Tab bar + view toggle */}
-          <div className="flex items-center justify-between mb-5">
-            <div className="inline-flex w-fit rounded-xl bg-slate-100 p-1">
-              {([
-                { value: 'all-files' as TabValue, label: 'All Files', icon: FolderTree },
-                { value: 'drawings' as TabValue, label: 'Drawings', icon: FileText },
-                { value: 'photos' as TabValue, label: 'Photos', icon: Camera },
-                { value: 'renderings' as TabValue, label: 'Renderings', icon: ImageIcon },
-                { value: 'transmittals' as TabValue, label: 'Sent', icon: Send },
-                { value: 'received' as TabValue, label: 'Received', icon: Download },
-              ]).map(({ value, label, icon: Icon }) => (
-                <button
-                  key={value}
-                  onClick={() => setActiveTab(value)}
-                  className={cn(
-                    'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-all',
-                    activeTab === value
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
-                  )}
-                >
-                  <Icon className="w-4 h-4" />
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            {/* View toggle - only for drawings tab */}
-            {activeTab === 'drawings' && (
-              <div className="inline-flex items-center rounded-xl bg-slate-100 p-1">
-                <button
-                  onClick={() => setViewMode('table')}
-                  className={cn(
-                    'p-1.5 rounded-lg transition-all',
-                    viewMode === 'table'
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-400 hover:text-slate-600'
-                  )}
-                  title="Table view"
-                >
-                  <List className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setViewMode('cards')}
-                  className={cn(
-                    'p-1.5 rounded-lg transition-all',
-                    viewMode === 'cards'
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-400 hover:text-slate-600'
-                  )}
-                  title="Card view"
-                >
-                  <LayoutGrid className="w-4 h-4" />
-                </button>
+          <div className="mb-5 rounded-2xl border border-slate-200/80 bg-white/85 p-2 shadow-sm backdrop-blur">
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+              <div className="flex flex-wrap gap-1.5">
+                {tabItems.map(({ value, label, icon: Icon }) => (
+                  <button
+                    key={value}
+                    onClick={() => setActiveTab(value)}
+                    className={cn(
+                      'inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-sm font-medium transition-all',
+                      activeTab === value
+                        ? 'border-slate-900 bg-slate-900 text-white shadow-[0_8px_18px_rgba(15,23,42,0.14)]'
+                        : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900'
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span>{label}</span>
+                  </button>
+                ))}
               </div>
-            )}
+
+              {/* View toggle - only for drawings tab */}
+              {activeTab === 'drawings' && (
+                <div className="inline-flex items-center gap-2 self-start rounded-xl border border-slate-200 bg-slate-50 px-2 py-1.5 xl:self-auto">
+                  <span className="px-1 text-xs font-medium text-slate-500">View</span>
+                  <div className="inline-flex items-center rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
+                    <button
+                      onClick={() => setViewMode('table')}
+                      className={cn(
+                        'inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium transition-all',
+                        viewMode === 'table'
+                          ? 'bg-slate-900 text-white'
+                          : 'text-slate-500 hover:text-slate-700'
+                      )}
+                      title="Table view"
+                    >
+                      <List className="h-3.5 w-3.5" />
+                      Table
+                    </button>
+                    <button
+                      onClick={() => setViewMode('cards')}
+                      className={cn(
+                        'inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium transition-all',
+                        viewMode === 'cards'
+                          ? 'bg-slate-900 text-white'
+                          : 'text-slate-500 hover:text-slate-700'
+                      )}
+                      title="Card view"
+                    >
+                      <LayoutGrid className="h-3.5 w-3.5" />
+                      Cards
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* ======================================================= */}
