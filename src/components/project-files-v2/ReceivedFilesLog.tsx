@@ -8,6 +8,7 @@ import {
   X,
   Calendar,
   Filter,
+  Trash2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -42,10 +43,12 @@ interface ReceivedFileData {
 }
 
 interface ReceivedFilesLogProps {
+  projectId: string
   receivedFiles: ReceivedFileData[]
   isLoading: boolean
   onReceiveNew: () => void
   onOpenInFiles?: (folderPath: string) => void
+  mutateReceivedFiles?: () => void
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -58,27 +61,24 @@ function formatDateTime(date: string): { date: string; time: string } {
   }
 }
 
-const SENDER_TYPE_LABELS: Record<string, string> = {
-  CLIENT: 'Client',
-  CONTRACTOR: 'Contractor',
-  SUBCONTRACTOR: 'Sub',
-  CONSULTANT: 'Consultant',
-  TEAM: 'Team',
-  OTHER: '',
-}
-
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function ReceivedFilesLog({
+  projectId,
   receivedFiles,
   isLoading,
   onReceiveNew,
   onOpenInFiles,
+  mutateReceivedFiles,
 }: ReceivedFilesLogProps) {
   // ── State ──────────────────────────────────────────────────────────────
   const [filterSearch, setFilterSearch] = useState('')
   const [filterDateFrom, setFilterDateFrom] = useState('')
   const [filterDateTo, setFilterDateTo] = useState('')
+
+  // ── Selection state ────────────────────────────────────────────────────
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const hasActiveFilters = filterSearch !== '' || filterDateFrom !== '' || filterDateTo !== ''
 
@@ -87,6 +87,53 @@ export default function ReceivedFilesLog({
     setFilterDateFrom('')
     setFilterDateTo('')
   }, [])
+
+  /** Toggle selection of a single row */
+  const toggleSelect = useCallback((rowId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(rowId)) next.delete(rowId)
+      else next.add(rowId)
+      return next
+    })
+  }, [])
+
+  /** Toggle all visible rows */
+  const toggleSelectAll = useCallback((rows: ReceivedFileData[]) => {
+    setSelectedIds((prev) => {
+      const allSelected = rows.every((r) => prev.has(r.id))
+      if (allSelected) return new Set()
+      return new Set(rows.map((r) => r.id))
+    })
+  }, [])
+
+  /** Delete selected received files */
+  const handleDeleteSelected = useCallback(async (rows: ReceivedFileData[]) => {
+    const selectedRows = rows.filter((r) => selectedIds.has(r.id))
+    if (selectedRows.length === 0) return
+
+    const count = selectedRows.length
+    const msg = `Delete ${count} received file${count !== 1 ? 's' : ''}? This cannot be undone.`
+    if (!confirm(msg)) return
+
+    setIsDeleting(true)
+    try {
+      await Promise.all(
+        selectedRows.map((rf) =>
+          fetch(`/api/projects/${projectId}/project-files-v2/receive-files/${rf.id}`, {
+            method: 'DELETE',
+          })
+        )
+      )
+      setSelectedIds(new Set())
+      mutateReceivedFiles?.()
+    } catch (err) {
+      console.error('Delete error:', err)
+      alert('Failed to delete some received files. Please try again.')
+    } finally {
+      setIsDeleting(false)
+    }
+  }, [selectedIds, projectId, mutateReceivedFiles])
 
   // ── Filter received files ─────────────────────────────────────────────
   const filteredFiles = useMemo(() => {
@@ -278,12 +325,45 @@ export default function ReceivedFilesLog({
         </div>
       )}
 
+      {/* ── Floating action bar (when rows selected) ─────────────── */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 rounded-xl border border-slate-900 bg-slate-900 px-4 py-2.5 text-white shadow-lg">
+          <span className="text-sm font-medium">
+            {selectedIds.size} selected
+          </span>
+          <div className="w-px h-4 bg-slate-600" />
+          <button
+            onClick={() => handleDeleteSelected(sortedFiles)}
+            disabled={isDeleting}
+            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-colors disabled:opacity-50"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            {isDeleting ? 'Deleting...' : 'Delete'}
+          </button>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="ml-auto inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+          >
+            <X className="h-3.5 w-3.5" />
+            Deselect all
+          </button>
+        </div>
+      )}
+
       {/* ── Flat table — one row per received file ──────────────────── */}
       {sortedFiles.length > 0 && (
         <div className="w-full overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/80">
+                <th className="px-3 py-3 text-center w-[40px]">
+                  <input
+                    type="checkbox"
+                    checked={sortedFiles.length > 0 && sortedFiles.every((r) => selectedIds.has(r.id))}
+                    onChange={() => toggleSelectAll(sortedFiles)}
+                    className="h-3.5 w-3.5 rounded border-slate-300 text-slate-900 focus:ring-slate-900/20 cursor-pointer"
+                  />
+                </th>
                 <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
                   Title
                 </th>
@@ -309,7 +389,17 @@ export default function ReceivedFilesLog({
                 const dt = formatDateTime(rf.receivedDate)
                 const filePath = rf.dropboxPath || rf.drawing?.dropboxPath || null
                 return (
-                  <tr key={rf.id} className="transition-colors hover:bg-slate-50/70 align-top">
+                  <tr key={rf.id} className={cn('transition-colors hover:bg-slate-50/70 align-top', selectedIds.has(rf.id) && 'bg-slate-50')}>
+                    {/* Checkbox */}
+                    <td className="px-3 py-3 text-center w-[40px]">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(rf.id)}
+                        onChange={() => toggleSelect(rf.id)}
+                        className="h-3.5 w-3.5 rounded border-slate-300 text-slate-900 focus:ring-slate-900/20 cursor-pointer"
+                      />
+                    </td>
+
                     {/* Title */}
                     <td className="px-4 py-3">
                       <div className="flex flex-col min-w-0">

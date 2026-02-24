@@ -514,6 +514,7 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
           {/* ======================================================= */}
           <TabsContent value="received">
             <ReceivedFilesLog
+              projectId={project.id}
               receivedFiles={receivedFiles}
               isLoading={receivedLoading}
               onReceiveNew={() => setShowReceiveFile(true)}
@@ -521,6 +522,7 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
                 setAllFilesNavigatePath(folderPath)
                 setActiveTab('all-files')
               }}
+              mutateReceivedFiles={mutateReceived}
             />
           </TabsContent>
         </Tabs>

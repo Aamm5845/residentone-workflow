@@ -132,6 +132,20 @@ export async function GET(
     })
   } catch (error: any) {
     console.error('[project-files-v2/browse] GET error:', error)
+
+    // Handle Dropbox "path not found" errors gracefully — return empty folder
+    const errMsg = String(error?.message || error?.error?.error_summary || error || '')
+    if (errMsg.includes('not_found') || errMsg.includes('path/not_found') || errMsg.includes('not found')) {
+      return NextResponse.json({
+        success: true,
+        files: [],
+        folders: [],
+        hasMore: false,
+        cursor: null,
+        currentPath: new URL(request.url).searchParams.get('path') || '',
+      })
+    }
+
     return NextResponse.json(
       { error: error.message || 'Failed to browse Dropbox folder' },
       { status: 500 }
