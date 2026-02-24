@@ -27,18 +27,6 @@ import { cn } from '@/lib/utils'
 
 // ─── Shared Configs ─────────────────────────────────────────────────────────
 
-const DRAWING_TYPE_LABELS: Record<string, string> = {
-  FLOOR_PLAN: 'Floor Plan',
-  REFLECTED_CEILING: 'Reflected Ceiling',
-  ELEVATION: 'Elevation',
-  DETAIL: 'Detail',
-  SECTION: 'Section',
-  TITLE_BLOCK: 'Title Block',
-  XREF: 'XREF',
-  SCHEDULE: 'Schedule',
-  OTHER: 'Other',
-}
-
 const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {
   ACTIVE: { label: 'Active', color: 'text-emerald-700', bgColor: 'bg-emerald-50' },
   DRAFT: { label: 'Draft', color: 'text-gray-600', bgColor: 'bg-gray-100' },
@@ -95,9 +83,6 @@ type SortColumn =
   | 'pageNo'
   | 'reviewNo'
   | 'section'
-  | 'floor'
-  | 'drawingType'
-  | 'currentRevision'
   | 'status'
   | 'lastSent'
 
@@ -117,12 +102,6 @@ function getSortValue(drawing: Drawing, column: SortColumn): string | number {
       return (drawing.reviewNo ?? '').toLowerCase() || 'zzz'
     case 'section':
       return (drawing.section?.name ?? '').toLowerCase() || 'zzz'
-    case 'floor':
-      return (drawing.floor?.shortName ?? '').toLowerCase()
-    case 'drawingType':
-      return drawing.drawingType ? (DRAWING_TYPE_LABELS[drawing.drawingType] ?? drawing.drawingType).toLowerCase() : 'zzz'
-    case 'currentRevision':
-      return drawing.currentRevision
     case 'status':
       return (STATUS_CONFIG[drawing.status]?.label ?? drawing.status).toLowerCase()
     case 'lastSent':
@@ -158,13 +137,10 @@ interface ColumnDef {
 const COLUMNS: ColumnDef[] = [
   { key: 'drawingNumber', label: 'Drawing #', sortable: true, className: 'w-[120px]' },
   { key: 'title', label: 'Title', sortable: true },
-  { key: 'drawnBy', label: 'Drawn By', sortable: true, className: 'w-[100px]' },
-  { key: 'pageNo', label: 'Page', sortable: true, className: 'w-[70px]' },
+  { key: 'drawnBy', label: 'Drawn By', sortable: true, className: 'w-[110px]' },
+  { key: 'pageNo', label: 'Page #', sortable: true, className: 'w-[80px]' },
   { key: 'reviewNo', label: 'Review', sortable: true, className: 'w-[80px]' },
   { key: 'section', label: 'Section', sortable: true, className: 'w-[140px]' },
-  { key: 'floor', label: 'Floor', sortable: true, className: 'w-[80px]' },
-  { key: 'drawingType', label: 'Type', sortable: true, className: 'w-[140px]' },
-  { key: 'currentRevision', label: 'Rev', sortable: true, className: 'w-[70px]' },
   { key: 'status', label: 'Status', sortable: true, className: 'w-[100px]' },
   { key: 'lastSent', label: 'Last Sent', sortable: true, className: 'w-[180px]' },
 ]
@@ -358,7 +334,6 @@ export default function DrawingRegisterTable({
           {sortedDrawings.map((drawing) => {
             const section = drawing.section
             const status = STATUS_CONFIG[drawing.status]
-            const typeLabel = drawing.drawingType ? (DRAWING_TYPE_LABELS[drawing.drawingType] ?? drawing.drawingType) : null
             const isDetailSelected = selectedDrawingId === drawing.id
             const isChecked = selectedIds.has(drawing.id)
 
@@ -463,33 +438,6 @@ export default function DrawingRegisterTable({
                   ) : (
                     <span className="text-gray-300">&mdash;</span>
                   )}
-                </td>
-
-                {/* Floor */}
-                <td className="px-4 py-3">
-                  {drawing.floor ? (
-                    <span className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
-                      {drawing.floor.shortName}
-                    </span>
-                  ) : (
-                    <span className="text-gray-300">&mdash;</span>
-                  )}
-                </td>
-
-                {/* Type */}
-                <td className="px-4 py-3">
-                  {typeLabel ? (
-                    <span className="text-sm text-gray-600">{typeLabel}</span>
-                  ) : (
-                    <span className="text-gray-300">&mdash;</span>
-                  )}
-                </td>
-
-                {/* Rev */}
-                <td className="px-4 py-3">
-                  <span className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-                    Rev {drawing.currentRevision}
-                  </span>
                 </td>
 
                 {/* Status */}
