@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email-service'
 import { dropboxService } from '@/lib/dropbox-service-v2'
 import { getBaseUrl } from '@/lib/get-base-url'
+import { stampAndMergePdfs, StampableAttachment } from '@/lib/pdf-merge'
 
 export const runtime = 'nodejs'
 
@@ -353,6 +354,45 @@ export async function POST(
       }
     })
 
+    // ── Step 2.5: Stamp & merge PDFs into a single combined attachment ──
+
+    // Fetch created drawings for enrichment + email table
+    const createdDrawings = await prisma.projectDrawing.findMany({
+      where: { id: { in: createdDrawingIds } },
+      include: { section: { select: { name: true, shortName: true } } },
+      orderBy: { drawingNumber: 'asc' },
+    })
+
+    // Build a map from drawing ID → drawing record for quick lookup
+    const drawingById = new Map(createdDrawings.map(d => [d.id, d]))
+
+    // Build stampable attachments enriched with drawing metadata
+    const stampableAttachments: StampableAttachment[] = attachments.map((att, i) => {
+      const drawingId = createdDrawingIds[i]
+      const drawing = drawingById.get(drawingId)
+      return {
+        ...att,
+        drawingNumber: drawing?.drawingNumber,
+        revisionNumber: createdRevisionNumbers[i],
+        title: drawing?.title,
+      }
+    })
+
+    // Generate combined filename: "ProjectName - T-001 - 2026-02-23.pdf"
+    const dateStr = new Date().toISOString().split('T')[0]
+    const firstTransmittalNumber = createdTransmittalNumbers[0] || 'T-001'
+    const combinedFilename = `${project.name} - ${firstTransmittalNumber} - ${dateStr}.pdf`
+
+    const { pdfAttachment, nonPdfAttachments } = await stampAndMergePdfs(
+      stampableAttachments,
+      combinedFilename
+    )
+
+    // Build final attachments list for email
+    const finalAttachments: Array<{ filename: string; content: string; contentType: string }> = []
+    if (pdfAttachment) finalAttachments.push(pdfAttachment)
+    finalAttachments.push(...nonPdfAttachments)
+
     // ── Step 3: Send emails and update transmittals ──
     const org = project.organization
     const companyName = org?.businessName || org?.name || ''
@@ -360,13 +400,6 @@ export async function POST(
     const companyEmail = org?.businessEmail || ''
     const companyPhone = org?.businessPhone || ''
     const itemCount = files.length
-
-    // Fetch created drawings for email table
-    const createdDrawings = await prisma.projectDrawing.findMany({
-      where: { id: { in: createdDrawingIds } },
-      include: { section: { select: { name: true, shortName: true } } },
-      orderBy: { drawingNumber: 'asc' },
-    })
 
     // Build a map from drawing ID to original file payload for reliable lookup
     const drawingIdToFile = new Map<string, FilePayload>()
@@ -405,7 +438,7 @@ export async function POST(
          </div>`
       : ''
 
-    const attachmentText = `${attachments.length} file${attachments.length !== 1 ? 's' : ''} attached`
+    const attachmentText = `${finalAttachments.length} file${finalAttachments.length !== 1 ? 's' : ''} attached`
 
     let emailsSent = 0
 
@@ -497,7 +530,7 @@ export async function POST(
           to: recipient.email,
           subject: emailSubject,
           html,
-          attachments: attachments.length > 0 ? attachments : undefined,
+          attachments: finalAttachments.length > 0 ? finalAttachments : undefined,
         })
 
         // Update transmittal to SENT
@@ -512,7 +545,7 @@ export async function POST(
         })
 
         emailsSent++
-        console.log(`[send-files] ✅ Email sent to ${recipient.email} (${attachments.length} attachments)`)
+        console.log(`[send-files] ✅ Email sent to ${recipient.email} (${finalAttachments.length} attachments)`)
       } catch (err: any) {
         console.error(`[send-files] ❌ Failed to send to ${recipient.email}:`, err?.message)
         errors.push(`Failed to send to ${recipient.email}: ${err?.message || 'Unknown error'}`)

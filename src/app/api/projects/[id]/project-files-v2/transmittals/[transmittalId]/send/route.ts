@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email-service'
 import { dropboxService } from '@/lib/dropbox-service-v2'
 import { getBaseUrl } from '@/lib/get-base-url'
+import { stampAndMergePdfs, StampableAttachment } from '@/lib/pdf-merge'
 
 export const runtime = 'nodejs'
 
@@ -109,6 +110,7 @@ export async function POST(
 
     // Download PDF attachments from Dropbox and convert to base64 (same format as floorplan approval emails)
     const attachments: Array<{ filename: string; content: string; contentType: string }> = []
+    const itemForAttachment: Array<typeof transmittal.items[number]> = []
     const attachmentErrors: string[] = []
 
     for (const item of transmittal.items) {
@@ -131,6 +133,7 @@ export async function POST(
             content: base64Content,
             contentType: 'application/pdf'
           })
+          itemForAttachment.push(item)
           console.log(`[transmittal/send] ✅ Attached: ${filename} (${pdfBuffer.length} bytes)`)
         } catch (err: any) {
           const errMsg = `Failed to download ${item.drawing.drawingNumber} from "${absolutePath}": ${err?.message || err}`
@@ -149,6 +152,30 @@ export async function POST(
     }
 
     console.log(`[transmittal/send] Result: ${attachments.length} attachments ready, ${attachmentErrors.length} errors`)
+
+    // ── Stamp & merge PDFs into a single combined attachment ──
+    const stampableAttachments: StampableAttachment[] = attachments.map((att, i) => {
+      const item = itemForAttachment[i]
+      const rev = item?.revision?.revisionNumber ?? item?.revisionNumber
+      return {
+        ...att,
+        drawingNumber: item?.drawing.drawingNumber,
+        revisionNumber: rev ?? undefined,
+        title: item?.drawing.title,
+      }
+    })
+
+    const mergeDateStr = new Date().toISOString().split('T')[0]
+    const combinedFilename = `${project.name} - ${transmittal.transmittalNumber} - ${mergeDateStr}.pdf`
+
+    const { pdfAttachment, nonPdfAttachments } = await stampAndMergePdfs(
+      stampableAttachments,
+      combinedFilename
+    )
+
+    const finalAttachments: Array<{ filename: string; content: string; contentType: string }> = []
+    if (pdfAttachment) finalAttachments.push(pdfAttachment)
+    finalAttachments.push(...nonPdfAttachments)
 
     // Build org info
     const org = project.organization
@@ -201,8 +228,8 @@ export async function POST(
       : `Here are ${itemCount} drawings${purposeText ? ' ' + purposeText : ''} for <strong>${project.name}</strong>.`
 
     // Attachment info
-    const attachmentText = attachments.length > 0
-      ? `${attachments.length} PDF${attachments.length !== 1 ? 's' : ''} attached`
+    const attachmentText = finalAttachments.length > 0
+      ? `${finalAttachments.length} file${finalAttachments.length !== 1 ? 's' : ''} attached`
       : ''
 
     const html = `<!DOCTYPE html>
@@ -274,7 +301,7 @@ export async function POST(
       to: transmittal.recipientEmail,
       subject: emailSubject,
       html,
-      attachments: attachments.length > 0 ? attachments : undefined
+      attachments: finalAttachments.length > 0 ? finalAttachments : undefined
     })
 
     // Update transmittal status
