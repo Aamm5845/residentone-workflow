@@ -62,7 +62,9 @@ export async function POST(
                 section: { select: { id: true, name: true, shortName: true, color: true } },
                 drawingType: true,
                 dropboxPath: true,
-                dropboxUrl: true
+                dropboxUrl: true,
+                reviewNo: true,
+                pageNo: true,
               }
             },
             revision: {
@@ -196,115 +198,126 @@ export async function POST(
     const org = project.organization
     const companyName = org?.businessName || org?.name || ''
     const companyLogo = org?.logoUrl || 'https://app.meisnerinteriors.com/meisnerinteriorlogo.png'
+    const companyEmail = org?.businessEmail || ''
+    const companyPhone = org?.businessPhone || ''
     const firstName = transmittal.recipientName.split(' ')[0]
     const itemCount = transmittal.items.length
-    const sentDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    const sentDate = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
 
     // Tracking pixel URL
     const baseUrl = getBaseUrl()
     const trackingPixelUrl = `${baseUrl}/api/email-tracking/transmittal_${transmittalId}/pixel.png`
 
-    // Subject line - clean, no "Transmittal" word
+    // Subject line
     const emailSubject = transmittal.subject && transmittal.subject.trim() !== ''
       ? `${project.name} — ${transmittal.subject}`
-      : `${project.name} — Drawing${itemCount !== 1 ? 's' : ''}`
-
-    // Purpose text
-    const purposeText = transmittal.items[0]?.purpose
-      ? transmittal.items[0].purpose.replace(/_/g, ' ').toLowerCase()
-      : ''
+      : `${project.name} — Drawing Transmittal ${transmittal.transmittalNumber}`
 
     // Drawing list rows
     const drawingRows = transmittal.items
       .map((item) => {
-        const rev = item.revision
-          ? `Rev ${item.revisionNumber ?? item.revision.revisionNumber}`
-          : ''
-        const num = item.drawing.drawingNumber || ''
+        const rev = item.revision?.revisionNumber ?? item.revisionNumber ?? ''
         return `
           <tr>
-            <td style="padding: 10px 16px; color: #111827; font-size: 14px; font-weight: 500; border-bottom: 1px solid #f3f4f6;">${num}</td>
-            <td style="padding: 10px 16px; color: #374151; font-size: 14px; border-bottom: 1px solid #f3f4f6;">${item.drawing.title}</td>
-            <td style="padding: 10px 16px; color: #6b7280; font-size: 13px; text-align: center; border-bottom: 1px solid #f3f4f6;">${rev}</td>
+            <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 14px; color: #1e293b; font-weight: 500;">${item.drawing.title}</td>
+            <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 14px; color: #1e293b; font-weight: 500;">${item.drawing.section?.name || item.drawing.section?.shortName || ''}</td>
+            <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 14px; color: #1e293b; text-align: center;">${item.drawing.reviewNo || rev || ''}</td>
+            <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 14px; color: #1e293b; text-align: center;">${item.drawing.pageNo || '—'}</td>
           </tr>`
       })
       .join('')
 
     // Notes section
     const notesHtml = transmittal.notes
-      ? `<div style="background: #fefce8; border-left: 3px solid #eab308; padding: 12px 16px; margin-bottom: 32px; border-radius: 0 6px 6px 0;">
-           <p style="margin: 0; color: #713f12; font-size: 14px;">${transmittal.notes}</p>
+      ? `<div style="background: white; border-radius: 8px; border: 1px solid #e2e8f0; padding: 12px 16px; margin: 0 0 20px;">
+           <p style="margin: 0; font-size: 13px; color: #475569; line-height: 1.6;">${transmittal.notes}</p>
          </div>`
-      : ''
-
-    // Intro text
-    const introText = itemCount === 1
-      ? `Here's a drawing${purposeText ? ' ' + purposeText : ''} for <strong>${project.name}</strong>.`
-      : `Here are ${itemCount} drawings${purposeText ? ' ' + purposeText : ''} for <strong>${project.name}</strong>.`
-
-    // Attachment info
-    const attachmentText = finalAttachments.length > 0
-      ? `${finalAttachments.length} file${finalAttachments.length !== 1 ? 's' : ''} attached`
       : ''
 
     const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drawing Transmittal - ${companyName}</title>
 </head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f9fafb; line-height: 1.6;">
-    <div style="max-width: 560px; margin: 40px auto; background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-        <!-- Header -->
-        <div style="padding: 40px 40px 32px 40px; text-align: center; border-bottom: 1px solid #e5e7eb;">
+<body style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f1f5f9; margin: 0; padding: 24px 16px;">
+    <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.06);">
+
+        <!-- Header with Logo -->
+        <div style="background: #ffffff; padding: 28px 32px 20px; text-align: center; border-bottom: 2px solid #e2e8f0;">
             <img src="${companyLogo}"
                  alt="${companyName}"
-                 style="max-width: 220px; max-height: 80px; height: auto; margin-bottom: 24px;" />
-            <p style="margin: 0; color: #111827; font-size: 18px; font-weight: 600;">${project.name}</p>
-            <p style="margin: 6px 0 0 0; color: #6b7280; font-size: 14px;">${transmittal.transmittalNumber} &middot; ${sentDate}</p>
-            ${attachmentText ? `<p style="margin: 4px 0 0 0; color: #9ca3af; font-size: 13px;">${attachmentText}</p>` : ''}
+                 style="max-width: 180px; height: auto; margin-bottom: 8px;" />
+            <p style="margin: 0; color: #64748b; font-size: 13px; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;">Drawing Transmittal</p>
         </div>
 
-        <!-- Content -->
-        <div style="padding: 32px 40px;">
-            <p style="margin: 0 0 32px 0; color: #4b5563; font-size: 15px;">
-                Hi ${firstName}, ${introText}
+        <!-- Body -->
+        <div style="padding: 32px;">
+            <p style="font-size: 16px; color: #1e293b; margin: 0 0 6px; font-weight: 600;">Hi ${firstName},</p>
+            <p style="font-size: 15px; color: #475569; margin: 0 0 4px; line-height: 1.6;">
+                Please find attached ${itemCount === 1 ? 'a drawing' : `${itemCount} drawings`} for <strong style="color: #1e293b;">${project.name}</strong>. The drawings are included as a combined PDF attachment to this email.
             </p>
+
+            <!-- Transmittal Details Card -->
+            <div style="background: #f8fafc; border-radius: 12px; padding: 24px; margin: 20px 0; border: 1px solid #e2e8f0;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding: 6px 0; font-size: 14px; color: #64748b; width: 110px; vertical-align: top;">Transmittal</td>
+                        <td style="padding: 6px 0; font-size: 14px; color: #1e293b; font-weight: 500;">${transmittal.transmittalNumber}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 6px 0; font-size: 14px; color: #64748b; vertical-align: top;">Date</td>
+                        <td style="padding: 6px 0; font-size: 14px; color: #1e293b; font-weight: 500;">${sentDate}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 6px 0; font-size: 14px; color: #64748b; vertical-align: top;">Project</td>
+                        <td style="padding: 6px 0; font-size: 14px; color: #1e293b; font-weight: 500;">${project.name}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 6px 0; font-size: 14px; color: #64748b; vertical-align: top;">To</td>
+                        <td style="padding: 6px 0; font-size: 14px; color: #1e293b; font-weight: 500;">${transmittal.recipientName}${transmittal.recipientCompany ? ` <span style="color: #64748b; font-weight: 400;">— ${transmittal.recipientCompany}</span>` : ''}</td>
+                    </tr>
+                </table>
+            </div>
 
             ${notesHtml}
 
-            <!-- Drawings Table -->
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 32px;">
-                <thead>
-                    <tr style="border-bottom: 2px solid #e5e7eb;">
-                        <th style="padding: 8px 16px; text-align: left; color: #6b7280; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">No.</th>
-                        <th style="padding: 8px 16px; text-align: left; color: #6b7280; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Drawing</th>
-                        <th style="padding: 8px 16px; text-align: center; color: #6b7280; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Rev</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${drawingRows}
-                </tbody>
-            </table>
+            <!-- Drawings List -->
+            <p style="margin: 0 0 8px; font-size: 13px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">
+                Drawings · ${itemCount}
+            </p>
+            <div style="background: white; border-radius: 10px; border: 1px solid #e2e8f0; overflow: hidden; margin-bottom: 20px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #f8fafc;">
+                            <th style="padding: 8px 16px; text-align: left; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">Title</th>
+                            <th style="padding: 8px 16px; text-align: left; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">Section</th>
+                            <th style="padding: 8px 16px; text-align: center; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">Review</th>
+                            <th style="padding: 8px 16px; text-align: center; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">Page</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${drawingRows}
+                    </tbody>
+                </table>
+            </div>
 
-            <p style="margin: 0; color: #9ca3af; font-size: 13px; text-align: center;">
-                Drawings are included as PDF attachments to this email.
+            <p style="font-size: 13px; color: #94a3b8; margin: 16px 0 0; line-height: 1.5; text-align: center;">
+                If you have any questions, please don't hesitate to reach out.
             </p>
         </div>
 
         <!-- Footer -->
-        <div style="border-top: 1px solid #e5e7eb; padding: 24px 40px; text-align: center;">
-            <p style="margin: 0 0 4px 0; color: #374151; font-size: 14px; font-weight: 500;">${companyName}</p>
-            ${org?.businessEmail ? `<p style="margin: 0; color: #6b7280; font-size: 13px;">${org.businessEmail}</p>` : ''}
-            ${org?.businessPhone ? `<p style="margin: 0; color: #6b7280; font-size: 13px;">${org.businessPhone}</p>` : ''}
+        <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px 32px; text-align: center;">
+            <div style="color: #1e293b; font-size: 14px; font-weight: 600; margin-bottom: 8px;">${companyName}</div>
+            <div style="margin-bottom: 8px;">
+                ${companyEmail ? `<a href="mailto:${companyEmail}" style="color: #2563eb; text-decoration: none; font-size: 12px;">${companyEmail}</a>` : ''}
+                ${companyEmail && companyPhone ? `<span style="color: #cbd5e1; margin: 0 6px;">·</span>` : ''}
+                ${companyPhone ? `<a href="tel:${companyPhone.replace(/[^+\d]/g, '')}" style="color: #2563eb; text-decoration: none; font-size: 12px;">${companyPhone}</a>` : ''}
+            </div>
+            <p style="margin: 0; color: #94a3b8; font-size: 11px;">&copy; ${new Date().getFullYear()} ${companyName}. All rights reserved.</p>
         </div>
-    </div>
-
-    <!-- Bottom note -->
-    <div style="max-width: 560px; margin: 16px auto 40px auto; text-align: center;">
-        <p style="margin: 0; color: #9ca3af; font-size: 12px;">
-            &copy; ${new Date().getFullYear()} ${companyName}. All rights reserved.
-        </p>
     </div>
     <!-- Tracking pixel -->
     <img src="${trackingPixelUrl}" width="1" height="1" alt="" style="display:none;width:1px;height:1px;border:0;" />
