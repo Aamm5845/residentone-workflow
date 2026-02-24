@@ -8,9 +8,6 @@ import {
   X,
   Calendar,
   Filter,
-  ChevronDown,
-  ChevronRight,
-  ExternalLink,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -44,29 +41,14 @@ interface ReceivedFileData {
   creator: { id: string; name: string | null } | null
 }
 
-interface SenderGroup {
-  senderName: string
-  senderCompany: string | null
-  senderType: string | null
-  files: ReceivedFileData[]
-  latestDate: string
-}
-
 interface ReceivedFilesLogProps {
   receivedFiles: ReceivedFileData[]
   isLoading: boolean
   onReceiveNew: () => void
+  onOpenInFiles?: (folderPath: string) => void
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-
-function formatDate(date: string): string {
-  return new Date(date).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
 
 function formatDateTime(date: string): { date: string; time: string } {
   const d = new Date(date)
@@ -91,9 +73,9 @@ export default function ReceivedFilesLog({
   receivedFiles,
   isLoading,
   onReceiveNew,
+  onOpenInFiles,
 }: ReceivedFilesLogProps) {
   // ── State ──────────────────────────────────────────────────────────────
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const [filterSearch, setFilterSearch] = useState('')
   const [filterDateFrom, setFilterDateFrom] = useState('')
   const [filterDateTo, setFilterDateTo] = useState('')
@@ -106,16 +88,6 @@ export default function ReceivedFilesLog({
     setFilterDateTo('')
   }, [])
 
-  const toggleExpand = useCallback((key: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    setExpandedRows((prev) => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      return next
-    })
-  }, [])
-
   // ── Filter received files ─────────────────────────────────────────────
   const filteredFiles = useMemo(() => {
     return receivedFiles.filter((rf) => {
@@ -124,8 +96,8 @@ export default function ReceivedFilesLog({
         const senderMatch = rf.senderName.toLowerCase().includes(q)
         const companyMatch = rf.senderCompany?.toLowerCase().includes(q) ?? false
         const titleMatch = rf.title.toLowerCase().includes(q)
-        const drawingMatch = rf.drawing?.drawingNumber.toLowerCase().includes(q) ?? false
-        if (!senderMatch && !companyMatch && !titleMatch && !drawingMatch) return false
+        const fileMatch = rf.fileName.toLowerCase().includes(q)
+        if (!senderMatch && !companyMatch && !titleMatch && !fileMatch) return false
       }
       if (filterDateFrom) {
         if (new Date(rf.receivedDate) < new Date(filterDateFrom)) return false
@@ -139,33 +111,10 @@ export default function ReceivedFilesLog({
     })
   }, [receivedFiles, filterSearch, filterDateFrom, filterDateTo])
 
-  // ── Group by sender ───────────────────────────────────────────────────
-  const senderGroups = useMemo(() => {
-    const groups = new Map<string, SenderGroup>()
-    for (const rf of filteredFiles) {
-      const key = rf.senderName
-      if (!groups.has(key)) {
-        groups.set(key, {
-          senderName: rf.senderName,
-          senderCompany: rf.senderCompany,
-          senderType: rf.senderType,
-          files: [],
-          latestDate: rf.receivedDate,
-        })
-      }
-      const group = groups.get(key)!
-      group.files.push(rf)
-      if (new Date(rf.receivedDate) > new Date(group.latestDate)) {
-        group.latestDate = rf.receivedDate
-      }
-    }
-    // Sort files within each group by date DESC
-    for (const group of groups.values()) {
-      group.files.sort((a, b) => new Date(b.receivedDate).getTime() - new Date(a.receivedDate).getTime())
-    }
-    // Sort groups by most recent date first
-    return Array.from(groups.values()).sort(
-      (a, b) => new Date(b.latestDate).getTime() - new Date(a.latestDate).getTime()
+  // ── Sort by received date descending ──────────────────────────────────
+  const sortedFiles = useMemo(() => {
+    return [...filteredFiles].sort(
+      (a, b) => new Date(b.receivedDate).getTime() - new Date(a.receivedDate).getTime()
     )
   }, [filteredFiles])
 
@@ -184,7 +133,7 @@ export default function ReceivedFilesLog({
           <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-3">
             <div className="h-4 w-full animate-pulse rounded bg-slate-200" />
           </div>
-          {[1, 2, 3, 4].map((i) => (
+          {[1, 2, 3, 4, 5].map((i) => (
             <div key={i} className="border-b border-slate-100 px-4 py-3.5">
               <div className="h-4 w-full animate-pulse rounded bg-slate-100" />
             </div>
@@ -230,8 +179,7 @@ export default function ReceivedFilesLog({
         <div className="flex items-center gap-3">
           <h2 className="text-lg font-semibold tracking-tight text-slate-900">Received Files</h2>
           <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
-            {senderGroups.length} {senderGroups.length === 1 ? 'sender' : 'senders'}
-            {hasActiveFilters ? ` (${filteredFiles.length} files)` : ''}
+            {filteredFiles.length}{hasActiveFilters ? ` / ${receivedFiles.length}` : ''}
           </span>
         </div>
         <button
@@ -243,37 +191,35 @@ export default function ReceivedFilesLog({
       </div>
 
       {/* ── Filter bar ──────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3">
-        <Filter className="w-4 h-4 text-slate-400 shrink-0" />
-
+      <div className="flex flex-wrap items-center gap-2.5">
+        {/* Search */}
         <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
             placeholder="Search sender, title..."
             value={filterSearch}
             onChange={(e) => setFilterSearch(e.target.value)}
-            className="h-8 w-52 rounded-xl border border-slate-200 bg-white pl-8 pr-7 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300"
+            className="h-9 w-56 rounded-lg border border-slate-200 bg-white pl-9 pr-8 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300"
           />
           {filterSearch && (
             <button
               onClick={() => setFilterSearch('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
             >
               <X className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
 
-        <div className="w-px h-5 bg-slate-200" />
-
+        {/* Date range */}
         <div className="flex items-center gap-1.5">
           <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
           <input
             type="date"
             value={filterDateFrom}
             onChange={(e) => setFilterDateFrom(e.target.value)}
-            className="h-8 rounded-xl border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300"
+            className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300"
             title="From date"
           />
           <span className="text-xs text-slate-400">to</span>
@@ -281,19 +227,35 @@ export default function ReceivedFilesLog({
             type="date"
             value={filterDateTo}
             onChange={(e) => setFilterDateTo(e.target.value)}
-            className="h-8 rounded-xl border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300"
+            className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300"
             title="To date"
           />
         </div>
 
         {hasActiveFilters && (
-          <button
-            onClick={clearAllFilters}
-            className="ml-auto flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800 transition-colors"
-          >
-            <X className="w-3 h-3" />
-            Clear
-          </button>
+          <>
+            <div className="w-px h-5 bg-slate-200" />
+            {(filterDateFrom || filterDateTo) && (
+              <span className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-slate-100 text-xs font-medium text-slate-700">
+                <Calendar className="h-3 w-3 text-slate-400" />
+                {filterDateFrom && filterDateTo
+                  ? `${filterDateFrom} – ${filterDateTo}`
+                  : filterDateFrom
+                    ? `From ${filterDateFrom}`
+                    : `To ${filterDateTo}`}
+                <button onClick={() => { setFilterDateFrom(''); setFilterDateTo('') }} className="text-slate-400 hover:text-slate-600">
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            )}
+            <button
+              onClick={clearAllFilters}
+              className="ml-auto flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800 transition-colors"
+            >
+              <X className="w-3 h-3" />
+              Clear all
+            </button>
+          </>
         )}
       </div>
 
@@ -316,37 +278,106 @@ export default function ReceivedFilesLog({
         </div>
       )}
 
-      {/* ── Grouped table ──────────────────────────────────────────── */}
-      {senderGroups.length > 0 && (
+      {/* ── Flat table — one row per received file ──────────────────── */}
+      {sortedFiles.length > 0 && (
         <div className="w-full overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/80">
-                <th className="w-[40px] px-2 py-3" />
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 w-[180px]">
-                  Sender
-                </th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 w-[150px]">
-                  Company
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                  Title
                 </th>
                 <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 w-[100px]">
-                  Files
+                  Section
                 </th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 w-[140px]">
-                  Latest
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 w-[160px]">
+                  Sender
+                </th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 w-[110px]">
+                  Logged By
+                </th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 w-[130px]">
+                  Received
+                </th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 w-[60px]">
+                  File
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {senderGroups.map((group) => {
-                const isExpanded = expandedRows.has(group.senderName)
+              {sortedFiles.map((rf) => {
+                const dt = formatDateTime(rf.receivedDate)
+                const filePath = rf.dropboxPath || rf.drawing?.dropboxPath || null
                 return (
-                  <SenderGroupRow
-                    key={group.senderName}
-                    group={group}
-                    isExpanded={isExpanded}
-                    onToggleExpand={toggleExpand}
-                  />
+                  <tr key={rf.id} className="transition-colors hover:bg-slate-50/70 align-top">
+                    {/* Title */}
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-sm text-slate-900 truncate">{rf.title}</span>
+                        {rf.notes && (
+                          <span className="text-xs text-slate-400 truncate mt-0.5 italic">
+                            {rf.notes}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Section */}
+                    <td className="px-4 py-3">
+                      {rf.section ? (
+                        <span className={cn(
+                          'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium',
+                          'bg-slate-50 text-slate-700 ring-1 ring-slate-200'
+                        )}>
+                          <span className={cn('h-1.5 w-1.5 rounded-full', rf.section.color || 'bg-slate-400')} />
+                          {rf.section.shortName}
+                        </span>
+                      ) : (
+                        <span className="text-slate-300">&mdash;</span>
+                      )}
+                    </td>
+
+                    {/* Sender */}
+                    <td className="px-4 py-3">
+                      <span className="text-sm text-slate-700">{rf.senderName}</span>
+                      {rf.senderCompany && (
+                        <span className="block text-xs text-slate-400">{rf.senderCompany}</span>
+                      )}
+                    </td>
+
+                    {/* Logged By */}
+                    <td className="px-4 py-3">
+                      {rf.creator?.name ? (
+                        <span className="text-sm text-slate-600">{rf.creator.name}</span>
+                      ) : (
+                        <span className="text-slate-300">&mdash;</span>
+                      )}
+                    </td>
+
+                    {/* Received date */}
+                    <td className="px-4 py-3">
+                      <div>
+                        <span className="text-sm text-slate-700">{dt.date}</span>
+                        <span className="block text-xs text-slate-400">{dt.time}</span>
+                      </div>
+                    </td>
+
+                    {/* Open in All Files */}
+                    <td className="px-4 py-3">
+                      {(() => {
+                        if (!filePath || !onOpenInFiles) return <span className="text-slate-300">&mdash;</span>
+                        const folder = filePath.split('/').slice(0, -1).join('/')
+                        return (
+                          <button
+                            onClick={() => onOpenInFiles(folder)}
+                            className="text-xs text-blue-600 hover:text-blue-800 transition-colors"
+                          >
+                            Open
+                          </button>
+                        )
+                      })()}
+                    </td>
+                  </tr>
                 )
               })}
             </tbody>
@@ -354,173 +385,5 @@ export default function ReceivedFilesLog({
         </div>
       )}
     </div>
-  )
-}
-
-// ─── Sender group row sub-component ─────────────────────────────────────────
-
-function SenderGroupRow({
-  group,
-  isExpanded,
-  onToggleExpand,
-}: {
-  group: SenderGroup
-  isExpanded: boolean
-  onToggleExpand: (key: string, e: React.MouseEvent) => void
-}) {
-  return (
-    <>
-      {/* Main sender row */}
-      <tr
-        className="cursor-pointer transition-colors hover:bg-slate-50/70"
-        onClick={(e) => onToggleExpand(group.senderName, e)}
-      >
-        {/* Expand toggle */}
-        <td className="px-2 py-3">
-          <button
-            onClick={(e) => onToggleExpand(group.senderName, e)}
-            className="flex h-6 w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-          >
-            {isExpanded ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
-          </button>
-        </td>
-
-        {/* Sender */}
-        <td className="px-4 py-3">
-          <div className="truncate max-w-[170px]">
-            {group.senderType && SENDER_TYPE_LABELS[group.senderType] ? (
-              <>
-                <span className="text-xs text-slate-400">{SENDER_TYPE_LABELS[group.senderType]}</span>
-                <span className="text-xs text-slate-300 mx-1">&ndash;</span>
-              </>
-            ) : null}
-            <span className="text-sm font-medium text-slate-900">{group.senderName}</span>
-          </div>
-        </td>
-
-        {/* Company */}
-        <td className="px-4 py-3">
-          {group.senderCompany ? (
-            <span className="text-sm text-slate-600 truncate max-w-[140px] block">
-              {group.senderCompany}
-            </span>
-          ) : (
-            <span className="text-slate-300">&mdash;</span>
-          )}
-        </td>
-
-        {/* Files count */}
-        <td className="px-4 py-3">
-          <span className="inline-flex items-center rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
-            {group.files.length} {group.files.length === 1 ? 'file' : 'files'}
-          </span>
-        </td>
-
-        {/* Latest date */}
-        <td className="px-4 py-3">
-          <span className="text-sm text-slate-700">{formatDate(group.latestDate)}</span>
-        </td>
-      </tr>
-
-      {/* Expanded file rows */}
-      {isExpanded && group.files.length > 0 && (
-        <tr>
-          <td colSpan={5} className="bg-slate-50/50 px-0 py-0">
-            <div className="px-12 py-3">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="text-left text-[11px] uppercase tracking-[0.12em] text-slate-400">
-                    <th className="pb-2 pr-4 font-semibold w-[120px]">Received</th>
-                    <th className="pb-2 pr-4 font-semibold">Title</th>
-                    <th className="pb-2 pr-4 font-semibold w-[90px]">Section</th>
-                    <th className="pb-2 pr-4 font-semibold w-[100px]">Logged By</th>
-                    <th className="pb-2 font-semibold w-[60px]">File</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {group.files.map((rf) => {
-                    const dt = formatDateTime(rf.receivedDate)
-                    return (
-                      <tr key={rf.id}>
-                        {/* Date */}
-                        <td className="py-2 pr-4">
-                          <div>
-                            <span className="text-slate-700 block">{dt.date}</span>
-                            <span className="text-[10px] text-slate-400">{dt.time}</span>
-                          </div>
-                        </td>
-
-                        {/* Title + notes */}
-                        <td className="py-2 pr-4">
-                          <div className="flex flex-col min-w-0">
-                            <span className="font-medium text-slate-800 truncate">{rf.title}</span>
-                            {rf.notes && (
-                              <span className="text-[10px] text-slate-400 truncate mt-0.5 italic">
-                                {rf.notes}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-
-                        {/* Section */}
-                        <td className="py-2 pr-4">
-                          {rf.section ? (
-                            <span className={cn(
-                              'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium',
-                              'bg-slate-50 text-slate-700 ring-1 ring-slate-200'
-                            )}>
-                              <span className={cn('h-1.5 w-1.5 rounded-full', rf.section.color || 'bg-slate-400')} />
-                              {rf.section.shortName}
-                            </span>
-                          ) : (
-                            <span className="text-slate-300">&mdash;</span>
-                          )}
-                        </td>
-
-                        {/* Logged By */}
-                        <td className="py-2 pr-4">
-                          {rf.creator?.name ? (
-                            <span className="text-slate-600 truncate max-w-[90px] block">
-                              {rf.creator.name}
-                            </span>
-                          ) : (
-                            <span className="text-slate-300">&mdash;</span>
-                          )}
-                        </td>
-
-                        {/* File link */}
-                        <td className="py-2">
-                          {(() => {
-                            const fileUrl = rf.drawing?.dropboxUrl || rf.dropboxUrl || null
-                            return fileUrl ? (
-                              <a
-                                href={fileUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
-                              >
-                                <ExternalLink className="h-3 w-3" />
-                                Open
-                              </a>
-                            ) : (
-                              <span className="text-slate-300">&mdash;</span>
-                            )
-                          })()}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </td>
-        </tr>
-      )}
-    </>
   )
 }

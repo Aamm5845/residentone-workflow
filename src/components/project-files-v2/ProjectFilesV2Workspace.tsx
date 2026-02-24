@@ -517,6 +517,10 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
               receivedFiles={receivedFiles}
               isLoading={receivedLoading}
               onReceiveNew={() => setShowReceiveFile(true)}
+              onOpenInFiles={(folderPath) => {
+                setAllFilesNavigatePath(folderPath)
+                setActiveTab('all-files')
+              }}
             />
           </TabsContent>
         </Tabs>
