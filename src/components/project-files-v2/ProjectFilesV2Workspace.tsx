@@ -359,39 +359,6 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
               projectId={project.id}
               dropboxFolder={project.dropboxFolder}
               navigateToPath={allFilesNavigatePath}
-              drawings={drawings.map((d: any) => ({
-                id: d.id,
-                drawingNumber: d.drawingNumber,
-                title: d.title,
-                dropboxPath: d.dropboxPath,
-              }))}
-              onRegisterAsDrawing={(file) => {
-                // Extract drawing number and title from filename
-                const nameWithoutExt = file.name.replace(/\.pdf$/i, '')
-                const match = nameWithoutExt.match(/^([A-Z0-9][\w.-]*)[\s_-]+(.+)$/i)
-                setPrefillDrawing({
-                  dropboxPath: file.path,
-                  fileName: file.name,
-                  fileSize: file.size,
-                  drawingNumber: match ? match[1] : '',
-                  title: match ? match[2].replace(/_/g, ' ') : nameWithoutExt,
-                })
-                setShowAddDrawing(true)
-              }}
-              onSendTransmittal={(drawingInfo) => {
-                const found = drawings.find((d: any) => d.id === drawingInfo.id)
-                if (found && found.dropboxPath) {
-                  const fileName = found.dropboxPath.split('/').pop() || found.drawingNumber || 'file.pdf'
-                  setSendFileInitialFiles([{
-                    name: fileName,
-                    dropboxPath: found.dropboxPath,
-                    size: 0,
-                    title: found.title || drawingInfo.title,
-                    sectionId: found.sectionId || undefined,
-                  }])
-                  setShowSendFile(true)
-                }
-              }}
             />
           </TabsContent>
 

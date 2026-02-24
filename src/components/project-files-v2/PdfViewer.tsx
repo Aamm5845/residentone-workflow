@@ -18,8 +18,6 @@ import {
   RefreshCw,
   CheckCircle2,
   ChevronDown,
-  Plus,
-  Send,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -45,34 +43,12 @@ interface PdfFile {
   thumbnailUrl?: string
 }
 
-interface DrawingInfo {
-  id: string
-  drawingNumber: string
-  title: string
-}
-
-interface DrawingActivity {
-  transmittals: Array<{
-    id: string
-    transmittalNumber: string
-    recipientName: string
-    recipientCompany: string | null
-    sentAt: string | null
-    emailOpenedAt: string | null
-    method: string | null
-  }>
-}
-
 interface PdfViewerProps {
   file: PdfFile
   allPdfFiles: PdfFile[]
   onSelectFile: (file: PdfFile) => void
   onClose: () => void
   onDownload: (file: PdfFile) => void
-  onRegisterAsDrawing?: (file: PdfFile) => void
-  onSendTransmittal?: (drawingInfo: DrawingInfo) => void
-  drawingInfo?: DrawingInfo | null
-  drawingActivity?: DrawingActivity | null
 }
 
 // ---------------------------------------------------------------------------
@@ -161,10 +137,6 @@ export default function PdfViewer({
   onSelectFile,
   onClose,
   onDownload,
-  onRegisterAsDrawing,
-  onSendTransmittal,
-  drawingInfo,
-  drawingActivity,
 }: PdfViewerProps) {
   const [numPages, setNumPages] = useState<number>(0)
   const [pageNumber, setPageNumber] = useState(1)
@@ -594,16 +566,10 @@ export default function PdfViewer({
                   </span>
                 </div>
 
-                {/* Number / ID */}
+                {/* Filename */}
                 <div>
-                  <label className="text-xs font-medium text-blue-600 mb-1 block">Number</label>
-                  <p className="text-sm text-gray-900 font-medium">{drawingInfo ? drawingInfo.drawingNumber : extractDrawingId(file.name)}</p>
-                </div>
-
-                {/* Title */}
-                <div>
-                  <label className="text-xs font-medium text-blue-600 mb-1 block">Title</label>
-                  <p className="text-sm text-gray-900">{drawingInfo ? drawingInfo.title : extractTitle(file.name)}</p>
+                  <label className="text-xs font-medium text-blue-600 mb-1 block">Name</label>
+                  <p className="text-sm text-gray-900 font-medium">{file.name}</p>
                 </div>
 
                 {/* Pages */}
@@ -614,9 +580,9 @@ export default function PdfViewer({
                   </div>
                 )}
 
-                {/* Rev. date */}
+                {/* Date */}
                 <div>
-                  <label className="text-xs font-medium text-blue-600 mb-1 block">Rev. date</label>
+                  <label className="text-xs font-medium text-blue-600 mb-1 block">Date</label>
                   <p className="text-sm text-gray-900">{formatDate(file.lastModified)}</p>
                 </div>
 
@@ -626,97 +592,23 @@ export default function PdfViewer({
                   <p className="text-sm text-gray-900">{formatFileSize(file.size)}</p>
                 </div>
 
-                {/* Path */}
+                {/* Location */}
                 <div>
                   <label className="text-xs font-medium text-blue-600 mb-1 block">Location</label>
                   <p className="text-xs text-gray-500 break-all leading-relaxed">{file.path}</p>
                 </div>
-
-                {/* Drawing Register info */}
-                {drawingInfo && (
-                  <div className="pt-3 mt-3 border-t border-gray-100">
-                    <label className="text-xs font-medium text-emerald-600 mb-1 block">In Drawing Register</label>
-                    <p className="text-sm text-gray-900 font-medium">{drawingInfo.drawingNumber}</p>
-                    <p className="text-xs text-gray-500">{drawingInfo.title}</p>
-                  </div>
-                )}
-
-                {/* Sent History */}
-                {drawingActivity && drawingActivity.transmittals.length > 0 && (
-                  <div className="pt-3 mt-3 border-t border-gray-100">
-                    <label className="text-xs font-medium text-blue-600 mb-2 block">Sent History</label>
-                    <div className="space-y-1.5">
-                      {drawingActivity.transmittals.slice(0, 5).map((t) => (
-                        <div key={t.id} className="flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-1 min-w-0">
-                            <span className="font-mono text-gray-500">{t.transmittalNumber}</span>
-                            <span className="text-gray-400">&rarr;</span>
-                            <span className="text-gray-700 truncate">{t.recipientName}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                            {t.sentAt && (
-                              <span className="text-gray-400">{formatDate(t.sentAt)}</span>
-                            )}
-                            {t.emailOpenedAt ? (
-                              <span className="text-emerald-600">Opened</span>
-                            ) : t.method === 'EMAIL' && t.sentAt ? (
-                              <span className="text-gray-400">Not opened</span>
-                            ) : null}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
 
             {/* Action buttons */}
-            <div className="p-4 border-t border-gray-100 space-y-2">
-              {/* When file IS in Drawing Register — show Send + Download */}
-              {drawingInfo && onSendTransmittal && (
-                <button
-                  onClick={() => onSendTransmittal(drawingInfo)}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
-                >
-                  <Send className="w-4 h-4" />
-                  Send Drawing
-                </button>
-              )}
-
-              {/* Download */}
+            <div className="p-4 border-t border-gray-100">
               <button
                 onClick={() => onDownload(file)}
-                className={cn(
-                  'w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors',
-                  drawingInfo
-                    ? 'text-gray-700 bg-gray-100 hover:bg-gray-200'
-                    : 'text-white bg-blue-600 hover:bg-blue-700'
-                )}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
               >
                 <Download className="w-4 h-4" />
                 Download PDF
               </button>
-
-              {/* Register as Drawing — only when file is NOT in Drawing Register */}
-              {!drawingInfo && onRegisterAsDrawing && (
-                <>
-                  <div className="relative py-2">
-                    <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
-                    <div className="relative flex justify-center"><span className="bg-white px-2 text-[10px] text-gray-400">or</span></div>
-                  </div>
-                  <button
-                    onClick={() => onRegisterAsDrawing(file)}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors border border-emerald-200"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add to Drawing Register
-                  </button>
-                  <p className="text-[10px] text-gray-400 text-center leading-tight">
-                    Register this PDF to send transmittals and track revisions
-                  </p>
-                </>
-              )}
             </div>
           </div>
         )}

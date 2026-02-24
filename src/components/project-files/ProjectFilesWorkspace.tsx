@@ -261,31 +261,6 @@ export default function ProjectFilesWorkspace({ project }: { project: Project })
             <AllFilesBrowser
               projectId={project.id}
               dropboxFolder={project.dropboxFolder}
-              drawings={drawings.map((d: any) => ({
-                id: d.id,
-                drawingNumber: d.drawingNumber,
-                title: d.title,
-                dropboxPath: d.dropboxPath,
-              }))}
-              onRegisterAsDrawing={(file) => {
-                const nameWithoutExt = file.name.replace(/\.pdf$/i, '')
-                const match = nameWithoutExt.match(/^([A-Z0-9][\w.-]*)[\s_-]+(.+)$/i)
-                setPrefillDrawing({
-                  dropboxPath: file.path,
-                  fileName: file.name,
-                  fileSize: file.size,
-                  drawingNumber: match ? match[1] : '',
-                  title: match ? match[2].replace(/_/g, ' ') : nameWithoutExt,
-                })
-                setShowAddDrawing(true)
-              }}
-              onSendTransmittal={(drawingInfo) => {
-                const found = drawings.find((d: any) => d.id === drawingInfo.id)
-                if (found) {
-                  setTransmittalPreSelectedDrawings([found])
-                  setShowNewTransmittal(true)
-                }
-              }}
             />
           </TabsContent>
 
