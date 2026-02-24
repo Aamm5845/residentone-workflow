@@ -696,8 +696,38 @@ export default function TransmittalLog({
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredRows.map((t) => {
-                const firstItem = t.items[0]
-                const hasMultiple = t.items.length > 1
+                // Group items by title+section+review so identical drawings collapse into one line with pages listed
+                const grouped: Array<{
+                  key: string
+                  title: string
+                  section: string
+                  review: string
+                  pages: string[]
+                }> = []
+                // Sort items by pageNo first
+                const sortedItems = [...t.items].sort((a, b) => {
+                  const pa = a.drawing.pageNo || ''
+                  const pb = b.drawing.pageNo || ''
+                  return pa.localeCompare(pb, undefined, { numeric: true })
+                })
+                for (const item of sortedItems) {
+                  const rev = item.drawing.reviewNo || (item.revision?.revisionNumber ?? item.revisionNumber)
+                  const revStr = rev != null && rev !== '' ? String(rev) : ''
+                  const sectionName = item.drawing.section?.name || ''
+                  const groupKey = `${item.drawing.title}|${sectionName}|${revStr}`
+                  const existing = grouped.find((g) => g.key === groupKey)
+                  if (existing) {
+                    if (item.drawing.pageNo) existing.pages.push(item.drawing.pageNo)
+                  } else {
+                    grouped.push({
+                      key: groupKey,
+                      title: item.drawing.title,
+                      section: sectionName,
+                      review: revStr,
+                      pages: item.drawing.pageNo ? [item.drawing.pageNo] : [],
+                    })
+                  }
+                }
                 return (
                   <tr key={t.id} className={cn('transition-colors hover:bg-slate-50/70 align-top', selectedIds.has(t.id) && 'bg-slate-50')}>
                     {/* Checkbox */}
@@ -715,41 +745,38 @@ export default function TransmittalLog({
                       <span className="font-mono text-xs text-slate-500">{t.transmittalNumber}</span>
                     </td>
 
-                    {/* Drawings — title per line, plain text */}
+                    {/* Drawings — grouped by title */}
                     <td className="px-4 py-3">
-                      {t.items.map((item) => (
-                        <div key={item.id} className="text-sm text-slate-900 leading-6 truncate">
-                          {item.drawing.title}
+                      {grouped.map((g) => (
+                        <div key={g.key} className="text-sm text-slate-900 leading-6 truncate">
+                          {g.title}
                         </div>
                       ))}
                     </td>
 
-                    {/* Section — one per line matching drawings */}
+                    {/* Section */}
                     <td className="px-4 py-3">
-                      {t.items.map((item) => (
-                        <div key={item.id} className="text-sm text-slate-500 leading-6 truncate">
-                          {item.drawing.section?.name || '—'}
+                      {grouped.map((g) => (
+                        <div key={g.key} className="text-sm text-slate-500 leading-6 truncate">
+                          {g.section || '—'}
                         </div>
                       ))}
                     </td>
 
-                    {/* Review — one per line matching drawings */}
+                    {/* Review */}
                     <td className="px-4 py-3">
-                      {t.items.map((item) => {
-                        const rev = item.drawing.reviewNo || (item.revision?.revisionNumber ?? item.revisionNumber)
-                        return (
-                          <div key={item.id} className="text-sm text-slate-500 leading-6">
-                            {rev != null && rev !== '' ? rev : '—'}
-                          </div>
-                        )
-                      })}
+                      {grouped.map((g) => (
+                        <div key={g.key} className="text-sm text-slate-500 leading-6">
+                          {g.review || '—'}
+                        </div>
+                      ))}
                     </td>
 
-                    {/* Page — one per line matching drawings */}
+                    {/* Page — comma-separated when grouped */}
                     <td className="px-4 py-3">
-                      {t.items.map((item) => (
-                        <div key={item.id} className="text-sm text-slate-500 leading-6">
-                          {item.drawing.pageNo || '—'}
+                      {grouped.map((g) => (
+                        <div key={g.key} className="text-sm text-slate-500 leading-6">
+                          {g.pages.length > 0 ? g.pages.join(', ') : '—'}
                         </div>
                       ))}
                     </td>

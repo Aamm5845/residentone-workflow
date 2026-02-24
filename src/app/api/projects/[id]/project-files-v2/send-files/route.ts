@@ -366,7 +366,7 @@ export async function POST(
     // Build a map from drawing ID → drawing record for quick lookup
     const drawingById = new Map(createdDrawings.map(d => [d.id, d]))
 
-    // Build stampable attachments enriched with drawing metadata
+    // Build stampable attachments enriched with drawing metadata, sorted by page number
     const stampableAttachments: StampableAttachment[] = attachments.map((att, i) => {
       const drawingId = createdDrawingIds[i]
       const drawing = drawingById.get(drawingId)
@@ -375,8 +375,12 @@ export async function POST(
         drawingNumber: drawing?.drawingNumber,
         revisionNumber: createdRevisionNumbers[i],
         title: drawing?.title,
+        _pageNo: drawing?.pageNo || '',
       }
     })
+    stampableAttachments.sort((a, b) =>
+      (a as any)._pageNo.localeCompare((b as any)._pageNo, undefined, { numeric: true })
+    )
 
     // Generate combined filename: "ProjectName - T-001 - 2026-02-23.pdf"
     const dateStr = new Date().toISOString().split('T')[0]
@@ -422,8 +426,11 @@ export async function POST(
       drawingIdToFile.set(createdDrawingIds[i], files[i])
     }
 
-    // Build drawing rows for email
-    const drawingRows = createdDrawings
+    // Build drawing rows for email (sorted by page number)
+    const sortedDrawings = [...createdDrawings].sort((a, b) =>
+      (a.pageNo || '').localeCompare(b.pageNo || '', undefined, { numeric: true })
+    )
+    const drawingRows = sortedDrawings
       .map((d) => {
         return `
           <tr>

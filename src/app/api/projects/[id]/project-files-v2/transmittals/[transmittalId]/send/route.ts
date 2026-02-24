@@ -154,9 +154,16 @@ export async function POST(
 
     console.log(`[transmittal/send] Result: ${attachments.length} attachments ready, ${attachmentErrors.length} errors`)
 
-    // ── Stamp & merge PDFs into a single combined attachment ──
-    const stampableAttachments: StampableAttachment[] = attachments.map((att, i) => {
-      const item = itemForAttachment[i]
+    // ── Stamp & merge PDFs into a single combined attachment (sorted by page number) ──
+    // Build pairs of attachment + item, sort by pageNo, then extract stampable data
+    const pairedAttachments = attachments.map((att, i) => ({
+      att,
+      item: itemForAttachment[i],
+    }))
+    pairedAttachments.sort((a, b) =>
+      (a.item?.drawing.pageNo || '').localeCompare(b.item?.drawing.pageNo || '', undefined, { numeric: true })
+    )
+    const stampableAttachments: StampableAttachment[] = pairedAttachments.map(({ att, item }) => {
       const rev = item?.revision?.revisionNumber ?? item?.revisionNumber
       return {
         ...att,
@@ -212,8 +219,11 @@ export async function POST(
       ? `${project.name} — ${transmittal.subject}`
       : `${project.name} — Drawing Transmittal ${transmittal.transmittalNumber}`
 
-    // Drawing list rows
-    const drawingRows = transmittal.items
+    // Drawing list rows (sorted by page number)
+    const sortedItems = [...transmittal.items].sort((a, b) =>
+      (a.drawing.pageNo || '').localeCompare(b.drawing.pageNo || '', undefined, { numeric: true })
+    )
+    const drawingRows = sortedItems
       .map((item) => {
         const rev = item.revision?.revisionNumber ?? item.revisionNumber ?? ''
         return `
