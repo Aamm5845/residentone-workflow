@@ -400,6 +400,7 @@ export default function ProjectFilesWorkspace({ project }: { project: Project })
       {viewTransmittal && (
         <TransmittalDetail
           transmittal={viewTransmittal}
+          projectId={project.id}
           onClose={() => setViewTransmittal(null)}
           onResend={() => { mutateTransmittals(); setViewTransmittal(null) }}
         />

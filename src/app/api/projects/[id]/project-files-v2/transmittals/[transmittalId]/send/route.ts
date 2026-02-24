@@ -173,6 +173,21 @@ export async function POST(
       combinedFilename
     )
 
+    // Upload combined PDF to Dropbox
+    let combinedPdfRelPath: string | null = null
+    if (pdfAttachment && project.dropboxFolder) {
+      try {
+        const pdfBuffer = Buffer.from(pdfAttachment.content, 'base64')
+        const dropboxAbsPath = `${project.dropboxFolder}/5- transmittals/${combinedFilename}`
+        console.log(`[transmittal/send] Uploading combined PDF to Dropbox: "${dropboxAbsPath}"`)
+        await dropboxService.uploadFile(dropboxAbsPath, pdfBuffer)
+        combinedPdfRelPath = `5- transmittals/${combinedFilename}`
+        console.log(`[transmittal/send] ✅ Combined PDF saved to Dropbox`)
+      } catch (err: any) {
+        console.error(`[transmittal/send] ⚠️ Failed to upload combined PDF to Dropbox:`, err?.message)
+      }
+    }
+
     const finalAttachments: Array<{ filename: string; content: string; contentType: string }> = []
     if (pdfAttachment) finalAttachments.push(pdfAttachment)
     finalAttachments.push(...nonPdfAttachments)
@@ -311,7 +326,8 @@ export async function POST(
         status: 'SENT',
         sentAt: new Date(),
         sentBy: session.user.id,
-        emailId: emailResult.messageId || null
+        emailId: emailResult.messageId || null,
+        combinedPdfPath: combinedPdfRelPath,
       },
       include: {
         items: {

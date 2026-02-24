@@ -56,6 +56,7 @@ interface TransmittalData {
   notes: string | null
   sentAt: string | null
   createdAt: string
+  combinedPdfPath: string | null
   creator: { id: string; name: string | null }
   sentByUser: { id: string; name: string | null } | null
   items: Array<{
@@ -79,6 +80,7 @@ interface TransmittalData {
 
 interface TransmittalDetailProps {
   transmittal: TransmittalData
+  projectId: string
   onClose: () => void
   onResend: () => void
 }
@@ -129,6 +131,7 @@ function getMethodIcon(method: string) {
 
 export default function TransmittalDetail({
   transmittal,
+  projectId,
   onClose,
   onResend,
 }: TransmittalDetailProps) {
@@ -359,10 +362,20 @@ export default function TransmittalDetail({
             Close
           </Button>
           <div className="flex items-center gap-2">
-            <Button variant="outline" disabled>
-              <Download className="h-4 w-4 mr-1.5" />
-              Download Cover Sheet
-            </Button>
+            {transmittal.combinedPdfPath && (
+              <Button
+                variant="outline"
+                onClick={() =>
+                  window.open(
+                    `/api/projects/${projectId}/project-files-v2/transmittals/${transmittal.id}/download`,
+                    '_blank'
+                  )
+                }
+              >
+                <Download className="h-4 w-4 mr-1.5" />
+                Download Combined PDF
+              </Button>
+            )}
             {canResend && (
               <Button onClick={onResend}>
                 <Send className="h-4 w-4 mr-1.5" />
