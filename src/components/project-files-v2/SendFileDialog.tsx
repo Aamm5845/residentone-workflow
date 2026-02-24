@@ -111,6 +111,7 @@ const SECTION_COLORS = [
 ]
 
 const PRESET_SECTIONS = [
+  { name: 'General', shortName: 'GEN', color: 'bg-gray-500' },
   { name: 'Floor Plan', shortName: 'FP', color: 'bg-blue-500' },
   { name: 'Electric Plan', shortName: 'EP', color: 'bg-amber-500' },
   { name: 'Plumbing Plan', shortName: 'PP', color: 'bg-green-500' },

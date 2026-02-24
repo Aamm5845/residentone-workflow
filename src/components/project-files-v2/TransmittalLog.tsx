@@ -351,15 +351,9 @@ export default function TransmittalLog({
             <Send className="w-8 h-8 text-slate-400" />
           </div>
           <h3 className="text-lg font-semibold text-slate-900 mb-1">Nothing sent yet</h3>
-          <p className="text-sm text-slate-500 max-w-sm mx-auto mb-4">
-            Send drawings to contractors, subs, or clients and track everything here.
+          <p className="text-sm text-slate-500 max-w-sm mx-auto">
+            Send files to contractors, subs, or clients and track everything here.
           </p>
-          <button
-            onClick={onCreateNew}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-slate-800 transition-colors"
-          >
-            <Plus className="w-4 h-4" /> Send Files
-          </button>
         </div>
       </div>
     )
