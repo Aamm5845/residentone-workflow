@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Plus, List, LayoutGrid, CheckSquare } from 'lucide-react'
+import { Plus, List, LayoutGrid, CheckSquare, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
 import TaskListView from '@/components/tasks/TaskListView'
 import TaskKanbanView from '@/components/tasks/TaskKanbanView'
-import TaskFilters from '@/components/tasks/TaskFilters'
+import TaskFilters, { type TaskFiltersState } from '@/components/tasks/TaskFilters'
 import CreateTaskDialog from '@/components/tasks/CreateTaskDialog'
 import QuickTaskInput from '@/components/tasks/QuickTaskInput'
 import type { TaskData, TaskUser, TaskStatus, TaskPriority } from '@/components/tasks/types'
@@ -50,14 +50,17 @@ export default function MyTasksContent({
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
 
   // Filters
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<TaskFiltersState>({
     status: '',
     priority: '',
     assigneeId: '',
     roomId: '',
     search: '',
-    projectId: ''
+    projectId: '',
+    sortBy: 'createdAt_desc'
   })
+
+  const [showCompleted, setShowCompleted] = useState(false)
 
   // Sync with URL
   useEffect(() => {
@@ -78,6 +81,12 @@ export default function MyTasksContent({
       if (filters.search) params.set('search', filters.search)
       if (filters.assigneeId) params.set('assigneeId', filters.assigneeId)
       if (filters.projectId) params.set('projectId', filters.projectId)
+
+      if (filters.sortBy) {
+        const [sortField, sortDir] = filters.sortBy.split('_')
+        params.set('sortBy', sortField)
+        params.set('sortOrder', sortDir || 'desc')
+      }
 
       const res = await fetch(`/api/tasks?${params.toString()}`)
       if (res.ok) {
@@ -165,7 +174,14 @@ export default function MyTasksContent({
     }
   }
 
-  // Stats
+  // Filter completed tasks
+  const completedCount = tasks.filter(t => t.status === 'DONE' || t.status === 'CANCELLED').length
+  const visibleTasks = useMemo(() => {
+    if (showCompleted) return tasks
+    return tasks.filter(t => t.status !== 'DONE' && t.status !== 'CANCELLED')
+  }, [tasks, showCompleted])
+
+  // Stats (always count from all tasks)
   const totalTasks = tasks.length
   const completedTasks = tasks.filter(t => t.status === 'DONE').length
   const overdueTasks = tasks.filter(t =>
@@ -196,6 +212,16 @@ export default function MyTasksContent({
                   {overdueTasks > 0 && (
                     <span className="text-xs text-red-600">{overdueTasks} overdue</span>
                   )}
+                  <button
+                    onClick={() => setShowCompleted(prev => !prev)}
+                    className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                  >
+                    {showCompleted ? (
+                      <><EyeOff className="h-3 w-3" /> Hide completed</>
+                    ) : (
+                      <><Eye className="h-3 w-3" /> Show completed ({completedCount})</>
+                    )}
+                  </button>
                 </div>
               </div>
             </div>
@@ -270,7 +296,7 @@ export default function MyTasksContent({
         ) : viewMode === 'list' ? (
           <div>
             <TaskListView
-              tasks={tasks}
+              tasks={visibleTasks}
               onTaskClick={handleTaskClick}
               onStatusChange={handleStatusChange}
               onPriorityChange={handlePriorityChange}
@@ -283,7 +309,7 @@ export default function MyTasksContent({
           </div>
         ) : (
           <TaskKanbanView
-            tasks={tasks}
+            tasks={visibleTasks}
             onTaskClick={handleTaskClick}
             onStatusChange={handleStatusChange}
           />

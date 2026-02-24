@@ -226,6 +226,20 @@ export function TaskRow({
         )}
       </div>
 
+      {/* Created date */}
+      <div className="hidden md:flex items-center gap-1 shrink-0 w-[90px]">
+        {task.createdAt ? (
+          <span className="text-xs text-gray-500">
+            {new Date(task.createdAt).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+            })}
+          </span>
+        ) : (
+          <span className="text-xs text-gray-300">—</span>
+        )}
+      </div>
+
       {/* Priority */}
       <div className="hidden md:block shrink-0 w-[80px]">
         <TaskPriorityBadge priority={task.priority} size="sm" />

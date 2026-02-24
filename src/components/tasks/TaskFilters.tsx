@@ -19,6 +19,7 @@ export interface TaskFiltersState {
   roomId: string
   search: string
   projectId?: string
+  sortBy?: string
 }
 
 interface TaskFiltersProps {
@@ -160,6 +161,24 @@ export default function TaskFilters({
           </SelectContent>
         </Select>
       )}
+
+      {/* Sort by */}
+      <Select
+        value={filters.sortBy || 'createdAt_desc'}
+        onValueChange={(val) => updateFilter('sortBy', val)}
+      >
+        <SelectTrigger className="w-[180px] h-9 text-sm">
+          <SelectValue placeholder="Sort by" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="createdAt_desc">Created Date (newest)</SelectItem>
+          <SelectItem value="createdAt_asc">Created Date (oldest)</SelectItem>
+          <SelectItem value="dueDate_asc">Due Date (soonest)</SelectItem>
+          <SelectItem value="dueDate_desc">Due Date (latest)</SelectItem>
+          <SelectItem value="priority_desc">Priority (highest)</SelectItem>
+          <SelectItem value="status_asc">Status</SelectItem>
+        </SelectContent>
+      </Select>
     </div>
   )
 }
