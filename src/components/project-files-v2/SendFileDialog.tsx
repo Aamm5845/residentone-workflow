@@ -284,7 +284,7 @@ export default function SendFileDialog({
         base64,
         sectionId: globalSectionId,
         title: stripExtension(file.name),
-        drawnBy: '',
+        drawnBy: 'Sami Yossef',
         reviewNo: '',
         pageNo: '',
         fileNotes: '',
@@ -330,7 +330,7 @@ export default function SendFileDialog({
       dropboxPath: file.path,
       sectionId: globalSectionId,
       title: stripExtension(file.name),
-      drawnBy: '',
+      drawnBy: 'Sami Yossef',
       reviewNo: '',
       pageNo: '',
       fileNotes: '',
@@ -512,7 +512,7 @@ export default function SendFileDialog({
         dropboxPath: f.dropboxPath,
         sectionId: f.sectionId || globalSectionId,
         title: f.title || stripExtension(f.name),
-        drawnBy: '',
+        drawnBy: 'Sami Yossef',
         reviewNo: '',
         pageNo: '',
         fileNotes: '',
@@ -1180,13 +1180,14 @@ export default function SendFileDialog({
                                         <div className="grid grid-cols-3 gap-2 pt-1">
                                           <div>
                                             <label className="block text-[11px] font-medium text-gray-400 mb-1">Drawn By</label>
-                                            <input
-                                              type="text"
+                                            <select
                                               value={f.drawnBy}
                                               onChange={(e) => updateFile(f.id, { drawnBy: e.target.value })}
-                                              placeholder="e.g. JD"
-                                              className="w-full h-7 px-2 rounded-md border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-gray-900/10 placeholder:text-gray-300"
-                                            />
+                                              className="w-full h-7 px-2 rounded-md border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-gray-900/10 bg-white"
+                                            >
+                                              <option value="Sami Yossef">Sami Yossef</option>
+                                              <option value="Manual Vitor">Manual Vitor</option>
+                                            </select>
                                           </div>
                                           <div>
                                             <label className="block text-[11px] font-medium text-gray-400 mb-1">Review No</label>
