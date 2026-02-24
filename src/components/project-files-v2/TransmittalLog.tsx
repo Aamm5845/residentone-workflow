@@ -4,20 +4,16 @@ import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import {
   Send,
   Plus,
-  Mail,
   Search,
   X,
   Calendar,
   Filter,
-  ExternalLink,
-  FileText,
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
   ChevronDown,
   Check,
   SlidersHorizontal,
-  Eye,
   Trash2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -649,15 +645,7 @@ export default function TransmittalLog({
       {/* ── Table — one row per transmittal ────────────────────── */}
       {filteredRows.length > 0 && (
         <div className="w-full overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-          <table className="w-full table-fixed border-collapse text-sm">
-            <colgroup>
-              <col className="w-[40px]" />   {/* Checkbox */}
-              <col className="w-[34%]" />    {/* Drawings */}
-              <col className="w-[15%]" />    {/* Recipient */}
-              <col className="w-[8%]" />     {/* Method */}
-              <col className="w-[14%]" />    {/* Sent */}
-              <col className="w-[8%]" />     {/* PDF */}
-            </colgroup>
+          <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/80">
                 <th className="px-3 py-3 text-center w-[40px]">
@@ -668,11 +656,23 @@ export default function TransmittalLog({
                     className="h-3.5 w-3.5 rounded border-slate-300 text-slate-900 focus:ring-slate-900/20 cursor-pointer"
                   />
                 </th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 w-[90px]">
+                  #
+                </th>
                 <th className="px-4 py-3 text-left">
                   <button onClick={() => handleSort('title')} className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 transition-colors cursor-pointer select-none">
                     Drawings
                     {sortField === 'title' && (sortDir === 'asc' ? <ArrowUp className="h-3 w-3 text-slate-900" /> : <ArrowDown className="h-3 w-3 text-slate-900" />)}
                   </button>
+                </th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 w-[100px]">
+                  Section
+                </th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 w-[70px]">
+                  Review
+                </th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 w-[70px]">
+                  Page
                 </th>
                 <th className="px-4 py-3 text-left">
                   <button onClick={() => handleSort('recipient')} className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 transition-colors cursor-pointer select-none">
@@ -680,22 +680,24 @@ export default function TransmittalLog({
                     {sortField === 'recipient' && (sortDir === 'asc' ? <ArrowUp className="h-3 w-3 text-slate-900" /> : <ArrowDown className="h-3 w-3 text-slate-900" />)}
                   </button>
                 </th>
-                <th className="px-3 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 w-[80px]">
                   Method
                 </th>
-                <th className="px-4 py-3 text-left">
+                <th className="px-4 py-3 text-left w-[130px]">
                   <button onClick={() => handleSort('sent')} className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 transition-colors cursor-pointer select-none">
                     Sent
                     {sortField === 'sent' && (sortDir === 'asc' ? <ArrowUp className="h-3 w-3 text-slate-900" /> : <ArrowDown className="h-3 w-3 text-slate-900" />)}
                   </button>
                 </th>
-                <th className="px-3 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                <th className="px-3 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 w-[60px]">
                   PDF
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredRows.map((t) => {
+                const firstItem = t.items[0]
+                const hasMultiple = t.items.length > 1
                 return (
                   <tr key={t.id} className={cn('transition-colors hover:bg-slate-50/70 align-top', selectedIds.has(t.id) && 'bg-slate-50')}>
                     {/* Checkbox */}
@@ -708,86 +710,76 @@ export default function TransmittalLog({
                       />
                     </td>
 
-                    {/* Drawings — transmittal number + each item on its own line */}
+                    {/* Transmittal # */}
                     <td className="px-4 py-3">
-                      <div className="min-w-0">
-                        <span className="font-mono text-[11px] text-slate-400">{t.transmittalNumber}</span>
-                        {t.subject && <span className="text-xs text-slate-500 ml-1.5">— {t.subject}</span>}
-                        <div className="mt-1.5 space-y-1.5">
-                          {t.items.map((item) => {
-                            const rev = item.drawing.reviewNo || (item.revision?.revisionNumber ?? item.revisionNumber)
-                            return (
-                              <div key={item.id} className="flex items-center gap-2 text-sm">
-                                <span className="font-medium text-slate-900 truncate">{item.drawing.title}</span>
-                                {item.drawing.section && (
-                                  <span className={cn(
-                                    'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium shrink-0',
-                                    'bg-slate-50 text-slate-600 ring-1 ring-slate-200'
-                                  )}>
-                                    <span className={cn('h-1.5 w-1.5 rounded-full', item.drawing.section.color || 'bg-slate-400')} />
-                                    {item.drawing.section.name}
-                                  </span>
-                                )}
-                                {rev != null && rev !== '' && (
-                                  <span className="text-[11px] text-slate-500 shrink-0">Rev {rev}</span>
-                                )}
-                                {item.drawing.pageNo && (
-                                  <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-mono font-medium text-slate-500 shrink-0">
-                                    P{item.drawing.pageNo}
-                                  </span>
-                                )}
-                              </div>
-                            )
-                          })}
+                      <span className="font-mono text-xs text-slate-500">{t.transmittalNumber}</span>
+                    </td>
+
+                    {/* Drawings — title per line, plain text */}
+                    <td className="px-4 py-3">
+                      {t.items.map((item) => (
+                        <div key={item.id} className="text-sm text-slate-900 leading-6 truncate">
+                          {item.drawing.title}
                         </div>
-                      </div>
+                      ))}
+                    </td>
+
+                    {/* Section — one per line matching drawings */}
+                    <td className="px-4 py-3">
+                      {t.items.map((item) => (
+                        <div key={item.id} className="text-sm text-slate-500 leading-6 truncate">
+                          {item.drawing.section?.name || '—'}
+                        </div>
+                      ))}
+                    </td>
+
+                    {/* Review — one per line matching drawings */}
+                    <td className="px-4 py-3">
+                      {t.items.map((item) => {
+                        const rev = item.drawing.reviewNo || (item.revision?.revisionNumber ?? item.revisionNumber)
+                        return (
+                          <div key={item.id} className="text-sm text-slate-500 leading-6">
+                            {rev != null && rev !== '' ? rev : '—'}
+                          </div>
+                        )
+                      })}
+                    </td>
+
+                    {/* Page — one per line matching drawings */}
+                    <td className="px-4 py-3">
+                      {t.items.map((item) => (
+                        <div key={item.id} className="text-sm text-slate-500 leading-6">
+                          {item.drawing.pageNo || '—'}
+                        </div>
+                      ))}
                     </td>
 
                     {/* Recipient */}
                     <td className="px-4 py-3">
-                      <div className="truncate">
-                        {t.recipientType && RECIPIENT_TYPE_LABELS[t.recipientType] ? (
-                          <>
-                            <span className="text-xs text-slate-400">{RECIPIENT_TYPE_LABELS[t.recipientType]}</span>
-                            <span className="text-xs text-slate-300 mx-1">–</span>
-                          </>
-                        ) : null}
-                        <span className="text-sm text-slate-700">{t.recipientName}</span>
-                      </div>
+                      <span className="text-sm text-slate-700">{t.recipientName}</span>
+                      {t.recipientCompany && (
+                        <span className="block text-xs text-slate-400">{t.recipientCompany}</span>
+                      )}
                     </td>
 
-                    {/* Method */}
-                    <td className="px-3 py-3 text-center">
-                      {t.method === 'EMAIL' ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700 ring-1 ring-sky-200">
-                          <Mail className="h-3 w-3" />
-                          Email
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600 ring-1 ring-slate-200">
-                          <FileText className="h-3 w-3" />
-                          Manual
-                        </span>
-                      )}
+                    {/* Method — plain text */}
+                    <td className="px-4 py-3">
+                      <span className="text-sm text-slate-500">{t.method === 'EMAIL' ? 'Email' : 'Manual'}</span>
                     </td>
 
                     {/* Sent */}
                     <td className="px-4 py-3">
                       {t.sentAt ? (
                         <div>
-                          <span className="text-sm text-slate-700 block">{formatDateTime(t.sentAt).date}</span>
-                          <span className="text-[11px] text-slate-400">{formatDateTime(t.sentAt).time}</span>
+                          <span className="text-sm text-slate-700">{formatDateTime(t.sentAt).date}</span>
+                          <span className="block text-xs text-slate-400">{formatDateTime(t.sentAt).time}</span>
                           {t.method === 'EMAIL' && (
-                            <div className="mt-0.5">
-                              {t.emailOpenedAt ? (
-                                <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-emerald-600">
-                                  <Eye className="h-2.5 w-2.5" />
-                                  Opened
-                                </span>
-                              ) : (
-                                <span className="text-[10px] text-slate-400">Not opened</span>
-                              )}
-                            </div>
+                            <span className={cn(
+                              'text-[11px]',
+                              t.emailOpenedAt ? 'text-emerald-600' : 'text-slate-400'
+                            )}>
+                              {t.emailOpenedAt ? 'Opened' : 'Not opened'}
+                            </span>
                           )}
                         </div>
                       ) : (
@@ -800,9 +792,8 @@ export default function TransmittalLog({
                       {t.combinedPdfPath ? (
                         <button
                           onClick={() => window.open(`/api/projects/${projectId}/project-files-v2/transmittals/${t.id}/download`, '_blank')}
-                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                          className="text-xs text-blue-600 hover:text-blue-800 transition-colors"
                         >
-                          <ExternalLink className="h-3 w-3" />
                           Open
                         </button>
                       ) : (
