@@ -433,7 +433,7 @@ export default function DrawingRegisterTable({
                       <span
                         className={cn('h-1.5 w-1.5 rounded-full', section.color || 'bg-gray-400')}
                       />
-                      {section.shortName}
+                      {section.name}
                     </span>
                   ) : (
                     <span className="text-gray-300">&mdash;</span>

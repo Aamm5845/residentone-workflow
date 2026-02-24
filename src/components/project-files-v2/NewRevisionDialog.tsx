@@ -49,7 +49,6 @@ export default function NewRevisionDialog({
 
   // Form state
   const [description, setDescription] = useState('')
-  const [dropboxPath, setDropboxPath] = useState('')
   const [issuedDate, setIssuedDate] = useState(getTodayISO())
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -57,7 +56,6 @@ export default function NewRevisionDialog({
   useEffect(() => {
     if (open) {
       setDescription('')
-      setDropboxPath('')
       setIssuedDate(getTodayISO())
     }
   }, [open])
@@ -75,10 +73,6 @@ export default function NewRevisionDialog({
     const body: Record<string, unknown> = {
       description: description.trim(),
       issuedDate,
-    }
-
-    if (dropboxPath.trim()) {
-      body.dropboxPath = dropboxPath.trim()
     }
 
     try {
@@ -149,24 +143,6 @@ export default function NewRevisionDialog({
               required
               autoFocus
             />
-          </div>
-
-          {/* Updated CAD file path */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Link updated CAD file
-              <span className="text-xs text-gray-400 font-normal ml-1">(optional)</span>
-            </label>
-            <input
-              type="text"
-              value={dropboxPath}
-              onChange={(e) => setDropboxPath(e.target.value)}
-              placeholder="If the CAD file location changed, enter the new path"
-              className="w-full h-10 px-3 rounded-md border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 placeholder:text-gray-400"
-            />
-            <p className="text-[11px] text-gray-400 mt-1">
-              Leave blank to keep the existing file link.
-            </p>
           </div>
 
           {/* Issue Date */}

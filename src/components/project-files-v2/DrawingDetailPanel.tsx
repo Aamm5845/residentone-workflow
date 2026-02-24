@@ -10,8 +10,6 @@ import {
   Send,
   Clock,
   User,
-  Layers,
-  MapPin,
   Mail,
   Eye,
   ChevronDown,
@@ -21,18 +19,6 @@ import { cn } from '@/lib/utils'
 import useSWR from 'swr'
 
 // ─── Shared Configs ──────────────────────────────────────────────────────────
-
-const DRAWING_TYPE_LABELS: Record<string, string> = {
-  FLOOR_PLAN: 'Floor Plan',
-  REFLECTED_CEILING: 'Reflected Ceiling',
-  ELEVATION: 'Elevation',
-  DETAIL: 'Detail',
-  SECTION: 'Section',
-  TITLE_BLOCK: 'Title Block',
-  XREF: 'XREF',
-  SCHEDULE: 'Schedule',
-  OTHER: 'Other',
-}
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -289,7 +275,7 @@ export default function DrawingDetailPanel({
                     {section && (
                       <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
                         <span className={cn('h-1.5 w-1.5 rounded-full', section.color || 'bg-gray-400')} />
-                        {section.shortName}
+                        {section.name}
                       </span>
                     )}
                     {statusStyle && (
@@ -342,9 +328,6 @@ export default function DrawingDetailPanel({
                         )}
                       </div>
                     )}
-                    <span className="text-xs text-gray-400">
-                      Rev {drawing.currentRevision}
-                    </span>
                   </div>
                 </>
               ) : null}
@@ -369,33 +352,13 @@ export default function DrawingDetailPanel({
               <div className="px-5 py-4">
                 <div className="grid grid-cols-2 gap-3">
                   <InfoCard
-                    icon={<MapPin className="w-3.5 h-3.5" />}
-                    label="Floor"
-                    value={drawing.floor?.shortName || drawing.floor?.name || 'N/A'}
-                  />
-                  <InfoCard
-                    icon={<Layers className="w-3.5 h-3.5" />}
-                    label="Type"
-                    value={drawing.drawingType ? (DRAWING_TYPE_LABELS[drawing.drawingType] || drawing.drawingType) : 'N/A'}
-                  />
-                  <InfoCard
-                    icon={<FileText className="w-3.5 h-3.5" />}
-                    label="Scale"
-                    value={drawing.scale || 'N/A'}
-                  />
-                  <InfoCard
-                    icon={<FileText className="w-3.5 h-3.5" />}
-                    label="Paper Size"
-                    value={drawing.paperSize || 'N/A'}
-                  />
-                  <InfoCard
                     icon={<User className="w-3.5 h-3.5" />}
                     label="Drawn By"
                     value={drawing.drawnBy || 'N/A'}
                   />
                   <InfoCard
                     icon={<FileText className="w-3.5 h-3.5" />}
-                    label="Page"
+                    label="Page #"
                     value={drawing.pageNo || 'N/A'}
                   />
                   <InfoCard
