@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import {
   X,
   FileText,
@@ -14,6 +14,7 @@ import {
   MapPin,
   Mail,
   Eye,
+  ChevronDown,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -204,6 +205,49 @@ export default function DrawingDetailPanel({
     }
   }, [])
 
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false)
+  const [updatingStatus, setUpdatingStatus] = useState(false)
+  const statusRef = useRef<HTMLDivElement>(null)
+
+  // Close status dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (statusRef.current && !statusRef.current.contains(e.target as Node)) {
+        setStatusDropdownOpen(false)
+      }
+    }
+    if (statusDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [statusDropdownOpen])
+
+  async function handleStatusChange(newStatus: string) {
+    if (!drawing || newStatus === drawing.status) {
+      setStatusDropdownOpen(false)
+      return
+    }
+    setUpdatingStatus(true)
+    try {
+      const res = await fetch(
+        `/api/projects/${projectId}/project-files-v2/drawings/${drawingId}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus }),
+        }
+      )
+      if (res.ok) {
+        mutate()
+      }
+    } catch (err) {
+      console.error('Failed to update status:', err)
+    } finally {
+      setUpdatingStatus(false)
+      setStatusDropdownOpen(false)
+    }
+  }
+
   const drawing = data
   const section = drawing?.section ?? null
   const statusStyle = drawing ? getStatusStyle(drawing.status) : null
@@ -249,15 +293,54 @@ export default function DrawingDetailPanel({
                       </span>
                     )}
                     {statusStyle && (
-                      <span
-                        className={cn(
-                          'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
-                          statusStyle.bg,
-                          statusStyle.text
+                      <div ref={statusRef} className="relative">
+                        <button
+                          onClick={() => setStatusDropdownOpen(!statusDropdownOpen)}
+                          disabled={updatingStatus}
+                          className={cn(
+                            'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer transition-all',
+                            'hover:ring-2 hover:ring-gray-200',
+                            updatingStatus && 'opacity-50 cursor-wait',
+                            statusStyle.bg,
+                            statusStyle.text
+                          )}
+                        >
+                          {statusStyle.label}
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+                        {statusDropdownOpen && (
+                          <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 min-w-[140px]">
+                            {(['ACTIVE', 'DRAFT', 'SUPERSEDED'] as const).map((s) => {
+                              const style = getStatusStyle(s)
+                              const isSelected = drawing.status === s
+                              return (
+                                <button
+                                  key={s}
+                                  onClick={() => handleStatusChange(s)}
+                                  className={cn(
+                                    'w-full text-left px-3 py-1.5 text-xs flex items-center gap-2 transition-colors',
+                                    isSelected
+                                      ? 'bg-gray-50 font-medium'
+                                      : 'hover:bg-gray-50'
+                                  )}
+                                >
+                                  <span
+                                    className={cn(
+                                      'inline-block w-2 h-2 rounded-full',
+                                      style.bg,
+                                      'border',
+                                      style.text === 'text-green-700' && 'border-green-400 bg-green-400',
+                                      style.text === 'text-yellow-700' && 'border-yellow-400 bg-yellow-400',
+                                      style.text === 'text-gray-600' && 'border-gray-400 bg-gray-400'
+                                    )}
+                                  />
+                                  {style.label}
+                                </button>
+                              )
+                            })}
+                          </div>
                         )}
-                      >
-                        {statusStyle.label}
-                      </span>
+                      </div>
                     )}
                     <span className="text-xs text-gray-400">
                       Rev {drawing.currentRevision}
