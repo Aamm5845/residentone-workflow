@@ -4,7 +4,6 @@ import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email-service'
 import { dropboxService } from '@/lib/dropbox-service-v2'
 import { getBaseUrl } from '@/lib/get-base-url'
-import { stampAndMergePdfs, StampableAttachment } from '@/lib/pdf-merge'
 
 export const runtime = 'nodejs'
 
@@ -22,8 +21,6 @@ interface FilePayload {
   reviewNo?: string | null
   pageNo?: string | null
   fileNotes?: string | null
-  action?: 'create_new' | 'add_revision'
-  existingDrawingId?: string | null
 }
 
 interface RecipientPayload {
@@ -54,35 +51,10 @@ function getContentType(filename: string): string {
   return types[ext || ''] || 'application/octet-stream'
 }
 
-/**
- * Generate a drawing number from a filename.
- * Tries to extract a pattern like "A-101" or "E-201" from the name.
- * Falls back to a sequential SF-001 format.
- */
-function generateDrawingNumber(filename: string, index: number): string {
-  const nameWithoutExt = filename.replace(/\.[^/.]+$/, '')
-  // Try to match common drawing number patterns: A-101, E201, FP-01, etc.
-  const match = nameWithoutExt.match(/^([A-Z]{1,4}[\s_.-]?\d{1,4}[A-Z]?)/i)
-  if (match) return match[1].replace(/[\s_]/g, '-').toUpperCase()
-  return `SF-${String(index + 1).padStart(3, '0')}`
-}
-
-/**
- * Ensure drawing number is unique within project, appending suffix if needed.
- */
-async function ensureUniqueDrawingNumber(projectId: string, baseNumber: string): Promise<string> {
-  let candidate = baseNumber
-  let attempt = 0
-  while (true) {
-    const exists = await prisma.projectDrawing.findUnique({
-      where: { projectId_drawingNumber: { projectId, drawingNumber: candidate } },
-      select: { id: true },
-    })
-    if (!exists) return candidate
-    attempt++
-    candidate = `${baseNumber}-${attempt}`
-    if (attempt > 50) return `${baseNumber}-${Date.now()}`
-  }
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 // ─── POST ───────────────────────────────────────────────────────────────────
@@ -174,7 +146,7 @@ export async function POST(
             console.log(`[send-files] Uploading to Dropbox: "${absolutePath}"`)
             const buffer = Buffer.from(file.base64, 'base64')
             await dropboxService.uploadFile(absolutePath, buffer)
-            console.log(`[send-files] ✅ Uploaded: ${sanitizedName}`)
+            console.log(`[send-files] Uploaded: ${sanitizedName}`)
           }
 
           fileDropboxPaths.set(i, relativePath)
@@ -198,7 +170,7 @@ export async function POST(
             content: base64,
             contentType: getContentType(file.name),
           })
-          console.log(`[send-files] ✅ Attached Dropbox file: ${file.name} (${buffer.length} bytes)`)
+          console.log(`[send-files] Attached Dropbox file: ${file.name} (${buffer.length} bytes)`)
         } else {
           errors.push(`Could not process file: ${file.name}`)
         }
@@ -215,105 +187,11 @@ export async function POST(
       )
     }
 
-    // ── Step 2: Create drawings + transmittals in a transaction ──
-    const createdDrawingIds: string[] = []
-    const createdRevisionIds: string[] = []
-    const createdRevisionNumbers: number[] = []
+    // ── Step 2: Create transmittals in a transaction ──
     const createdTransmittalIds: string[] = []
     const createdTransmittalNumbers: string[] = []
 
     await prisma.$transaction(async (tx) => {
-      // 2a. Create or update ProjectDrawing + DrawingRevision for each file
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i]
-        const dropboxPathForDrawing = fileDropboxPaths.get(i) || null
-
-        // ── Add revision to existing drawing ──
-        if (file.action === 'add_revision' && file.existingDrawingId) {
-          const existing = await tx.projectDrawing.findUnique({
-            where: { id: file.existingDrawingId },
-            select: { id: true, currentRevision: true },
-          })
-
-          if (existing) {
-            const nextRev = existing.currentRevision + 1
-
-            await tx.projectDrawing.update({
-              where: { id: existing.id },
-              data: {
-                currentRevision: nextRev,
-                status: 'ACTIVE',
-                dropboxPath: dropboxPathForDrawing,
-                fileName: file.name,
-                fileSize: file.size,
-                // Update metadata if provided
-                ...(file.drawnBy ? { drawnBy: file.drawnBy } : {}),
-                ...(file.reviewNo ? { reviewNo: file.reviewNo } : {}),
-                ...(file.pageNo ? { pageNo: file.pageNo } : {}),
-              },
-            })
-
-            const revision = await tx.drawingRevision.create({
-              data: {
-                drawingId: existing.id,
-                revisionNumber: nextRev,
-                description: `Revision ${nextRev}`,
-                dropboxPath: dropboxPathForDrawing,
-                fileName: file.name,
-                fileSize: file.size,
-                issuedBy: session.user!.id,
-                issuedDate: new Date(),
-              },
-            })
-
-            createdDrawingIds.push(existing.id)
-            createdRevisionIds.push(revision.id)
-            createdRevisionNumbers.push(nextRev)
-            continue
-          }
-        }
-
-        // ── Create new drawing (default) ──
-        const baseNumber = generateDrawingNumber(file.name, i)
-        const drawingNumber = await ensureUniqueDrawingNumber(id, baseNumber)
-
-        const drawing = await tx.projectDrawing.create({
-          data: {
-            projectId: id,
-            drawingNumber,
-            title: file.title.trim(),
-            sectionId: file.sectionId,
-            status: 'ACTIVE',
-            currentRevision: 1,
-            dropboxPath: dropboxPathForDrawing,
-            fileName: file.name,
-            fileSize: file.size,
-            drawnBy: file.drawnBy || null,
-            reviewNo: file.reviewNo || null,
-            pageNo: file.pageNo || null,
-            createdBy: session.user!.id,
-          },
-        })
-
-        const revision = await tx.drawingRevision.create({
-          data: {
-            drawingId: drawing.id,
-            revisionNumber: 1,
-            description: 'Initial revision',
-            dropboxPath: dropboxPathForDrawing,
-            fileName: file.name,
-            fileSize: file.size,
-            issuedBy: session.user!.id,
-            issuedDate: new Date(),
-          },
-        })
-
-        createdDrawingIds.push(drawing.id)
-        createdRevisionIds.push(revision.id)
-        createdRevisionNumbers.push(1)
-      }
-
-      // 2b. Create one Transmittal per recipient
       const existingCount = await tx.transmittal.count({ where: { projectId: id } })
 
       for (let r = 0; r < recipients.length; r++) {
@@ -335,16 +213,15 @@ export async function POST(
           },
         })
 
-        // Create TransmittalItem for each drawing
-        for (let d = 0; d < createdDrawingIds.length; d++) {
+        // Create TransmittalItem for each file (no drawing link)
+        for (let i = 0; i < files.length; i++) {
           await tx.transmittalItem.create({
             data: {
               transmittalId: transmittal.id,
-              drawingId: createdDrawingIds[d],
-              revisionId: createdRevisionIds[d],
-              revisionNumber: createdRevisionNumbers[d],
-              purpose: files[d]?.fileNotes ? 'FOR_INFORMATION' : 'FOR_INFORMATION',
-              notes: files[d].fileNotes || null,
+              fileName: files[i].name,
+              fileSize: files[i].size,
+              dropboxPath: fileDropboxPaths.get(i) || null,
+              purpose: 'FOR_INFORMATION',
             },
           })
         }
@@ -354,64 +231,6 @@ export async function POST(
       }
     })
 
-    // ── Step 2.5: Stamp & merge PDFs into a single combined attachment ──
-
-    // Fetch created drawings for enrichment + email table
-    const createdDrawings = await prisma.projectDrawing.findMany({
-      where: { id: { in: createdDrawingIds } },
-      include: { section: { select: { name: true, shortName: true } } },
-      orderBy: { drawingNumber: 'asc' },
-    })
-
-    // Build a map from drawing ID → drawing record for quick lookup
-    const drawingById = new Map(createdDrawings.map(d => [d.id, d]))
-
-    // Build stampable attachments enriched with drawing metadata, sorted by page number
-    const stampableAttachments: StampableAttachment[] = attachments.map((att, i) => {
-      const drawingId = createdDrawingIds[i]
-      const drawing = drawingById.get(drawingId)
-      return {
-        ...att,
-        drawingNumber: drawing?.drawingNumber,
-        revisionNumber: createdRevisionNumbers[i],
-        title: drawing?.title,
-        _pageNo: drawing?.pageNo || '',
-      }
-    })
-    stampableAttachments.sort((a, b) =>
-      (a as any)._pageNo.localeCompare((b as any)._pageNo, undefined, { numeric: true })
-    )
-
-    // Generate combined filename: "ProjectName - T-001 - 2026-02-23.pdf"
-    const dateStr = new Date().toISOString().split('T')[0]
-    const firstTransmittalNumber = createdTransmittalNumbers[0] || 'T-001'
-    const combinedFilename = `${project.name} - ${firstTransmittalNumber} - ${dateStr}.pdf`
-
-    const { pdfAttachment, nonPdfAttachments } = await stampAndMergePdfs(
-      stampableAttachments,
-      combinedFilename
-    )
-
-    // Upload combined PDF to Dropbox
-    let combinedPdfRelPath: string | null = null
-    if (pdfAttachment && project.dropboxFolder) {
-      try {
-        const pdfBuffer = Buffer.from(pdfAttachment.content, 'base64')
-        const dropboxAbsPath = `${project.dropboxFolder}/5- transmittals/${combinedFilename}`
-        console.log(`[send-files] Uploading combined PDF to Dropbox: "${dropboxAbsPath}"`)
-        await dropboxService.uploadFile(dropboxAbsPath, pdfBuffer)
-        combinedPdfRelPath = `5- transmittals/${combinedFilename}`
-        console.log(`[send-files] ✅ Combined PDF saved to Dropbox`)
-      } catch (err: any) {
-        console.error(`[send-files] ⚠️ Failed to upload combined PDF to Dropbox:`, err?.message)
-      }
-    }
-
-    // Build final attachments list for email
-    const finalAttachments: Array<{ filename: string; content: string; contentType: string }> = []
-    if (pdfAttachment) finalAttachments.push(pdfAttachment)
-    finalAttachments.push(...nonPdfAttachments)
-
     // ── Step 3: Send emails and update transmittals ──
     const org = project.organization
     const companyName = org?.businessName || org?.name || ''
@@ -420,24 +239,16 @@ export async function POST(
     const companyPhone = org?.businessPhone || ''
     const itemCount = files.length
 
-    // Build a map from drawing ID to original file payload for reliable lookup
-    const drawingIdToFile = new Map<string, FilePayload>()
-    for (let i = 0; i < createdDrawingIds.length; i++) {
-      drawingIdToFile.set(createdDrawingIds[i], files[i])
-    }
-
-    // Build drawing rows for email (sorted by page number)
-    const sortedDrawings = [...createdDrawings].sort((a, b) =>
-      (a.pageNo || '').localeCompare(b.pageNo || '', undefined, { numeric: true })
-    )
-    const drawingRows = sortedDrawings
-      .map((d) => {
+    // Build file rows for email (with metadata)
+    const fileRows = files
+      .map((f) => {
+        const sectionName = sectionsMap.get(f.sectionId) || ''
         return `
           <tr>
-            <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 14px; color: #1e293b; font-weight: 500;">${d.title}</td>
-            <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 14px; color: #1e293b; font-weight: 500;">${d.section?.name || d.section?.shortName || ''}</td>
-            <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 14px; color: #1e293b; text-align: center;">${d.reviewNo || d.currentRevision}</td>
-            <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 14px; color: #1e293b; text-align: center;">${d.pageNo || '—'}</td>
+            <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 14px; color: #1e293b; font-weight: 500;">${f.title}</td>
+            <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 14px; color: #1e293b;">${sectionName}</td>
+            <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 14px; color: #1e293b; text-align: center;">${f.reviewNo || '—'}</td>
+            <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 14px; color: #1e293b; text-align: center;">${f.pageNo || '—'}</td>
           </tr>`
       })
       .join('')
@@ -459,7 +270,7 @@ export async function POST(
 
       const emailSubject = subject
         ? `${project.name} — ${subject}`
-        : `${project.name} — Drawing Transmittal ${transmittalNumber}`
+        : `${project.name} — File Transmittal ${transmittalNumber}`
 
       // Tracking pixel URL
       const baseUrl = getBaseUrl()
@@ -470,7 +281,7 @@ export async function POST(
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Drawing Transmittal - ${companyName}</title>
+    <title>File Transmittal - ${companyName}</title>
 </head>
 <body style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f1f5f9; margin: 0; padding: 24px 16px;">
     <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.06);">
@@ -480,14 +291,14 @@ export async function POST(
             <img src="${companyLogo}"
                  alt="${companyName}"
                  style="max-width: 180px; height: auto; margin-bottom: 8px;" />
-            <p style="margin: 0; color: #64748b; font-size: 13px; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;">Drawing Transmittal</p>
+            <p style="margin: 0; color: #64748b; font-size: 13px; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;">File Transmittal</p>
         </div>
 
         <!-- Body -->
         <div style="padding: 32px;">
             <p style="font-size: 16px; color: #1e293b; margin: 0 0 6px; font-weight: 600;">Hi ${firstName},</p>
             <p style="font-size: 15px; color: #475569; margin: 0 0 4px; line-height: 1.6;">
-                Please find attached ${itemCount === 1 ? 'a drawing' : `${itemCount} drawings`} for <strong style="color: #1e293b;">${project.name}</strong>. The drawings are included as a combined PDF attachment to this email.
+                Please find attached ${itemCount === 1 ? 'a file' : `${itemCount} files`} for <strong style="color: #1e293b;">${project.name}</strong>.
             </p>
 
             <!-- Transmittal Details Card -->
@@ -514,9 +325,9 @@ export async function POST(
 
             ${notesHtml}
 
-            <!-- Drawings List -->
+            <!-- Files List -->
             <p style="margin: 0 0 8px; font-size: 13px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">
-                Drawings · ${itemCount}
+                Files · ${itemCount}
             </p>
             <div style="background: white; border-radius: 10px; border: 1px solid #e2e8f0; overflow: hidden; margin-bottom: 20px;">
                 <table style="width: 100%; border-collapse: collapse;">
@@ -529,7 +340,7 @@ export async function POST(
                         </tr>
                     </thead>
                     <tbody>
-                        ${drawingRows}
+                        ${fileRows}
                     </tbody>
                 </table>
             </div>
@@ -560,7 +371,7 @@ export async function POST(
           to: recipient.email,
           subject: emailSubject,
           html,
-          attachments: finalAttachments.length > 0 ? finalAttachments : undefined,
+          attachments: attachments.length > 0 ? attachments : undefined,
         })
 
         // Update transmittal to SENT
@@ -571,21 +382,19 @@ export async function POST(
             sentAt: new Date(),
             sentBy: session.user!.id,
             emailId: emailResult.messageId || null,
-            combinedPdfPath: combinedPdfRelPath,
           },
         })
 
         emailsSent++
-        console.log(`[send-files] ✅ Email sent to ${recipient.email} (${finalAttachments.length} attachments)`)
+        console.log(`[send-files] Email sent to ${recipient.email} (${attachments.length} attachments)`)
       } catch (err: any) {
-        console.error(`[send-files] ❌ Failed to send to ${recipient.email}:`, err?.message)
+        console.error(`[send-files] Failed to send to ${recipient.email}:`, err?.message)
         errors.push(`Failed to send to ${recipient.email}: ${err?.message || 'Unknown error'}`)
       }
     }
 
     return NextResponse.json({
       success: true,
-      drawingsCreated: createdDrawingIds.length,
       transmittalsCreated: createdTransmittalIds.length,
       emailsSent,
       errors: errors.length > 0 ? errors : undefined,

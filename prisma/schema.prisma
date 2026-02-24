@@ -5065,14 +5065,17 @@ model Transmittal {
 model TransmittalItem {
   id             String   @id @default(cuid())
   transmittalId  String
-  drawingId      String
+  drawingId      String?
   revisionId     String?
   revisionNumber Int?
   purpose        String?
   notes          String?
+  fileName       String?
+  fileSize       Int?
+  dropboxPath    String?
 
   transmittal Transmittal      @relation(fields: [transmittalId], references: [id], onDelete: Cascade)
-  drawing     ProjectDrawing   @relation(fields: [drawingId], references: [id], onDelete: Cascade)
+  drawing     ProjectDrawing?  @relation(fields: [drawingId], references: [id], onDelete: Cascade)
   revision    DrawingRevision? @relation(fields: [revisionId], references: [id], onDelete: SetNull)
 
   @@index([transmittalId])

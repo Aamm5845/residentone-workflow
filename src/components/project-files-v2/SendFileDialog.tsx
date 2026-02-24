@@ -37,7 +37,6 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-// Select components no longer used — custom section picker replaces them
 import { cn } from '@/lib/utils'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -56,13 +55,6 @@ interface FileWithMetadata {
   pageNo: string
   fileNotes: string
   showDetails: boolean
-  // Duplicate detection
-  matchedDrawingId?: string | null
-  matchedDrawingNumber?: string | null
-  matchedCurrentRevision?: number | null
-  matchedStatus?: string | null
-  matchType?: 'title' | 'drawingNumber' | null
-  action: 'create_new' | 'add_revision'
 }
 
 interface Recipient {
@@ -289,7 +281,6 @@ export default function SendFileDialog({
         pageNo: '',
         fileNotes: '',
         showDetails: true,
-        action: 'create_new',
       })
     }
     setFiles(prev => [...prev, ...newFiles])
@@ -335,7 +326,6 @@ export default function SendFileDialog({
       pageNo: '',
       fileNotes: '',
       showDetails: true,
-      action: 'create_new',
     }])
   }, [globalSectionId])
 
@@ -464,8 +454,6 @@ export default function SendFileDialog({
             reviewNo: f.reviewNo.trim() || null,
             pageNo: f.pageNo.trim() || null,
             fileNotes: f.fileNotes.trim() || null,
-            action: f.action || 'create_new',
-            existingDrawingId: f.action === 'add_revision' ? f.matchedDrawingId : null,
           })),
         }),
       })
@@ -517,7 +505,6 @@ export default function SendFileDialog({
         pageNo: '',
         fileNotes: '',
         showDetails: true,
-        action: 'create_new',
       }))
       setFiles(prefilled)
       // If the initial file has a sectionId, auto-select it
@@ -526,67 +513,6 @@ export default function SendFileDialog({
       }
     }
   }, [open, initialFiles]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Debounced duplicate detection
-  useEffect(() => {
-    if (!open || files.length === 0) return
-    // Build a check key from titles + sectionIds + pageNos + fileNames
-    const filesToCheck = files
-      .filter(f => f.title.trim() && f.sectionId && f.sectionId !== 'none')
-      .map(f => ({ title: f.title.trim(), sectionId: f.sectionId, pageNo: f.pageNo || null, fileName: f.name || null }))
-    if (filesToCheck.length === 0) return
-
-    const timer = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/projects/${projectId}/project-files-v2/check-duplicates`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ files: filesToCheck }),
-        })
-        if (!res.ok) return
-        const data = await res.json()
-        const results = data.results as Array<{
-          fileIndex: number
-          existingDrawing: { id: string; drawingNumber: string; title: string; currentRevision: number; status: string } | null
-          matchType: 'title' | 'drawingNumber' | null
-        }>
-
-        setFiles(prev => {
-          // Map from valid file index back to the full files array index
-          let validIdx = 0
-          return prev.map(f => {
-            if (!f.title.trim() || !f.sectionId || f.sectionId === 'none') return f
-            const result = results.find(r => r.fileIndex === validIdx)
-            validIdx++
-            if (result?.existingDrawing) {
-              return {
-                ...f,
-                matchedDrawingId: result.existingDrawing.id,
-                matchedDrawingNumber: result.existingDrawing.drawingNumber,
-                matchedCurrentRevision: result.existingDrawing.currentRevision,
-                matchedStatus: result.existingDrawing.status || null,
-                matchType: result.matchType || null,
-                action: f.action === 'create_new' && !f.matchedDrawingId ? 'add_revision' as const : f.action,
-              }
-            }
-            return {
-              ...f,
-              matchedDrawingId: null,
-              matchedDrawingNumber: null,
-              matchedCurrentRevision: null,
-              matchedStatus: null,
-              matchType: null,
-              action: 'create_new' as const,
-            }
-          })
-        })
-      } catch {
-        // Silently fail — not critical
-      }
-    }, 600)
-
-    return () => clearTimeout(timer)
-  }, [open, files.map(f => `${f.title}|${f.sectionId}|${f.pageNo}|${f.name}`).join(','), projectId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── RENDER ─────────────────────────────────────────────────────────────────
 
@@ -1097,65 +1023,6 @@ export default function SendFileDialog({
                                       )}
                                     />
                                   </div>
-
-                                  {/* Duplicate detection warning */}
-                                  {f.matchedDrawingId && (
-                                    <div className="flex items-start gap-2 rounded-md bg-amber-50 border border-amber-200 px-2.5 py-2">
-                                      <span className="text-amber-600 text-xs mt-0.5 shrink-0">&#9888;</span>
-                                      <div className="flex-1 min-w-0">
-                                        <p className="text-[11px] text-amber-800 leading-snug">
-                                          {f.matchType === 'drawingNumber' ? (
-                                            <>
-                                              Filename matches existing drawing{' '}
-                                              <span className="font-mono font-medium">{f.matchedDrawingNumber}</span>
-                                            </>
-                                          ) : (
-                                            <>
-                                              Title already exists as{' '}
-                                              <span className="font-mono font-medium">{f.matchedDrawingNumber}</span>
-                                            </>
-                                          )}
-                                          {' '}(Rev {f.matchedCurrentRevision})
-                                          {f.matchedStatus && (
-                                            <span className={cn(
-                                              'ml-1.5 inline-flex items-center px-1.5 py-0 rounded text-[9px] font-semibold uppercase tracking-wide',
-                                              f.matchedStatus === 'ACTIVE' && 'bg-green-100 text-green-700',
-                                              f.matchedStatus === 'DRAFT' && 'bg-gray-100 text-gray-600',
-                                              f.matchedStatus !== 'ACTIVE' && f.matchedStatus !== 'DRAFT' && 'bg-gray-100 text-gray-500'
-                                            )}>
-                                              {f.matchedStatus}
-                                            </span>
-                                          )}
-                                        </p>
-                                        <div className="flex items-center gap-1.5 mt-1.5">
-                                          <button
-                                            type="button"
-                                            onClick={() => updateFile(f.id, { action: 'add_revision' })}
-                                            className={cn(
-                                              'px-2.5 py-1 rounded text-[10px] font-medium transition-colors',
-                                              f.action === 'add_revision'
-                                                ? 'bg-amber-600 text-white'
-                                                : 'bg-white text-amber-700 border border-amber-300 hover:bg-amber-100'
-                                            )}
-                                          >
-                                            Add as Rev {(f.matchedCurrentRevision || 0) + 1}
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() => updateFile(f.id, { action: 'create_new' })}
-                                            className={cn(
-                                              'px-2.5 py-1 rounded text-[10px] font-medium transition-colors',
-                                              f.action === 'create_new'
-                                                ? 'bg-gray-700 text-white'
-                                                : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-100'
-                                            )}
-                                          >
-                                            New Drawing
-                                          </button>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  )}
 
                                   {/* Details toggle */}
                                   <button
