@@ -51,6 +51,10 @@ function getContentType(filename: string): string {
   return types[ext || ''] || 'application/octet-stream'
 }
 
+function titleCase(str: string): string {
+  return str.replace(/\b\w/g, c => c.toUpperCase())
+}
+
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
@@ -136,10 +140,10 @@ export async function POST(
       try {
         if (file.source === 'upload' && file.base64) {
           // Upload to Dropbox: 4- drawings/{SectionName}/{YYYY-MM-DD}/{filename}
-          const sectionName = sectionsMap.get(file.sectionId) || 'Unsorted'
+          const sectionName = titleCase(sectionsMap.get(file.sectionId) || 'Unsorted')
           const sanitizedName = file.name.replace(/[<>:"|?*]/g, '_')
           const dateStr = new Date().toISOString().split('T')[0]
-          const relativePath = `4- drawings/${sectionName}/${dateStr}/${sanitizedName}`
+          const relativePath = `4- Drawings/${sectionName}/${dateStr}/${sanitizedName}`
 
           if (project.dropboxFolder) {
             const absolutePath = `${project.dropboxFolder}/${relativePath}`

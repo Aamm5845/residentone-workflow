@@ -5,6 +5,10 @@ import { dropboxService } from '@/lib/dropbox-service-v2'
 
 export const runtime = 'nodejs'
 
+function titleCase(str: string): string {
+  return str.replace(/\b\w/g, c => c.toUpperCase())
+}
+
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 interface FilePayload {
@@ -190,11 +194,11 @@ export async function POST(
       const file = files[i]
       try {
         if (file.source === 'upload' && file.base64) {
-          // Upload to Dropbox: 4- drawings/{SectionName}/{YYYY-MM-DD}/{filename}
-          const sectionName = sectionsMap.get(file.sectionId) || 'Unsorted'
+          // Upload to Dropbox: 4- Drawings/{SectionName}/{YYYY-MM-DD}/{filename}
+          const sectionName = titleCase(sectionsMap.get(file.sectionId) || 'Unsorted')
           const sanitizedName = file.name.replace(/[<>:"|?*]/g, '_')
           const dateStr = parsedDate.toISOString().split('T')[0]
-          const relativePath = `4- drawings/${sectionName}/${dateStr}/${sanitizedName}`
+          const relativePath = `4- Drawings/${sectionName}/${dateStr}/${sanitizedName}`
 
           if (project.dropboxFolder) {
             const absolutePath = `${project.dropboxFolder}/${relativePath}`

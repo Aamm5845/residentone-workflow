@@ -186,10 +186,10 @@ export async function POST(
     if (pdfAttachment && project.dropboxFolder) {
       try {
         const pdfBuffer = Buffer.from(pdfAttachment.content, 'base64')
-        const dropboxAbsPath = `${project.dropboxFolder}/5- transmittals/${combinedFilename}`
+        const dropboxAbsPath = `${project.dropboxFolder}/5- Transmittals/${combinedFilename}`
         console.log(`[transmittal/send] Uploading combined PDF to Dropbox: "${dropboxAbsPath}"`)
         await dropboxService.uploadFile(dropboxAbsPath, pdfBuffer)
-        combinedPdfRelPath = `5- transmittals/${combinedFilename}`
+        combinedPdfRelPath = `5- Transmittals/${combinedFilename}`
         console.log(`[transmittal/send] ✅ Combined PDF saved to Dropbox`)
       } catch (err: any) {
         console.error(`[transmittal/send] ⚠️ Failed to upload combined PDF to Dropbox:`, err?.message)
