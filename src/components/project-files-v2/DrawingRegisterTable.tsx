@@ -77,7 +77,6 @@ interface DrawingRegisterTableProps {
 // ─── Sorting helpers ─────────────────────────────────────────────────────────
 
 type SortColumn =
-  | 'drawingNumber'
   | 'title'
   | 'drawnBy'
   | 'pageNo'
@@ -90,8 +89,6 @@ type SortDirection = 'asc' | 'desc'
 
 function getSortValue(drawing: Drawing, column: SortColumn): string | number {
   switch (column) {
-    case 'drawingNumber':
-      return drawing.drawingNumber.toLowerCase()
     case 'title':
       return drawing.title.toLowerCase()
     case 'drawnBy':
@@ -121,10 +118,6 @@ function formatDate(date: string): string {
   })
 }
 
-function formatFileSize(size: number): string {
-  return (size / 1024 / 1024).toFixed(1) + ' MB'
-}
-
 // ─── Column definitions ──────────────────────────────────────────────────────
 
 interface ColumnDef {
@@ -135,7 +128,6 @@ interface ColumnDef {
 }
 
 const COLUMNS: ColumnDef[] = [
-  { key: 'drawingNumber', label: 'Drawing #', sortable: true, className: 'w-[120px]' },
   { key: 'title', label: 'Title', sortable: true },
   { key: 'drawnBy', label: 'Drawn By', sortable: true, className: 'w-[110px]' },
   { key: 'pageNo', label: 'Page #', sortable: true, className: 'w-[80px]' },
@@ -158,7 +150,7 @@ export default function DrawingRegisterTable({
   selectedDrawingId,
   mutateDrawings,
 }: DrawingRegisterTableProps) {
-  const [sortColumn, setSortColumn] = useState<SortColumn>('drawingNumber')
+  const [sortColumn, setSortColumn] = useState<SortColumn>('title')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isDeleting, setIsDeleting] = useState(false)
@@ -372,26 +364,11 @@ export default function DrawingRegisterTable({
                   />
                 </td>
 
-                {/* Drawing # */}
-                <td className="px-4 py-3">
-                  <span className="font-mono font-bold text-gray-900">
-                    {drawing.drawingNumber}
-                  </span>
-                </td>
-
                 {/* Title */}
                 <td className="px-4 py-3">
-                  <div className="flex flex-col">
-                    <span className="font-medium text-gray-900 truncate max-w-[300px]">
-                      {drawing.title}
-                    </span>
-                    {drawing.fileName && (
-                      <span className="text-xs text-gray-400 truncate max-w-[300px]">
-                        {drawing.fileName}
-                        {drawing.fileSize ? ` (${formatFileSize(drawing.fileSize)})` : ''}
-                      </span>
-                    )}
-                  </div>
+                  <span className="font-medium text-gray-900 truncate max-w-[300px] block">
+                    {drawing.title}
+                  </span>
                 </td>
 
                 {/* Drawn By */}
