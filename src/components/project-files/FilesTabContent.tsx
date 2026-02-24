@@ -250,14 +250,6 @@ export default function FilesTabContent({
                 const found = drawings.find((d) => d.id === selectedDrawingId)
                 if (found) onEditDrawing(found)
               }}
-              onNewRevision={() => {
-                const found = drawings.find((d) => d.id === selectedDrawingId)
-                if (found) onNewRevision(found)
-              }}
-              onCreateTransmittal={() => {
-                const found = drawings.find((d) => d.id === selectedDrawingId)
-                if (found) onCreateTransmittal(found)
-              }}
             />
           )}
         </SheetContent>

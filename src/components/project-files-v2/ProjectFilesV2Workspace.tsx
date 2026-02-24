@@ -502,24 +502,6 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
                       setShowAddDrawing(true)
                     }
                   }}
-                  onNewRevision={() => {
-                    const found = drawings.find((d: any) => d.id === selectedDrawingId)
-                    if (found) setRevisionDrawing(found)
-                  }}
-                  onCreateTransmittal={() => {
-                    const found = drawings.find((d: any) => d.id === selectedDrawingId)
-                    if (found && found.dropboxPath) {
-                      const fileName = found.dropboxPath.split('/').pop() || found.drawingNumber || 'file.pdf'
-                      setSendFileInitialFiles([{
-                        name: fileName,
-                        dropboxPath: found.dropboxPath,
-                        size: 0,
-                        title: found.title || '',
-                        sectionId: found.sectionId || undefined,
-                      }])
-                      setShowSendFile(true)
-                    }
-                  }}
                 />
               )}
             </div>

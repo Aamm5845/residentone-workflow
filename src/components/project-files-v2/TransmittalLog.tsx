@@ -814,11 +814,15 @@ export default function TransmittalLog({
                       )}
                     </td>
 
-                    {/* Combined PDF download */}
+                    {/* Open in All Files */}
                     <td className="px-3 py-3 text-center">
-                      {t.combinedPdfPath ? (
+                      {t.combinedPdfPath && onOpenInFiles ? (
                         <button
-                          onClick={() => window.open(`/api/projects/${projectId}/project-files-v2/transmittals/${t.id}/download`, '_blank')}
+                          onClick={() => {
+                            // Extract folder path from combinedPdfPath (e.g. "5- transmittals/file.pdf" → "5- transmittals")
+                            const folder = t.combinedPdfPath!.split('/').slice(0, -1).join('/')
+                            onOpenInFiles(folder || '5- transmittals')
+                          }}
                           className="text-xs text-blue-600 hover:text-blue-800 transition-colors"
                         >
                           Open

@@ -6,12 +6,8 @@ import {
   FileText,
   ExternalLink,
   Edit2,
-  Plus,
-  Send,
   Clock,
   User,
-  Mail,
-  Eye,
   ChevronDown,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -77,8 +73,6 @@ interface DrawingDetailPanelProps {
   drawingId: string
   onClose: () => void
   onEdit: () => void
-  onNewRevision: () => void
-  onCreateTransmittal: () => void
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -103,17 +97,6 @@ function formatDate(dateStr: string): string {
     day: 'numeric',
     year: 'numeric',
   })
-}
-
-function formatDateWithTime(dateStr: string): string {
-  try {
-    const d = new Date(dateStr)
-    const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-    const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
-    return `${date} at ${time}`
-  } catch {
-    return '—'
-  }
 }
 
 function getStatusStyle(status: string): { bg: string; text: string; label: string } {
@@ -167,8 +150,6 @@ export default function DrawingDetailPanel({
   drawingId,
   onClose,
   onEdit,
-  onNewRevision,
-  onCreateTransmittal,
 }: DrawingDetailPanelProps) {
   const { data, isLoading, mutate } = useSWR<DrawingDetail>(
     `/api/projects/${projectId}/project-files-v2/drawings/${drawingId}`,
@@ -418,168 +399,38 @@ export default function DrawingDetailPanel({
                 )}
               </div>
 
-              {/* Revision History */}
-              <div className="px-5 py-4">
-                <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-3">
-                  Revision History
-                </p>
-                {drawing.revisions.length > 0 ? (
-                  <div className="relative">
-                    {/* Vertical timeline line */}
-                    {drawing.revisions.length > 1 && (
-                      <div className="absolute left-[7px] top-3 bottom-3 w-px bg-gray-200" />
-                    )}
-                    <div className="space-y-0">
-                      {drawing.revisions
-                        .sort((a, b) => b.revisionNumber - a.revisionNumber)
-                        .map((rev, idx) => {
-                          const isLatest = idx === 0
-                          return (
-                            <div key={rev.id} className="relative flex gap-3 pb-4 last:pb-0">
-                              {/* Timeline dot */}
-                              <div className="flex-shrink-0 relative z-10 mt-1">
-                                {isLatest ? (
-                                  <div className="w-[15px] h-[15px] rounded-full bg-blue-500 border-2 border-white shadow-sm" />
-                                ) : (
-                                  <div className="w-[15px] h-[15px] rounded-full border-2 border-gray-300 bg-white" />
-                                )}
-                              </div>
-                              {/* Content */}
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-baseline gap-2">
-                                  <span
-                                    className={cn(
-                                      'text-sm font-semibold',
-                                      isLatest ? 'text-blue-600' : 'text-gray-700'
-                                    )}
-                                  >
-                                    Rev {rev.revisionNumber}
-                                  </span>
-                                  <span className="text-xs text-gray-400">
-                                    {formatDate(rev.issuedDate)}
-                                  </span>
-                                </div>
-                                {rev.description && (
-                                  <p className="text-sm text-gray-600 mt-0.5 leading-relaxed">
-                                    {rev.description}
-                                  </p>
-                                )}
-                                <div className="flex items-center gap-1 mt-1 text-xs text-gray-400">
-                                  <User className="w-3 h-3" />
-                                  <span>{rev.issuedByUser.name || 'Unknown'}</span>
-                                </div>
-                                {(rev.fileName || rev.dropboxUrl) && (
-                                  <div className="flex items-center gap-1 mt-1">
-                                    {rev.dropboxUrl ? (
-                                      <a
-                                        href={rev.dropboxUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600 transition-colors"
-                                      >
-                                        <FileText className="w-3 h-3" />
-                                        {rev.fileName || 'View file'}
-                                        <ExternalLink className="w-2.5 h-2.5" />
-                                      </a>
-                                    ) : rev.fileName ? (
-                                      <span className="inline-flex items-center gap-1 text-xs text-gray-500">
-                                        <FileText className="w-3 h-3" />
-                                        {rev.fileName}
-                                      </span>
-                                    ) : null}
-                                    {rev.fileSize && (
-                                      <span className="text-xs text-gray-400">
-                                        ({formatFileSize(rev.fileSize)})
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )
-                        })}
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-400 italic">No revisions yet</p>
-                )}
-              </div>
-
-              {/* Transmittal History */}
-              <div className="px-5 py-4">
-                <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-3">
-                  Sent History
-                </p>
-                {drawing.transmittalItems.length > 0 ? (
-                  <div className="space-y-3">
+              {/* Sent History — simple list */}
+              {drawing.transmittalItems.length > 0 && (
+                <div className="px-5 py-4">
+                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-3">
+                    Sent History
+                  </p>
+                  <div className="space-y-2">
                     {drawing.transmittalItems.map((item) => {
                       const t = item.transmittal
                       return (
-                        <div
-                          key={item.id}
-                          className="p-3 bg-gray-50 rounded-lg border border-gray-100"
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1.5">
-                                <Send className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                                <span className="text-sm font-medium text-gray-900">
-                                  {t.transmittalNumber}
-                                </span>
-                                <span className="text-xs text-gray-400 mx-0.5">&rarr;</span>
-                                <span className="text-sm text-gray-700 truncate">
-                                  {t.recipientName}
-                                </span>
-                              </div>
-                              {t.recipientCompany && (
-                                <p className="text-xs text-gray-500 ml-[18px]">{t.recipientCompany}</p>
-                              )}
-                              <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                                {item.revisionNumber != null && (
-                                  <span className="text-xs text-gray-500">
-                                    Rev {item.revisionNumber}
-                                  </span>
-                                )}
-                                {item.purpose && (
-                                  <>
-                                    <span className="text-xs text-gray-300">&middot;</span>
-                                    <span className="text-xs text-gray-500">
-                                      {item.purpose}
-                                    </span>
-                                  </>
-                                )}
-                                <span className="text-xs text-gray-300">&middot;</span>
-                                <TransmittalStatusBadge status={t.status} />
-                              </div>
-                            </div>
+                        <div key={item.id} className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="font-mono text-xs text-gray-500">{t.transmittalNumber}</span>
+                            <span className="text-gray-400">&rarr;</span>
+                            <span className="text-gray-700 truncate">{t.recipientName}</span>
                           </div>
-                          {t.sentAt && (
-                            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                              <p className="text-xs text-gray-400 flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                {formatDateWithTime(t.sentAt)}
-                              </p>
-                              {t.method === 'EMAIL' && (
-                                <Mail className="w-3 h-3 text-gray-400" />
-                              )}
-                              {t.emailOpenedAt ? (
-                                <span className="text-xs text-emerald-600 font-medium flex items-center gap-0.5">
-                                  <Eye className="w-3 h-3" />
-                                  Opened
-                                </span>
-                              ) : t.method === 'EMAIL' ? (
-                                <span className="text-xs text-gray-400">Not opened</span>
-                              ) : null}
-                            </div>
-                          )}
+                          <div className="flex items-center gap-2 shrink-0 ml-3">
+                            {t.sentAt && (
+                              <span className="text-xs text-gray-400">{formatDate(t.sentAt)}</span>
+                            )}
+                            {t.emailOpenedAt ? (
+                              <span className="text-xs text-emerald-600">Opened</span>
+                            ) : t.method === 'EMAIL' && t.sentAt ? (
+                              <span className="text-xs text-gray-400">Not opened</span>
+                            ) : null}
+                          </div>
                         </div>
                       )
                     })}
                   </div>
-                ) : (
-                  <p className="text-sm text-gray-400 italic">No transmittals sent</p>
-                )}
-              </div>
+                </div>
+              )}
 
               {/* Metadata footer */}
               <div className="px-5 py-3">
@@ -615,24 +466,6 @@ export default function DrawingDetailPanel({
                 <Edit2 className="w-3.5 h-3.5 mr-1.5" />
                 Edit
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1"
-                onClick={onNewRevision}
-              >
-                <Plus className="w-3.5 h-3.5 mr-1.5" />
-                Revision
-              </Button>
-              <Button
-                variant="default"
-                size="sm"
-                className="flex-1"
-                onClick={onCreateTransmittal}
-              >
-                <Send className="w-3.5 h-3.5 mr-1.5" />
-                Transmit
-              </Button>
             </div>
           </div>
         )}
@@ -667,24 +500,3 @@ function InfoCard({
   )
 }
 
-function TransmittalStatusBadge({ status }: { status: string }) {
-  const config: Record<string, { bg: string; text: string; label: string }> = {
-    SENT: { bg: 'bg-green-50', text: 'text-green-700', label: 'Sent' },
-    DRAFT: { bg: 'bg-yellow-50', text: 'text-yellow-700', label: 'Draft' },
-    RECEIVED: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Received' },
-    VOID: { bg: 'bg-red-50', text: 'text-red-600', label: 'Void' },
-  }
-  const s = config[status] || { bg: 'bg-gray-50', text: 'text-gray-600', label: status }
-
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium',
-        s.bg,
-        s.text
-      )}
-    >
-      {s.label}
-    </span>
-  )
-}
