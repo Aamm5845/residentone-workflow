@@ -742,7 +742,7 @@ export default function TransmittalLog({
 
                     {/* Transmittal # */}
                     <td className="px-4 py-3">
-                      <span className="font-mono text-xs text-slate-500">{t.transmittalNumber}</span>
+                      <span className="text-sm text-slate-700">{t.transmittalNumber}</span>
                     </td>
 
                     {/* Drawings — grouped by title */}

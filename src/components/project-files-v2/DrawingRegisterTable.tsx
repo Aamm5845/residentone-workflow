@@ -6,10 +6,7 @@ import {
   MoreVertical,
   ArrowUpDown,
   Edit2,
-  Plus,
   Send,
-  ExternalLink,
-  Archive,
   ChevronUp,
   ChevronDown,
   Trash2,
@@ -20,7 +17,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -128,13 +124,13 @@ interface ColumnDef {
 }
 
 const COLUMNS: ColumnDef[] = [
-  { key: 'title', label: 'Title', sortable: true },
+  { key: 'title', label: 'Title', sortable: true, className: 'w-[200px]' },
+  { key: 'section', label: 'Section', sortable: true, className: 'w-[130px]' },
   { key: 'drawnBy', label: 'Drawn By', sortable: true, className: 'w-[110px]' },
   { key: 'pageNo', label: 'Page #', sortable: true, className: 'w-[80px]' },
-  { key: 'reviewNo', label: 'Review', sortable: true, className: 'w-[80px]' },
-  { key: 'section', label: 'Section', sortable: true, className: 'w-[140px]' },
-  { key: 'status', label: 'Status', sortable: true, className: 'w-[100px]' },
-  { key: 'lastSent', label: 'Last Sent', sortable: true, className: 'w-[180px]' },
+  { key: 'reviewNo', label: 'Review', sortable: true, className: 'w-[70px]' },
+  { key: 'status', label: 'Status', sortable: true, className: 'w-[90px]' },
+  { key: 'lastSent', label: 'Last Sent', sortable: true, className: 'w-[150px]' },
 ]
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -366,9 +362,20 @@ export default function DrawingRegisterTable({
 
                 {/* Title */}
                 <td className="px-4 py-3">
-                  <span className="font-medium text-gray-900 truncate max-w-[300px] block">
+                  <span className="font-medium text-gray-900 truncate max-w-[180px] block">
                     {drawing.title}
                   </span>
+                </td>
+
+                {/* Section — plain text */}
+                <td className="px-4 py-3">
+                  {section ? (
+                    <span className="text-sm text-gray-600 truncate max-w-[120px] block">
+                      {section.name}
+                    </span>
+                  ) : (
+                    <span className="text-gray-300">&mdash;</span>
+                  )}
                 </td>
 
                 {/* Drawn By */}
@@ -380,7 +387,7 @@ export default function DrawingRegisterTable({
                   )}
                 </td>
 
-                {/* Page */}
+                {/* Page # */}
                 <td className="px-4 py-3">
                   {drawing.pageNo ? (
                     <span className="text-sm text-gray-600">{drawing.pageNo}</span>
@@ -393,25 +400,6 @@ export default function DrawingRegisterTable({
                 <td className="px-4 py-3">
                   {drawing.reviewNo ? (
                     <span className="text-sm text-gray-600">{drawing.reviewNo}</span>
-                  ) : (
-                    <span className="text-gray-300">&mdash;</span>
-                  )}
-                </td>
-
-                {/* Section */}
-                <td className="px-4 py-3">
-                  {section ? (
-                    <span
-                      className={cn(
-                        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium',
-                        'bg-gray-50 text-gray-700 border border-gray-200'
-                      )}
-                    >
-                      <span
-                        className={cn('h-1.5 w-1.5 rounded-full', section.color || 'bg-gray-400')}
-                      />
-                      {section.name}
-                    </span>
                   ) : (
                     <span className="text-gray-300">&mdash;</span>
                   )}
@@ -477,47 +465,11 @@ export default function DrawingRegisterTable({
                       <DropdownMenuItem
                         onClick={(e) => {
                           e.stopPropagation()
-                          onNewRevision(drawing)
-                        }}
-                      >
-                        <Plus className="mr-2 h-4 w-4" />
-                        New Revision
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={(e) => {
-                          e.stopPropagation()
                           onAddToTransmittal(drawing)
                         }}
                       >
                         <Send className="mr-2 h-4 w-4" />
                         Send Drawing
-                      </DropdownMenuItem>
-
-                      {drawing.dropboxUrl && (
-                        <>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              window.open(drawing.dropboxUrl!, '_blank')
-                            }}
-                          >
-                            <ExternalLink className="mr-2 h-4 w-4" />
-                            Open in Dropbox
-                          </DropdownMenuItem>
-                        </>
-                      )}
-
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          onArchiveDrawing(drawing)
-                        }}
-                        className="text-red-600 focus:text-red-600 focus:bg-red-50"
-                      >
-                        <Archive className="mr-2 h-4 w-4" />
-                        Archive
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
