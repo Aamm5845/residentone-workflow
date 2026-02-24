@@ -34,6 +34,7 @@ interface TransmittalData {
     revisionNumber: number | null
     purpose: string | null
     notes: string | null
+    fileName?: string | null
     drawing: {
       id: string
       drawingNumber: string
@@ -44,7 +45,7 @@ interface TransmittalData {
       fileName: string | null
       pageNo: string | null
       reviewNo: string | null
-    }
+    } | null
     revision: {
       id: string
       revisionNumber: number
@@ -87,27 +88,29 @@ export function useLatestFilesBySection(transmittals: TransmittalData[]): Sectio
       if (!t.sentAt) continue
 
       for (const item of t.items) {
-        const sectionId = item.drawing.section?.id || '__none__'
-        // Use pageNo as file identifier; fall back to drawingId if no pageNo
-        const fileId = item.drawing.pageNo
+        const sectionId = item.drawing?.section?.id || '__none__'
+        // Use pageNo as file identifier; fall back to drawingId or fileName
+        const fileId = item.drawing?.pageNo
           ? `page::${item.drawing.pageNo}`
-          : `drawing::${item.drawing.id}`
+          : item.drawing?.id
+            ? `drawing::${item.drawing.id}`
+            : `file::${item.fileName || item.id}`
         const key = `${sectionId}::${fileId}`
 
         const revNum = item.revision?.revisionNumber ?? item.revisionNumber ?? 0
         const candidate: LatestSentFile = {
           key,
-          title: item.drawing.title,
-          drawingNumber: item.drawing.drawingNumber,
-          pageNo: item.drawing.pageNo,
-          reviewNo: item.drawing.reviewNo,
+          title: item.drawing?.title || item.fileName || 'Untitled',
+          drawingNumber: item.drawing?.drawingNumber || '',
+          pageNo: item.drawing?.pageNo || null,
+          reviewNo: item.drawing?.reviewNo || null,
           revisionNumber: item.revision?.revisionNumber ?? item.revisionNumber ?? null,
-          section: item.drawing.section,
+          section: item.drawing?.section || null,
           recipientName: t.recipientName,
           recipientCompany: t.recipientCompany,
           sentAt: t.sentAt,
           method: t.method,
-          dropboxPath: item.revision?.dropboxPath || item.drawing.dropboxPath || null,
+          dropboxPath: item.revision?.dropboxPath || item.drawing?.dropboxPath || null,
         }
 
         const existing = latestMap.get(key)

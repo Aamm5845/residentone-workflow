@@ -50,6 +50,7 @@ interface TransmittalData {
     revisionNumber: number | null
     purpose: string | null
     notes: string | null
+    fileName?: string | null
     drawing: {
       id: string
       drawingNumber: string
@@ -60,7 +61,7 @@ interface TransmittalData {
       fileName: string | null
       pageNo: string | null
       reviewNo: string | null
-    }
+    } | null
     revision: {
       id: string
       revisionNumber: number

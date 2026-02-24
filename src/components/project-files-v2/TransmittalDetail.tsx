@@ -64,12 +64,13 @@ interface TransmittalData {
     revisionNumber: number | null
     purpose: string | null
     notes: string | null
+    fileName?: string | null
     drawing: {
       id: string
       drawingNumber: string
       title: string
       section: { id: string; name: string; shortName: string; color: string } | null
-    }
+    } | null
     revision: {
       id: string
       revisionNumber: number
@@ -289,12 +290,12 @@ export default function TransmittalDetail({
                       <tr key={item.id} className="hover:bg-gray-50/50">
                         <td className="px-4 py-2.5">
                           <span className="font-mono font-bold text-gray-800 text-xs">
-                            {item.drawing.drawingNumber}
+                            {item.drawing?.drawingNumber || '—'}
                           </span>
                         </td>
                         <td className="px-4 py-2.5">
                           <div className="flex flex-col">
-                            <span className="text-gray-900">{item.drawing.title}</span>
+                            <span className="text-gray-900">{item.drawing?.title || item.fileName || '—'}</span>
                             {item.notes && (
                               <span className="text-xs text-gray-400 mt-0.5 italic">
                                 {item.notes}
@@ -303,7 +304,7 @@ export default function TransmittalDetail({
                           </div>
                         </td>
                         <td className="px-4 py-2.5">
-                          {item.drawing.section ? (
+                          {item.drawing?.section ? (
                             <span className={cn(
                               'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium',
                               'bg-gray-50 text-gray-700 border border-gray-200'
