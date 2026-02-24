@@ -13,10 +13,16 @@ export async function GET() {
     }
 
     // Get tasks assigned to the current user that are not done/cancelled
+    // Exclude tasks whose start date is in the future (they haven't started yet)
+    const now = new Date()
     const tasks = await prisma.task.findMany({
       where: {
         assignedToId: session.user.id,
         status: { notIn: ['DONE', 'CANCELLED'] },
+        OR: [
+          { startDate: null },
+          { startDate: { lte: now } },
+        ],
       },
       select: {
         id: true,

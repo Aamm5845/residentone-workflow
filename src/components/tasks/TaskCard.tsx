@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   Calendar,
+  Clock,
   MessageSquare,
   Paperclip,
   CheckSquare,
@@ -62,8 +63,17 @@ function getDueDateInfo(dueDate: string | null): {
   return { label: formatted, className: 'text-gray-500' }
 }
 
+function isScheduledForFuture(startDate: string | null): boolean {
+  if (!startDate) return false
+  const start = new Date(startDate)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return start > today
+}
+
 export function TaskCard({ task, onClick, onStatusChange }: TaskCardProps) {
   const dueDateInfo = useMemo(() => getDueDateInfo(task.dueDate), [task.dueDate])
+  const isScheduled = isScheduledForFuture(task.startDate)
 
   const subtaskTotal = task._count.subtasks
   const subtaskCompleted = task.completedSubtasks ?? 0
@@ -72,7 +82,10 @@ export function TaskCard({ task, onClick, onStatusChange }: TaskCardProps) {
 
   return (
     <div
-      className="group rounded-lg border border-gray-200 bg-white p-3 shadow-sm transition-shadow hover:shadow-md cursor-pointer"
+      className={cn(
+        "group rounded-lg border border-gray-200 bg-white p-3 shadow-sm transition-shadow hover:shadow-md cursor-pointer",
+        isScheduled && "opacity-50 border-dashed"
+      )}
       onClick={() => onClick(task)}
       role="button"
       tabIndex={0}
@@ -92,6 +105,14 @@ export function TaskCard({ task, onClick, onStatusChange }: TaskCardProps) {
       <h4 className="text-sm font-medium text-gray-900 line-clamp-2 mb-2">
         {task.title}
       </h4>
+      {isScheduled && (
+        <div className="mb-2">
+          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-purple-50 text-purple-600">
+            <Clock className="h-2.5 w-2.5" />
+            Starts {new Date(task.startDate!).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+          </span>
+        </div>
+      )}
 
       {/* Subtask progress bar */}
       {subtaskTotal > 0 && (

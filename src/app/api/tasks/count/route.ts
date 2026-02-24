@@ -10,10 +10,16 @@ export async function GET() {
       return NextResponse.json({ count: 0 })
     }
 
+    // Exclude tasks whose start date is in the future (scheduled, not active yet)
+    const now = new Date()
     const count = await prisma.task.count({
       where: {
         assignedToId: session.user.id,
-        status: { in: ['TODO', 'IN_PROGRESS', 'REVIEW'] }
+        status: { in: ['TODO', 'IN_PROGRESS', 'REVIEW'] },
+        OR: [
+          { startDate: null },
+          { startDate: { lte: now } },
+        ],
       }
     })
 

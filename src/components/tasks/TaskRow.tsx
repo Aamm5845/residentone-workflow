@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   Calendar,
+  Clock,
   MessageSquare,
   CheckSquare,
 } from 'lucide-react'
@@ -71,6 +72,14 @@ function getDueDateInfo(dueDate: string | null): {
   return { label: formatted, className: 'text-gray-500' }
 }
 
+function isScheduledForFuture(startDate: string | null): boolean {
+  if (!startDate) return false
+  const start = new Date(startDate)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return start > today
+}
+
 export function TaskRow({
   task,
   onClick,
@@ -80,13 +89,17 @@ export function TaskRow({
 }: TaskRowProps) {
   const dueDateInfo = useMemo(() => getDueDateInfo(task.dueDate), [task.dueDate])
   const config = statusConfig[task.status]
+  const isScheduled = isScheduledForFuture(task.startDate)
 
   const subtaskTotal = task._count.subtasks
   const subtaskCompleted = task.completedSubtasks ?? 0
 
   return (
     <div
-      className="flex items-center gap-3 px-4 py-2.5 border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer group"
+      className={cn(
+        "flex items-center gap-3 px-4 py-2.5 border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer group",
+        isScheduled && "opacity-50"
+      )}
       onClick={() => onClick(task)}
       role="button"
       tabIndex={0}
@@ -147,15 +160,23 @@ export function TaskRow({
       </TooltipProvider>
 
       {/* Title */}
-      <span
-        className={cn(
-          'flex-1 min-w-0 text-sm font-medium truncate',
-          task.status === 'DONE' ? 'text-gray-400 line-through' : 'text-gray-900',
-          task.status === 'CANCELLED' && 'text-gray-400 line-through'
+      <div className="flex-1 min-w-0 flex items-center gap-2">
+        <span
+          className={cn(
+            'text-sm font-medium truncate',
+            task.status === 'DONE' ? 'text-gray-400 line-through' : 'text-gray-900',
+            task.status === 'CANCELLED' && 'text-gray-400 line-through'
+          )}
+        >
+          {task.title}
+        </span>
+        {isScheduled && (
+          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-purple-50 text-purple-600 shrink-0">
+            <Clock className="h-2.5 w-2.5" />
+            Scheduled
+          </span>
         )}
-      >
-        {task.title}
-      </span>
+      </div>
 
       {/* Project name */}
       {showProject && (
