@@ -30,6 +30,13 @@ export async function POST(
       where: {
         id: messageId,
         projectId,
+        project: {
+          OR: [
+            { createdById: session.user.id },
+            { updatedById: session.user.id },
+            { organization: { users: { some: { id: session.user.id } } } }
+          ]
+        }
       },
       select: {
         id: true,
@@ -154,6 +161,13 @@ export async function GET(
       where: {
         id: messageId,
         projectId,
+        project: {
+          OR: [
+            { createdById: session.user.id },
+            { updatedById: session.user.id },
+            { organization: { users: { some: { id: session.user.id } } } }
+          ]
+        }
       },
       select: { id: true }
     })

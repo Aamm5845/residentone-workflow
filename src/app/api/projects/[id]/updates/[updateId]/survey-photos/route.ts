@@ -28,10 +28,15 @@ export async function POST(
     const { id: projectId, updateId } = await params
     console.log('[SurveyPhotos] Project ID:', projectId, 'Update ID:', updateId)
 
-    // Verify project access
+    // Verify project access - user must be in the same org as the project
     const project = await prisma.project.findFirst({
       where: {
         id: projectId,
+        OR: [
+          { createdById: session.user.id },
+          { updatedById: session.user.id },
+          { organization: { users: { some: { id: session.user.id } } } }
+        ]
       },
       select: {
         id: true,

@@ -22,8 +22,9 @@ export default async function SpecsPage({ params }: Props) {
   
   try {
     project = await prisma.project.findFirst({
-      where: {
-        id: id
+      where: { 
+        id: id,
+        orgId: session.user.orgId
       },
       include: {
         client: {

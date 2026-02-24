@@ -67,6 +67,13 @@ export async function GET(
       where: {
         id: updateId,
         projectId,
+        project: {
+          OR: [
+            { createdById: session.user.id },
+            { updatedById: session.user.id },
+            { organization: { users: { some: { id: session.user.id } } } }
+          ]
+        }
       }
     })
 
@@ -193,6 +200,13 @@ export async function POST(
       where: {
         id: updateId,
         projectId,
+        project: {
+          OR: [
+            { createdById: session.user.id },
+            { updatedById: session.user.id },
+            { organization: { users: { some: { id: session.user.id } } } }
+          ]
+        }
       }
     })
 
@@ -372,6 +386,13 @@ export async function PUT(
         updateId,
         update: {
           projectId,
+          project: {
+            OR: [
+              { createdById: session.user.id },
+              { updatedById: session.user.id },
+              { organization: { users: { some: { id: session.user.id } } } }
+            ]
+          }
         }
       }
     })
@@ -457,6 +478,13 @@ export async function DELETE(
         updateId,
         update: {
           projectId,
+          project: {
+            OR: [
+              { createdById: session.user.id },
+              { updatedById: session.user.id },
+              { organization: { users: { some: { id: session.user.id } } } }
+            ]
+          }
         }
       }
     })

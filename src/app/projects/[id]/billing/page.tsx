@@ -31,6 +31,7 @@ export default async function ProjectBillingPage({ params }: PageProps) {
   const project = await prisma.project.findFirst({
     where: {
       id: projectId,
+      orgId: session.user.orgId || undefined,
     },
     include: {
       client: {

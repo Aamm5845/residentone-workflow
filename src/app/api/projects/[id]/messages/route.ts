@@ -46,6 +46,11 @@ export async function GET(
     const project = await prisma.project.findFirst({
       where: {
         id: projectId,
+        OR: [
+          { createdById: session.user.id },
+          { updatedById: session.user.id },
+          { organization: { users: { some: { id: session.user.id } } } }
+        ]
       }
     })
 
@@ -242,6 +247,11 @@ export async function POST(
     const project = await prisma.project.findFirst({
       where: {
         id: projectId,
+        OR: [
+          { createdById: session.user.id },
+          { updatedById: session.user.id },
+          { organization: { users: { some: { id: session.user.id } } } }
+        ]
       }
     })
 

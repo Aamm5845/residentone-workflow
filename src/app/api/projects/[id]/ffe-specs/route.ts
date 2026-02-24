@@ -25,6 +25,7 @@ export async function GET(
     }
 
     const { id: projectId } = await params
+    const orgId = (session.user as any).orgId
 
     // Parse query params
     const { searchParams } = new URL(request.url)
@@ -33,9 +34,9 @@ export async function GET(
     const searchQuery = searchParams.get('search')
     const itemIds = searchParams.get('ids')?.split(',').filter(Boolean) // Optional: specific item IDs to fetch
 
-    // Verify project exists
+    // Verify project belongs to org
     const project = await prisma.project.findFirst({
-      where: { id: projectId }
+      where: { id: projectId, orgId }
     })
 
     if (!project) {

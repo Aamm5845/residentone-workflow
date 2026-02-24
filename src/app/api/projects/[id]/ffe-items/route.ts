@@ -20,10 +20,11 @@ export async function GET(
     }
 
     const { id: projectId } = await params
+    const orgId = (session.user as any).orgId
 
-    // Verify project exists
+    // Verify project belongs to org
     const project = await prisma.project.findFirst({
-      where: { id: projectId }
+      where: { id: projectId, orgId }
     })
 
     if (!project) {

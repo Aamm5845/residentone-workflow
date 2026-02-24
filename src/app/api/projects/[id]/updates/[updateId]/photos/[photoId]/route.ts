@@ -20,6 +20,11 @@ export async function DELETE(
     const project = await prisma.project.findFirst({
       where: {
         id: projectId,
+        OR: [
+          { createdById: session.user.id },
+          { updatedById: session.user.id },
+          { organization: { users: { some: { id: session.user.id } } } }
+        ]
       },
       select: { id: true }
     })

@@ -34,8 +34,13 @@ export default async function ProjectUpdatesPage({ params }: Props) {
   try {
     // Fetch project
     project = await prisma.project.findFirst({
-      where: {
-        id: id
+      where: { 
+        id: id,
+        OR: [
+          { createdById: session.user.id },
+          { updatedById: session.user.id },
+          { organization: { users: { some: { id: session.user.id } } } }
+        ]
       },
       select: {
         id: true,

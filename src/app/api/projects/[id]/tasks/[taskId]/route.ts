@@ -39,6 +39,13 @@ export async function GET(
       where: {
         id: taskId,
         projectId,
+        project: {
+          OR: [
+            { createdById: session.user.id },
+            { updatedById: session.user.id },
+            { organization: { users: { some: { id: session.user.id } } } }
+          ]
+        }
       },
       include: {
         update: {
@@ -181,6 +188,13 @@ export async function PUT(
       where: {
         id: taskId,
         projectId,
+        project: {
+          OR: [
+            { createdById: session.user.id },
+            { updatedById: session.user.id },
+            { organization: { users: { some: { id: session.user.id } } } }
+          ]
+        }
       },
       include: {
         assignee: { select: { id: true, name: true, email: true } },
@@ -435,6 +449,13 @@ export async function DELETE(
       where: {
         id: taskId,
         projectId,
+        project: {
+          OR: [
+            { createdById: session.user.id },
+            { updatedById: session.user.id },
+            { organization: { users: { some: { id: session.user.id } } } }
+          ]
+        }
       },
       include: {
         assignee: { select: { id: true, name: true } },

@@ -36,7 +36,7 @@ export async function POST(
 
     // Verify project access
     const project = await prisma.project.findFirst({
-      where: { id },
+      where: { id, orgId: session.user.orgId || undefined },
       select: { id: true },
     })
 

@@ -37,7 +37,7 @@ export async function GET(
 
     // Verify project access and get dropboxFolder
     const project = await prisma.project.findFirst({
-      where: { id },
+      where: { id, orgId: session.user.orgId || undefined },
       select: { id: true, dropboxFolder: true }
     })
 
