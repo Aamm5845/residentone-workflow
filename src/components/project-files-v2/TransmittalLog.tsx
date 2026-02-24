@@ -369,29 +369,6 @@ export default function TransmittalLog({
     )
   }
 
-  // ── Helper: get deduplicated sections from a transmittal ────────────
-  function getUniqueSections(t: TransmittalData): SectionData[] {
-    const map = new Map<string, SectionData>()
-    for (const item of t.items) {
-      if (item.drawing.section && !map.has(item.drawing.section.id)) {
-        map.set(item.drawing.section.id, item.drawing.section)
-      }
-    }
-    return Array.from(map.values())
-  }
-
-  // ── Helper: build title display ──────────────────────────────────────
-  function getDisplayTitle(t: TransmittalData): { primary: string; secondary: string | null } {
-    if (t.subject) {
-      return { primary: t.subject, secondary: null }
-    }
-    const firstTitle = t.items[0]?.drawing.title || 'Untitled'
-    if (t.items.length === 1) {
-      return { primary: firstTitle, secondary: null }
-    }
-    return { primary: firstTitle, secondary: `+${t.items.length - 1} more` }
-  }
-
   // ── Render ────────────────────────────────────────────────────────────
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -675,13 +652,11 @@ export default function TransmittalLog({
           <table className="w-full table-fixed border-collapse text-sm">
             <colgroup>
               <col className="w-[40px]" />   {/* Checkbox */}
-              <col className="w-[30%]" />    {/* Title / Subject */}
-              <col className="w-[7%]" />     {/* Files */}
-              <col className="w-[14%]" />    {/* Section */}
+              <col className="w-[34%]" />    {/* Drawings */}
               <col className="w-[15%]" />    {/* Recipient */}
               <col className="w-[8%]" />     {/* Method */}
-              <col className="w-[16%]" />    {/* Sent */}
-              <col className="w-[8%]" />     {/* Action */}
+              <col className="w-[14%]" />    {/* Sent */}
+              <col className="w-[8%]" />     {/* PDF */}
             </colgroup>
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/80">
@@ -695,15 +670,9 @@ export default function TransmittalLog({
                 </th>
                 <th className="px-4 py-3 text-left">
                   <button onClick={() => handleSort('title')} className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 transition-colors cursor-pointer select-none">
-                    Title
+                    Drawings
                     {sortField === 'title' && (sortDir === 'asc' ? <ArrowUp className="h-3 w-3 text-slate-900" /> : <ArrowDown className="h-3 w-3 text-slate-900" />)}
                   </button>
-                </th>
-                <th className="px-3 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-                  Files
-                </th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-                  Section
                 </th>
                 <th className="px-4 py-3 text-left">
                   <button onClick={() => handleSort('recipient')} className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 transition-colors cursor-pointer select-none">
@@ -727,10 +696,8 @@ export default function TransmittalLog({
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredRows.map((t) => {
-                const { primary, secondary } = getDisplayTitle(t)
-                const sections = getUniqueSections(t)
                 return (
-                  <tr key={t.id} className={cn('transition-colors hover:bg-slate-50/70', selectedIds.has(t.id) && 'bg-slate-50')}>
+                  <tr key={t.id} className={cn('transition-colors hover:bg-slate-50/70 align-top', selectedIds.has(t.id) && 'bg-slate-50')}>
                     {/* Checkbox */}
                     <td className="px-3 py-3 text-center w-[40px]">
                       <input
@@ -741,42 +708,38 @@ export default function TransmittalLog({
                       />
                     </td>
 
-                    {/* Title / Subject */}
+                    {/* Drawings — transmittal number + each item on its own line */}
                     <td className="px-4 py-3">
                       <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-mono text-[11px] text-slate-400 shrink-0">{t.transmittalNumber}</span>
+                        <span className="font-mono text-[11px] text-slate-400">{t.transmittalNumber}</span>
+                        {t.subject && <span className="text-xs text-slate-500 ml-1.5">— {t.subject}</span>}
+                        <div className="mt-1.5 space-y-1.5">
+                          {t.items.map((item) => {
+                            const rev = item.drawing.reviewNo || (item.revision?.revisionNumber ?? item.revisionNumber)
+                            return (
+                              <div key={item.id} className="flex items-center gap-2 text-sm">
+                                <span className="font-medium text-slate-900 truncate">{item.drawing.title}</span>
+                                {item.drawing.section && (
+                                  <span className={cn(
+                                    'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium shrink-0',
+                                    'bg-slate-50 text-slate-600 ring-1 ring-slate-200'
+                                  )}>
+                                    <span className={cn('h-1.5 w-1.5 rounded-full', item.drawing.section.color || 'bg-slate-400')} />
+                                    {item.drawing.section.name}
+                                  </span>
+                                )}
+                                {rev != null && rev !== '' && (
+                                  <span className="text-[11px] text-slate-500 shrink-0">Rev {rev}</span>
+                                )}
+                                {item.drawing.pageNo && (
+                                  <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-mono font-medium text-slate-500 shrink-0">
+                                    P{item.drawing.pageNo}
+                                  </span>
+                                )}
+                              </div>
+                            )
+                          })}
                         </div>
-                        <span className="font-medium text-slate-900 truncate block">
-                          {primary}
-                        </span>
-                        {secondary && (
-                          <span className="text-xs text-slate-400">{secondary}</span>
-                        )}
-                      </div>
-                    </td>
-
-                    {/* Files count */}
-                    <td className="px-3 py-3 text-center">
-                      <span className="inline-flex items-center justify-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
-                        {t.items.length}
-                      </span>
-                    </td>
-
-                    {/* Section(s) */}
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1">
-                        {sections.length > 0 ? sections.map((sec) => (
-                          <span key={sec.id} className={cn(
-                            'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium',
-                            'bg-slate-50 text-slate-700 ring-1 ring-slate-200'
-                          )}>
-                            <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', sec.color || 'bg-slate-400')} />
-                            <span className="truncate">{sec.shortName}</span>
-                          </span>
-                        )) : (
-                          <span className="text-slate-300">&mdash;</span>
-                        )}
                       </div>
                     </td>
 
