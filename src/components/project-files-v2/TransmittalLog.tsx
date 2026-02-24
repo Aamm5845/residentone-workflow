@@ -42,7 +42,6 @@ interface TransmittalData {
   sentAt: string | null
   emailOpenedAt: string | null
   createdAt: string
-  combinedPdfPath?: string | null
   creator: { id: string; name: string | null }
   sentByUser: { id: string; name: string | null } | null
   items: Array<{
@@ -684,8 +683,7 @@ export default function TransmittalLog({
                     {sortField === 'sent' && (sortDir === 'asc' ? <ArrowUp className="h-3 w-3 text-slate-900" /> : <ArrowDown className="h-3 w-3 text-slate-900" />)}
                   </button>
                 </th>
-                <th className="px-3 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 w-[60px]">
-                  PDF
+                <th className="px-3 py-3 w-[10px]">
                 </th>
               </tr>
             </thead>
@@ -810,22 +808,7 @@ export default function TransmittalLog({
                       )}
                     </td>
 
-                    {/* Open in All Files */}
-                    <td className="px-3 py-3 text-center">
-                      {t.combinedPdfPath && onOpenInFiles ? (
-                        <button
-                          onClick={() => {
-                            // Extract folder path from combinedPdfPath (e.g. "5- transmittals/file.pdf" → "5- transmittals")
-                            const folder = t.combinedPdfPath!.split('/').slice(0, -1).join('/')
-                            onOpenInFiles(folder || '5- transmittals')
-                          }}
-                          className="text-xs text-blue-600 hover:text-blue-800 transition-colors"
-                        >
-                          Open
-                        </button>
-                      ) : (
-                        <span className="text-slate-300">&mdash;</span>
-                      )}
+                    <td className="px-3 py-3">
                     </td>
                   </tr>
                 )

@@ -4,7 +4,6 @@ import {
   X,
   Mail,
   Send,
-  Download,
   User,
   Building2,
   Calendar,
@@ -56,7 +55,6 @@ interface TransmittalData {
   notes: string | null
   sentAt: string | null
   createdAt: string
-  combinedPdfPath: string | null
   creator: { id: string; name: string | null }
   sentByUser: { id: string; name: string | null } | null
   items: Array<{
@@ -363,20 +361,6 @@ export default function TransmittalDetail({
             Close
           </Button>
           <div className="flex items-center gap-2">
-            {transmittal.combinedPdfPath && (
-              <Button
-                variant="outline"
-                onClick={() =>
-                  window.open(
-                    `/api/projects/${projectId}/project-files-v2/transmittals/${transmittal.id}/download`,
-                    '_blank'
-                  )
-                }
-              >
-                <Download className="h-4 w-4 mr-1.5" />
-                Download Combined PDF
-              </Button>
-            )}
             {canResend && (
               <Button onClick={onResend}>
                 <Send className="h-4 w-4 mr-1.5" />

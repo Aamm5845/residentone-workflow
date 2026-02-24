@@ -4,7 +4,6 @@ import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email-service'
 import { dropboxService } from '@/lib/dropbox-service-v2'
 import { getBaseUrl } from '@/lib/get-base-url'
-import { stampAndMergePdfs, StampableAttachment } from '@/lib/pdf-merge'
 
 export const runtime = 'nodejs'
 
@@ -102,105 +101,55 @@ export async function POST(
       )
     }
 
-    // Build absolute Dropbox paths (same pattern as pdf-thumbnail route)
-    // drawing.dropboxPath is RELATIVE (e.g. "4- drawings/file.pdf")
-    // We need: project.dropboxFolder + "/" + relativePath (absolute path for Dropbox API)
+    // ── Download file attachments from Dropbox ──
     const dropboxFolder = project.dropboxFolder
     console.log(`[transmittal/send] Project dropboxFolder: ${JSON.stringify(dropboxFolder)}`)
     console.log(`[transmittal/send] Transmittal has ${transmittal.items.length} items`)
 
-    // Download PDF attachments from Dropbox and convert to base64 (same format as floorplan approval emails)
     const attachments: Array<{ filename: string; content: string; contentType: string }> = []
-    const itemForAttachment: Array<typeof transmittal.items[number]> = []
     const attachmentErrors: string[] = []
 
     for (const item of transmittal.items) {
-      // Get relative path from revision first, then from drawing
-      const relativePath = item.revision?.dropboxPath || item.drawing.dropboxPath
+      // Get path from: item itself (new flow) → revision → drawing (old flow)
+      const relativePath = item.dropboxPath || item.revision?.dropboxPath || item.drawing?.dropboxPath
 
       if (relativePath && dropboxFolder) {
-        // Build absolute path exactly like pdf-thumbnail does
         const absolutePath = dropboxFolder + '/' + relativePath
         try {
-          console.log(`[transmittal/send] Downloading: ${item.drawing.drawingNumber} → "${absolutePath}"`)
+          const title = item.drawing?.title || item.fileName || 'file'
+          const drawingNum = item.drawing?.drawingNumber
+          const filename = drawingNum
+            ? `${drawingNum} - ${title}.pdf`
+            : relativePath.split('/').pop() || `${title}.pdf`
+
+          console.log(`[transmittal/send] Downloading: "${absolutePath}"`)
           const pdfBuffer = await dropboxService.downloadFile(absolutePath)
 
-          const base64Content = Buffer.from(pdfBuffer).toString('base64')
-          const filename = item.drawing.drawingNumber
-            ? `${item.drawing.drawingNumber} - ${item.drawing.title}.pdf`
-            : `${item.drawing.title}.pdf`
           attachments.push({
             filename,
-            content: base64Content,
+            content: Buffer.from(pdfBuffer).toString('base64'),
             contentType: 'application/pdf'
           })
-          itemForAttachment.push(item)
-          console.log(`[transmittal/send] ✅ Attached: ${filename} (${pdfBuffer.length} bytes)`)
+          console.log(`[transmittal/send] Attached: ${filename} (${pdfBuffer.length} bytes)`)
         } catch (err: any) {
-          const errMsg = `Failed to download ${item.drawing.drawingNumber} from "${absolutePath}": ${err?.message || err}`
-          console.error(`[transmittal/send] ❌ ${errMsg}`)
+          const errMsg = `Failed to download from "${absolutePath}": ${err?.message || err}`
+          console.error(`[transmittal/send] ${errMsg}`)
           attachmentErrors.push(errMsg)
         }
       } else if (!relativePath) {
-        const msg = `Drawing ${item.drawing.drawingNumber} has no dropboxPath`
-        console.warn(`[transmittal/send] ⚠️ ${msg}`)
+        const label = item.drawing?.drawingNumber || item.fileName || 'Unknown'
+        const msg = `${label} has no file path`
+        console.warn(`[transmittal/send] ${msg}`)
         attachmentErrors.push(msg)
       } else if (!dropboxFolder) {
-        const msg = `Project has no dropboxFolder configured — cannot resolve Dropbox path`
-        console.warn(`[transmittal/send] ⚠️ ${msg}`)
-        attachmentErrors.push(msg)
+        console.warn(`[transmittal/send] Project has no dropboxFolder configured`)
+        attachmentErrors.push('Project has no dropboxFolder configured')
       }
     }
 
-    console.log(`[transmittal/send] Result: ${attachments.length} attachments ready, ${attachmentErrors.length} errors`)
+    console.log(`[transmittal/send] ${attachments.length} attachments ready, ${attachmentErrors.length} errors`)
 
-    // ── Stamp & merge PDFs into a single combined attachment (sorted by page number) ──
-    // Build pairs of attachment + item, sort by pageNo, then extract stampable data
-    const pairedAttachments = attachments.map((att, i) => ({
-      att,
-      item: itemForAttachment[i],
-    }))
-    pairedAttachments.sort((a, b) =>
-      (a.item?.drawing.pageNo || '').localeCompare(b.item?.drawing.pageNo || '', undefined, { numeric: true })
-    )
-    const stampableAttachments: StampableAttachment[] = pairedAttachments.map(({ att, item }) => {
-      const rev = item?.revision?.revisionNumber ?? item?.revisionNumber
-      return {
-        ...att,
-        drawingNumber: item?.drawing.drawingNumber,
-        revisionNumber: rev ?? undefined,
-        title: item?.drawing.title,
-      }
-    })
-
-    const mergeDateStr = new Date().toISOString().split('T')[0]
-    const combinedFilename = `${project.name} - ${transmittal.transmittalNumber} - ${mergeDateStr}.pdf`
-
-    const { pdfAttachment, nonPdfAttachments } = await stampAndMergePdfs(
-      stampableAttachments,
-      combinedFilename
-    )
-
-    // Upload combined PDF to Dropbox
-    let combinedPdfRelPath: string | null = null
-    if (pdfAttachment && project.dropboxFolder) {
-      try {
-        const pdfBuffer = Buffer.from(pdfAttachment.content, 'base64')
-        const dropboxAbsPath = `${project.dropboxFolder}/5- Transmittals/${combinedFilename}`
-        console.log(`[transmittal/send] Uploading combined PDF to Dropbox: "${dropboxAbsPath}"`)
-        await dropboxService.uploadFile(dropboxAbsPath, pdfBuffer)
-        combinedPdfRelPath = `5- Transmittals/${combinedFilename}`
-        console.log(`[transmittal/send] ✅ Combined PDF saved to Dropbox`)
-      } catch (err: any) {
-        console.error(`[transmittal/send] ⚠️ Failed to upload combined PDF to Dropbox:`, err?.message)
-      }
-    }
-
-    const finalAttachments: Array<{ filename: string; content: string; contentType: string }> = []
-    if (pdfAttachment) finalAttachments.push(pdfAttachment)
-    finalAttachments.push(...nonPdfAttachments)
-
-    // Build org info
+    // ── Build email ──
     const org = project.organization
     const companyName = org?.businessName || org?.name || ''
     const companyLogo = 'https://app.meisnerinteriors.com/meisnerinteriorlogo.png'
@@ -217,21 +166,21 @@ export async function POST(
     // Subject line
     const emailSubject = transmittal.subject && transmittal.subject.trim() !== ''
       ? `${project.name} — ${transmittal.subject}`
-      : `${project.name} — Drawing Transmittal ${transmittal.transmittalNumber}`
+      : `${project.name} — File Transmittal ${transmittal.transmittalNumber}`
 
-    // Drawing list rows (sorted by page number)
-    const sortedItems = [...transmittal.items].sort((a, b) =>
-      (a.drawing.pageNo || '').localeCompare(b.drawing.pageNo || '', undefined, { numeric: true })
-    )
-    const drawingRows = sortedItems
+    // File list rows
+    const fileRows = transmittal.items
       .map((item) => {
-        const rev = item.revision?.revisionNumber ?? item.revisionNumber ?? ''
+        const title = item.drawing?.title || item.fileName || '—'
+        const section = item.drawing?.section?.name || item.drawing?.section?.shortName || ''
+        const review = item.drawing?.reviewNo || (item.revision?.revisionNumber ?? item.revisionNumber ?? '')
+        const page = item.drawing?.pageNo || ''
         return `
           <tr>
-            <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 14px; color: #1e293b; font-weight: 500;">${item.drawing.title}</td>
-            <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 14px; color: #1e293b; font-weight: 500;">${item.drawing.section?.name || item.drawing.section?.shortName || ''}</td>
-            <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 14px; color: #1e293b; text-align: center;">${item.drawing.reviewNo || rev || ''}</td>
-            <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 14px; color: #1e293b; text-align: center;">${item.drawing.pageNo || '—'}</td>
+            <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 14px; color: #1e293b; font-weight: 500;">${title}</td>
+            <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 14px; color: #1e293b;">${section}</td>
+            <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 14px; color: #1e293b; text-align: center;">${review || '—'}</td>
+            <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 14px; color: #1e293b; text-align: center;">${page || '—'}</td>
           </tr>`
       })
       .join('')
@@ -248,7 +197,7 @@ export async function POST(
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Drawing Transmittal - ${companyName}</title>
+    <title>File Transmittal - ${companyName}</title>
 </head>
 <body style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f1f5f9; margin: 0; padding: 24px 16px;">
     <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.06);">
@@ -258,14 +207,14 @@ export async function POST(
             <img src="${companyLogo}"
                  alt="${companyName}"
                  style="max-width: 180px; height: auto; margin-bottom: 8px;" />
-            <p style="margin: 0; color: #64748b; font-size: 13px; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;">Drawing Transmittal</p>
+            <p style="margin: 0; color: #64748b; font-size: 13px; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;">File Transmittal</p>
         </div>
 
         <!-- Body -->
         <div style="padding: 32px;">
             <p style="font-size: 16px; color: #1e293b; margin: 0 0 6px; font-weight: 600;">Hi ${firstName},</p>
             <p style="font-size: 15px; color: #475569; margin: 0 0 4px; line-height: 1.6;">
-                Please find attached ${itemCount === 1 ? 'a drawing' : `${itemCount} drawings`} for <strong style="color: #1e293b;">${project.name}</strong>. The drawings are included as a combined PDF attachment to this email.
+                Please find attached ${itemCount === 1 ? 'a file' : `${itemCount} files`} for <strong style="color: #1e293b;">${project.name}</strong>.
             </p>
 
             <!-- Transmittal Details Card -->
@@ -292,9 +241,9 @@ export async function POST(
 
             ${notesHtml}
 
-            <!-- Drawings List -->
+            <!-- Files List -->
             <p style="margin: 0 0 8px; font-size: 13px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">
-                Drawings · ${itemCount}
+                Files · ${itemCount}
             </p>
             <div style="background: white; border-radius: 10px; border: 1px solid #e2e8f0; overflow: hidden; margin-bottom: 20px;">
                 <table style="width: 100%; border-collapse: collapse;">
@@ -307,7 +256,7 @@ export async function POST(
                         </tr>
                     </thead>
                     <tbody>
-                        ${drawingRows}
+                        ${fileRows}
                     </tbody>
                 </table>
             </div>
@@ -338,7 +287,7 @@ export async function POST(
       to: transmittal.recipientEmail,
       subject: emailSubject,
       html,
-      attachments: finalAttachments.length > 0 ? finalAttachments : undefined
+      attachments: attachments.length > 0 ? attachments : undefined
     })
 
     // Update transmittal status
@@ -349,7 +298,7 @@ export async function POST(
         sentAt: new Date(),
         sentBy: session.user.id,
         emailId: emailResult.messageId || null,
-        combinedPdfPath: combinedPdfRelPath,
+        combinedPdfPath: null,
       },
       include: {
         items: {

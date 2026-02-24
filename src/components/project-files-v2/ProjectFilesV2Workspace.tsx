@@ -500,7 +500,7 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
               dropboxFolder={project.dropboxFolder}
               transmittals={transmittals}
               isLoading={transmittalsLoading}
-              onCreateNew={() => setShowNewTransmittal(true)}
+              onCreateNew={() => setShowSendFile(true)}
               onOpenInFiles={(folderPath) => {
                 setAllFilesNavigatePath(folderPath)
                 setActiveTab('all-files')
