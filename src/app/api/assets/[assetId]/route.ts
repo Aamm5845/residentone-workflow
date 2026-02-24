@@ -136,11 +136,18 @@ export async function DELETE(
         const projectFolder = existingAsset.renderingVersion.room.project.dropboxFolder
         const version = existingAsset.renderingVersion.version
         
-        // Construct the Dropbox file path (note: folder is "3- RENDERING" with space after dash)
-        const dropboxFilePath = `${projectFolder}/3- RENDERING/${sanitizedRoomName}/${version}/${existingAsset.filename}`
-        
-        await dropboxService.deleteFile(dropboxFilePath)
-        console.log(`✅ File deleted from Dropbox: ${dropboxFilePath}`)
+        // Construct the Dropbox file path - try new name first, fall back to old name for unmigrated projects
+        const newFilePath = `${projectFolder}/3- Renderings/${sanitizedRoomName}/${version}/${existingAsset.filename}`
+        const oldFilePath = `${projectFolder}/3- RENDERING/${sanitizedRoomName}/${version}/${existingAsset.filename}`
+
+        try {
+          await dropboxService.deleteFile(newFilePath)
+          console.log(`✅ File deleted from Dropbox: ${newFilePath}`)
+        } catch (newPathError) {
+          console.warn(`⚠️ Could not delete with new name, trying legacy name: ${oldFilePath}`)
+          await dropboxService.deleteFile(oldFilePath)
+          console.log(`✅ File deleted from Dropbox (legacy path): ${oldFilePath}`)
+        }
       } catch (dropboxError) {
         console.error('❌ Failed to delete from Dropbox:', dropboxError)
         // Continue with database deletion even if Dropbox deletion fails

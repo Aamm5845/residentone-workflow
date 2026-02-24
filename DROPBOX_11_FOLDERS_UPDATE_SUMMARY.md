@@ -18,7 +18,7 @@ Successfully updated the Dropbox project folder structure from **10 folders to 1
 /Meisner Interiors Team Folder/{Project Name}/
 ├── 1- CAD
 ├── 2- MAX
-├── 3- RENDERING
+├── 3- Renderings
 ├── 4- SENT
 ├── 5- RECIEVED
 ├── 6- SHOPPING
@@ -181,7 +181,7 @@ Successfully updated the Dropbox project folder structure from **10 folders to 1
 |--------|---------|
 | 1- CAD | CAD files, DWG, DXF |
 | 2- MAX | 3ds Max files |
-| 3- RENDERING | Rendered images |
+| 3- Renderings | Rendered images |
 | 4- SENT | Files sent to client |
 | 5- RECIEVED | Files received from client |
 | 6- SHOPPING | Shopping lists, product info |

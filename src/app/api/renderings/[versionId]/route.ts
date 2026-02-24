@@ -328,11 +328,21 @@ export async function DELETE(
           .replace(/\.$/, '')              // remove trailing period
           .trim()
         
-        // Delete folder path: /ProjectFolder/3- RENDERING/RoomName/Version (note: "3- RENDERING" with space)
-        const dropboxFolderPath = `${renderingVersion.room.project.dropboxFolder}/3- RENDERING/${sanitizedRoomName}/${renderingVersion.version}`
-        
-        await dropboxService.deleteFolder(dropboxFolderPath)
-        console.log(`✅ Dropbox folder deleted: ${dropboxFolderPath}`)
+        // Delete folder path: /ProjectFolder/3- Renderings/RoomName/Version
+        // Try new name first, fall back to old name for unmigrated projects
+        const projectFolder = renderingVersion.room.project.dropboxFolder
+        const subPath = `${sanitizedRoomName}/${renderingVersion.version}`
+        const newFolderPath = `${projectFolder}/3- Renderings/${subPath}`
+        const oldFolderPath = `${projectFolder}/3- RENDERING/${subPath}`
+
+        try {
+          await dropboxService.deleteFolder(newFolderPath)
+          console.log(`✅ Dropbox folder deleted: ${newFolderPath}`)
+        } catch (newPathError) {
+          console.warn(`⚠️ Could not delete with new name, trying legacy name: ${oldFolderPath}`)
+          await dropboxService.deleteFolder(oldFolderPath)
+          console.log(`✅ Dropbox folder deleted (legacy path): ${oldFolderPath}`)
+        }
       } catch (dropboxError) {
         console.error('❌ Failed to delete from Dropbox:', dropboxError)
         // Don't fail the entire deletion if Dropbox fails

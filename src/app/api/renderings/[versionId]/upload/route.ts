@@ -149,7 +149,7 @@ export async function POST(
             .replace(/\.$/, '')                 // remove trailing period
             .trim()
 
-          const baseFolderPath = `${renderingVersion.room.project.dropboxFolder}/3- RENDERING`
+          const baseFolderPath = `${renderingVersion.room.project.dropboxFolder}/3- Renderings`
           const roomFolderPath = `${baseFolderPath}/${sanitizedRoomName}`
           const versionFolderPath = `${roomFolderPath}/${renderingVersion.version}`
 

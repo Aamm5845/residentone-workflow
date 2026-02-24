@@ -791,7 +791,7 @@ class DropboxService {
       const subfolders = [
         '1- CAD',
         '2- MAX',
-        '3- RENDERING',
+        '3- Renderings',
         '4- SENT',
         '5- RECIEVED',
         '6- SHOPPING',
