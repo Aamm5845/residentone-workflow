@@ -36,13 +36,6 @@ export async function GET(
       where: {
         id: messageId,
         projectId,
-        project: {
-          OR: [
-            { createdById: session.user.id },
-            { updatedById: session.user.id },
-            { organization: { users: { some: { id: session.user.id } } } }
-          ]
-        }
       },
       include: {
         author: {
@@ -200,13 +193,6 @@ export async function PUT(
       where: {
         id: messageId,
         projectId,
-        project: {
-          OR: [
-            { createdById: session.user.id },
-            { updatedById: session.user.id },
-            { organization: { users: { some: { id: session.user.id } } } }
-          ]
-        }
       }
     })
 
@@ -325,13 +311,6 @@ export async function DELETE(
       where: {
         id: messageId,
         projectId,
-        project: {
-          OR: [
-            { createdById: session.user.id },
-            { updatedById: session.user.id },
-            { organization: { users: { some: { id: session.user.id } } } }
-          ]
-        }
       },
       include: {
         _count: {

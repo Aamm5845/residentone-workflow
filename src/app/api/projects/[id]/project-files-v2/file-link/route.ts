@@ -19,7 +19,7 @@ export async function GET(
     const { id } = await params
 
     const project = await prisma.project.findFirst({
-      where: { id, orgId: session.user.orgId || undefined },
+      where: { id },
       select: { id: true, dropboxFolder: true },
     })
 

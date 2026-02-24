@@ -28,7 +28,7 @@ export async function POST(
 
     // Verify project access and get dropboxFolder
     const project = await prisma.project.findFirst({
-      where: { id, orgId: session.user.orgId || undefined },
+      where: { id },
       select: { id: true, dropboxFolder: true }
     })
 

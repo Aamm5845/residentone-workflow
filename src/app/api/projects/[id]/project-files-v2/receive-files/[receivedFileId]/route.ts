@@ -18,7 +18,7 @@ export async function DELETE(
     const { id, receivedFileId } = await params
 
     const project = await prisma.project.findFirst({
-      where: { id, orgId: session.user.orgId || undefined },
+      where: { id },
       select: { id: true },
     })
 

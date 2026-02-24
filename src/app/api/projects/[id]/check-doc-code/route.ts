@@ -20,7 +20,6 @@ export async function GET(
     }
 
     const { id: projectId } = await params
-    const orgId = (session.user as any).orgId
     const { searchParams } = new URL(request.url)
     const docCode = searchParams.get('docCode')?.trim()
     const excludeItemId = searchParams.get('excludeItemId') // Optional: exclude current item when editing
@@ -29,9 +28,9 @@ export async function GET(
       return NextResponse.json({ error: 'Doc code is required' }, { status: 400 })
     }
 
-    // Verify project belongs to org
+    // Verify project exists
     const project = await prisma.project.findFirst({
-      where: { id: projectId, orgId }
+      where: { id: projectId }
     })
 
     if (!project) {

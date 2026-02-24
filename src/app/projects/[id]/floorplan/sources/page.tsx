@@ -28,8 +28,7 @@ export default async function ClientSourcesPage({ params }: PageProps) {
   // Fetch project with client info
   const project = await prisma.project.findFirst({
     where: {
-      id: projectId,
-      orgId: session.user.orgId
+      id: projectId
     },
     select: {
       id: true,

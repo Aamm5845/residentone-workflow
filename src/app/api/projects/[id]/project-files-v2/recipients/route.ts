@@ -19,7 +19,7 @@ export async function GET(
 
     // Verify project access and get client info
     const project = await prisma.project.findFirst({
-      where: { id, orgId: session.user.orgId || undefined },
+      where: { id },
       select: {
         id: true,
         orgId: true,

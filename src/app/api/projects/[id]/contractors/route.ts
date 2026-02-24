@@ -15,11 +15,10 @@ export async function GET(
 
     const { id: projectId } = await params
 
-    // Verify project access
+    // Verify project exists
     const project = await prisma.project.findFirst({
       where: {
-        id: projectId,
-        orgId: session.user.orgId
+        id: projectId
       }
     })
 
@@ -73,11 +72,10 @@ export async function POST(
       )
     }
 
-    // Verify project access
+    // Verify project exists
     const project = await prisma.project.findFirst({
       where: {
-        id: projectId,
-        orgId: session.user.orgId
+        id: projectId
       }
     })
 

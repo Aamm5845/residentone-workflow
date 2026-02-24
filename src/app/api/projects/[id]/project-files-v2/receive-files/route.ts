@@ -47,7 +47,7 @@ export async function GET(
 
     // Verify project access
     const project = await prisma.project.findFirst({
-      where: { id, orgId: session.user.orgId || undefined },
+      where: { id },
       select: { id: true },
     })
 
@@ -109,7 +109,7 @@ export async function POST(
 
     // Verify project access and get project info
     const project = await prisma.project.findFirst({
-      where: { id, orgId: session.user.orgId || undefined },
+      where: { id },
       select: {
         id: true,
         name: true,

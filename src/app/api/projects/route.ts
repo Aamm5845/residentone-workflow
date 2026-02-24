@@ -67,10 +67,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get shared organization
-    const sharedOrg = await prisma.organization.findFirst()
-    if (!sharedOrg) {
-      return NextResponse.json({ error: 'No shared organization found' }, { status: 500 })
+    // Use the session user's organization
+    if (!session.user.orgId) {
+      return NextResponse.json({ error: 'User has no organization' }, { status: 500 })
     }
     
     const data = await request.json()
@@ -102,7 +101,7 @@ export async function POST(request: NextRequest) {
     let client = await prisma.client.findFirst({
       where: {
         email: clientEmail,
-        orgId: sharedOrg.id
+        orgId: session.user.orgId
       }
     })
     
@@ -126,7 +125,7 @@ export async function POST(request: NextRequest) {
           name: clientName,
           email: clientEmail,
           phone: clientPhone || null,
-          orgId: sharedOrg.id
+          orgId: session.user.orgId
         }
       })
       
@@ -150,7 +149,7 @@ export async function POST(request: NextRequest) {
         const folderName = await generateProjectFolderName(
           fullAddress || projectAddress || name,
           clientName,
-          sharedOrg.id
+          session.user.orgId
         )
         
         const sanitizedFolderName = sanitizeDropboxFolderName(folderName)
@@ -192,7 +191,7 @@ export async function POST(request: NextRequest) {
       hasSpecBook: true,
       hasProjectUpdates: true,
       hasBillingProcurement: true,
-      orgId: sharedOrg.id,
+      orgId: session.user.orgId,
       createdById: session.user.id
     }
 
@@ -289,7 +288,7 @@ export async function POST(request: NextRequest) {
 
       // Auto-assign stages to team members based on their roles
       try {
-        const assignmentResult = await autoAssignPhasesToTeam(room.id, sharedOrg.id)
+        const assignmentResult = await autoAssignPhasesToTeam(room.id, session.user.orgId)
         
       } catch (assignmentError) {
         console.error('Failed to auto-assign phases to team:', assignmentError)

@@ -23,11 +23,10 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Verify project access
+    // Verify project exists
     const project = await prisma.project.findFirst({
       where: {
-        id: resolvedParams.id,
-        orgId: session.user.orgId
+        id: resolvedParams.id
       },
       include: {
         client: true
@@ -169,11 +168,10 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Verify project access
+    // Verify project exists
     const project = await prisma.project.findFirst({
       where: {
-        id: resolvedParams.id,
-        orgId: session.user.orgId
+        id: resolvedParams.id
       },
       include: {
         client: true
@@ -302,10 +300,7 @@ export async function PATCH(
     const version = await prisma.floorplanApprovalVersion.findFirst({
       where: {
         id: versionId,
-        projectId: resolvedParams.id,
-        project: {
-          orgId: session.user.orgId
-        }
+        projectId: resolvedParams.id
       },
       include: {
         project: {
@@ -769,10 +764,7 @@ export async function DELETE(
     const version = await prisma.floorplanApprovalVersion.findFirst({
       where: {
         id: versionId,
-        projectId: resolvedParams.id,
-        project: {
-          orgId: session.user.orgId
-        }
+        projectId: resolvedParams.id
       },
       include: {
         project: {

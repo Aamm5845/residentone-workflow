@@ -41,7 +41,7 @@ export async function GET(
 
     // Verify project access and get dropboxFolder
     const project = await prisma.project.findFirst({
-      where: { id, orgId: session.user.orgId || undefined },
+      where: { id },
       select: { id: true, dropboxFolder: true }
     })
 
@@ -209,7 +209,7 @@ export async function DELETE(
 
     // Verify project access
     const project = await prisma.project.findFirst({
-      where: { id, orgId: session.user.orgId || undefined },
+      where: { id },
       select: { id: true, dropboxFolder: true }
     })
 
@@ -310,7 +310,7 @@ export async function PATCH(
 
     // Verify project access
     const project = await prisma.project.findFirst({
-      where: { id, orgId: session.user.orgId || undefined },
+      where: { id },
       select: { id: true, dropboxFolder: true }
     })
 

@@ -30,16 +30,15 @@ export async function PUT(
     const { id: projectId, templateId } = await params
     const { name, icon, color, description, placeholder, order } = await request.json()
 
-    // Verify project exists and user has access
+    // Verify project exists
     const project = await prisma.project.findFirst({
       where: {
-        id: projectId,
-        orgId: session.user.orgId
+        id: projectId
       }
     })
 
     if (!project) {
-      console.error('❌ Project not found:', { projectId, userId: session.user.id, orgId: session.user.orgId })
+      console.error('❌ Project not found:', { projectId, userId: session.user.id })
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
@@ -166,16 +165,15 @@ export async function DELETE(
 
     const { id: projectId, templateId } = await params
 
-    // Verify project exists and user has access
+    // Verify project exists
     const project = await prisma.project.findFirst({
       where: {
-        id: projectId,
-        orgId: session.user.orgId
+        id: projectId
       }
     })
 
     if (!project) {
-      console.error('❌ Project not found:', { projectId, userId: session.user.id, orgId: session.user.orgId })
+      console.error('❌ Project not found:', { projectId, userId: session.user.id })
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
