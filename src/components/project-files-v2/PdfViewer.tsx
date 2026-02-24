@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback, memo } from 'react'
+import { useState, useRef, useEffect, useCallback, memo, useMemo } from 'react'
+import useSWR from 'swr'
 import { Document, Page, pdfjs } from 'react-pdf'
 import {
   X,
@@ -49,7 +50,10 @@ interface PdfViewerProps {
   onSelectFile: (file: PdfFile) => void
   onClose: () => void
   onDownload: (file: PdfFile) => void
+  projectId?: string
 }
+
+const fetcher = (url: string) => fetch(url).then(r => r.json())
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -137,6 +141,7 @@ export default function PdfViewer({
   onSelectFile,
   onClose,
   onDownload,
+  projectId,
 }: PdfViewerProps) {
   const [numPages, setNumPages] = useState<number>(0)
   const [pageNumber, setPageNumber] = useState(1)
@@ -151,6 +156,15 @@ export default function PdfViewer({
   const viewerRef = useRef<HTMLDivElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const [viewerSize, setViewerSize] = useState({ width: 0, height: 0 })
+
+  // Fetch transmittal history for this file
+  const { data: fileTransmittals } = useSWR(
+    projectId && file.path
+      ? `/api/projects/${projectId}/project-files-v2/file-transmittals?path=${encodeURIComponent(file.path)}`
+      : null,
+    fetcher
+  )
+  const transmittals = fileTransmittals?.transmittals ?? []
 
   // Lock body scroll when viewer is open
   useEffect(() => {
@@ -558,14 +572,6 @@ export default function PdfViewer({
 
             <div className="flex-1 overflow-y-auto">
               <div className="p-4 space-y-4">
-                {/* Status */}
-                <div>
-                  <label className="text-xs font-medium text-blue-600 mb-1.5 block">Status</label>
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-500 text-white">
-                    Current
-                  </span>
-                </div>
-
                 {/* Filename */}
                 <div>
                   <label className="text-xs font-medium text-blue-600 mb-1 block">Name</label>
@@ -596,6 +602,42 @@ export default function PdfViewer({
                 <div>
                   <label className="text-xs font-medium text-blue-600 mb-1 block">Location</label>
                   <p className="text-xs text-gray-500 break-all leading-relaxed">{file.path}</p>
+                </div>
+
+                {/* Sent History */}
+                <div>
+                  <label className="text-xs font-medium text-blue-600 mb-2 block">Sent To</label>
+                  {transmittals.length === 0 ? (
+                    <p className="text-xs text-gray-400 italic">Not sent yet</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {transmittals.map((t: any) => (
+                        <div key={t.id} className="rounded-lg bg-gray-50 border border-gray-100 p-2.5">
+                          <p className="text-sm font-medium text-gray-900">{t.recipientName}</p>
+                          {t.recipientCompany && (
+                            <p className="text-xs text-gray-500">{t.recipientCompany}</p>
+                          )}
+                          <p className="text-xs text-gray-400 mt-0.5">{t.recipientEmail}</p>
+                          <div className="flex items-center gap-2 mt-1.5">
+                            <span className="text-[10px] font-medium text-gray-500">{t.transmittalNumber}</span>
+                            {t.sentAt && (
+                              <>
+                                <span className="text-gray-300">·</span>
+                                <span className="text-[10px] text-gray-400">
+                                  {new Date(t.sentAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </span>
+                              </>
+                            )}
+                            {t.status === 'SENT' && (
+                              <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-emerald-600">
+                                <CheckCircle2 className="w-3 h-3" /> Sent
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

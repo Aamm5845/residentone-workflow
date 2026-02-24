@@ -460,6 +460,7 @@ export default function AllFilesBrowser({ projectId, dropboxFolder, navigateToPa
             onSelectFile={setViewingPdf}
             onClose={() => setViewingPdf(null)}
             onDownload={handleDownload}
+            projectId={projectId}
           />
         )}
       </div>
