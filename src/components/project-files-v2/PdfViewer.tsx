@@ -52,6 +52,7 @@ interface PdfViewerProps {
   onDownload: (file: PdfFile) => void
   projectId?: string
   onNavigateToSent?: () => void
+  onNavigateToReceived?: () => void
 }
 
 const fetcher = (url: string) => fetch(url).then(r => r.json())
@@ -144,6 +145,7 @@ export default function PdfViewer({
   onDownload,
   projectId,
   onNavigateToSent,
+  onNavigateToReceived,
 }: PdfViewerProps) {
   const [numPages, setNumPages] = useState<number>(0)
   const [pageNumber, setPageNumber] = useState(1)
@@ -167,6 +169,15 @@ export default function PdfViewer({
     fetcher
   )
   const transmittals = fileTransmittals?.transmittals ?? []
+
+  // Fetch received file history for this file
+  const { data: fileReceivedData } = useSWR(
+    projectId && file.path
+      ? `/api/projects/${projectId}/project-files-v2/file-received?path=${encodeURIComponent(file.path)}`
+      : null,
+    fetcher
+  )
+  const receivedFiles = fileReceivedData?.receivedFiles ?? []
 
   // Lock body scroll when viewer is open
   useEffect(() => {
@@ -678,6 +689,77 @@ export default function PdfViewer({
                             <span className="text-[10px] font-medium text-gray-400">{t.transmittalNumber}</span>
                             {onNavigateToSent && (
                               <span className="text-[10px] text-blue-500 font-medium">View in Sent →</span>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Last Received */}
+                <div>
+                  <label className="text-xs font-medium text-blue-600 mb-2 block">Last Received</label>
+                  {receivedFiles.length === 0 ? (
+                    <p className="text-xs text-gray-400 italic">Not received</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {receivedFiles.map((rf: any, idx: number) => (
+                        <button
+                          key={rf.id}
+                          onClick={() => {
+                            if (onNavigateToReceived) {
+                              onClose()
+                              onNavigateToReceived()
+                            }
+                          }}
+                          className={cn(
+                            'rounded-lg border p-2.5 w-full text-left transition-colors',
+                            idx === 0 ? 'bg-amber-50/50 border-amber-200 hover:bg-amber-50' : 'bg-gray-50 border-gray-100 hover:bg-gray-100',
+                            onNavigateToReceived && 'cursor-pointer'
+                          )}
+                        >
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-medium text-gray-900">{rf.senderName}</p>
+                            {idx === 0 && (
+                              <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-600">
+                                <Download className="w-3 h-3" /> Received
+                              </span>
+                            )}
+                          </div>
+                          {rf.senderCompany && (
+                            <p className="text-xs text-gray-500">{rf.senderCompany}</p>
+                          )}
+                          {rf.senderEmail && (
+                            <p className="text-xs text-gray-400 mt-0.5">{rf.senderEmail}</p>
+                          )}
+                          {/* Title & Section */}
+                          {(rf.title || rf.section) && (
+                            <div className="flex items-center gap-1.5 mt-1.5">
+                              {rf.section && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-white border border-gray-200 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
+                                  <span className={cn('h-1.5 w-1.5 rounded-full', rf.section.color || 'bg-gray-400')} />
+                                  {rf.section.shortName}
+                                </span>
+                              )}
+                              {rf.title && (
+                                <span className="text-[11px] text-gray-600 truncate">{rf.title}</span>
+                              )}
+                            </div>
+                          )}
+                          {rf.receivedDate && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              {new Date(rf.receivedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              {' · '}
+                              {new Date(rf.receivedDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                            </p>
+                          )}
+                          <div className="flex items-center justify-between mt-1">
+                            {rf.loggedBy && (
+                              <span className="text-[10px] font-medium text-gray-400">Logged by {rf.loggedBy}</span>
+                            )}
+                            {onNavigateToReceived && (
+                              <span className="text-[10px] text-blue-500 font-medium ml-auto">View in Received →</span>
                             )}
                           </div>
                         </button>

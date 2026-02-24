@@ -358,6 +358,7 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
               dropboxFolder={project.dropboxFolder}
               navigateToPath={allFilesNavigatePath}
               onNavigateToSent={() => setActiveTab('transmittals')}
+              onNavigateToReceived={() => setActiveTab('received')}
             />
           </TabsContent>
 
