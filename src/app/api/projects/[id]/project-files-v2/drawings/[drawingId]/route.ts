@@ -137,15 +137,11 @@ export async function PATCH(
     const allowedFields = [
       'title',
       'sectionId',
-      'drawingType',
-      'floorId',
       'description',
       'dropboxPath',
       'dropboxUrl',
       'fileName',
       'fileSize',
-      'scale',
-      'paperSize',
       'status'
     ]
 

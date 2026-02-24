@@ -29,8 +29,6 @@ export async function GET(
 
     const { searchParams } = new URL(request.url)
     const sectionId = searchParams.get('sectionId')
-    const floorId = searchParams.get('floorId')
-    const type = searchParams.get('type')
     const status = searchParams.get('status')
     const search = searchParams.get('search')
 
@@ -39,14 +37,6 @@ export async function GET(
 
     if (sectionId) {
       where.sectionId = sectionId
-    }
-
-    if (floorId) {
-      where.floorId = floorId
-    }
-
-    if (type) {
-      where.drawingType = type
     }
 
     if (status) {
@@ -68,13 +58,6 @@ export async function GET(
     const drawings = await prisma.projectDrawing.findMany({
       where,
       include: {
-        floor: {
-          select: {
-            id: true,
-            name: true,
-            shortName: true
-          }
-        },
         section: {
           select: {
             id: true,
@@ -139,13 +122,6 @@ export async function GET(
       _count: { id: true }
     })
 
-    // Fetch counts per floor (for sidebar filter), excluding ARCHIVED
-    const floorCounts = await prisma.projectDrawing.groupBy({
-      by: ['floorId'],
-      where: { projectId: id, status: { not: 'ARCHIVED' } },
-      _count: { id: true }
-    })
-
     // Fetch counts per status (for sidebar filter)
     const statusCounts = await prisma.projectDrawing.groupBy({
       by: ['status'],
@@ -158,10 +134,6 @@ export async function GET(
       counts: {
         bySection: sectionCounts.map((c) => ({
           sectionId: c.sectionId,
-          count: c._count.id
-        })),
-        byFloor: floorCounts.map((c) => ({
-          floorId: c.floorId,
           count: c._count.id
         })),
         byStatus: statusCounts.map((c) => ({
@@ -208,15 +180,11 @@ export async function POST(
       drawingNumber,
       title,
       sectionId,
-      drawingType,
-      floorId,
       description,
       dropboxPath,
       dropboxUrl,
       fileName,
       fileSize,
-      scale,
-      paperSize
     } = body
 
     if (!drawingNumber || !title) {
@@ -234,15 +202,11 @@ export async function POST(
           drawingNumber,
           title,
           sectionId: sectionId || null,
-          drawingType: drawingType || null,
-          floorId: floorId || null,
           description: description || null,
           dropboxPath: dropboxPath || null,
           dropboxUrl: dropboxUrl || null,
           fileName: fileName || null,
           fileSize: fileSize || null,
-          scale: scale || null,
-          paperSize: paperSize || null,
           currentRevision: 1,
           createdBy: session.user!.id
         }
@@ -266,9 +230,6 @@ export async function POST(
       return tx.projectDrawing.findUnique({
         where: { id: newDrawing.id },
         include: {
-          floor: {
-            select: { id: true, name: true, shortName: true }
-          },
           section: {
             select: { id: true, name: true, shortName: true, color: true }
           },

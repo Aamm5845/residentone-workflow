@@ -362,7 +362,6 @@ export default function ProjectFilesWorkspace({ project }: { project: Project })
           setPrefillDrawing(null)
         }}
         editDrawing={editDrawing}
-        floors={Array.isArray(floors) ? floors : []}
         sections={Array.isArray(sections) ? sections : []}
         prefillData={prefillDrawing}
       />

@@ -17,22 +17,13 @@ interface FilterSidebarProps {
   sections: Array<{ id: string; name: string; shortName: string; color: string }>
   sectionCounts: Record<string, number>
 
-  // Floor filter
-  selectedFloorId: string | null
-  onFloorChange: (floorId: string | null) => void
-  floors: Array<{ id: string; name: string; shortName: string }>
-  floorCounts: Record<string, number>
-
   // Status filter
   selectedStatus: string | null
   onStatusChange: (status: string | null) => void
   statusCounts: Record<string, number>
 
-  // Floor management
-  projectId: string
-  onFloorAdded: () => void
-
   // Section management
+  projectId: string
   onSectionAdded: () => void
 }
 
@@ -70,23 +61,12 @@ export default function FilterSidebar({
   onSectionChange,
   sections,
   sectionCounts,
-  selectedFloorId,
-  onFloorChange,
-  floors,
-  floorCounts,
   selectedStatus,
   onStatusChange,
   statusCounts,
   projectId,
-  onFloorAdded,
   onSectionAdded,
 }: FilterSidebarProps) {
-  // ---- Local state for inline add floor form ----
-  const [addFloorExpanded, setAddFloorExpanded] = useState(false)
-  const [floorName, setFloorName] = useState('')
-  const [floorShortName, setFloorShortName] = useState('')
-  const [savingFloor, setSavingFloor] = useState(false)
-
   // ---- Local state for inline add section form ----
   const [addSectionExpanded, setAddSectionExpanded] = useState(false)
   const [sectionName, setSectionName] = useState('')
@@ -96,7 +76,7 @@ export default function FilterSidebar({
 
   // ---- Derived ----
   const hasActiveFilters =
-    selectedSectionId !== null || selectedFloorId !== null || selectedStatus !== null
+    selectedSectionId !== null || selectedStatus !== null
 
   const totalSectionCount = Object.values(sectionCounts).reduce((sum, c) => sum + c, 0)
   const totalStatusCount = Object.values(statusCounts).reduce((sum, c) => sum + c, 0)
@@ -104,39 +84,7 @@ export default function FilterSidebar({
   // ---- Handlers ----
   const clearFilters = () => {
     onSectionChange(null)
-    onFloorChange(null)
     onStatusChange(null)
-  }
-
-  const handleSaveFloor = async () => {
-    if (!floorName.trim() || !floorShortName.trim()) return
-    setSavingFloor(true)
-    try {
-      const res = await fetch(`/api/projects/${projectId}/project-files-v2/floors`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: floorName.trim(),
-          shortName: floorShortName.trim(),
-        }),
-      })
-      if (res.ok) {
-        setFloorName('')
-        setFloorShortName('')
-        setAddFloorExpanded(false)
-        onFloorAdded()
-      }
-    } catch (err) {
-      console.error('Failed to add floor:', err)
-    } finally {
-      setSavingFloor(false)
-    }
-  }
-
-  const handleCancelFloor = () => {
-    setAddFloorExpanded(false)
-    setFloorName('')
-    setFloorShortName('')
   }
 
   const handleSaveSection = async () => {
@@ -176,9 +124,7 @@ export default function FilterSidebar({
   return (
     <aside className="w-60 flex-shrink-0 border-r border-gray-200 sticky top-0 overflow-y-auto max-h-screen">
       <div className="p-4">
-        {/* ---------------------------------------------------------------- */}
-        {/* Header                                                           */}
-        {/* ---------------------------------------------------------------- */}
+        {/* Header */}
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-gray-500" />
@@ -195,15 +141,12 @@ export default function FilterSidebar({
           )}
         </div>
 
-        {/* ---------------------------------------------------------------- */}
-        {/* SECTION                                                          */}
-        {/* ---------------------------------------------------------------- */}
+        {/* SECTION */}
         <div className="mb-6">
           <h4 className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-3">
             Section
           </h4>
           <div className="space-y-0.5">
-            {/* All option */}
             <RadioFilterItem
               label="All"
               dotColor="bg-gray-400"
@@ -214,7 +157,6 @@ export default function FilterSidebar({
 
             {sections.map((section) => {
               const count = sectionCounts[section.id] ?? 0
-              // Only show sections that have drawings (or is selected)
               if (count === 0 && selectedSectionId !== section.id) return null
               return (
                 <RadioFilterItem
@@ -306,125 +248,12 @@ export default function FilterSidebar({
           </div>
         </div>
 
-        {/* ---------------------------------------------------------------- */}
-        {/* FLOOR                                                            */}
-        {/* ---------------------------------------------------------------- */}
-        <div className="mb-6">
-          <h4 className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-3">
-            Floor
-          </h4>
-          <div className="space-y-0.5">
-            {/* All option */}
-            <button
-              onClick={() => onFloorChange(null)}
-              className={cn(
-                'w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-sm transition-colors',
-                selectedFloorId === null
-                  ? 'bg-gray-100 text-gray-900 font-medium'
-                  : 'text-gray-600 hover:bg-gray-50'
-              )}
-            >
-              <span className="flex items-center gap-2">
-                <RadioDot isSelected={selectedFloorId === null} color="bg-gray-400" />
-                All
-              </span>
-            </button>
-
-            {floors.map((floor) => {
-              const count = floorCounts[floor.id] ?? 0
-              return (
-                <button
-                  key={floor.id}
-                  onClick={() =>
-                    onFloorChange(selectedFloorId === floor.id ? null : floor.id)
-                  }
-                  className={cn(
-                    'w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-sm transition-colors',
-                    selectedFloorId === floor.id
-                      ? 'bg-gray-100 text-gray-900 font-medium'
-                      : 'text-gray-600 hover:bg-gray-50'
-                  )}
-                >
-                  <span className="flex items-center gap-2">
-                    <RadioDot
-                      isSelected={selectedFloorId === floor.id}
-                      color="bg-gray-400"
-                    />
-                    {floor.name}
-                  </span>
-                  {count > 0 && (
-                    <span className="text-xs text-gray-400">({count})</span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Add Floor */}
-          <div className="mt-2">
-            {!addFloorExpanded ? (
-              <button
-                onClick={() => setAddFloorExpanded(true)}
-                className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors px-2.5 py-1"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Add Floor
-              </button>
-            ) : (
-              <div className="space-y-2 px-2.5 pt-2 pb-1 bg-gray-50 rounded-lg border border-gray-200 animate-in fade-in slide-in-from-top-1 duration-150">
-                <Input
-                  placeholder="Floor name"
-                  value={floorName}
-                  onChange={(e) => setFloorName(e.target.value)}
-                  className="h-7 text-xs"
-                  autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') handleCancelFloor()
-                  }}
-                />
-                <Input
-                  placeholder="Short name (e.g. GF, L1)"
-                  value={floorShortName}
-                  onChange={(e) => setFloorShortName(e.target.value)}
-                  className="h-7 text-xs"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleSaveFloor()
-                    if (e.key === 'Escape') handleCancelFloor()
-                  }}
-                />
-                <div className="flex gap-1.5">
-                  <Button
-                    size="sm"
-                    className="h-7 text-xs flex-1"
-                    onClick={handleSaveFloor}
-                    disabled={savingFloor || !floorName.trim() || !floorShortName.trim()}
-                  >
-                    {savingFloor ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save'}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 text-xs"
-                    onClick={handleCancelFloor}
-                    disabled={savingFloor}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ---------------------------------------------------------------- */}
-        {/* STATUS                                                           */}
-        {/* ---------------------------------------------------------------- */}
+        {/* STATUS */}
         <div>
           <h4 className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-3">
             Status
           </h4>
           <div className="space-y-0.5">
-            {/* All option */}
             <RadioFilterItem
               label="All"
               dotColor="bg-gray-400"

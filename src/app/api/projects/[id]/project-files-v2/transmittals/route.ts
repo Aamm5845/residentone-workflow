@@ -198,8 +198,7 @@ export async function POST(
                 select: {
                   id: true,
                   drawingNumber: true,
-                  title: true,
-                  discipline: true
+                  title: true
                 }
               },
               revision: {

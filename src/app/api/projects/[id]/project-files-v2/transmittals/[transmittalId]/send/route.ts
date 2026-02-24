@@ -60,7 +60,6 @@ export async function POST(
                 drawingNumber: true,
                 title: true,
                 section: { select: { id: true, name: true, shortName: true, color: true } },
-                drawingType: true,
                 dropboxPath: true,
                 dropboxUrl: true,
                 reviewNo: true,

@@ -19,20 +19,6 @@ import {
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 
-// ─── Shared Configs ──────────────────────────────────────────────────────────
-
-export const DRAWING_TYPE_LABELS: Record<string, string> = {
-  FLOOR_PLAN: 'Floor Plan',
-  REFLECTED_CEILING: 'Reflected Ceiling',
-  ELEVATION: 'Elevation',
-  DETAIL: 'Detail',
-  SECTION: 'Section',
-  TITLE_BLOCK: 'Title Block',
-  XREF: 'XREF',
-  SCHEDULE: 'Schedule',
-  OTHER: 'Other',
-}
-
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface EditDrawing {
@@ -40,21 +26,11 @@ interface EditDrawing {
   drawingNumber: string
   title: string
   sectionId: string | null
-  drawingType: string | null
-  floorId: string | null
   description: string | null
   dropboxPath: string | null
   dropboxUrl: string | null
   fileName: string | null
   fileSize: number | null
-  scale: string | null
-  paperSize: string | null
-}
-
-interface Floor {
-  id: string
-  name: string
-  shortName: string
 }
 
 interface Section {
@@ -78,7 +54,6 @@ interface DrawingFormDialogProps {
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
   editDrawing?: EditDrawing | null
-  floors: Floor[]
   sections: Section[]
   prefillData?: PrefillData | null
 }
@@ -111,7 +86,6 @@ export default function DrawingFormDialog({
   onOpenChange,
   onSuccess,
   editDrawing,
-  floors: initialFloors,
   sections: initialSections,
   prefillData,
 }: DrawingFormDialogProps) {
@@ -122,10 +96,6 @@ export default function DrawingFormDialog({
   const [drawingNumber, setDrawingNumber] = useState('')
   const [title, setTitle] = useState('')
   const [sectionId, setSectionId] = useState<string>('')
-  const [drawingType, setDrawingType] = useState('')
-  const [floorId, setFloorId] = useState<string>('')
-  const [scale, setScale] = useState('')
-  const [paperSize, setPaperSize] = useState('')
   const [dropboxPath, setDropboxPath] = useState('')
   const [fileName, setFileName] = useState('')
   const [fileSize, setFileSize] = useState<number | undefined>()
@@ -134,13 +104,6 @@ export default function DrawingFormDialog({
 
   // Show/hide optional details
   const [showDetails, setShowDetails] = useState(false)
-
-  // Inline floor creation
-  const [showAddFloor, setShowAddFloor] = useState(false)
-  const [newFloorName, setNewFloorName] = useState('')
-  const [newFloorShortName, setNewFloorShortName] = useState('')
-  const [isCreatingFloor, setIsCreatingFloor] = useState(false)
-  const [localFloors, setLocalFloors] = useState<Floor[]>(initialFloors)
 
   // Inline section creation
   const [showAddSection, setShowAddSection] = useState(false)
@@ -153,11 +116,7 @@ export default function DrawingFormDialog({
   // Submission
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Sync floors and sections from props
-  useEffect(() => {
-    setLocalFloors(initialFloors)
-  }, [initialFloors])
-
+  // Sync sections from props
   useEffect(() => {
     setLocalSections(initialSections)
   }, [initialSections])
@@ -169,43 +128,26 @@ export default function DrawingFormDialog({
         setDrawingNumber(editDrawing.drawingNumber)
         setTitle(editDrawing.title)
         setSectionId(editDrawing.sectionId || '')
-        setDrawingType(editDrawing.drawingType || '')
-        setFloorId(editDrawing.floorId || '')
-        setScale(editDrawing.scale || '')
-        setPaperSize(editDrawing.paperSize || '')
         setDropboxPath(editDrawing.dropboxPath || '')
         setFileName(editDrawing.fileName || '')
         setFileSize(editDrawing.fileSize || undefined)
         setDescription(editDrawing.description || '')
         setInitialRevisionNotes('')
-        // When editing, show details if any optional fields are populated
-        setShowDetails(
-          !!(editDrawing.sectionId || editDrawing.drawingType || editDrawing.floorId ||
-            editDrawing.scale || editDrawing.paperSize || editDrawing.description)
-        )
+        setShowDetails(!!(editDrawing.sectionId || editDrawing.description))
       } else if (prefillData) {
-        // Pre-fill from All Files browser
         setDrawingNumber(prefillData.drawingNumber || '')
         setTitle(prefillData.title || '')
         setSectionId('')
-        setDrawingType('')
-        setFloorId('')
-        setScale('')
-        setPaperSize('')
         setDropboxPath(prefillData.dropboxPath)
         setFileName(prefillData.fileName)
         setFileSize(prefillData.fileSize)
         setDescription('')
         setInitialRevisionNotes('')
-        setShowDetails(false) // Start collapsed for quick registration
+        setShowDetails(false)
       } else {
         setDrawingNumber('')
         setTitle('')
         setSectionId('')
-        setDrawingType('')
-        setFloorId('')
-        setScale('')
-        setPaperSize('')
         setDropboxPath('')
         setFileName('')
         setFileSize(undefined)
@@ -213,9 +155,6 @@ export default function DrawingFormDialog({
         setInitialRevisionNotes('')
         setShowDetails(false)
       }
-      setShowAddFloor(false)
-      setNewFloorName('')
-      setNewFloorShortName('')
       setShowAddSection(false)
       setNewSectionName('')
       setNewSectionShortName('')
@@ -234,42 +173,6 @@ export default function DrawingFormDialog({
     setFileName('')
     setFileSize(undefined)
   }, [])
-
-  const handleCreateFloor = async () => {
-    if (!newFloorName.trim() || !newFloorShortName.trim()) return
-
-    setIsCreatingFloor(true)
-    try {
-      const res = await fetch(
-        `/api/projects/${projectId}/project-files-v2/floors`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: newFloorName.trim(),
-            shortName: newFloorShortName.trim(),
-          }),
-        }
-      )
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => null)
-        throw new Error(errorData?.error || 'Failed to create floor')
-      }
-
-      const newFloor: Floor = await res.json()
-      setLocalFloors((prev) => [...prev, newFloor])
-      setFloorId(newFloor.id)
-      setNewFloorName('')
-      setNewFloorShortName('')
-      setShowAddFloor(false)
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to create floor'
-      alert(message)
-    } finally {
-      setIsCreatingFloor(false)
-    }
-  }
 
   const handleCreateSection = async () => {
     if (!newSectionName.trim() || !newSectionShortName.trim()) return
@@ -322,10 +225,6 @@ export default function DrawingFormDialog({
       drawingNumber: drawingNumber.trim(),
       title: title.trim(),
       sectionId: sectionId || null,
-      drawingType: drawingType || null,
-      floorId: floorId || null,
-      scale: scale.trim() || null,
-      paperSize: paperSize.trim() || null,
       dropboxPath: dropboxPath.trim() || null,
       fileName: displayFileName || null,
       fileSize: fileSize || null,
@@ -452,196 +351,95 @@ export default function DrawingFormDialog({
               )}
               <span className="font-medium">More Details</span>
               <span className="text-xs text-gray-400 ml-1">
-                Section, type, floor, etc. (optional)
+                Section, description (optional)
               </span>
             </button>
 
             {showDetails && (
               <div className="px-3 pb-3 space-y-3 border-t border-gray-100 pt-3">
-                {/* Row: Section + Drawing Type */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">
-                      Section
-                    </label>
-                    <Select value={sectionId} onValueChange={setSectionId}>
-                      <SelectTrigger className="h-9">
-                        <SelectValue placeholder="Select..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
-                        {localSections.map((s) => (
-                          <SelectItem key={s.id} value={s.id}>
-                            <span className="flex items-center gap-2">
-                              <span
-                                className={cn(
-                                  'inline-block w-2 h-2 rounded-full',
-                                  s.color || 'bg-gray-400'
-                                )}
-                              />
-                              {s.name}
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    {!showAddSection ? (
-                      <button
-                        type="button"
-                        onClick={() => setShowAddSection(true)}
-                        className="inline-flex items-center gap-1 mt-1 text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors"
-                      >
-                        <Plus className="w-3 h-3" />
-                        Add Section
-                      </button>
-                    ) : (
-                      <div className="mt-2 p-2.5 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
-                        <input
-                          type="text"
-                          value={newSectionName}
-                          onChange={(e) => setNewSectionName(e.target.value)}
-                          placeholder="Section name"
-                          className="w-full h-8 px-2.5 rounded-md border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 placeholder:text-gray-400"
-                        />
-                        <input
-                          type="text"
-                          value={newSectionShortName}
-                          onChange={(e) => setNewSectionShortName(e.target.value)}
-                          placeholder="Short name (e.g., FP)"
-                          className="w-full h-8 px-2.5 rounded-md border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 placeholder:text-gray-400"
-                        />
-                        {/* Color picker */}
-                        <div className="flex flex-wrap gap-1">
-                          {SECTION_COLORS.map((color) => (
-                            <button
-                              key={color}
-                              type="button"
-                              onClick={() => setNewSectionColor(color)}
-                              className={cn(
-                                'w-4 h-4 rounded-full transition-all',
-                                color,
-                                newSectionColor === color
-                                  ? 'ring-2 ring-offset-1 ring-gray-700 scale-110'
-                                  : 'opacity-60 hover:opacity-100'
-                              )}
-                            />
-                          ))}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="default"
-                            onClick={handleCreateSection}
-                            disabled={
-                              isCreatingSection ||
-                              !newSectionName.trim() ||
-                              !newSectionShortName.trim()
-                            }
-                            className="h-7 text-xs"
-                          >
-                            {isCreatingSection ? (
-                              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                            ) : (
-                              <Plus className="w-3 h-3 mr-1" />
-                            )}
-                            Save
-                          </Button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowAddSection(false)
-                              setNewSectionName('')
-                              setNewSectionShortName('')
-                            }}
-                            className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">
-                      Drawing Type
-                    </label>
-                    <Select value={drawingType} onValueChange={setDrawingType}>
-                      <SelectTrigger className="h-9">
-                        <SelectValue placeholder="Select..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(DRAWING_TYPE_LABELS).map(([key, label]) => (
-                          <SelectItem key={key} value={key}>
-                            {label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* Floor */}
+                {/* Section */}
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">
-                    Floor
+                    Section
                   </label>
-                  <Select value={floorId} onValueChange={setFloorId}>
+                  <Select value={sectionId} onValueChange={setSectionId}>
                     <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Select floor..." />
+                      <SelectValue placeholder="Select..." />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">None</SelectItem>
-                      {localFloors.map((f) => (
-                        <SelectItem key={f.id} value={f.id}>
-                          {f.name} ({f.shortName})
+                      {localSections.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          <span className="flex items-center gap-2">
+                            <span
+                              className={cn(
+                                'inline-block w-2 h-2 rounded-full',
+                                s.color || 'bg-gray-400'
+                              )}
+                            />
+                            {s.name}
+                          </span>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
 
-                  {!showAddFloor ? (
+                  {!showAddSection ? (
                     <button
                       type="button"
-                      onClick={() => setShowAddFloor(true)}
+                      onClick={() => setShowAddSection(true)}
                       className="inline-flex items-center gap-1 mt-1 text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors"
                     >
                       <Plus className="w-3 h-3" />
-                      Add Floor
+                      Add Section
                     </button>
                   ) : (
                     <div className="mt-2 p-2.5 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
-                      <div className="grid grid-cols-2 gap-2">
-                        <input
-                          type="text"
-                          value={newFloorName}
-                          onChange={(e) => setNewFloorName(e.target.value)}
-                          placeholder="Floor name"
-                          className="w-full h-8 px-2.5 rounded-md border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 placeholder:text-gray-400"
-                        />
-                        <input
-                          type="text"
-                          value={newFloorShortName}
-                          onChange={(e) => setNewFloorShortName(e.target.value)}
-                          placeholder="Short name (e.g., GF)"
-                          className="w-full h-8 px-2.5 rounded-md border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 placeholder:text-gray-400"
-                        />
+                      <input
+                        type="text"
+                        value={newSectionName}
+                        onChange={(e) => setNewSectionName(e.target.value)}
+                        placeholder="Section name"
+                        className="w-full h-8 px-2.5 rounded-md border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 placeholder:text-gray-400"
+                      />
+                      <input
+                        type="text"
+                        value={newSectionShortName}
+                        onChange={(e) => setNewSectionShortName(e.target.value)}
+                        placeholder="Short name (e.g., FP)"
+                        className="w-full h-8 px-2.5 rounded-md border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 placeholder:text-gray-400"
+                      />
+                      {/* Color picker */}
+                      <div className="flex flex-wrap gap-1">
+                        {SECTION_COLORS.map((color) => (
+                          <button
+                            key={color}
+                            type="button"
+                            onClick={() => setNewSectionColor(color)}
+                            className={cn(
+                              'w-4 h-4 rounded-full transition-all',
+                              color,
+                              newSectionColor === color
+                                ? 'ring-2 ring-offset-1 ring-gray-700 scale-110'
+                                : 'opacity-60 hover:opacity-100'
+                            )}
+                          />
+                        ))}
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
                           type="button"
                           size="sm"
                           variant="default"
-                          onClick={handleCreateFloor}
+                          onClick={handleCreateSection}
                           disabled={
-                            isCreatingFloor ||
-                            !newFloorName.trim() ||
-                            !newFloorShortName.trim()
+                            isCreatingSection ||
+                            !newSectionName.trim() ||
+                            !newSectionShortName.trim()
                           }
                           className="h-7 text-xs"
                         >
-                          {isCreatingFloor ? (
+                          {isCreatingSection ? (
                             <Loader2 className="w-3 h-3 mr-1 animate-spin" />
                           ) : (
                             <Plus className="w-3 h-3 mr-1" />
@@ -651,9 +449,9 @@ export default function DrawingFormDialog({
                         <button
                           type="button"
                           onClick={() => {
-                            setShowAddFloor(false)
-                            setNewFloorName('')
-                            setNewFloorShortName('')
+                            setShowAddSection(false)
+                            setNewSectionName('')
+                            setNewSectionShortName('')
                           }}
                           className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
                         >
@@ -662,34 +460,6 @@ export default function DrawingFormDialog({
                       </div>
                     </div>
                   )}
-                </div>
-
-                {/* Row: Scale + Paper Size */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">
-                      Scale
-                    </label>
-                    <input
-                      type="text"
-                      value={scale}
-                      onChange={(e) => setScale(e.target.value)}
-                      placeholder="e.g., 1:50"
-                      className="w-full h-9 px-3 rounded-md border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 placeholder:text-gray-400"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">
-                      Paper Size
-                    </label>
-                    <input
-                      type="text"
-                      value={paperSize}
-                      onChange={(e) => setPaperSize(e.target.value)}
-                      placeholder="e.g., A1, ARCH D"
-                      className="w-full h-9 px-3 rounded-md border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 placeholder:text-gray-400"
-                    />
-                  </div>
                 </div>
 
                 {/* Description */}

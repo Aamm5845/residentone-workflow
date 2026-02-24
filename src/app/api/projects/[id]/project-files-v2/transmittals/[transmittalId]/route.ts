@@ -38,8 +38,6 @@ export async function GET(
                 drawingNumber: true,
                 title: true,
                 section: { select: { id: true, name: true, shortName: true, color: true } },
-                drawingType: true,
-                currentRevision: true,
                 status: true
               }
             },
