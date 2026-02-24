@@ -207,13 +207,6 @@ export default function AllFilesBrowser({ projectId, dropboxFolder, drawings: re
   const drawingActivity = useMemo(() => {
     if (!drawingDetailData) return null
     return {
-      revisions: (drawingDetailData.revisions || []).map((r: any) => ({
-        id: r.id,
-        revisionNumber: r.revisionNumber,
-        notes: r.notes,
-        createdAt: r.createdAt,
-        issuedByUser: r.issuedByUser,
-      })),
       transmittals: (drawingDetailData.transmittalItems || []).map((ti: any) => ({
         id: ti.transmittal?.id || ti.id,
         transmittalNumber: ti.transmittal?.transmittalNumber || '',

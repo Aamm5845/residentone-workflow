@@ -20,10 +20,6 @@ import {
   ChevronDown,
   Plus,
   Send,
-  Clock,
-  User,
-  Mail,
-  Eye,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -56,13 +52,6 @@ interface DrawingInfo {
 }
 
 interface DrawingActivity {
-  revisions: Array<{
-    id: string
-    revisionNumber: number
-    notes: string | null
-    createdAt: string
-    issuedByUser?: { name: string | null } | null
-  }>
   transmittals: Array<{
     id: string
     transmittalNumber: string
@@ -102,17 +91,6 @@ function formatDate(dateStr: string): string {
   try {
     const d = new Date(dateStr)
     return d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
-  } catch {
-    return '—'
-  }
-}
-
-function formatDateWithTime(dateStr: string): string {
-  try {
-    const d = new Date(dateStr)
-    const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-    const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
-    return `${date} at ${time}`
   } catch {
     return '—'
   }
@@ -619,13 +597,13 @@ export default function PdfViewer({
                 {/* Number / ID */}
                 <div>
                   <label className="text-xs font-medium text-blue-600 mb-1 block">Number</label>
-                  <p className="text-sm text-gray-900 font-medium">{extractDrawingId(file.name)}</p>
+                  <p className="text-sm text-gray-900 font-medium">{drawingInfo ? drawingInfo.drawingNumber : extractDrawingId(file.name)}</p>
                 </div>
 
                 {/* Title */}
                 <div>
                   <label className="text-xs font-medium text-blue-600 mb-1 block">Title</label>
-                  <p className="text-sm text-gray-900">{extractTitle(file.name)}</p>
+                  <p className="text-sm text-gray-900">{drawingInfo ? drawingInfo.title : extractTitle(file.name)}</p>
                 </div>
 
                 {/* Pages */}
@@ -663,75 +641,26 @@ export default function PdfViewer({
                   </div>
                 )}
 
-                {/* Revision History */}
-                {drawingActivity && drawingActivity.revisions.length > 0 && (
-                  <div className="pt-3 mt-3 border-t border-gray-100">
-                    <label className="text-xs font-medium text-blue-600 mb-2 block">Revisions</label>
-                    <div className="space-y-2">
-                      {drawingActivity.revisions.slice(0, 5).map((rev) => (
-                        <div key={rev.id} className="flex items-start gap-2">
-                          <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center shrink-0 mt-0.5">
-                            <span className="text-[10px] font-bold text-blue-700">{rev.revisionNumber}</span>
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            {rev.notes && <p className="text-xs text-gray-700 line-clamp-1">{rev.notes}</p>}
-                            <div className="flex items-center gap-1 text-[10px] text-gray-400">
-                              <Clock className="w-3 h-3" />
-                              {formatDate(rev.createdAt)}
-                              {rev.issuedByUser?.name && (
-                                <>
-                                  <span className="mx-0.5">&middot;</span>
-                                  <User className="w-3 h-3" />
-                                  {rev.issuedByUser.name}
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Transmittal History */}
+                {/* Sent History */}
                 {drawingActivity && drawingActivity.transmittals.length > 0 && (
                   <div className="pt-3 mt-3 border-t border-gray-100">
                     <label className="text-xs font-medium text-blue-600 mb-2 block">Sent History</label>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       {drawingActivity.transmittals.slice(0, 5).map((t) => (
-                        <div key={t.id} className="p-2 rounded-lg bg-gray-50/80 border border-gray-100">
-                          <div className="flex items-center gap-1.5">
-                            <Send className="w-3 h-3 text-gray-400 shrink-0" />
-                            <span className="text-xs font-medium text-gray-700">{t.transmittalNumber}</span>
-                            <span className="text-[10px] text-gray-400">&rarr;</span>
-                            <span className="text-xs text-gray-600 truncate">{t.recipientName}</span>
+                        <div key={t.id} className="flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-1 min-w-0">
+                            <span className="font-mono text-gray-500">{t.transmittalNumber}</span>
+                            <span className="text-gray-400">&rarr;</span>
+                            <span className="text-gray-700 truncate">{t.recipientName}</span>
                           </div>
-                          <div className="flex items-center gap-1 mt-1 text-[10px] text-gray-400 flex-wrap">
+                          <div className="flex items-center gap-1.5 shrink-0 ml-2">
                             {t.sentAt && (
-                              <span className="flex items-center gap-0.5">
-                                <Clock className="w-2.5 h-2.5" />
-                                {formatDateWithTime(t.sentAt)}
-                              </span>
-                            )}
-                            {t.method === 'EMAIL' && (
-                              <>
-                                <span className="mx-0.5">&middot;</span>
-                                <Mail className="w-2.5 h-2.5" />
-                              </>
+                              <span className="text-gray-400">{formatDate(t.sentAt)}</span>
                             )}
                             {t.emailOpenedAt ? (
-                              <>
-                                <span className="mx-0.5">&middot;</span>
-                                <span className="flex items-center gap-0.5 text-emerald-600 font-medium">
-                                  <Eye className="w-2.5 h-2.5" />
-                                  Opened
-                                </span>
-                              </>
+                              <span className="text-emerald-600">Opened</span>
                             ) : t.method === 'EMAIL' && t.sentAt ? (
-                              <>
-                                <span className="mx-0.5">&middot;</span>
-                                <span className="text-gray-400">Not opened</span>
-                              </>
+                              <span className="text-gray-400">Not opened</span>
                             ) : null}
                           </div>
                         </div>
