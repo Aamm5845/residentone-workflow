@@ -24,17 +24,15 @@ export async function GET(
 
   const fileName = filePath.split('/').pop() || ''
 
-  // Search TransmittalItems by:
-  // 1. item.dropboxPath matches (new flow)
-  // 2. item.fileName matches (new flow)
-  // 3. drawing.dropboxPath matches (old flow via drawing relation)
+  // Search TransmittalItems using case-insensitive matching
+  // (Dropbox paths may differ in casing from stored paths)
   const items = await prisma.transmittalItem.findMany({
     where: {
       transmittal: { projectId: id },
       OR: [
-        { dropboxPath: filePath },
-        { fileName: fileName },
-        { drawing: { dropboxPath: filePath } },
+        { dropboxPath: { equals: filePath, mode: 'insensitive' } },
+        { fileName: { equals: fileName, mode: 'insensitive' } },
+        { drawing: { dropboxPath: { equals: filePath, mode: 'insensitive' } } },
       ],
     },
     include: {

@@ -604,36 +604,40 @@ export default function PdfViewer({
                   <p className="text-xs text-gray-500 break-all leading-relaxed">{file.path}</p>
                 </div>
 
-                {/* Sent History */}
+                {/* Last Sent */}
                 <div>
-                  <label className="text-xs font-medium text-blue-600 mb-2 block">Sent To</label>
+                  <label className="text-xs font-medium text-blue-600 mb-2 block">Last Sent</label>
                   {transmittals.length === 0 ? (
                     <p className="text-xs text-gray-400 italic">Not sent yet</p>
                   ) : (
                     <div className="space-y-2">
-                      {transmittals.map((t: any) => (
-                        <div key={t.id} className="rounded-lg bg-gray-50 border border-gray-100 p-2.5">
-                          <p className="text-sm font-medium text-gray-900">{t.recipientName}</p>
-                          {t.recipientCompany && (
-                            <p className="text-xs text-gray-500">{t.recipientCompany}</p>
-                          )}
-                          <p className="text-xs text-gray-400 mt-0.5">{t.recipientEmail}</p>
-                          <div className="flex items-center gap-2 mt-1.5">
-                            <span className="text-[10px] font-medium text-gray-500">{t.transmittalNumber}</span>
-                            {t.sentAt && (
-                              <>
-                                <span className="text-gray-300">·</span>
-                                <span className="text-[10px] text-gray-400">
-                                  {new Date(t.sentAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                </span>
-                              </>
-                            )}
-                            {t.status === 'SENT' && (
+                      {transmittals.map((t: any, idx: number) => (
+                        <div key={t.id} className={cn(
+                          'rounded-lg border p-2.5',
+                          idx === 0 ? 'bg-emerald-50/50 border-emerald-200' : 'bg-gray-50 border-gray-100'
+                        )}>
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-medium text-gray-900">{t.recipientName}</p>
+                            {t.status === 'SENT' && idx === 0 && (
                               <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-emerald-600">
                                 <CheckCircle2 className="w-3 h-3" /> Sent
                               </span>
                             )}
                           </div>
+                          {t.recipientCompany && (
+                            <p className="text-xs text-gray-500">{t.recipientCompany}</p>
+                          )}
+                          {t.recipientEmail && (
+                            <p className="text-xs text-gray-400 mt-0.5">{t.recipientEmail}</p>
+                          )}
+                          {t.sentAt && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              {new Date(t.sentAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              {' · '}
+                              {new Date(t.sentAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                            </p>
+                          )}
+                          <p className="text-[10px] font-medium text-gray-400 mt-1">{t.transmittalNumber}</p>
                         </div>
                       ))}
                     </div>
