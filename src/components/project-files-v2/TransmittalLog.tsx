@@ -15,6 +15,7 @@ import {
   Check,
   SlidersHorizontal,
   Trash2,
+  FileText,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import LatestFilesBySection, { useLatestFilesBySection } from './LatestFilesBySection'
@@ -87,6 +88,7 @@ interface TransmittalLogProps {
   transmittals: TransmittalData[]
   isLoading: boolean
   onCreateNew: () => void
+  onLogTransmittal?: () => void
   onOpenInFiles?: (folderPath: string) => void
   mutateTransmittals?: () => void
 }
@@ -130,6 +132,7 @@ export default function TransmittalLog({
   transmittals,
   isLoading,
   onCreateNew,
+  onLogTransmittal,
   onOpenInFiles,
   mutateTransmittals,
 }: TransmittalLogProps) {
@@ -358,9 +361,25 @@ export default function TransmittalLog({
             <Send className="w-8 h-8 text-slate-400" />
           </div>
           <h3 className="text-lg font-semibold text-slate-900 mb-1">Nothing sent yet</h3>
-          <p className="text-sm text-slate-500 max-w-sm mx-auto">
+          <p className="text-sm text-slate-500 max-w-sm mx-auto mb-4">
             Send files to contractors, subs, or clients and track everything here.
           </p>
+          <div className="flex items-center justify-center gap-2">
+            <button
+              onClick={onCreateNew}
+              className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 active:scale-[0.98] transition-all"
+            >
+              <Plus className="w-4 h-4" /> Send Files
+            </button>
+            {onLogTransmittal && (
+              <button
+                onClick={onLogTransmittal}
+                className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 active:scale-[0.98] transition-all"
+              >
+                <FileText className="w-4 h-4" /> Log
+              </button>
+            )}
+          </div>
         </div>
       </div>
     )
@@ -378,12 +397,22 @@ export default function TransmittalLog({
             {filteredRows.length}{hasActiveFilters ? ` / ${transmittals.length}` : ''}
           </span>
         </div>
-        <button
-          onClick={onCreateNew}
-          className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 active:scale-[0.98] transition-all"
-        >
-          <Plus className="w-4 h-4" /> Send Files
-        </button>
+        <div className="flex items-center gap-2">
+          {onLogTransmittal && (
+            <button
+              onClick={onLogTransmittal}
+              className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 active:scale-[0.98] transition-all"
+            >
+              <FileText className="w-4 h-4" /> Log
+            </button>
+          )}
+          <button
+            onClick={onCreateNew}
+            className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 active:scale-[0.98] transition-all"
+          >
+            <Plus className="w-4 h-4" /> Send Files
+          </button>
+        </div>
       </div>
 
       {/* ── Filter & Sort bar ────────────────────────────────────── */}
@@ -684,6 +713,9 @@ export default function TransmittalLog({
                 <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 w-[80px]">
                   Method
                 </th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 w-[110px]">
+                  Sent By
+                </th>
                 <th className="px-4 py-3 text-left w-[130px]">
                   <button onClick={() => handleSort('sent')} className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 transition-colors cursor-pointer select-none">
                     Sent
@@ -800,6 +832,11 @@ export default function TransmittalLog({
                     {/* Method — plain text */}
                     <td className="px-4 py-3">
                       <span className="text-sm text-slate-500">{t.method === 'EMAIL' ? 'Email' : 'Manual'}</span>
+                    </td>
+
+                    {/* Sent By */}
+                    <td className="px-4 py-3">
+                      <span className="text-sm text-slate-600">{t.sentByUser?.name || '—'}</span>
                     </td>
 
                     {/* Sent */}

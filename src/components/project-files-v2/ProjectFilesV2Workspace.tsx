@@ -80,6 +80,7 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
   const [editDrawing, setEditDrawing] = useState<any | null>(null)
   const [revisionDrawing, setRevisionDrawing] = useState<any | null>(null)
   const [showSendFile, setShowSendFile] = useState(false)
+  const [sendFileMode, setSendFileMode] = useState<'send' | 'log'>('send')
   const [showReceiveFile, setShowReceiveFile] = useState(false)
   const [sendFileInitialFiles, setSendFileInitialFiles] = useState<{
     name: string
@@ -498,7 +499,8 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
               dropboxFolder={project.dropboxFolder}
               transmittals={transmittals}
               isLoading={transmittalsLoading}
-              onCreateNew={() => setShowSendFile(true)}
+              onCreateNew={() => { setSendFileMode('send'); setShowSendFile(true) }}
+              onLogTransmittal={() => { setSendFileMode('log'); setShowSendFile(true) }}
               onOpenInFiles={(folderPath) => {
                 setAllFilesNavigatePath(folderPath)
                 setActiveTab('all-files')
@@ -573,13 +575,19 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
         open={showSendFile}
         onOpenChange={(open) => {
           setShowSendFile(open)
-          if (!open) setSendFileInitialFiles([])
+          if (!open) {
+            setSendFileInitialFiles([])
+            setSendFileMode('send')
+          }
         }}
         onSuccess={() => {
           setShowSendFile(false)
           setSendFileInitialFiles([])
+          setSendFileMode('send')
+          mutateTransmittals()
         }}
         initialFiles={sendFileInitialFiles.length > 0 ? sendFileInitialFiles : undefined}
+        mode={sendFileMode}
       />
 
       {/* Receive File Dialog */}

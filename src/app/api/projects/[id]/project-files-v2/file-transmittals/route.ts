@@ -45,6 +45,7 @@ export async function GET(
           sentAt: true,
           status: true,
           subject: true,
+          sentByUser: { select: { id: true, name: true } },
         },
       },
       section: {
@@ -85,6 +86,7 @@ export async function GET(
         section: sec ? { name: sec.name, shortName: sec.shortName, color: sec.color } : null,
         reviewNo: item.reviewNo || item.drawing?.reviewNo || null,
         pageNo: item.pageNo || item.drawing?.pageNo || null,
+        sentByName: item.transmittal.sentByUser?.name || null,
       }
     })
 

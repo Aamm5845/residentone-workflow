@@ -437,8 +437,6 @@ function SenderGroupRow({
                     <th className="pb-2 pr-4 font-semibold w-[120px]">Received</th>
                     <th className="pb-2 pr-4 font-semibold">Title</th>
                     <th className="pb-2 pr-4 font-semibold w-[90px]">Section</th>
-                    <th className="pb-2 pr-4 font-semibold w-[90px]">Drawing #</th>
-                    <th className="pb-2 pr-4 font-semibold w-[60px]">Rev</th>
                     <th className="pb-2 pr-4 font-semibold w-[100px]">Logged By</th>
                     <th className="pb-2 font-semibold w-[60px]">File</th>
                   </tr>
@@ -477,28 +475,6 @@ function SenderGroupRow({
                             )}>
                               <span className={cn('h-1.5 w-1.5 rounded-full', rf.section.color || 'bg-slate-400')} />
                               {rf.section.shortName}
-                            </span>
-                          ) : (
-                            <span className="text-slate-300">&mdash;</span>
-                          )}
-                        </td>
-
-                        {/* Drawing # */}
-                        <td className="py-2 pr-4">
-                          {rf.drawing ? (
-                            <span className="font-mono font-medium text-slate-800">
-                              {rf.drawing.drawingNumber}
-                            </span>
-                          ) : (
-                            <span className="text-slate-300">&mdash;</span>
-                          )}
-                        </td>
-
-                        {/* Rev */}
-                        <td className="py-2 pr-4">
-                          {rf.drawing ? (
-                            <span className="inline-flex items-center rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-600">
-                              Rev {rf.drawing.currentRevision}
                             </span>
                           ) : (
                             <span className="text-slate-300">&mdash;</span>

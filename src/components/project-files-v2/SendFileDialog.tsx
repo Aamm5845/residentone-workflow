@@ -27,6 +27,7 @@ import {
   CloudUpload,
   ChevronDown,
   Plus,
+  CalendarDays,
 } from 'lucide-react'
 import {
   Dialog,
@@ -85,6 +86,7 @@ interface SendFileDialogProps {
   onOpenChange: (open: boolean) => void
   onSuccess?: () => void
   initialFiles?: InitialFile[]
+  mode?: 'send' | 'log'
 }
 
 // ─── Config ──────────────────────────────────────────────────────────────────
@@ -161,7 +163,9 @@ export default function SendFileDialog({
   onOpenChange,
   onSuccess,
   initialFiles,
+  mode = 'send',
 }: SendFileDialogProps) {
+  const isLogMode = mode === 'log'
   // ── File state ──
   const [files, setFiles] = useState<FileWithMetadata[]>([])
   const [showDropboxPicker, setShowDropboxPicker] = useState(false)
@@ -192,6 +196,7 @@ export default function SendFileDialog({
 
   // ── Form state ──
   const [subject, setSubject] = useState('')
+  const [sentDate, setSentDate] = useState(() => new Date().toISOString().split('T')[0])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [showSuccess, setShowSuccess] = useState(false)
@@ -228,7 +233,9 @@ export default function SendFileDialog({
   const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
   const hasRecipients = selectedRecipients.length > 0
   const allFilesValid = files.length > 0 && globalSectionId && globalSectionId !== 'none' && files.every(f => f.title.trim())
-  const canSend = allFilesValid && hasRecipients && !isSubmitting
+  const canSend = isLogMode
+    ? files.length > 0 && globalSectionId !== 'none' && files.every(f => f.title.trim()) && selectedRecipients.length > 0 && !!sentDate && !isSubmitting
+    : allFilesValid && hasRecipients && !isSubmitting
 
   // Presets that haven't been created yet for this project
   const availablePresets = useMemo(() =>
@@ -257,6 +264,7 @@ export default function SendFileDialog({
     setNewSectionShortName('')
     setNewSectionColor(SECTION_COLORS[0])
     setSubject('')
+    setSentDate(new Date().toISOString().split('T')[0])
     setIsSubmitting(false)
     setSubmitError(null)
     setShowSuccess(false)
@@ -344,8 +352,12 @@ export default function SendFileDialog({
   }, [])
 
   const addManualRecipient = useCallback(() => {
-    if (!manualName.trim() || !manualEmail.trim() || !isValidEmail(manualEmail.trim())) return
-    const already = selectedRecipients.some(r => r.email.toLowerCase() === manualEmail.trim().toLowerCase())
+    if (!manualName.trim()) return
+    // In log mode, email is optional (hand-delivered items may not have email)
+    if (!isLogMode && (!manualEmail.trim() || !isValidEmail(manualEmail.trim()))) return
+    if (manualEmail.trim() && !isValidEmail(manualEmail.trim())) return
+    const emailKey = manualEmail.trim().toLowerCase() || `manual_${manualName.trim().toLowerCase()}`
+    const already = selectedRecipients.some(r => (r.email.toLowerCase() || `manual_${r.name.toLowerCase()}`) === emailKey)
     if (already) return
     setSelectedRecipients(prev => [...prev, {
       name: manualName.trim(),
@@ -358,7 +370,7 @@ export default function SendFileDialog({
     setManualProfession('')
     setManualCompany('')
     setShowManualEntry(false)
-  }, [manualName, manualEmail, manualCompany, selectedRecipients])
+  }, [manualName, manualEmail, manualCompany, selectedRecipients, isLogMode])
 
   const isRecipientSelected = useCallback((email: string) => {
     return selectedRecipients.some(r => r.email.toLowerCase() === email.toLowerCase())
@@ -430,38 +442,49 @@ export default function SendFileDialog({
     setIsSubmitting(true)
     setSubmitError(null)
 
+    const endpoint = isLogMode
+      ? `/api/projects/${projectId}/project-files-v2/log-transmittal`
+      : `/api/projects/${projectId}/project-files-v2/send-files`
+
     try {
-      const res = await fetch(`/api/projects/${projectId}/project-files-v2/send-files`, {
+      const payload: any = {
+        recipients: selectedRecipients.map(r => ({
+          name: r.name,
+          email: r.email,
+          company: r.company || null,
+          type: r.type || 'OTHER',
+        })),
+        subject: subject.trim() || null,
+        notes: null,
+        files: files.map(f => ({
+          name: f.name,
+          size: f.size,
+          source: f.source,
+          base64: f.base64 || null,
+          dropboxPath: f.dropboxPath || null,
+          sectionId: globalSectionId,
+          title: f.title.trim(),
+          drawnBy: f.drawnBy.trim() || null,
+          reviewNo: f.reviewNo.trim() || null,
+          pageNo: f.pageNo.trim() || null,
+          fileNotes: f.fileNotes.trim() || null,
+        })),
+      }
+
+      if (isLogMode) {
+        payload.sentAt = sentDate
+        payload.method = 'HAND_DELIVERY'
+      }
+
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          recipients: selectedRecipients.map(r => ({
-            name: r.name,
-            email: r.email,
-            company: r.company || null,
-            type: r.type || 'OTHER',
-          })),
-          subject: subject.trim() || null,
-          notes: null,
-          files: files.map(f => ({
-            name: f.name,
-            size: f.size,
-            source: f.source,
-            base64: f.base64 || null,
-            dropboxPath: f.dropboxPath || null,
-            sectionId: globalSectionId,
-            title: f.title.trim(),
-            drawnBy: f.drawnBy.trim() || null,
-            reviewNo: f.reviewNo.trim() || null,
-            pageNo: f.pageNo.trim() || null,
-            fileNotes: f.fileNotes.trim() || null,
-          })),
-        }),
+        body: JSON.stringify(payload),
       })
 
       if (!res.ok) {
         const data = await res.json()
-        throw new Error(data.error || 'Failed to send')
+        throw new Error(data.error || (isLogMode ? 'Failed to log transmittal' : 'Failed to send'))
       }
 
       setShowSuccess(true)
@@ -475,7 +498,7 @@ export default function SendFileDialog({
     } finally {
       setIsSubmitting(false)
     }
-  }, [canSend, projectId, selectedRecipients, globalSectionId, subject, files, reset, onOpenChange, onSuccess])
+  }, [canSend, isLogMode, projectId, selectedRecipients, globalSectionId, subject, sentDate, files, reset, onOpenChange, onSuccess])
 
   // ── Dropbox browser ──
   const folders = browseData?.folders ?? []
@@ -544,7 +567,7 @@ export default function SendFileDialog({
                 transition={{ delay: 0.2 }}
                 className="text-lg font-semibold text-gray-900"
               >
-                Files Sent
+                {isLogMode ? 'Transmittal Logged' : 'Files Sent'}
               </motion.p>
               <motion.p
                 initial={{ opacity: 0, y: 8 }}
@@ -552,7 +575,7 @@ export default function SendFileDialog({
                 transition={{ delay: 0.3 }}
                 className="text-sm text-gray-500 mt-1"
               >
-                {files.length} file{files.length !== 1 ? 's' : ''} sent to {selectedRecipients.length} recipient{selectedRecipients.length !== 1 ? 's' : ''}
+                {files.length} file{files.length !== 1 ? 's' : ''} {isLogMode ? 'logged' : 'sent'} to {selectedRecipients.length} recipient{selectedRecipients.length !== 1 ? 's' : ''}
               </motion.p>
             </motion.div>
           ) : (
@@ -561,10 +584,12 @@ export default function SendFileDialog({
               <div className="px-6 pt-6 pb-4">
                 <DialogHeader className="space-y-1">
                   <DialogTitle className="text-lg font-semibold text-gray-900">
-                    Send Files
+                    {isLogMode ? 'Log Transmittal' : 'Send Files'}
                   </DialogTitle>
                   <DialogDescription className="text-sm text-gray-500">
-                    Attach files, fill in details, and send to one or more recipients
+                    {isLogMode
+                      ? 'Log a file transmittal that was sent outside the system'
+                      : 'Attach files, fill in details, and send to one or more recipients'}
                   </DialogDescription>
                 </DialogHeader>
               </div>
@@ -1209,7 +1234,7 @@ export default function SendFileDialog({
                             <div className="grid grid-cols-5 gap-2">
                               <div className="col-span-2">
                                 <Input
-                                  placeholder="Email"
+                                  placeholder={isLogMode ? 'Email (optional)' : 'Email'}
                                   type="email"
                                   value={manualEmail}
                                   onChange={(e) => setManualEmail(e.target.value)}
@@ -1234,7 +1259,11 @@ export default function SendFileDialog({
                                 size="sm"
                                 className="h-8 text-xs"
                                 onClick={addManualRecipient}
-                                disabled={!manualName.trim() || !manualEmail.trim() || !isValidEmail(manualEmail.trim())}
+                                disabled={
+                                  !manualName.trim() ||
+                                  (!isLogMode && (!manualEmail.trim() || !isValidEmail(manualEmail.trim()))) ||
+                                  (isLogMode && manualEmail.trim() !== '' && !isValidEmail(manualEmail.trim()))
+                                }
                               >
                                 <Plus className="w-3 h-3" />
                               </Button>
@@ -1301,7 +1330,31 @@ export default function SendFileDialog({
                     )}
                   </section>
 
-                  {/* ══════════ 4. SUBJECT (optional) ══════════ */}
+                  {/* ══════════ 4. DATE SENT (log mode only) ══════════ */}
+                  {isLogMode && (
+                    <section>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className={cn(
+                          'w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold transition-colors',
+                          sentDate ? 'bg-green-500 text-white' : 'bg-gray-900 text-white'
+                        )}>
+                          {sentDate ? <Check className="w-3.5 h-3.5" /> : '4'}
+                        </div>
+                        <h3 className="text-sm font-semibold text-gray-900">Date Sent</h3>
+                      </div>
+                      <div className="relative">
+                        <CalendarDays className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="date"
+                          value={sentDate}
+                          onChange={(e) => setSentDate(e.target.value)}
+                          className="w-full h-9 pl-10 pr-3 rounded-lg border border-gray-200 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-300"
+                        />
+                      </div>
+                    </section>
+                  )}
+
+                  {/* ══════════ 5. SUBJECT (optional) ══════════ */}
                   <section>
                     <label className="text-xs font-medium text-gray-500 mb-1.5 block">
                       Subject
@@ -1368,10 +1421,12 @@ export default function SendFileDialog({
                   >
                     {isSubmitting ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                    ) : isLogMode ? (
+                      <FileText className="w-3.5 h-3.5 mr-1.5" />
                     ) : (
                       <Send className="w-3.5 h-3.5 mr-1.5" />
                     )}
-                    Send Email
+                    {isLogMode ? 'Log Transmittal' : 'Send Email'}
                   </Button>
                 </div>
               </div>

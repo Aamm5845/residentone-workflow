@@ -5,10 +5,6 @@ import { dropboxService } from '@/lib/dropbox-service-v2'
 
 export const runtime = 'nodejs'
 
-function titleCase(str: string): string {
-  return str.replace(/\b\w/g, c => c.toUpperCase())
-}
-
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 interface FilePayload {
@@ -19,78 +15,23 @@ interface FilePayload {
   dropboxPath?: string | null
   sectionId: string
   title: string
+  drawnBy?: string | null
+  reviewNo?: string | null
+  pageNo?: string | null
   fileNotes?: string | null
 }
 
-interface SenderPayload {
+interface RecipientPayload {
   name: string
-  email?: string | null
+  email: string
   company?: string | null
   type?: string | null
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-// ─── GET ────────────────────────────────────────────────────────────────────
-
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const session = await getSession()
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { id } = await params
-
-    // Verify project access
-    const project = await prisma.project.findFirst({
-      where: { id, orgId: session.user.orgId || undefined },
-      select: { id: true },
-    })
-
-    if (!project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-    }
-
-    const receivedFiles = await prisma.receivedFile.findMany({
-      where: { projectId: id },
-      include: {
-        section: {
-          select: { id: true, name: true, shortName: true, color: true },
-        },
-        drawing: {
-          select: {
-            id: true,
-            drawingNumber: true,
-            title: true,
-            currentRevision: true,
-            status: true,
-            dropboxPath: true,
-            dropboxUrl: true,
-            fileName: true,
-          },
-        },
-        creator: {
-          select: { id: true, name: true },
-        },
-      },
-      orderBy: { receivedDate: 'desc' },
-    })
-
-    return NextResponse.json({
-      receivedFiles,
-      total: receivedFiles.length,
-    })
-  } catch (error) {
-    console.error('[project-files-v2/receive-files] Error fetching received files:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch received files' },
-      { status: 500 }
-    )
-  }
+function titleCase(str: string): string {
+  return str.replace(/\b\w/g, c => c.toUpperCase())
 }
 
 // ─── POST ───────────────────────────────────────────────────────────────────
@@ -122,16 +63,17 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { sender, receivedDate, notes, files } = body as {
-      sender: SenderPayload
-      receivedDate?: string | null
+    const { recipients, subject, notes, files, sentAt } = body as {
+      recipients: RecipientPayload[]
+      subject?: string | null
       notes?: string | null
       files: FilePayload[]
+      sentAt?: string | null
     }
 
     // Validation
-    if (!sender?.name?.trim()) {
-      return NextResponse.json({ error: 'Sender name is required' }, { status: 400 })
+    if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
+      return NextResponse.json({ error: 'At least one recipient is required' }, { status: 400 })
     }
     if (!files || !Array.isArray(files) || files.length === 0) {
       return NextResponse.json({ error: 'At least one file is required' }, { status: 400 })
@@ -141,8 +83,6 @@ export async function POST(
         return NextResponse.json({ error: `Section and title are required for "${f.name}"` }, { status: 400 })
       }
     }
-
-    const parsedDate = receivedDate ? new Date(receivedDate) : new Date()
 
     // ── Look up section names for folder paths ──
     const sectionIds = [...new Set(files.map(f => f.sectionId))]
@@ -155,10 +95,9 @@ export async function POST(
       sectionsMap.set(s.id, s.name)
     }
 
-    // ── Step 1: Upload files to Dropbox ──
+    // ── Step 1: Upload files to Dropbox (for uploaded files), record paths for dropbox files ──
     const fileDropboxPaths: Map<number, string> = new Map()
     const errors: string[] = []
-    let filesUploaded = 0
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i]
@@ -167,81 +106,93 @@ export async function POST(
           // Upload to Dropbox: 4- Drawings/{SectionName}/{YYYY-MM-DD}/{filename}
           const sectionName = titleCase(sectionsMap.get(file.sectionId) || 'Unsorted')
           const sanitizedName = file.name.replace(/[<>:"|?*]/g, '_')
-          const dateStr = parsedDate.toISOString().split('T')[0]
-          const relativePath = `6- Documents/${sectionName}/${dateStr}/${sanitizedName}`
+          const dateStr = sentAt || new Date().toISOString().split('T')[0]
+          const relativePath = `4- Drawings/${sectionName}/${dateStr}/${sanitizedName}`
 
           if (project.dropboxFolder) {
             const absolutePath = `${project.dropboxFolder}/${relativePath}`
-            console.log(`[receive-files] Uploading to Dropbox: "${absolutePath}"`)
+            console.log(`[log-transmittal] Uploading to Dropbox: "${absolutePath}"`)
             const buffer = Buffer.from(file.base64, 'base64')
             await dropboxService.uploadFile(absolutePath, buffer)
-            console.log(`[receive-files] ✅ Uploaded: ${sanitizedName}`)
+            console.log(`[log-transmittal] Uploaded: ${sanitizedName}`)
           }
 
           fileDropboxPaths.set(i, relativePath)
-          filesUploaded++
         } else if (file.source === 'dropbox' && file.dropboxPath) {
-          // File already in Dropbox — just record the path
+          // Just record the path — no download needed since no email
           fileDropboxPaths.set(i, file.dropboxPath)
-          filesUploaded++
         } else {
           errors.push(`Could not process file: ${file.name}`)
         }
       } catch (err: any) {
-        console.error(`[receive-files] Error processing ${file.name}:`, err?.message)
+        console.error(`[log-transmittal] Error processing ${file.name}:`, err?.message)
         errors.push(`Failed to process ${file.name}: ${err?.message || 'Unknown error'}`)
       }
     }
 
-    if (filesUploaded === 0) {
-      return NextResponse.json(
-        { error: 'Failed to process any files', details: errors },
-        { status: 500 }
-      )
-    }
-
-    // ── Step 2: Create received file records in a transaction ──
-    const createdReceivedFileIds: string[] = []
+    // ── Step 2: Create transmittals in a transaction ──
+    const createdTransmittalIds: string[] = []
+    const sentAtDate = sentAt ? new Date(sentAt + 'T00:00:00Z') : new Date()
 
     await prisma.$transaction(async (tx) => {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i]
-        const dropboxPathForFile = fileDropboxPaths.get(i) || null
-        if (!dropboxPathForFile && file.source === 'upload') continue // skip failed uploads
+      const existingCount = await tx.transmittal.count({ where: { projectId: id } })
 
-        const receivedFile = await tx.receivedFile.create({
+      for (let r = 0; r < recipients.length; r++) {
+        const recipient = recipients[r]
+        const transmittalNumber = `T-${String(existingCount + r + 1).padStart(3, '0')}`
+
+        const transmittal = await tx.transmittal.create({
           data: {
             projectId: id,
-            senderName: sender.name.trim(),
-            senderEmail: sender.email?.trim() || null,
-            senderCompany: sender.company?.trim() || null,
-            senderType: sender.type || 'OTHER',
-            receivedDate: parsedDate,
-            notes: file.fileNotes?.trim() || notes?.trim() || null,
-            drawingId: null,
-            fileName: file.name,
-            dropboxPath: dropboxPathForFile,
-            fileSize: file.size,
-            sectionId: file.sectionId,
-            title: file.title.trim(),
+            transmittalNumber,
+            subject: subject || null,
+            recipientName: recipient.name,
+            recipientEmail: recipient.email || null,
+            recipientCompany: recipient.company || null,
+            recipientType: recipient.type || 'OTHER',
+            method: 'HAND_DELIVERY',
+            status: 'SENT',
+            sentAt: sentAtDate,
+            sentBy: session.user!.id,
+            notes: notes || null,
             createdBy: session.user!.id,
           },
         })
 
-        createdReceivedFileIds.push(receivedFile.id)
+        // Create TransmittalItem for each file
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i]
+          await tx.transmittalItem.create({
+            data: {
+              transmittalId: transmittal.id,
+              fileName: file.name,
+              fileSize: file.size,
+              dropboxPath: fileDropboxPaths.get(i) || null,
+              title: file.title?.trim() || null,
+              sectionId: file.sectionId || null,
+              reviewNo: file.reviewNo?.trim() || null,
+              pageNo: file.pageNo?.trim() || null,
+              purpose: 'FOR_INFORMATION',
+            },
+          })
+        }
+
+        createdTransmittalIds.push(transmittal.id)
       }
     })
 
+    console.log(`[log-transmittal] Created ${createdTransmittalIds.length} transmittal(s) for ${files.length} file(s)`)
+
     return NextResponse.json({
       success: true,
-      receivedFilesCreated: createdReceivedFileIds.length,
+      transmittalsCreated: createdTransmittalIds.length,
       errors: errors.length > 0 ? errors : undefined,
     })
   } catch (error) {
-    console.error('[receive-files] Error:', error)
+    console.error('[log-transmittal] Error:', error)
     return NextResponse.json(
       {
-        error: 'Failed to log received files',
+        error: 'Failed to log transmittal',
         details: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 }

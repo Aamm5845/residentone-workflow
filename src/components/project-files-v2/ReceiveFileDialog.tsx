@@ -100,14 +100,14 @@ const SECTION_COLORS = [
 
 const PRESET_SECTIONS = [
   { name: 'General', shortName: 'GEN', color: 'bg-gray-500' },
-  { name: 'Floor Plan', shortName: 'FP', color: 'bg-blue-500' },
-  { name: 'Electric Plan', shortName: 'EP', color: 'bg-amber-500' },
-  { name: 'Plumbing Plan', shortName: 'PP', color: 'bg-green-500' },
-  { name: 'Tiles Plan', shortName: 'TP', color: 'bg-purple-500' },
-  { name: 'RCP Plan', shortName: 'RCP', color: 'bg-orange-500' },
-  { name: 'Mechanical Plan', shortName: 'MP', color: 'bg-pink-500' },
-  { name: 'Millwork', shortName: 'MW', color: 'bg-teal-500' },
-  { name: 'Details', shortName: 'DET', color: 'bg-red-500' },
+  { name: 'Existing Drawings', shortName: 'EXD', color: 'bg-blue-500' },
+  { name: 'Structural', shortName: 'STR', color: 'bg-amber-500' },
+  { name: 'HVAC', shortName: 'HVAC', color: 'bg-green-500' },
+  { name: 'Mechanical', shortName: 'MECH', color: 'bg-purple-500' },
+  { name: 'Electrical', shortName: 'ELEC', color: 'bg-orange-500' },
+  { name: 'Plumbing', shortName: 'PLMB', color: 'bg-pink-500' },
+  { name: 'Spec Sheets', shortName: 'SPEC', color: 'bg-teal-500' },
+  { name: 'Shop Drawings', shortName: 'SHOP', color: 'bg-red-500' },
 ]
 
 const fetcher = (url: string) => fetch(url).then(r => r.json())
