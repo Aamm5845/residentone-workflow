@@ -51,6 +51,7 @@ interface PdfViewerProps {
   onClose: () => void
   onDownload: (file: PdfFile) => void
   projectId?: string
+  onNavigateToSent?: () => void
 }
 
 const fetcher = (url: string) => fetch(url).then(r => r.json())
@@ -142,6 +143,7 @@ export default function PdfViewer({
   onClose,
   onDownload,
   projectId,
+  onNavigateToSent,
 }: PdfViewerProps) {
   const [numPages, setNumPages] = useState<number>(0)
   const [pageNumber, setPageNumber] = useState(1)
@@ -612,10 +614,20 @@ export default function PdfViewer({
                   ) : (
                     <div className="space-y-2">
                       {transmittals.map((t: any, idx: number) => (
-                        <div key={t.id} className={cn(
-                          'rounded-lg border p-2.5',
-                          idx === 0 ? 'bg-emerald-50/50 border-emerald-200' : 'bg-gray-50 border-gray-100'
-                        )}>
+                        <button
+                          key={t.id}
+                          onClick={() => {
+                            if (onNavigateToSent) {
+                              onClose()
+                              onNavigateToSent()
+                            }
+                          }}
+                          className={cn(
+                            'rounded-lg border p-2.5 w-full text-left transition-colors',
+                            idx === 0 ? 'bg-emerald-50/50 border-emerald-200 hover:bg-emerald-50' : 'bg-gray-50 border-gray-100 hover:bg-gray-100',
+                            onNavigateToSent && 'cursor-pointer'
+                          )}
+                        >
                           <div className="flex items-center justify-between">
                             <p className="text-sm font-medium text-gray-900">{t.recipientName}</p>
                             {t.status === 'SENT' && idx === 0 && (
@@ -630,6 +642,31 @@ export default function PdfViewer({
                           {t.recipientEmail && (
                             <p className="text-xs text-gray-400 mt-0.5">{t.recipientEmail}</p>
                           )}
+                          {/* Title & Section */}
+                          {(t.title || t.section) && (
+                            <div className="flex items-center gap-1.5 mt-1.5">
+                              {t.section && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-white border border-gray-200 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
+                                  <span className={cn('h-1.5 w-1.5 rounded-full', t.section.color || 'bg-gray-400')} />
+                                  {t.section.shortName}
+                                </span>
+                              )}
+                              {t.title && (
+                                <span className="text-[11px] text-gray-600 truncate">{t.title}</span>
+                              )}
+                            </div>
+                          )}
+                          {/* Review & Page */}
+                          {(t.reviewNo || t.pageNo) && (
+                            <div className="flex items-center gap-2 mt-1">
+                              {t.reviewNo && (
+                                <span className="text-[10px] text-gray-500">Rev {t.reviewNo}</span>
+                              )}
+                              {t.pageNo && (
+                                <span className="text-[10px] text-gray-500">Page {t.pageNo}</span>
+                              )}
+                            </div>
+                          )}
                           {t.sentAt && (
                             <p className="text-xs text-gray-500 mt-1">
                               {new Date(t.sentAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -637,8 +674,13 @@ export default function PdfViewer({
                               {new Date(t.sentAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
                             </p>
                           )}
-                          <p className="text-[10px] font-medium text-gray-400 mt-1">{t.transmittalNumber}</p>
-                        </div>
+                          <div className="flex items-center justify-between mt-1">
+                            <span className="text-[10px] font-medium text-gray-400">{t.transmittalNumber}</span>
+                            {onNavigateToSent && (
+                              <span className="text-[10px] text-blue-500 font-medium">View in Sent →</span>
+                            )}
+                          </div>
+                        </button>
                       ))}
                     </div>
                   )}

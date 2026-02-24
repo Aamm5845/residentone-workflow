@@ -25,7 +25,6 @@ export async function GET(
   const fileName = filePath.split('/').pop() || ''
 
   // Search TransmittalItems using case-insensitive matching
-  // (Dropbox paths may differ in casing from stored paths)
   const items = await prisma.transmittalItem.findMany({
     where: {
       transmittal: { projectId: id },
@@ -48,6 +47,17 @@ export async function GET(
           subject: true,
         },
       },
+      section: {
+        select: { id: true, name: true, shortName: true, color: true },
+      },
+      drawing: {
+        select: {
+          title: true,
+          section: { select: { id: true, name: true, shortName: true, color: true } },
+          reviewNo: true,
+          pageNo: true,
+        },
+      },
     },
     orderBy: { transmittal: { sentAt: 'desc' } },
   })
@@ -60,16 +70,23 @@ export async function GET(
       seen.add(item.transmittalId)
       return true
     })
-    .map(item => ({
-      id: item.transmittal.id,
-      transmittalNumber: item.transmittal.transmittalNumber,
-      recipientName: item.transmittal.recipientName,
-      recipientEmail: item.transmittal.recipientEmail,
-      recipientCompany: item.transmittal.recipientCompany,
-      sentAt: item.transmittal.sentAt,
-      status: item.transmittal.status,
-      subject: item.transmittal.subject,
-    }))
+    .map(item => {
+      const sec = item.section || item.drawing?.section
+      return {
+        id: item.transmittal.id,
+        transmittalNumber: item.transmittal.transmittalNumber,
+        recipientName: item.transmittal.recipientName,
+        recipientEmail: item.transmittal.recipientEmail,
+        recipientCompany: item.transmittal.recipientCompany,
+        sentAt: item.transmittal.sentAt,
+        status: item.transmittal.status,
+        subject: item.transmittal.subject,
+        title: item.title || item.drawing?.title || null,
+        section: sec ? { name: sec.name, shortName: sec.shortName, color: sec.color } : null,
+        reviewNo: item.reviewNo || item.drawing?.reviewNo || null,
+        pageNo: item.pageNo || item.drawing?.pageNo || null,
+      }
+    })
 
   return NextResponse.json({ transmittals })
 }

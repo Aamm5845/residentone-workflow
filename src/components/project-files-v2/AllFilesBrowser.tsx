@@ -65,6 +65,7 @@ interface AllFilesBrowserProps {
   projectId: string
   dropboxFolder: string | null
   navigateToPath?: string | null
+  onNavigateToSent?: () => void
 }
 
 // ---------------------------------------------------------------------------
@@ -146,7 +147,7 @@ function bufferToBase64(buffer: ArrayBuffer): string {
 // Component
 // ---------------------------------------------------------------------------
 
-export default function AllFilesBrowser({ projectId, dropboxFolder, navigateToPath }: AllFilesBrowserProps) {
+export default function AllFilesBrowser({ projectId, dropboxFolder, navigateToPath, onNavigateToSent }: AllFilesBrowserProps) {
   const [currentPath, setCurrentPath] = useState('')
   const [isDragging, setIsDragging] = useState(false)
 
@@ -461,6 +462,7 @@ export default function AllFilesBrowser({ projectId, dropboxFolder, navigateToPa
             onClose={() => setViewingPdf(null)}
             onDownload={handleDownload}
             projectId={projectId}
+            onNavigateToSent={onNavigateToSent}
           />
         )}
       </div>
@@ -607,6 +609,7 @@ export default function AllFilesBrowser({ projectId, dropboxFolder, navigateToPa
           onClose={() => setViewingPdf(null)}
           onDownload={handleDownload}
           projectId={projectId}
+          onNavigateToSent={onNavigateToSent}
         />
       )}
     </div>
