@@ -8,6 +8,18 @@ interface FileCheck {
   title: string
   sectionId: string
   pageNo?: string | null
+  fileName?: string | null
+}
+
+/**
+ * Extract a drawing number from a filename using the same pattern as send-files.
+ * E.g. "A-101 Something.pdf" → "A-101"
+ */
+function extractDrawingNumber(filename: string): string | null {
+  const nameWithoutExt = filename.replace(/\.[^/.]+$/, '')
+  const match = nameWithoutExt.match(/^([A-Z]{1,4}[\s_.-]?\d{1,4}[A-Z]?)/i)
+  if (match) return match[1].replace(/[\s_]/g, '-').toUpperCase()
+  return null
 }
 
 export async function POST(
@@ -39,8 +51,8 @@ export async function POST(
       return NextResponse.json({ results: [] })
     }
 
-    // Build OR conditions for batch lookup
-    const conditions = files.map((f) => ({
+    // Build OR conditions for title-based batch lookup
+    const titleConditions = files.map((f) => ({
       projectId: id,
       title: { equals: f.title.trim(), mode: 'insensitive' as const },
       sectionId: f.sectionId,
@@ -48,43 +60,102 @@ export async function POST(
       status: { not: 'ARCHIVED' as const },
     }))
 
-    // Query all potential matches in one go
-    const allMatches = await prisma.projectDrawing.findMany({
+    // Extract drawing numbers from filenames for drawing-number-based lookup
+    const drawingNumbers = files.map((f) =>
+      f.fileName ? extractDrawingNumber(f.fileName) : null
+    )
+    const uniqueDrawingNumbers = [...new Set(drawingNumbers.filter(Boolean))] as string[]
+
+    // Query title matches
+    const titleMatches = await prisma.projectDrawing.findMany({
       where: {
-        OR: conditions,
+        OR: titleConditions,
       },
       select: {
         id: true,
         drawingNumber: true,
         title: true,
         currentRevision: true,
+        status: true,
         sectionId: true,
         pageNo: true,
         section: { select: { name: true, shortName: true } },
       },
     })
 
-    // Map results back to each file index
+    // Query drawing number matches (if any filenames yielded drawing numbers)
+    let numberMatches: typeof titleMatches = []
+    if (uniqueDrawingNumbers.length > 0) {
+      numberMatches = await prisma.projectDrawing.findMany({
+        where: {
+          projectId: id,
+          drawingNumber: { in: uniqueDrawingNumbers },
+          status: { not: 'ARCHIVED' },
+        },
+        select: {
+          id: true,
+          drawingNumber: true,
+          title: true,
+          currentRevision: true,
+          status: true,
+          sectionId: true,
+          pageNo: true,
+          section: { select: { name: true, shortName: true } },
+        },
+      })
+    }
+
+    // Map results back to each file index — title match takes priority
     const results = files.map((f, index) => {
       const titleLower = f.title.trim().toLowerCase()
-      const match = allMatches.find(
+      const titleMatch = titleMatches.find(
         (m) =>
           m.title.toLowerCase() === titleLower &&
           m.sectionId === f.sectionId &&
           (!f.pageNo || m.pageNo === f.pageNo)
       )
 
+      if (titleMatch) {
+        return {
+          fileIndex: index,
+          existingDrawing: {
+            id: titleMatch.id,
+            drawingNumber: titleMatch.drawingNumber,
+            title: titleMatch.title,
+            currentRevision: titleMatch.currentRevision,
+            status: titleMatch.status,
+            sectionShortName: titleMatch.section?.shortName || null,
+          },
+          matchType: 'title' as const,
+        }
+      }
+
+      // Fall back to drawing number match from filename
+      const extractedNumber = drawingNumbers[index]
+      if (extractedNumber) {
+        const numberMatch = numberMatches.find(
+          (m) => m.drawingNumber === extractedNumber
+        )
+        if (numberMatch) {
+          return {
+            fileIndex: index,
+            existingDrawing: {
+              id: numberMatch.id,
+              drawingNumber: numberMatch.drawingNumber,
+              title: numberMatch.title,
+              currentRevision: numberMatch.currentRevision,
+              status: numberMatch.status,
+              sectionShortName: numberMatch.section?.shortName || null,
+            },
+            matchType: 'drawingNumber' as const,
+          }
+        }
+      }
+
       return {
         fileIndex: index,
-        existingDrawing: match
-          ? {
-              id: match.id,
-              drawingNumber: match.drawingNumber,
-              title: match.title,
-              currentRevision: match.currentRevision,
-              sectionShortName: match.section?.shortName || null,
-            }
-          : null,
+        existingDrawing: null,
+        matchType: null,
       }
     })
 

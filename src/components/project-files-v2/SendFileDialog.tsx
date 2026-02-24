@@ -60,6 +60,8 @@ interface FileWithMetadata {
   matchedDrawingId?: string | null
   matchedDrawingNumber?: string | null
   matchedCurrentRevision?: number | null
+  matchedStatus?: string | null
+  matchType?: 'title' | 'drawingNumber' | null
   action: 'create_new' | 'add_revision'
 }
 
@@ -528,10 +530,10 @@ export default function SendFileDialog({
   // Debounced duplicate detection
   useEffect(() => {
     if (!open || files.length === 0) return
-    // Build a check key from titles + sectionIds + pageNos
+    // Build a check key from titles + sectionIds + pageNos + fileNames
     const filesToCheck = files
       .filter(f => f.title.trim() && f.sectionId && f.sectionId !== 'none')
-      .map(f => ({ title: f.title.trim(), sectionId: f.sectionId, pageNo: f.pageNo || null }))
+      .map(f => ({ title: f.title.trim(), sectionId: f.sectionId, pageNo: f.pageNo || null, fileName: f.name || null }))
     if (filesToCheck.length === 0) return
 
     const timer = setTimeout(async () => {
@@ -545,11 +547,11 @@ export default function SendFileDialog({
         const data = await res.json()
         const results = data.results as Array<{
           fileIndex: number
-          existingDrawing: { id: string; drawingNumber: string; title: string; currentRevision: number } | null
+          existingDrawing: { id: string; drawingNumber: string; title: string; currentRevision: number; status: string } | null
+          matchType: 'title' | 'drawingNumber' | null
         }>
 
         setFiles(prev => {
-          const validFiles = prev.filter(f => f.title.trim() && f.sectionId && f.sectionId !== 'none')
           // Map from valid file index back to the full files array index
           let validIdx = 0
           return prev.map(f => {
@@ -562,6 +564,8 @@ export default function SendFileDialog({
                 matchedDrawingId: result.existingDrawing.id,
                 matchedDrawingNumber: result.existingDrawing.drawingNumber,
                 matchedCurrentRevision: result.existingDrawing.currentRevision,
+                matchedStatus: result.existingDrawing.status || null,
+                matchType: result.matchType || null,
                 action: f.action === 'create_new' && !f.matchedDrawingId ? 'add_revision' as const : f.action,
               }
             }
@@ -570,6 +574,8 @@ export default function SendFileDialog({
               matchedDrawingId: null,
               matchedDrawingNumber: null,
               matchedCurrentRevision: null,
+              matchedStatus: null,
+              matchType: null,
               action: 'create_new' as const,
             }
           })
@@ -580,7 +586,7 @@ export default function SendFileDialog({
     }, 600)
 
     return () => clearTimeout(timer)
-  }, [open, files.map(f => `${f.title}|${f.sectionId}|${f.pageNo}`).join(','), projectId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, files.map(f => `${f.title}|${f.sectionId}|${f.pageNo}|${f.name}`).join(','), projectId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── RENDER ─────────────────────────────────────────────────────────────────
 
@@ -1098,16 +1104,35 @@ export default function SendFileDialog({
                                       <span className="text-amber-600 text-xs mt-0.5 shrink-0">&#9888;</span>
                                       <div className="flex-1 min-w-0">
                                         <p className="text-[11px] text-amber-800 leading-snug">
-                                          <span className="font-medium">&quot;{f.title}&quot;</span> already exists as{' '}
-                                          <span className="font-mono font-medium">{f.matchedDrawingNumber}</span>{' '}
-                                          (Rev {f.matchedCurrentRevision})
+                                          {f.matchType === 'drawingNumber' ? (
+                                            <>
+                                              Filename matches existing drawing{' '}
+                                              <span className="font-mono font-medium">{f.matchedDrawingNumber}</span>
+                                            </>
+                                          ) : (
+                                            <>
+                                              Title already exists as{' '}
+                                              <span className="font-mono font-medium">{f.matchedDrawingNumber}</span>
+                                            </>
+                                          )}
+                                          {' '}(Rev {f.matchedCurrentRevision})
+                                          {f.matchedStatus && (
+                                            <span className={cn(
+                                              'ml-1.5 inline-flex items-center px-1.5 py-0 rounded text-[9px] font-semibold uppercase tracking-wide',
+                                              f.matchedStatus === 'ACTIVE' && 'bg-green-100 text-green-700',
+                                              f.matchedStatus === 'DRAFT' && 'bg-gray-100 text-gray-600',
+                                              f.matchedStatus !== 'ACTIVE' && f.matchedStatus !== 'DRAFT' && 'bg-gray-100 text-gray-500'
+                                            )}>
+                                              {f.matchedStatus}
+                                            </span>
+                                          )}
                                         </p>
                                         <div className="flex items-center gap-1.5 mt-1.5">
                                           <button
                                             type="button"
                                             onClick={() => updateFile(f.id, { action: 'add_revision' })}
                                             className={cn(
-                                              'px-2 py-0.5 rounded text-[10px] font-medium transition-colors',
+                                              'px-2.5 py-1 rounded text-[10px] font-medium transition-colors',
                                               f.action === 'add_revision'
                                                 ? 'bg-amber-600 text-white'
                                                 : 'bg-white text-amber-700 border border-amber-300 hover:bg-amber-100'
@@ -1119,7 +1144,7 @@ export default function SendFileDialog({
                                             type="button"
                                             onClick={() => updateFile(f.id, { action: 'create_new' })}
                                             className={cn(
-                                              'px-2 py-0.5 rounded text-[10px] font-medium transition-colors',
+                                              'px-2.5 py-1 rounded text-[10px] font-medium transition-colors',
                                               f.action === 'create_new'
                                                 ? 'bg-gray-700 text-white'
                                                 : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-100'

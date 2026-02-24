@@ -241,6 +241,7 @@ export async function POST(
               where: { id: existing.id },
               data: {
                 currentRevision: nextRev,
+                status: 'ACTIVE',
                 dropboxPath: dropboxPathForDrawing,
                 fileName: file.name,
                 fileSize: file.size,

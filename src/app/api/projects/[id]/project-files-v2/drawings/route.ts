@@ -233,6 +233,7 @@ export async function POST(
           projectId: id,
           drawingNumber,
           title,
+          status: 'DRAFT',
           sectionId: sectionId || null,
           drawingType: drawingType || null,
           floorId: floorId || null,
