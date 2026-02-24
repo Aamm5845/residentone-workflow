@@ -28,7 +28,6 @@ import DrawingDetailPanel from './DrawingDetailPanel'
 import DrawingFormDialog from './DrawingFormDialog'
 import NewRevisionDialog from './NewRevisionDialog'
 import TransmittalLog from './TransmittalLog'
-import NewTransmittalDialog from './NewTransmittalDialog'
 import FilterSidebar from './FilterSidebar'
 import AllFilesBrowser from './AllFilesBrowser'
 import PhotosGallery from './PhotosGallery'
@@ -80,8 +79,6 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
   const [showAddDrawing, setShowAddDrawing] = useState(false)
   const [editDrawing, setEditDrawing] = useState<any | null>(null)
   const [revisionDrawing, setRevisionDrawing] = useState<any | null>(null)
-  const [showNewTransmittal, setShowNewTransmittal] = useState(false)
-  const [transmittalPreSelectedDrawings, setTransmittalPreSelectedDrawings] = useState<any[]>([])
   const [showSendFile, setShowSendFile] = useState(false)
   const [showReceiveFile, setShowReceiveFile] = useState(false)
   const [sendFileInitialFiles, setSendFileInitialFiles] = useState<{
@@ -568,22 +565,6 @@ export default function ProjectFilesV2Workspace({ project }: { project: Project 
           }}
         />
       )}
-
-      {/* New Transmittal Dialog */}
-      <NewTransmittalDialog
-        projectId={project.id}
-        open={showNewTransmittal}
-        onOpenChange={(open) => {
-          setShowNewTransmittal(open)
-          if (!open) setTransmittalPreSelectedDrawings([])
-        }}
-        onSuccess={() => {
-          mutateTransmittals()
-          setShowNewTransmittal(false)
-          setTransmittalPreSelectedDrawings([])
-        }}
-        preSelectedDrawings={transmittalPreSelectedDrawings}
-      />
 
       {/* Send File Dialog */}
       <SendFileDialog

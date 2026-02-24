@@ -74,6 +74,9 @@ export async function GET(
                 dropboxUrl: true,
                 fileName: true,
               }
+            },
+            section: {
+              select: { id: true, name: true, shortName: true, color: true }
             }
           }
         },

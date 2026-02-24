@@ -219,12 +219,17 @@ export async function POST(
 
         // Create TransmittalItem for each file (no drawing link)
         for (let i = 0; i < files.length; i++) {
+          const file = files[i]
           await tx.transmittalItem.create({
             data: {
               transmittalId: transmittal.id,
-              fileName: files[i].name,
-              fileSize: files[i].size,
+              fileName: file.name,
+              fileSize: file.size,
               dropboxPath: fileDropboxPaths.get(i) || null,
+              title: file.title?.trim() || null,
+              sectionId: file.sectionId || null,
+              reviewNo: file.reviewNo?.trim() || null,
+              pageNo: file.pageNo?.trim() || null,
               purpose: 'FOR_INFORMATION',
             },
           })

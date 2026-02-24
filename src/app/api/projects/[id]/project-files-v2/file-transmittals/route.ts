@@ -22,15 +22,19 @@ export async function GET(
     return NextResponse.json({ transmittals: [] })
   }
 
-  // Find TransmittalItems that match this file path (by dropboxPath or fileName)
   const fileName = filePath.split('/').pop() || ''
 
+  // Search TransmittalItems by:
+  // 1. item.dropboxPath matches (new flow)
+  // 2. item.fileName matches (new flow)
+  // 3. drawing.dropboxPath matches (old flow via drawing relation)
   const items = await prisma.transmittalItem.findMany({
     where: {
       transmittal: { projectId: id },
       OR: [
         { dropboxPath: filePath },
         { fileName: fileName },
+        { drawing: { dropboxPath: filePath } },
       ],
     },
     include: {
@@ -50,7 +54,7 @@ export async function GET(
     orderBy: { transmittal: { sentAt: 'desc' } },
   })
 
-  // Deduplicate by transmittal ID (a file appears once per transmittal)
+  // Deduplicate by transmittal ID
   const seen = new Set<string>()
   const transmittals = items
     .filter(item => {

@@ -50,6 +50,11 @@ interface TransmittalData {
     purpose: string | null
     notes: string | null
     fileName?: string | null
+    title?: string | null
+    sectionId?: string | null
+    reviewNo?: string | null
+    pageNo?: string | null
+    section?: SectionData | null
     drawing: {
       id: string
       drawingNumber: string
@@ -250,8 +255,8 @@ export default function TransmittalLog({
         case 'recipient':
           return a.recipientName.localeCompare(b.recipientName) * dir
         case 'title': {
-          const titleA = a.subject || a.items[0]?.drawing?.title || a.items[0]?.fileName || ''
-          const titleB = b.subject || b.items[0]?.drawing?.title || b.items[0]?.fileName || ''
+          const titleA = a.subject || a.items[0]?.title || a.items[0]?.drawing?.title || a.items[0]?.fileName || ''
+          const titleB = b.subject || b.items[0]?.title || b.items[0]?.drawing?.title || b.items[0]?.fileName || ''
           return titleA.localeCompare(titleB) * dir
         }
         default:
@@ -266,8 +271,9 @@ export default function TransmittalLog({
     const map = new Map<string, SectionData>()
     for (const t of transmittals) {
       for (const item of t.items) {
-        if (item.drawing?.section && !map.has(item.drawing.section.id)) {
-          map.set(item.drawing.section.id, item.drawing.section)
+        const sec = item.section || item.drawing?.section
+        if (sec && !map.has(sec.id)) {
+          map.set(sec.id, sec)
         }
       }
     }
@@ -288,7 +294,7 @@ export default function TransmittalLog({
         const subjectMatch = t.subject?.toLowerCase().includes(q) ?? false
         const recipientMatch = t.recipientName.toLowerCase().includes(q)
         const companyMatch = t.recipientCompany?.toLowerCase().includes(q) ?? false
-        const titleMatch = t.items.some((item) => (item.drawing?.title || item.fileName || '').toLowerCase().includes(q))
+        const titleMatch = t.items.some((item) => (item.title || item.drawing?.title || item.fileName || '').toLowerCase().includes(q))
         const numMatch = t.transmittalNumber.toLowerCase().includes(q)
         if (!subjectMatch && !recipientMatch && !companyMatch && !titleMatch && !numMatch) return false
       }
@@ -301,7 +307,7 @@ export default function TransmittalLog({
         if (new Date(t.sentAt) > to) return false
       }
       if (filterSection) {
-        const hasSection = t.items.some((item) => item.drawing?.section?.id === filterSection)
+        const hasSection = t.items.some((item) => (item.section?.id || item.drawing?.section?.id) === filterSection)
         if (!hasSection) return false
       }
       if (filterRecipient && t.recipientName !== filterRecipient) return false
@@ -699,26 +705,28 @@ export default function TransmittalLog({
                 }> = []
                 // Sort items by pageNo first
                 const sortedItems = [...t.items].sort((a, b) => {
-                  const pa = a.drawing?.pageNo || ''
-                  const pb = b.drawing?.pageNo || ''
+                  const pa = a.pageNo || a.drawing?.pageNo || ''
+                  const pb = b.pageNo || b.drawing?.pageNo || ''
                   return pa.localeCompare(pb, undefined, { numeric: true })
                 })
                 for (const item of sortedItems) {
-                  const rev = item.drawing?.reviewNo || (item.revision?.revisionNumber ?? item.revisionNumber)
+                  const rev = item.reviewNo || item.drawing?.reviewNo || (item.revision?.revisionNumber ?? item.revisionNumber)
                   const revStr = rev != null && rev !== '' ? String(rev) : ''
-                  const sectionName = item.drawing?.section?.name || ''
-                  const title = item.drawing?.title || item.fileName || '—'
+                  const sec = item.section || item.drawing?.section
+                  const sectionName = sec?.name || ''
+                  const title = item.title || item.drawing?.title || item.fileName || '—'
+                  const pageNo = item.pageNo || item.drawing?.pageNo || ''
                   const groupKey = `${title}|${sectionName}|${revStr}`
                   const existing = grouped.find((g) => g.key === groupKey)
                   if (existing) {
-                    if (item.drawing?.pageNo) existing.pages.push(item.drawing.pageNo)
+                    if (pageNo) existing.pages.push(pageNo)
                   } else {
                     grouped.push({
                       key: groupKey,
                       title,
                       section: sectionName,
                       review: revStr,
-                      pages: item.drawing?.pageNo ? [item.drawing.pageNo] : [],
+                      pages: pageNo ? [pageNo] : [],
                     })
                   }
                 }

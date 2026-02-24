@@ -4953,9 +4953,10 @@ model ProjectSection {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  project       Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  drawings      ProjectDrawing[]
-  receivedFiles ReceivedFile[]
+  project          Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  drawings         ProjectDrawing[]
+  receivedFiles    ReceivedFile[]
+  transmittalItems TransmittalItem[]
 
   @@index([projectId])
   @@index([projectId, order])
@@ -5073,13 +5074,19 @@ model TransmittalItem {
   fileName       String?
   fileSize       Int?
   dropboxPath    String?
+  title          String?
+  sectionId      String?
+  reviewNo       String?
+  pageNo         String?
 
   transmittal Transmittal      @relation(fields: [transmittalId], references: [id], onDelete: Cascade)
   drawing     ProjectDrawing?  @relation(fields: [drawingId], references: [id], onDelete: Cascade)
   revision    DrawingRevision? @relation(fields: [revisionId], references: [id], onDelete: SetNull)
+  section     ProjectSection?  @relation(fields: [sectionId], references: [id], onDelete: SetNull)
 
   @@index([transmittalId])
   @@index([drawingId])
+  @@index([sectionId])
 }
 
 model ReceivedFile {
