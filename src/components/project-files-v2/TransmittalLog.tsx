@@ -54,6 +54,7 @@ interface TransmittalData {
     sectionId?: string | null
     reviewNo?: string | null
     pageNo?: string | null
+    dropboxPath?: string | null
     section?: SectionData | null
     drawing: {
       id: string
@@ -689,7 +690,8 @@ export default function TransmittalLog({
                     {sortField === 'sent' && (sortDir === 'asc' ? <ArrowUp className="h-3 w-3 text-slate-900" /> : <ArrowDown className="h-3 w-3 text-slate-900" />)}
                   </button>
                 </th>
-                <th className="px-3 py-3 w-[10px]">
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 w-[60px]">
+                  File
                 </th>
               </tr>
             </thead>
@@ -702,6 +704,7 @@ export default function TransmittalLog({
                   section: string
                   review: string
                   pages: string[]
+                  dropboxPath: string | null
                 }> = []
                 // Sort items by pageNo first
                 const sortedItems = [...t.items].sort((a, b) => {
@@ -716,10 +719,12 @@ export default function TransmittalLog({
                   const sectionName = sec?.name || ''
                   const title = item.title || item.drawing?.title || item.fileName || '—'
                   const pageNo = item.pageNo || item.drawing?.pageNo || ''
+                  const itemPath = item.dropboxPath || item.drawing?.dropboxPath || null
                   const groupKey = `${title}|${sectionName}|${revStr}`
                   const existing = grouped.find((g) => g.key === groupKey)
                   if (existing) {
                     if (pageNo) existing.pages.push(pageNo)
+                    if (!existing.dropboxPath && itemPath) existing.dropboxPath = itemPath
                   } else {
                     grouped.push({
                       key: groupKey,
@@ -727,6 +732,7 @@ export default function TransmittalLog({
                       section: sectionName,
                       review: revStr,
                       pages: pageNo ? [pageNo] : [],
+                      dropboxPath: itemPath,
                     })
                   }
                 }
@@ -816,7 +822,21 @@ export default function TransmittalLog({
                       )}
                     </td>
 
-                    <td className="px-3 py-3">
+                    {/* Open in All Files */}
+                    <td className="px-4 py-3">
+                      {(() => {
+                        const firstPath = grouped[0]?.dropboxPath
+                        if (!firstPath || !onOpenInFiles) return <span className="text-slate-300">&mdash;</span>
+                        const folder = firstPath.split('/').slice(0, -1).join('/')
+                        return (
+                          <button
+                            onClick={() => onOpenInFiles(folder)}
+                            className="text-xs text-blue-600 hover:text-blue-800 transition-colors"
+                          >
+                            Open
+                          </button>
+                        )
+                      })()}
                     </td>
                   </tr>
                 )
