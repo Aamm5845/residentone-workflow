@@ -49,6 +49,7 @@ export default async function ProjectDetail({ params }: Props) {
         budget: true,
         createdAt: true,
         updatedAt: true,
+        orgId: true,
         hasFloorplanApproval: true,
         hasSpecBook: true,
         hasProjectUpdates: true,
@@ -123,6 +124,16 @@ export default async function ProjectDetail({ params }: Props) {
 
   if (!project) {
     redirect('/projects')
+  }
+
+  // Auto-fix orgId if it doesn't match the current user's org
+  if (session.user.orgId && project.orgId !== session.user.orgId) {
+    try {
+      await prisma.project.update({
+        where: { id: project.id },
+        data: { orgId: session.user.orgId }
+      })
+    } catch {}
   }
 
   // Calculate overall project progress (excluding NOT_APPLICABLE phases)

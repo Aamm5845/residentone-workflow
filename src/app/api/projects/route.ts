@@ -67,10 +67,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get shared organization
-    const sharedOrg = await prisma.organization.findFirst()
+    // Use the session user's organization (fallback to findFirst for legacy compat)
+    const userOrgId = session.user.orgId
+    const sharedOrg = userOrgId
+      ? { id: userOrgId }
+      : await prisma.organization.findFirst()
     if (!sharedOrg) {
-      return NextResponse.json({ error: 'No shared organization found' }, { status: 500 })
+      return NextResponse.json({ error: 'No organization found' }, { status: 500 })
     }
     
     const data = await request.json()
