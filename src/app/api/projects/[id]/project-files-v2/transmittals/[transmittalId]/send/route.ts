@@ -203,7 +203,7 @@ export async function POST(
     // Build org info
     const org = project.organization
     const companyName = org?.businessName || org?.name || ''
-    const companyLogo = (org?.logoUrl && org.logoUrl.startsWith('http')) ? org.logoUrl : 'https://app.meisnerinteriors.com/meisnerinteriorlogo.png'
+    const companyLogo = 'https://app.meisnerinteriors.com/meisnerinteriorlogo.png'
     const companyEmail = org?.businessEmail || ''
     const companyPhone = org?.businessPhone || ''
     const firstName = transmittal.recipientName.split(' ')[0]
