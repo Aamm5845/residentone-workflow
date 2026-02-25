@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import useSWR from 'swr'
+import { upload } from '@vercel/blob/client'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Loader2,
@@ -47,7 +48,7 @@ interface FileWithMetadata {
   name: string
   size: number
   source: 'upload' | 'dropbox'
-  base64?: string
+  file?: File
   dropboxPath?: string
   sectionId: string
   title: string
@@ -256,14 +257,12 @@ export default function ReceiveFileDialog({
   const handleFileUpload = useCallback(async (fileList: FileList) => {
     const newFiles: FileWithMetadata[] = []
     for (const file of Array.from(fileList)) {
-      const buffer = await file.arrayBuffer()
-      const base64 = Buffer.from(buffer).toString('base64')
       newFiles.push({
         id: crypto.randomUUID(),
         name: file.name,
         size: file.size,
         source: 'upload',
-        base64,
+        file,
         sectionId: globalSectionId,
         title: stripExtension(file.name),
         fileNotes: '',
@@ -378,7 +377,70 @@ export default function ReceiveFileDialog({
     setIsSubmitting(true)
     setSubmitError(null)
 
+    const MAX_DIRECT_SIZE = 4 * 1024 * 1024 // 4MB — Vercel serverless body limit
+
     try {
+      // Step 1: Upload each local file to Dropbox first (same pattern as Photos tab)
+      const sectionName = sections.find(s => s.id === globalSectionId)?.name || 'Unsorted'
+      const dateStr = receivedDate || todayISO()
+      const targetPath = `6- Documents/${sectionName}/${dateStr}`
+
+      const processedFiles: Array<{
+        name: string; size: number; source: 'dropbox'; dropboxPath: string
+        sectionId: string; title: string; fileNotes: string | null
+      }> = []
+
+      for (const f of files) {
+        if (f.source === 'upload' && f.file) {
+          const sanitizedName = f.file.name.replace(/[^a-zA-Z0-9._\-() ]/g, '_')
+
+          if (f.file.size > MAX_DIRECT_SIZE) {
+            // Large file: upload to Vercel Blob first, then transfer to Dropbox
+            const blobPath = `receive-files/${projectId}/${Date.now()}-${sanitizedName}`
+            const blob = await upload(blobPath, f.file, {
+              access: 'public',
+              handleUploadUrl: '/api/blob-upload',
+            })
+            await fetch(`/api/projects/${projectId}/project-files-v2/upload-from-blob`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ blobUrl: blob.url, fileName: f.file.name, targetPath }),
+            })
+          } else {
+            // Small file: direct FormData upload
+            const formData = new FormData()
+            formData.append('file', f.file)
+            formData.append('path', targetPath)
+            await fetch(`/api/projects/${projectId}/project-files-v2/upload`, {
+              method: 'POST',
+              body: formData,
+            })
+          }
+
+          processedFiles.push({
+            name: f.name,
+            size: f.size,
+            source: 'dropbox',
+            dropboxPath: `${targetPath}/${sanitizedName}`,
+            sectionId: globalSectionId,
+            title: f.title.trim(),
+            fileNotes: f.fileNotes.trim() || null,
+          })
+        } else {
+          // Dropbox-sourced file — already in Dropbox
+          processedFiles.push({
+            name: f.name,
+            size: f.size,
+            source: 'dropbox',
+            dropboxPath: f.dropboxPath || '',
+            sectionId: globalSectionId,
+            title: f.title.trim(),
+            fileNotes: f.fileNotes.trim() || null,
+          })
+        }
+      }
+
+      // Step 2: Call receive-files API with metadata only (no base64)
       const res = await fetch(`/api/projects/${projectId}/project-files-v2/receive-files`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -391,16 +453,7 @@ export default function ReceiveFileDialog({
           },
           receivedDate: receivedDate ? new Date(receivedDate).toISOString() : null,
           notes: null,
-          files: files.map(f => ({
-            name: f.name,
-            size: f.size,
-            source: f.source,
-            base64: f.base64 || null,
-            dropboxPath: f.dropboxPath || null,
-            sectionId: globalSectionId,
-            title: f.title.trim(),
-            fileNotes: f.fileNotes.trim() || null,
-          })),
+          files: processedFiles,
         }),
       })
 
@@ -420,7 +473,7 @@ export default function ReceiveFileDialog({
     } finally {
       setIsSubmitting(false)
     }
-  }, [canSubmit, selectedSender, projectId, receivedDate, files, globalSectionId, reset, onOpenChange, onSuccess])
+  }, [canSubmit, selectedSender, projectId, receivedDate, files, globalSectionId, sections, reset, onOpenChange, onSuccess])
 
   // ── Dropbox browser ──
   const folders = browseData?.folders ?? []

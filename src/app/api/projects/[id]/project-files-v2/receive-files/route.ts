@@ -1,13 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { dropboxService } from '@/lib/dropbox-service-v2'
 
 export const runtime = 'nodejs'
-
-function titleCase(str: string): string {
-  return str.replace(/\b\w/g, c => c.toUpperCase())
-}
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -15,7 +10,6 @@ interface FilePayload {
   name: string
   size: number
   source: 'upload' | 'dropbox'
-  base64?: string | null
   dropboxPath?: string | null
   sectionId: string
   title: string
@@ -107,14 +101,10 @@ export async function POST(
 
     const { id } = await params
 
-    // Verify project access and get project info
+    // Verify project access
     const project = await prisma.project.findFirst({
       where: { id, orgId: session.user.orgId || undefined },
-      select: {
-        id: true,
-        name: true,
-        dropboxFolder: true,
-      },
+      select: { id: true },
     })
 
     if (!project) {
@@ -144,71 +134,12 @@ export async function POST(
 
     const parsedDate = receivedDate ? new Date(receivedDate) : new Date()
 
-    // ── Look up section names for folder paths ──
-    const sectionIds = [...new Set(files.map(f => f.sectionId))]
-    const sectionsMap = new Map<string, string>()
-    const sectionRecords = await prisma.projectSection.findMany({
-      where: { id: { in: sectionIds }, projectId: id },
-      select: { id: true, name: true },
-    })
-    for (const s of sectionRecords) {
-      sectionsMap.set(s.id, s.name)
-    }
-
-    // ── Step 1: Upload files to Dropbox ──
-    const fileDropboxPaths: Map<number, string> = new Map()
-    const errors: string[] = []
-    let filesUploaded = 0
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i]
-      try {
-        if (file.source === 'upload' && file.base64) {
-          // Upload to Dropbox: 4- Drawings/{SectionName}/{YYYY-MM-DD}/{filename}
-          const sectionName = titleCase(sectionsMap.get(file.sectionId) || 'Unsorted')
-          const sanitizedName = file.name.replace(/[<>:"|?*]/g, '_')
-          const dateStr = parsedDate.toISOString().split('T')[0]
-          const relativePath = `6- Documents/${sectionName}/${dateStr}/${sanitizedName}`
-
-          if (project.dropboxFolder) {
-            const absolutePath = `${project.dropboxFolder}/${relativePath}`
-            console.log(`[receive-files] Uploading to Dropbox: "${absolutePath}"`)
-            const buffer = Buffer.from(file.base64, 'base64')
-            await dropboxService.uploadFile(absolutePath, buffer)
-            console.log(`[receive-files] ✅ Uploaded: ${sanitizedName}`)
-          }
-
-          fileDropboxPaths.set(i, relativePath)
-          filesUploaded++
-        } else if (file.source === 'dropbox' && file.dropboxPath) {
-          // File already in Dropbox — just record the path
-          fileDropboxPaths.set(i, file.dropboxPath)
-          filesUploaded++
-        } else {
-          errors.push(`Could not process file: ${file.name}`)
-        }
-      } catch (err: any) {
-        console.error(`[receive-files] Error processing ${file.name}:`, err?.message)
-        errors.push(`Failed to process ${file.name}: ${err?.message || 'Unknown error'}`)
-      }
-    }
-
-    if (filesUploaded === 0) {
-      return NextResponse.json(
-        { error: 'Failed to process any files', details: errors },
-        { status: 500 }
-      )
-    }
-
-    // ── Step 2: Create received file records in a transaction ──
+    // ── Create received file records in a transaction ──
+    // Files are already uploaded to Dropbox by the client before calling this API.
     const createdReceivedFileIds: string[] = []
 
     await prisma.$transaction(async (tx) => {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i]
-        const dropboxPathForFile = fileDropboxPaths.get(i) || null
-        if (!dropboxPathForFile && file.source === 'upload') continue // skip failed uploads
-
+      for (const file of files) {
         const receivedFile = await tx.receivedFile.create({
           data: {
             projectId: id,
@@ -220,7 +151,7 @@ export async function POST(
             notes: file.fileNotes?.trim() || notes?.trim() || null,
             drawingId: null,
             fileName: file.name,
-            dropboxPath: dropboxPathForFile,
+            dropboxPath: file.dropboxPath || null,
             fileSize: file.size,
             sectionId: file.sectionId,
             title: file.title.trim(),
@@ -235,7 +166,6 @@ export async function POST(
     return NextResponse.json({
       success: true,
       receivedFilesCreated: createdReceivedFileIds.length,
-      errors: errors.length > 0 ? errors : undefined,
     })
   } catch (error) {
     console.error('[receive-files] Error:', error)
