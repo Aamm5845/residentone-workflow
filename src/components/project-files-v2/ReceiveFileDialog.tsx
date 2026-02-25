@@ -452,7 +452,7 @@ export default function ReceiveFileDialog({
             company: selectedSender.company || null,
             type: selectedSender.type || 'OTHER',
           },
-          receivedDate: receivedDate ? new Date(receivedDate).toISOString() : null,
+          receivedDate: receivedDate ? `${receivedDate}T12:00:00` : null,
           notes: null,
           files: processedFiles,
         }),
