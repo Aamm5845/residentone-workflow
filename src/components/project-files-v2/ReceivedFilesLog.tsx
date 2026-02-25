@@ -420,7 +420,7 @@ export default function ReceivedFilesLog({
                           'bg-slate-50 text-slate-700 ring-1 ring-slate-200'
                         )}>
                           <span className={cn('h-1.5 w-1.5 rounded-full', rf.section.color || 'bg-slate-400')} />
-                          {rf.section.shortName}
+                          {rf.section.name}
                         </span>
                       ) : (
                         <span className="text-slate-300">&mdash;</span>

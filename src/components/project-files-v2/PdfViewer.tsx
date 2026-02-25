@@ -659,7 +659,7 @@ export default function PdfViewer({
                               {t.section && (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-white border border-gray-200 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
                                   <span className={cn('h-1.5 w-1.5 rounded-full', t.section.color || 'bg-gray-400')} />
-                                  {t.section.shortName}
+                                  {t.section.name}
                                 </span>
                               )}
                               {t.title && (
@@ -739,7 +739,7 @@ export default function PdfViewer({
                               {rf.section && (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-white border border-gray-200 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
                                   <span className={cn('h-1.5 w-1.5 rounded-full', rf.section.color || 'bg-gray-400')} />
-                                  {rf.section.shortName}
+                                  {rf.section.name}
                                 </span>
                               )}
                               {rf.title && (
