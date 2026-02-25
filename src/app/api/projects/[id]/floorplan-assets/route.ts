@@ -166,8 +166,8 @@ export async function POST(
         const { DropboxService } = await import('@/lib/dropbox-service')
         const dropboxService = new DropboxService()
 
-        // Ensure folder structure: 8- DRAWINGS/Floorplan Approvals/V1
-        const basePath = `${project.dropboxFolder}/8- DRAWINGS`
+        // Ensure folder structure: 4- Drawings/Floorplan Approvals/V1
+        const basePath = `${project.dropboxFolder}/4- Drawings`
         const floorplanPath = `${basePath}/Floorplan Approvals`
         const versionFolder = `${floorplanPath}/${version.version || 'V1'}`
 

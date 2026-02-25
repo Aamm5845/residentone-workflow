@@ -225,7 +225,7 @@ export async function POST(
           data: {
             versionId: version.id,
             type: isResend ? 'email_resent' : 'email_sent',
-            message: isResend 
+            message: isResend
               ? `Floorplan approval email resent to ${clientEmail}`
               : `Floorplan approval email sent to ${clientEmail}`,
             userId: session.user.id,
@@ -238,6 +238,60 @@ export async function POST(
             })
           }
         })
+
+        // Create a transmittal record in project-files-v2 so it shows in the Sent tab
+        try {
+          const existingCount = await prisma.transmittal.count({
+            where: { projectId: version.projectId },
+          })
+          const transmittalNumber = `T-${String(existingCount + 1).padStart(3, '0')}`
+
+          const transmittal = await prisma.transmittal.create({
+            data: {
+              projectId: version.projectId,
+              transmittalNumber,
+              subject: `Floorplan Approval - ${version.version}`,
+              recipientName: version.project.client?.name || 'Client',
+              recipientEmail: clientEmail,
+              recipientCompany: null,
+              recipientType: 'CLIENT',
+              method: 'EMAIL',
+              status: 'SENT',
+              notes: isResend ? 'Resent from Floorplan Approval' : 'Sent from Floorplan Approval',
+              sentAt: new Date(),
+              sentBy: session.user.id,
+              emailId: emailResult.messageId || null,
+              createdBy: session.user.id,
+            },
+          })
+
+          // Create transmittal items for each PDF asset sent
+          for (const assetItem of assetsToInclude) {
+            if (assetItem.asset.type === 'FLOORPLAN_PDF') {
+              let assetDropboxPath: string | null = null
+              try {
+                const meta = assetItem.asset.metadata ? JSON.parse(assetItem.asset.metadata as string) : null
+                assetDropboxPath = meta?.dropboxPath || null
+              } catch {}
+
+              await prisma.transmittalItem.create({
+                data: {
+                  transmittalId: transmittal.id,
+                  fileName: assetItem.asset.title || assetItem.asset.filename || 'floorplan.pdf',
+                  fileSize: assetItem.asset.size || 0,
+                  dropboxPath: assetDropboxPath,
+                  title: assetItem.asset.title || null,
+                  purpose: 'FOR_APPROVAL',
+                },
+              })
+            }
+          }
+
+          console.log(`[send-email] Created transmittal ${transmittalNumber} for floorplan approval`)
+        } catch (transmittalError) {
+          // Non-fatal - don't fail the send if transmittal creation fails
+          console.error('[send-email] Failed to create transmittal record (non-fatal):', transmittalError)
+        }
       } else {
         // Test email activity
         await prisma.floorplanApprovalActivity.create({
