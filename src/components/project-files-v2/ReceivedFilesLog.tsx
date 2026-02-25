@@ -9,6 +9,7 @@ import {
   Calendar,
   Filter,
   Trash2,
+  FolderOpen,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -379,8 +380,8 @@ export default function ReceivedFilesLog({
                 <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 w-[130px]">
                   Received
                 </th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 w-[60px]">
-                  File
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 w-[100px]">
+                  Location
                 </th>
               </tr>
             </thead>
@@ -455,13 +456,23 @@ export default function ReceivedFilesLog({
                     {/* Open in All Files */}
                     <td className="px-4 py-3">
                       {(() => {
-                        if (!filePath || !onOpenInFiles) return <span className="text-slate-300">&mdash;</span>
-                        const folder = filePath.split('/').slice(0, -1).join('/')
+                        if (!onOpenInFiles) return <span className="text-slate-300">&mdash;</span>
+                        // Use dropboxPath if available, otherwise construct from section + date
+                        let folder = ''
+                        if (filePath) {
+                          folder = filePath.split('/').slice(0, -1).join('/')
+                        } else if (rf.section?.name) {
+                          const d = new Date(rf.receivedDate)
+                          const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+                          folder = `6- Documents/${rf.section.name}/${dateStr}`
+                        }
+                        if (!folder) return <span className="text-slate-300">&mdash;</span>
                         return (
                           <button
                             onClick={() => onOpenInFiles(folder)}
-                            className="text-xs text-blue-600 hover:text-blue-800 transition-colors"
+                            className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors"
                           >
+                            <FolderOpen className="w-3 h-3" />
                             Open
                           </button>
                         )

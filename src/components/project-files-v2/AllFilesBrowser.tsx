@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 
 const PdfViewer = dynamic(() => import('./PdfViewer'), { ssr: false })
 const PdfThumbnail = dynamic(() => import('./PdfThumbnail'), { ssr: false })
+const FileViewer = dynamic(() => import('./FileViewer'), { ssr: false })
 import {
   ChevronRight,
   FolderOpen,
@@ -162,6 +163,7 @@ export default function AllFilesBrowser({ projectId, dropboxFolder, navigateToPa
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null)
   const [uploadSuccess, setUploadSuccess] = useState(false)
   const [viewingPdf, setViewingPdf] = useState<DropboxFileItem | null>(null)
+  const [viewingFile, setViewingFile] = useState<DropboxFileItem | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dragCountRef = useRef(0)
 
@@ -333,13 +335,13 @@ export default function AllFilesBrowser({ projectId, dropboxFolder, navigateToPa
     }
   }
 
-  // Handle clicking a file — open PDF viewer for PDFs, download otherwise
+  // Handle clicking a file — open PDF viewer for PDFs, FileViewer for others
   const handleFileClick = (file: DropboxFileItem) => {
     if (file.fileType === 'pdf') {
       setViewingPdf(file)
       return
     }
-    handleDownload(file)
+    setViewingFile(file)
   }
 
   // Handle download (open temp link in new tab)
@@ -461,6 +463,18 @@ export default function AllFilesBrowser({ projectId, dropboxFolder, navigateToPa
             allPdfFiles={files.filter(f => f.fileType === 'pdf')}
             onSelectFile={setViewingPdf}
             onClose={() => setViewingPdf(null)}
+            onDownload={handleDownload}
+            projectId={projectId}
+            onNavigateToSent={onNavigateToSent}
+            onNavigateToReceived={onNavigateToReceived}
+          />
+        )}
+
+        {/* File Viewer overlay (non-PDF) */}
+        {viewingFile && (
+          <FileViewer
+            file={viewingFile}
+            onClose={() => setViewingFile(null)}
             onDownload={handleDownload}
             projectId={projectId}
             onNavigateToSent={onNavigateToSent}
@@ -612,6 +626,19 @@ export default function AllFilesBrowser({ projectId, dropboxFolder, navigateToPa
           onDownload={handleDownload}
           projectId={projectId}
           onNavigateToSent={onNavigateToSent}
+          onNavigateToReceived={onNavigateToReceived}
+        />
+      )}
+
+      {/* File Viewer overlay (non-PDF) */}
+      {viewingFile && (
+        <FileViewer
+          file={viewingFile}
+          onClose={() => setViewingFile(null)}
+          onDownload={handleDownload}
+          projectId={projectId}
+          onNavigateToSent={onNavigateToSent}
+          onNavigateToReceived={onNavigateToReceived}
         />
       )}
     </div>
@@ -925,8 +952,7 @@ function FileRow({ file, onDownload, onFileClick }: { file: DropboxFileItem; onD
   return (
     <div
       className={cn(
-        'group grid grid-cols-[1fr_100px_140px_80px] gap-4 px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-50',
-        (isPdf || isImage) && 'cursor-pointer'
+        'group grid grid-cols-[1fr_100px_140px_80px] gap-4 px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-50 cursor-pointer'
       )}
       onClick={() => onFileClick ? onFileClick(file) : onDownload(file)}
     >
