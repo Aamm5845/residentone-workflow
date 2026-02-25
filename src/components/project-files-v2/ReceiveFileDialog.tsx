@@ -396,10 +396,15 @@ export default function ReceiveFileDialog({
 
           if (f.file.size > MAX_DIRECT_SIZE) {
             // Large file: upload to Vercel Blob first, then transfer to Dropbox
+            // Use application/octet-stream for non-standard types (DWG, DXF, etc.)
+            const safeContentType = f.file.type && f.file.type.startsWith('application/') || f.file.type.startsWith('image/jpeg') || f.file.type.startsWith('image/png') || f.file.type === 'application/pdf'
+              ? f.file.type
+              : 'application/octet-stream'
             const blobPath = `receive-files/${projectId}/${Date.now()}-${sanitizedName}`
             const blob = await upload(blobPath, f.file, {
               access: 'public',
               handleUploadUrl: '/api/blob-upload',
+              contentType: safeContentType,
             })
             await fetch(`/api/projects/${projectId}/project-files-v2/upload-from-blob`, {
               method: 'POST',
