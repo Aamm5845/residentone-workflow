@@ -64,8 +64,8 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.primary,
   },
   logoBox: {
-    width: 200,
-    height: 120,
+    width: 180,
+    height: 80,
     justifyContent: 'center',
     alignItems: 'flex-start',
     padding: 0,
@@ -117,13 +117,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 100,
+    paddingTop: 80,
   },
   proposalTitle: {
-    fontSize: 48,
+    fontSize: 42,
     fontWeight: 'bold',
     color: colors.primary,
-    marginBottom: 80,
+    marginBottom: 60,
   },
   clientInfo: {
     textAlign: 'center',
@@ -296,8 +296,8 @@ const styles = StyleSheet.create({
   signatureBoxContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 40,
-    paddingTop: 20,
+    marginTop: 25,
+    paddingTop: 15,
     borderTopWidth: 1,
     borderTopColor: colors.line,
   },
@@ -332,15 +332,15 @@ function formatCurrency(amount: number): string {
   }).format(amount)
 }
 
-// Header component used on all pages
+// Header component used on all pages (fixed: repeats on continuation pages)
 function Header({ org, logoDataUri }: { org: any; logoDataUri: string | null }) {
-  return React.createElement(View, { style: styles.header },
+  return React.createElement(View, { style: styles.header, fixed: true },
     // Logo box - use actual image if available
     logoDataUri
       ? React.createElement(View, { style: styles.logoBox },
           React.createElement(Image, {
             src: logoDataUri,
-            style: { width: 160, height: 90, objectFit: 'contain' }
+            style: { width: 140, height: 70, objectFit: 'contain' }
           })
         )
       : React.createElement(View, { style: styles.logoBox },
@@ -432,7 +432,7 @@ function ScopePage({ proposal, org, logoDataUri }: { proposal: any; org: any; lo
       ),
 
       // Payment Schedule
-      React.createElement(View, { style: { marginTop: 20 }, wrap: false },
+      React.createElement(View, { style: { marginTop: 20 } },
         React.createElement(Text, { style: styles.sectionTitle }, 'Payment Schedule:'),
 
         // Total Budget Row
