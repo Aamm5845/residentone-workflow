@@ -241,11 +241,11 @@ export default function ProposalForm({
 
       const data = await response.json()
 
-      // Add suggested phases (just titles, user can fill in descriptions)
+      // Add suggested phases with descriptions
       if (data.suggestedPhases && data.suggestedPhases.length > 0) {
-        const newPhases = data.suggestedPhases.map((title: string) => ({
-          title,
-          description: '', // Empty for user to fill in
+        const newPhases = data.suggestedPhases.map((phase: any) => ({
+          title: typeof phase === 'string' ? phase : phase.title,
+          description: typeof phase === 'string' ? '' : (phase.description || ''),
         }))
         setScopeItems([...scopeItems, ...newPhases])
       }

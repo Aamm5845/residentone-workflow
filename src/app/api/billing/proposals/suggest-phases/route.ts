@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
-import Anthropic from '@anthropic-ai/sdk'
-
-const anthropic = new Anthropic()
+import { isValidAuthSession } from '@/lib/attribution'
+import { getClaude } from '@/lib/server/claude'
 
 export async function POST(request: NextRequest) {
   try {
     const session = await getSession()
-    if (!session?.user) {
+    if (!isValidAuthSession(session)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -18,7 +17,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Project description is required' }, { status: 400 })
     }
 
-    const prompt = `You are an interior design project manager. Based on the following project details, suggest relevant project phases.
+    const prompt = `You are an interior design project manager at Meisner Interiors, a high-end firm in Montreal. Based on the following project details, suggest relevant project phases WITH descriptions.
 
 Project Type: ${projectType || 'Interior Design'}
 
@@ -29,20 +28,29 @@ ${whatToInclude ? `Features to Include:\n${whatToInclude}` : ''}
 
 ${whatNotToInclude ? `Exclusions:\n${whatNotToInclude}` : ''}
 
-Based on this information, suggest 3-6 relevant project phases. Only provide phase TITLES (short names like "Design Development", "3D Renderings", "Drawings", "Engineering Coordination", "Product Selection", "Construction Administration", etc.).
+Suggest 3-6 relevant project phases. For each phase, write a short description (1-2 sentences) that explains what the client will receive — be specific to this project, not generic.
 
-Consider:
-- What phases are actually needed based on the scope
-- Don't include phases that are excluded
-- Focus on interior design typical phases
-- Keep titles concise (2-4 words max)
+Writing rules:
+- Sound like a real person, not AI. No filler, no fluff.
+- Be direct — say what we'll do and why it matters.
+- Don't start descriptions with "This phase..." or "In this phase..."
+- Avoid words like "transform", "elevate", "stunning", "breathe life into".
+- Don't include phases that are excluded.
+- Focus on interior design services: design development, renderings, specs, selections, coordination.
+- Keep titles concise (2-4 words).
 
-Respond with ONLY a JSON array of phase titles, nothing else. Example:
-["Design Development", "3D Renderings", "Construction Documents"]`
+GOOD example:
+{"title": "Floor Plans & Layout", "description": "We'll develop detailed floor plans with furniture placement tailored to how you use each room — ensuring everything fits, flows, and feels right."}
 
-    const message = await anthropic.messages.create({
+BAD example:
+{"title": "Floor Plans & Layout", "description": "This phase establishes the functional layout of each space through detailed planning."}
+
+Respond with ONLY a JSON array of objects with "title" and "description" fields, nothing else.`
+
+    const claude = getClaude()
+    const message = await claude.messages.create({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 500,
+      max_tokens: 1500,
       messages: [
         {
           role: 'user',
@@ -59,13 +67,12 @@ Respond with ONLY a JSON array of phase titles, nothing else. Example:
 
     // Parse the JSON array
     const responseText = textContent.text.trim()
-    let suggestedPhases: string[] = []
+    let suggestedPhases: { title: string; description: string }[] = []
 
     try {
-      // Try to parse JSON directly
       suggestedPhases = JSON.parse(responseText)
     } catch {
-      // Try to extract JSON from the response
+      // Try to extract JSON array from the response
       const jsonMatch = responseText.match(/\[[\s\S]*\]/)
       if (jsonMatch) {
         suggestedPhases = JSON.parse(jsonMatch[0])
@@ -74,9 +81,12 @@ Respond with ONLY a JSON array of phase titles, nothing else. Example:
 
     // Filter and validate
     suggestedPhases = suggestedPhases
-      .filter((phase) => typeof phase === 'string' && phase.trim())
-      .map((phase) => phase.trim())
-      .slice(0, 8) // Max 8 phases
+      .filter((phase) => typeof phase === 'object' && phase.title?.trim())
+      .map((phase) => ({
+        title: phase.title.trim(),
+        description: (phase.description || '').trim(),
+      }))
+      .slice(0, 8)
 
     return NextResponse.json({ suggestedPhases })
   } catch (error) {
