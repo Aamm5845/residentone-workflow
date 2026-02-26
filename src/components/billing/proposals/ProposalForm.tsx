@@ -174,6 +174,7 @@ export default function ProposalForm({
   // UI state
   const [saving, setSaving] = useState(false)
   const [sending, setSending] = useState(false)
+  const [generatingOverview, setGeneratingOverview] = useState(false)
 
   // Calculate totals
   const subtotal = totalBudget
@@ -352,6 +353,37 @@ export default function ProposalForm({
       alert('Failed to generate content. Please try again.')
     } finally {
       setGenerating(false)
+    }
+  }
+
+  // AI Generate Project Overview
+  const handleGenerateOverview = async () => {
+    setGeneratingOverview(true)
+    try {
+      const response = await fetch('/api/billing/proposals/generate-overview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectName,
+          projectType,
+          clientName,
+          designDescription,
+          scopeItems: scopeItems.filter(s => s.title),
+          currentOverview: projectOverview || undefined,
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.overview) setProjectOverview(data.overview)
+      } else {
+        alert('Failed to generate overview. Please try again.')
+      }
+    } catch (err) {
+      console.error('Error generating overview:', err)
+      alert('Failed to generate overview. Please try again.')
+    } finally {
+      setGeneratingOverview(false)
     }
   }
 
@@ -1181,6 +1213,41 @@ export default function ProposalForm({
             value={coverLetter}
             onChange={(e) => setCoverLetter(e.target.value)}
             className="w-full h-40 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+          />
+        </div>
+
+        {/* Project Overview */}
+        <div className="bg-white rounded-xl border p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Project Overview</h2>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleGenerateOverview}
+              disabled={generatingOverview}
+              className="text-purple-600 border-purple-200 hover:bg-purple-50"
+            >
+              {generatingOverview ? (
+                <>
+                  <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
+                  Writing...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3 h-3 mr-1.5" />
+                  {projectOverview ? 'Rewrite with AI' : 'Write with AI'}
+                </>
+              )}
+            </Button>
+          </div>
+          <p className="text-sm text-gray-500 mb-3">
+            A short description of what this project is about. This appears at the top of the scope of work section.
+          </p>
+          <textarea
+            value={projectOverview}
+            onChange={(e) => setProjectOverview(e.target.value)}
+            placeholder="Briefly describe the project scope — e.g., Full interior design services for a 3-bedroom condo renovation including kitchen, living areas, and master bedroom."
+            className="w-full h-28 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
           />
         </div>
 
