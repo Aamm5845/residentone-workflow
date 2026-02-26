@@ -2,9 +2,10 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useParams } from 'next/navigation'
-import { Loader2, FileText, CheckCircle, Clock, AlertCircle, X, Pen, Type, Download, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Loader2, FileText, CheckCircle, Clock, AlertCircle, X, Pen, Type, Download, ChevronLeft, ChevronRight, ChevronDown, Printer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 interface PaymentScheduleItem {
   title: string
@@ -404,14 +405,25 @@ export default function ClientProposalPage() {
               }
             </p>
             <div className="flex justify-center gap-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => window.open(`/api/billing/proposals/${token}/pdf`, '_blank')}
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Download PDF
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Download className="w-4 h-4 mr-2" />
+                    Download PDF
+                    <ChevronDown className="w-3 h-3 ml-1.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center">
+                  <DropdownMenuItem onClick={() => window.open(`/api/billing/proposals/${token}/pdf?v=2`, '_blank')}>
+                    <FileText className="w-4 h-4 mr-2" />
+                    Professional PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => window.open(`/api/billing/proposals/${token}/pdf`, '_blank')}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Classic PDF
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
             <div className="mt-6 pt-4 border-t border-gray-100">
               <p className="text-xs text-gray-400">
@@ -490,16 +502,27 @@ export default function ClientProposalPage() {
               ))}
             </div>
             <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => window.open(`/api/billing/proposals/${token}/pdf`, '_blank')}
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Download PDF
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Download className="w-4 h-4 mr-2" />
+                    Download PDF
+                    <ChevronDown className="w-3 h-3 ml-1.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => window.open(`/api/billing/proposals/${token}/pdf?v=2`, '_blank')}>
+                    <FileText className="w-4 h-4 mr-2" />
+                    Professional PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => window.open(`/api/billing/proposals/${token}/pdf`, '_blank')}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Classic PDF
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button variant="outline" size="sm" onClick={() => window.print()}>
-                <Download className="w-4 h-4 mr-2" />
+                <Printer className="w-4 h-4 mr-2" />
                 Print
               </Button>
               {canSign && (

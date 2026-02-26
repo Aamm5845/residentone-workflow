@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { generateProposalPdfBuffer } from '@/lib/proposal-pdf'
+import { generateProposalPdfBufferV2 } from '@/lib/proposal-pdf-v2'
 
 // GET - Public PDF download using access token
 export async function GET(
@@ -41,14 +42,18 @@ export async function GET(
       },
     })
 
-    // Generate PDF
-    const pdfBuffer = await generateProposalPdfBuffer(proposal, org)
+    // Generate PDF (v2 = professional Montserrat layout)
+    const version = request.nextUrl.searchParams.get('v')
+    const pdfBuffer = version === '2'
+      ? await generateProposalPdfBufferV2(proposal, org)
+      : await generateProposalPdfBuffer(proposal, org)
 
     // Return PDF as response
+    const suffix = version === '2' ? '-pro' : ''
     return new NextResponse(pdfBuffer, {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `inline; filename="${proposal.proposalNumber}-${proposal.clientName.replace(/\s+/g, '-')}.pdf"`,
+        'Content-Disposition': `inline; filename="${proposal.proposalNumber}-${proposal.clientName.replace(/\s+/g, '-')}${suffix}.pdf"`,
       },
     })
   } catch (error) {
