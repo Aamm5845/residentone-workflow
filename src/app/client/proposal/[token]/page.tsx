@@ -615,13 +615,13 @@ export default function ClientProposalPage() {
                       <div className="flex justify-between items-center">
                         <span className="text-gray-700">Hourly Rate</span>
                         <span className="border-b-2 border-dotted border-gray-300 flex-1 mx-4"></span>
-                        <span className="font-bold text-gray-900">{formatCurrency(proposal.hourlyRate || 0)}/hour <span className="text-xs font-normal text-gray-500">+ tax</span></span>
+                        <span className="font-bold text-gray-900">{formatCurrency(proposal.hourlyRate || 0)}/hour</span>
                       </div>
                       {proposal.depositAmount && proposal.depositAmount > 0 && (
                         <div className="flex justify-between items-center">
                           <span className="text-gray-700">Retainer (on signing)</span>
                           <span className="border-b-2 border-dotted border-gray-300 flex-1 mx-4"></span>
-                          <span className="text-gray-900">{formatCurrency(proposal.depositAmount)} <span className="text-xs text-gray-500">+ tax</span></span>
+                          <span className="text-gray-900">{formatCurrency(proposal.depositAmount)}</span>
                         </div>
                       )}
                       <p className="text-sm text-gray-600 mt-2 italic">
@@ -639,7 +639,7 @@ export default function ClientProposalPage() {
                         <div key={index} className="flex justify-between items-center">
                           <span className="text-gray-700">{item.title}</span>
                           <span className="border-b-2 border-dotted border-gray-300 flex-1 mx-4"></span>
-                          <span className="text-gray-900">{formatCurrency(item.amount)} <span className="text-xs text-gray-500">+ tax</span></span>
+                          <span className="text-gray-900">{formatCurrency(item.amount)}</span>
                         </div>
                       ))}
                     </>

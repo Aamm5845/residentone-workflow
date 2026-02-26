@@ -434,10 +434,7 @@ function ScopePage({ proposal, org, logoDataUri }: { proposal: any; org: any; lo
         ...paymentSchedule.map((item: any, i: number) =>
           React.createElement(View, { key: i, style: styles.paymentRow },
             React.createElement(Text, { style: styles.paymentLabel }, item.title),
-            React.createElement(View, { style: { flexDirection: 'row', alignItems: 'baseline' } },
-              React.createElement(Text, { style: styles.paymentAmount }, formatCurrency(item.amount)),
-              React.createElement(Text, { style: { fontSize: 7, color: colors.textMuted, marginLeft: 3 } }, '+ tax')
-            )
+            React.createElement(Text, { style: styles.paymentAmount }, formatCurrency(item.amount))
           )
         ),
 
