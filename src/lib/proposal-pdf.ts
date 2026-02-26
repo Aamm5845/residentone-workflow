@@ -3,14 +3,24 @@ import { Document, Page, Text, View, StyleSheet, renderToBuffer, Image, Font } f
 import * as path from 'path'
 import * as fs from 'fs'
 
-// Register Priestacy script font for signatures (loaded from local file)
-function getPriestacyFontPath(): string {
+// Register Priestacy script font for signatures (loaded as data URI for Vercel compatibility)
+function getPriestacyFontDataUri(): string {
+  try {
+    const fontPath = path.join(process.cwd(), 'public', 'fonts', 'Priestacy.otf')
+    if (fs.existsSync(fontPath)) {
+      const fontBuffer = fs.readFileSync(fontPath)
+      return `data:font/otf;base64,${fontBuffer.toString('base64')}`
+    }
+  } catch (error) {
+    console.error('Error loading Priestacy font:', error)
+  }
+  // Fallback: try direct file path
   return path.join(process.cwd(), 'public', 'fonts', 'Priestacy.otf')
 }
 
 Font.register({
   family: 'Priestacy',
-  src: getPriestacyFontPath(),
+  src: getPriestacyFontDataUri(),
 })
 
 // Register Great Vibes for client signatures
