@@ -208,8 +208,9 @@ export default function InteractiveDashboard({ user }: { user: any }) {
   }
 
   return (
-    <div className="p-6 space-y-8">
+    <div className="p-6">
       <Toaster position="top-right" />
+      <div className="max-w-[1400px] mx-auto space-y-8">
       
       {/* Welcome Header */}
       <div className="flex items-center justify-between">
@@ -434,11 +435,12 @@ export default function InteractiveDashboard({ user }: { user: any }) {
       />
 
       {/* Pending Approvals Modal */}
-      <PendingApprovalsModal 
-        isOpen={showPendingApprovals} 
-        onClose={() => setShowPendingApprovals(false)} 
+      <PendingApprovalsModal
+        isOpen={showPendingApprovals}
+        onClose={() => setShowPendingApprovals(false)}
       />
 
+      </div>
     </div>
   )
 }
