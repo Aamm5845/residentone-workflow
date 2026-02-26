@@ -6,10 +6,9 @@ import ProposalForm from '@/components/billing/proposals/ProposalForm'
 
 interface Props {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ ai?: string }>
 }
 
-export default async function NewProposalPage({ params, searchParams }: Props) {
+export default async function NewProposalPage({ params }: Props) {
   const session = await getSession()
 
   if (!session?.user) {
@@ -17,8 +16,6 @@ export default async function NewProposalPage({ params, searchParams }: Props) {
   }
 
   const { id: projectId } = await params
-  const resolvedSearchParams = await searchParams
-  const showAI = resolvedSearchParams?.ai === 'true'
 
   // Check billing permission
   const currentUser = await prisma.user.findUnique({
@@ -85,7 +82,6 @@ export default async function NewProposalPage({ params, searchParams }: Props) {
         client={project.client || { id: '', name: 'No Client', email: '', phone: null }}
         defaultGstRate={org?.defaultGstRate ? Number(org.defaultGstRate) : 5}
         defaultQstRate={org?.defaultQstRate ? Number(org.defaultQstRate) : 9.975}
-        showAIGenerator={showAI}
       />
     </DashboardLayout>
   )

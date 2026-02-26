@@ -35,7 +35,6 @@ interface ProposalFormProps {
   client: Client
   defaultGstRate?: number
   defaultQstRate?: number
-  showAIGenerator?: boolean
   companySignature?: string
   ceoName?: string
   existingProposal?: {
@@ -104,7 +103,6 @@ export default function ProposalForm({
   client,
   defaultGstRate = 5,
   defaultQstRate = 9.975,
-  showAIGenerator = false,
   companySignature,
   ceoName = 'Aaron Meisner',
   existingProposal,

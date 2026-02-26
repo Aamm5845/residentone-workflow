@@ -537,7 +537,7 @@ export default function ClientProposalPage() {
               <PageHeader />
 
               <div className="mb-8">
-                <h3 className="text-xl font-bold text-amber-500 mb-2">Mr. {proposal.clientName}</h3>
+                <h3 className="text-xl font-bold text-amber-500 mb-2">{proposal.clientName}</h3>
                 <p className="text-gray-600">{proposal.projectAddress || proposal.clientAddress}</p>
               </div>
 
@@ -632,6 +632,31 @@ export default function ClientProposalPage() {
                 </div>
               )}
 
+              {/* Tax Breakdown */}
+              {proposal.billingType !== 'HOURLY' && proposal.subtotal > 0 && (
+                <div className="mt-4 pt-4 border-t space-y-2">
+                  {proposal.gstRate && proposal.gstAmount ? (
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-600">GST ({proposal.gstRate}%)</span>
+                      <span className="border-b-2 border-dotted border-gray-300 flex-1 mx-4"></span>
+                      <span className="text-gray-700">{formatCurrency(proposal.gstAmount)}</span>
+                    </div>
+                  ) : null}
+                  {proposal.qstRate && proposal.qstAmount ? (
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-600">QST ({proposal.qstRate}%)</span>
+                      <span className="border-b-2 border-dotted border-gray-300 flex-1 mx-4"></span>
+                      <span className="text-gray-700">{formatCurrency(proposal.qstAmount)}</span>
+                    </div>
+                  ) : null}
+                  <div className="flex justify-between items-center pt-2 border-t">
+                    <span className="font-bold text-gray-900">Total</span>
+                    <span className="border-b-2 border-dotted border-gray-300 flex-1 mx-4"></span>
+                    <span className="font-bold text-gray-900">{formatCurrency(proposal.totalAmount)}</span>
+                  </div>
+                </div>
+              )}
+
               <p className="text-sm text-gray-600 mt-4">
                 Payments are due within 7 days of the invoice date.
               </p>
@@ -704,7 +729,7 @@ export default function ClientProposalPage() {
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-gray-600">Mr. {proposal.clientName}</p>
+                    <p className="text-sm text-gray-600">{proposal.clientName}</p>
                   </div>
                 </div>
               </div>
