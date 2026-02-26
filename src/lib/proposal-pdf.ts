@@ -13,6 +13,12 @@ Font.register({
   src: getPriestacyFontPath(),
 })
 
+// Register Great Vibes for client signatures
+Font.register({
+  family: 'GreatVibes',
+  src: 'https://fonts.gstatic.com/s/greatvibes/v18/RWmMoKWR9v4ksMfaWd_JN-XC.ttf',
+})
+
 // Register fonts with fallbacks
 Font.register({
   family: 'Helvetica',
@@ -503,14 +509,14 @@ function TermsPage({ proposal, org, logoDataUri }: { proposal: any; org: any; lo
             React.createElement(View, { style: styles.signatureLine }),
             React.createElement(Text, { style: styles.signatureBoxLabel }, 'Date Signed')
           ),
-          // Client signature
+          // Client signature (uses GreatVibes to distinguish from company Priestacy)
           React.createElement(View, { style: styles.signatureBox },
             React.createElement(Text, { style: styles.signaturePrefix }, 'X:'),
             React.createElement(View, { style: styles.signatureContent },
               proposal.signatureData && proposal.signatureType === 'drawn' ?
                 React.createElement(Image, { src: proposal.signatureData, style: { width: 110, height: 30, objectFit: 'contain' } }) :
               proposal.signedByName ?
-                React.createElement(Text, { style: { fontSize: 22, fontFamily: 'Priestacy', color: colors.text } }, proposal.signedByName) :
+                React.createElement(Text, { style: { fontSize: 20, fontFamily: 'GreatVibes', color: colors.text } }, proposal.signedByName) :
                 null
             ),
             React.createElement(View, { style: styles.signatureLine }),

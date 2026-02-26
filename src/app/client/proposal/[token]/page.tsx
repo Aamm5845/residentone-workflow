@@ -93,6 +93,8 @@ const printStyles = `
     font-display: swap;
   }
 
+  @import url('https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap');
+
   @media print {
     .no-print { display: none !important; }
     .print-only { display: block !important; }
@@ -716,7 +718,7 @@ export default function ClientProposalPage() {
                       {isSigned && proposal.signatureData && proposal.signatureType === 'drawn' ? (
                         <img src={proposal.signatureData} alt="Client Signature" className="h-10 object-contain" />
                       ) : isSigned && proposal.signedByName ? (
-                        <span className="text-xl text-gray-800" style={{ fontFamily: 'Priestacy, "Brush Script MT", cursive' }}>
+                        <span className="text-xl text-gray-800" style={{ fontFamily: '"Great Vibes", "Brush Script MT", cursive' }}>
                           {proposal.signedByName}
                         </span>
                       ) : null}
@@ -872,13 +874,13 @@ export default function ClientProposalPage() {
                       onChange={(e) => setTypedName(e.target.value)}
                       placeholder="Your full name"
                       className="text-center text-xl"
-                      style={{ fontFamily: 'Priestacy, "Brush Script MT", cursive' }}
+                      style={{ fontFamily: '"Great Vibes", "Brush Script MT", cursive' }}
                     />
                     {typedName && (
                       <div className="mt-4 p-4 bg-gray-50 rounded-lg text-center">
                         <span
                           className="text-2xl text-gray-900"
-                          style={{ fontFamily: 'Priestacy, "Brush Script MT", cursive' }}
+                          style={{ fontFamily: '"Great Vibes", "Brush Script MT", cursive' }}
                         >
                           {typedName}
                         </span>
