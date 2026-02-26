@@ -66,7 +66,9 @@ export async function GET(
               businessName: true,
               contactName: true,
               email: true,
-              type: true
+              type: true,
+              trade: true,
+              contacts: true,
             }
           }
         }
@@ -83,6 +85,22 @@ export async function GET(
               company: contractor.businessName,
               type: contractor.type === 'SUBCONTRACTOR' ? 'SUBCONTRACTOR' : 'CONTRACTOR'
             })
+          }
+        }
+        // Also add additional contacts (for CC'ing)
+        if (contractor.contacts) {
+          for (const contact of contractor.contacts) {
+            if (contact.email) {
+              const key = contact.email.toLowerCase()
+              if (!recipientMap.has(key)) {
+                recipientMap.set(key, {
+                  name: contact.name,
+                  email: contact.email,
+                  company: contractor.businessName,
+                  type: contractor.type === 'SUBCONTRACTOR' ? 'SUBCONTRACTOR' : 'CONTRACTOR'
+                })
+              }
+            }
           }
         }
       }

@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
           include: {
             user: { select: { id: true, name: true, email: true, phoneNumber: true, smsNotificationsEnabled: true } },
             client: { select: { id: true, name: true, email: true } },
-            contractor: { select: { id: true, businessName: true, contactName: true, email: true } },
+            contractor: { select: { id: true, businessName: true, contactName: true, email: true, trade: true, contacts: true } },
           },
         },
         project: { select: { id: true, name: true } },
