@@ -151,6 +151,11 @@ export default function ProposalForm({
   const [newIncludeChip, setNewIncludeChip] = useState('')
   const [newExcludeChip, setNewExcludeChip] = useState('')
 
+  // Per-phase AI rewrite
+  const [rewritingPhase, setRewritingPhase] = useState<number | null>(null)
+  const [phasePromptIndex, setPhasePromptIndex] = useState<number | null>(null)
+  const [phasePromptText, setPhasePromptText] = useState('')
+
   // Form state
   const [title, setTitle] = useState(existingProposal?.title || `${projectName} - Interior Design Services`)
   const [billingType, setBillingType] = useState<'FIXED' | 'HOURLY' | 'HYBRID'>(
@@ -282,6 +287,42 @@ export default function ProposalForm({
       alert('Failed to suggest phases. Please try again.')
     } finally {
       setGeneratingPhases(false)
+    }
+  }
+
+  // Rewrite a single phase description with AI
+  const rewritePhaseDescription = async (index: number, instruction?: string) => {
+    const item = scopeItems[index]
+    if (!item?.title) return
+
+    setRewritingPhase(index)
+    try {
+      const response = await fetch('/api/billing/proposals/rewrite-phase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phaseTitle: item.title,
+          currentDescription: item.description || undefined,
+          instruction: instruction || undefined,
+          projectName,
+          designDescription,
+          whatToInclude,
+          whatNotToInclude,
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.description) {
+          updateScopeItem(index, 'description', data.description)
+        }
+      }
+    } catch (err) {
+      console.error('Error rewriting phase:', err)
+    } finally {
+      setRewritingPhase(null)
+      setPhasePromptIndex(null)
+      setPhasePromptText('')
     }
   }
 
@@ -971,6 +1012,66 @@ export default function ProposalForm({
                     placeholder="Describe what's included in this phase..."
                     className="w-full h-24 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
+                  {/* AI Rewrite */}
+                  <div className="flex items-center gap-2">
+                    {phasePromptIndex === index ? (
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault()
+                          rewritePhaseDescription(index, phasePromptText)
+                        }}
+                        className="flex-1 flex items-center gap-2"
+                      >
+                        <Input
+                          value={phasePromptText}
+                          onChange={(e) => setPhasePromptText(e.target.value)}
+                          placeholder="e.g., make it softer, don't mention site visits..."
+                          className="flex-1 h-8 text-sm"
+                          autoFocus
+                        />
+                        <Button
+                          type="submit"
+                          size="sm"
+                          disabled={rewritingPhase === index}
+                          className="h-8 bg-purple-600 hover:bg-purple-700 text-xs"
+                        >
+                          {rewritingPhase === index ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            'Rewrite'
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2"
+                          onClick={() => { setPhasePromptIndex(null); setPhasePromptText('') }}
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </form>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (item.title) {
+                            setPhasePromptIndex(index)
+                            setPhasePromptText('')
+                          }
+                        }}
+                        disabled={rewritingPhase === index || !item.title}
+                        className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-700 disabled:opacity-50"
+                      >
+                        {rewritingPhase === index ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Sparkles className="w-3 h-3" />
+                        )}
+                        {rewritingPhase === index ? 'Rewriting...' : 'AI rewrite'}
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <Button
                   variant="ghost"
