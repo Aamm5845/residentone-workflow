@@ -239,6 +239,8 @@ export async function GET(
       notes: proposal.notes,
       signedAt: proposal.signedAt,
       signedByName: proposal.signedByName,
+      signatureData: proposal.signatureData,
+      signatureType: proposal.signatureType,
       companySignature: proposal.companySignature,
       companySignedByName: proposal.companySignedByName,
       companySignedAt: proposal.companySignedAt,

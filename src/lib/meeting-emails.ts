@@ -225,13 +225,13 @@ function buildMeetingDetailsHtml(meeting: MeetingEmailData, attendees?: Attendee
   return html
 }
 
-function wrapEmailHtml(body: string, headerSubtitle?: string): string {
+export function wrapEmailHtml(body: string, headerSubtitle?: string, pageTitle?: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Meeting - Meisner Interiors</title>
+  <title>${pageTitle || 'Meisner Interiors'}</title>
 </head>
 <body style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f1f5f9; margin: 0; padding: 24px 16px;">
   <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.06);">

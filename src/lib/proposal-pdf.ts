@@ -245,20 +245,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
-    paddingBottom: 8,
+    marginBottom: 8,
     borderBottomWidth: 1,
-    borderBottomColor: colors.text,
+    borderBottomColor: colors.line,
+    borderBottomStyle: 'dotted',
+    paddingBottom: 5,
   },
   totalLabel: {
     fontSize: 10,
     fontWeight: 'bold',
     color: colors.text,
+    flex: 1,
   },
   totalAmount: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: 'bold',
     color: colors.text,
+    textAlign: 'right',
   },
   paymentNote: {
     fontSize: 9,
@@ -388,7 +391,7 @@ function LetterPage({ proposal, org, logoDataUri }: { proposal: any; org: any; l
   return React.createElement(Page, { size: 'LETTER', style: styles.page },
     React.createElement(Header, { org, logoDataUri }),
     React.createElement(View, { style: { flex: 1 } },
-      React.createElement(Text, { style: styles.letterClientName }, `Mr. ${proposal.clientName}`),
+      React.createElement(Text, { style: styles.letterClientName }, proposal.clientName),
       React.createElement(Text, { style: styles.letterAddress },
         proposal.projectAddress || proposal.clientAddress || ''
       ),
@@ -422,40 +425,36 @@ function ScopePage({ proposal, org, logoDataUri }: { proposal: any; org: any; lo
       // Scope of Work
       React.createElement(Text, { style: styles.sectionTitle }, 'Scope of Work:'),
       ...scopeItems.map((item: any, i: number) =>
-        React.createElement(View, { key: i, style: styles.scopeItem },
+        React.createElement(View, { key: i, style: styles.scopeItem, wrap: false },
           React.createElement(Text, { style: styles.scopeItemTitle }, `${i + 1}. ${item.title}`),
           React.createElement(Text, { style: styles.scopeItemDescription }, item.description)
         )
       ),
 
       // Payment Schedule
-      React.createElement(Text, { style: { ...styles.sectionTitle, marginTop: 20 } }, 'Payment Schedule:'),
+      React.createElement(View, { style: { marginTop: 20 }, wrap: false },
+        React.createElement(Text, { style: styles.sectionTitle }, 'Payment Schedule:'),
 
-      // Total Budget Row
-      React.createElement(View, { style: styles.totalRow },
-        React.createElement(Text, { style: styles.totalLabel }, 'Total Budget Fee'),
-        React.createElement(Text, { style: styles.totalAmount }, formatCurrency(Number(proposal.subtotal)))
-      ),
+        // Total Budget Row
+        React.createElement(View, { style: styles.totalRow },
+          React.createElement(Text, { style: styles.totalLabel }, 'Total Project Fee'),
+          React.createElement(Text, { style: styles.totalAmount }, formatCurrency(Number(proposal.subtotal)))
+        ),
 
-      // Payment milestones
-      ...paymentSchedule.map((item: any, i: number) =>
-        React.createElement(View, { key: i, style: styles.paymentRow },
-          React.createElement(Text, { style: styles.paymentLabel }, item.title),
-          React.createElement(Text, { style: styles.paymentAmount }, formatCurrency(item.amount))
+        // Payment milestones
+        ...paymentSchedule.map((item: any, i: number) =>
+          React.createElement(View, { key: i, style: styles.paymentRow },
+            React.createElement(Text, { style: styles.paymentLabel }, item.title),
+            React.createElement(Text, { style: styles.paymentAmount }, formatCurrency(item.amount))
+          )
+        ),
+
+        React.createElement(Text, { style: styles.paymentNote },
+          `Payments are due within 7 days of the invoice date.${hourlyRate ? ` Additional work beyond the scope of work will be billed at ${formatCurrency(hourlyRate)}/hour.` : ''}`
+        ),
+        React.createElement(Text, { style: { ...styles.paymentNote, marginTop: 15 } },
+          'Once approved, design development will begin immediately, and coordination with consultants will be scheduled accordingly.'
         )
-      ),
-
-      // Hourly rate if applicable
-      hourlyRate ? React.createElement(View, { style: { ...styles.paymentRow, marginTop: 10 } },
-        React.createElement(Text, { style: styles.paymentLabel }, 'Additional work will be billed separately'),
-        React.createElement(Text, { style: styles.paymentAmount }, `${formatCurrency(hourlyRate)}/hour`)
-      ) : null,
-
-      React.createElement(Text, { style: styles.paymentNote },
-        'Payments are due within 7 days of the invoice date.'
-      ),
-      React.createElement(Text, { style: { ...styles.paymentNote, marginTop: 15 } },
-        'Once approved, design development will begin immediately, and coordination with consultants will be scheduled accordingly.'
       )
     )
   )
@@ -499,7 +498,9 @@ function TermsPage({ proposal, org, logoDataUri }: { proposal: any; org: any; lo
         React.createElement(View, { style: styles.signatureBox },
           React.createElement(View, { style: styles.signatureLine },
             React.createElement(Text, { style: styles.signaturePrefix }, 'X:'),
-            React.createElement(Text, { style: { fontSize: 20, fontFamily: 'GreatVibes', marginTop: 5 } }, proposal.companySignedByName || 'Aaron Meisner')
+            proposal.companySignature ?
+              React.createElement(Image, { src: proposal.companySignature, style: { width: 100, height: 40, marginTop: 2, objectFit: 'contain' } }) :
+              React.createElement(Text, { style: { fontSize: 20, fontFamily: 'GreatVibes', marginTop: 5 } }, proposal.companySignedByName || 'Aaron Meisner')
           ),
           React.createElement(Text, { style: styles.signatureBoxLabel }, proposal.companySignedByName || 'Aaron Meisner')
         ),
@@ -517,11 +518,13 @@ function TermsPage({ proposal, org, logoDataUri }: { proposal: any; org: any; lo
         React.createElement(View, { style: styles.signatureBox },
           React.createElement(View, { style: styles.signatureLine },
             React.createElement(Text, { style: styles.signaturePrefix }, 'X:'),
+            proposal.signatureData && proposal.signatureType === 'drawn' ?
+              React.createElement(Image, { src: proposal.signatureData, style: { width: 120, height: 40, marginTop: 2, objectFit: 'contain' } }) :
             proposal.signedByName ?
               React.createElement(Text, { style: { fontSize: 20, fontFamily: 'GreatVibes', marginTop: 5 } }, proposal.signedByName) :
               null
           ),
-          React.createElement(Text, { style: styles.signatureBoxLabel }, `Mr. ${proposal.clientName}`)
+          React.createElement(Text, { style: styles.signatureBoxLabel }, proposal.signedByName || proposal.clientName)
         )
       )
     )

@@ -61,6 +61,8 @@ interface ProposalData {
   notes: string | null
   signedAt: string | null
   signedByName: string | null
+  signatureData: string | null
+  signatureType: string | null
   companySignature: string | null
   companySignedByName: string | null
   companySignedAt: string | null
@@ -115,6 +117,9 @@ const printStyles = `
       page-break-inside: avoid;
     }
     .signature-section {
+      page-break-inside: avoid;
+    }
+    .payment-schedule {
       page-break-inside: avoid;
     }
     @page {
@@ -345,26 +350,36 @@ export default function ClientProposalPage() {
   const isDeclined = proposal.status === 'DECLINED'
   const canSign = !isSigned && !isExpired && !isDeclined
 
-  // Show "Already Signed" page when revisiting a signed proposal
-  // (but not immediately after signing in this session - signSuccess handles that)
-  if (isSigned && !signSuccess) {
+  // Show "Thank You" page when proposal is signed (both immediately after and on revisit)
+  if (isSigned) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <div className="max-w-md w-full mx-4">
           <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
+            {proposal.organization?.logoUrl && (
+              <img
+                src={proposal.organization.logoUrl}
+                alt={companyName}
+                className="h-14 mx-auto mb-6 object-contain"
+              />
+            )}
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="w-10 h-10 text-green-600" />
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              Thank You for Signing!
+              {signSuccess ? 'Thank You!' : 'Proposal Signed'}
             </h1>
-            <p className="text-gray-600 mb-4">
-              This proposal has already been signed
-              {proposal.signedByName && ` by ${proposal.signedByName}`}
-              {proposal.signedAt && ` on ${formatDate(proposal.signedAt)}`}.
+            <p className="text-gray-600 mb-2">
+              {signSuccess
+                ? `Thank you for accepting our proposal for ${proposal.project.name}. We're excited to get started!`
+                : `This proposal was signed${proposal.signedByName ? ` by ${proposal.signedByName}` : ''}${proposal.signedAt ? ` on ${formatDate(proposal.signedAt)}` : ''}.`
+              }
             </p>
             <p className="text-gray-500 text-sm mb-6">
-              A copy of the signed proposal has been sent to your email.
+              {signSuccess
+                ? 'A copy of the signed proposal has been sent to your email. You will also receive a deposit invoice shortly.'
+                : 'A copy of the signed proposal has been sent to your email.'
+              }
             </p>
             <div className="flex justify-center gap-3">
               <Button
@@ -440,17 +455,6 @@ export default function ClientProposalPage() {
       <style dangerouslySetInnerHTML={{ __html: printStyles }} />
       <div className="min-h-screen bg-gray-100 py-8 px-4 print:bg-white print:py-0 print-container">
         <div className="max-w-4xl mx-auto">
-          {/* Success Message */}
-          {signSuccess && (
-            <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3 no-print">
-              <CheckCircle className="w-6 h-6 text-green-600" />
-              <div>
-                <p className="font-medium text-green-800">Proposal Signed Successfully!</p>
-                <p className="text-sm text-green-600">Thank you for accepting this proposal. You will receive an invoice for the deposit shortly.</p>
-              </div>
-            </div>
-          )}
-
           {/* Page Navigation */}
           <div className="flex items-center justify-between mb-4 no-print">
             <div className="flex gap-2">
@@ -584,86 +588,55 @@ export default function ClientProposalPage() {
                 ))}
               </div>
 
-              <h2 className="text-lg font-bold text-gray-900 mb-4 italic">
-                {proposal.billingType === 'HOURLY' ? 'Billing Details:' : 'Payment Schedule:'}
-              </h2>
-              <div className="space-y-2 mb-4">
-                {proposal.billingType === 'HOURLY' ? (
-                  <>
-                    <div className="flex justify-between items-center border-b pb-2">
-                      <span className="text-gray-700">Hourly Rate</span>
-                      <span className="font-bold text-gray-900 border-b-2 border-dotted border-gray-300 flex-1 mx-4"></span>
-                      <span className="font-bold text-gray-900">{formatCurrency(proposal.hourlyRate || 0)}/hour</span>
-                    </div>
-                    {proposal.depositAmount && proposal.depositAmount > 0 && (
+              <div className="payment-schedule">
+                <h2 className="text-lg font-bold text-gray-900 mb-4 italic">
+                  {proposal.billingType === 'HOURLY' ? 'Billing Details:' : 'Payment Schedule:'}
+                </h2>
+                <div className="space-y-2 mb-4">
+                  {proposal.billingType === 'HOURLY' ? (
+                    <>
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-700">Retainer (on signing)</span>
+                        <span className="text-gray-700">Hourly Rate</span>
                         <span className="border-b-2 border-dotted border-gray-300 flex-1 mx-4"></span>
-                        <span className="text-gray-900">{formatCurrency(proposal.depositAmount)}</span>
+                        <span className="font-bold text-gray-900">{formatCurrency(proposal.hourlyRate || 0)}/hour</span>
                       </div>
-                    )}
-                    <p className="text-sm text-gray-600 mt-2 italic">
-                      Work will be billed based on actual hours worked. Retainer will be applied to future invoices.
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex justify-between items-center border-b pb-2">
-                      <span className="text-gray-700">Total Project Fee</span>
-                      <span className="font-bold text-gray-900 border-b-2 border-dotted border-gray-300 flex-1 mx-4"></span>
-                      <span className="font-bold text-gray-900">{formatCurrency(proposal.subtotal)}</span>
-                    </div>
-                    {paymentSchedule.map((item, index) => (
-                      <div key={index} className="flex justify-between items-center">
-                        <span className="text-gray-700">{item.title}</span>
+                      {proposal.depositAmount && proposal.depositAmount > 0 && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-700">Retainer (on signing)</span>
+                          <span className="border-b-2 border-dotted border-gray-300 flex-1 mx-4"></span>
+                          <span className="text-gray-900">{formatCurrency(proposal.depositAmount)}</span>
+                        </div>
+                      )}
+                      <p className="text-sm text-gray-600 mt-2 italic">
+                        Work will be billed based on actual hours worked. Retainer will be applied to future invoices.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex justify-between items-center font-semibold">
+                        <span className="text-gray-900">Total Project Fee</span>
                         <span className="border-b-2 border-dotted border-gray-300 flex-1 mx-4"></span>
-                        <span className="text-gray-900">{formatCurrency(item.amount)}</span>
+                        <span className="text-gray-900">{formatCurrency(proposal.subtotal)}</span>
                       </div>
-                    ))}
-                  </>
-                )}
+                      {paymentSchedule.map((item, index) => (
+                        <div key={index} className="flex justify-between items-center">
+                          <span className="text-gray-700">{item.title}</span>
+                          <span className="border-b-2 border-dotted border-gray-300 flex-1 mx-4"></span>
+                          <span className="text-gray-900">{formatCurrency(item.amount)}</span>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </div>
+
+                <p className="text-sm text-gray-600 mt-4">
+                  Payments are due within 7 days of the invoice date.{proposal.billingType === 'HYBRID' && proposal.hourlyRate && proposal.hourlyRate > 0 ? ` Additional work beyond the scope of work will be billed at ${formatCurrency(proposal.hourlyRate)}/hour.` : ''}
+                </p>
+
+                <p className="text-sm text-gray-700 mt-6">
+                  Once approved, design development will begin immediately, and coordination with consultants will be scheduled accordingly.
+                </p>
               </div>
-
-              {proposal.billingType === 'HYBRID' && proposal.hourlyRate && proposal.hourlyRate > 0 && (
-                <div className="flex justify-between items-center pt-4 border-t">
-                  <span className="text-gray-700">Additional work beyond scope</span>
-                  <span className="border-b-2 border-dotted border-gray-300 flex-1 mx-4"></span>
-                  <span className="text-gray-900">{formatCurrency(proposal.hourlyRate)}/hour</span>
-                </div>
-              )}
-
-              {/* Tax Breakdown */}
-              {proposal.billingType !== 'HOURLY' && proposal.subtotal > 0 && (
-                <div className="mt-4 pt-4 border-t space-y-2">
-                  {proposal.gstRate && proposal.gstAmount ? (
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-gray-600">GST ({proposal.gstRate}%)</span>
-                      <span className="border-b-2 border-dotted border-gray-300 flex-1 mx-4"></span>
-                      <span className="text-gray-700">{formatCurrency(proposal.gstAmount)}</span>
-                    </div>
-                  ) : null}
-                  {proposal.qstRate && proposal.qstAmount ? (
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-gray-600">QST ({proposal.qstRate}%)</span>
-                      <span className="border-b-2 border-dotted border-gray-300 flex-1 mx-4"></span>
-                      <span className="text-gray-700">{formatCurrency(proposal.qstAmount)}</span>
-                    </div>
-                  ) : null}
-                  <div className="flex justify-between items-center pt-2 border-t">
-                    <span className="font-bold text-gray-900">Total</span>
-                    <span className="border-b-2 border-dotted border-gray-300 flex-1 mx-4"></span>
-                    <span className="font-bold text-gray-900">{formatCurrency(proposal.totalAmount)}</span>
-                  </div>
-                </div>
-              )}
-
-              <p className="text-sm text-gray-600 mt-4">
-                Payments are due within 7 days of the invoice date.
-              </p>
-
-              <p className="text-sm text-gray-700 mt-6">
-                Once approved, design development will begin immediately, and coordination with consultants will be scheduled accordingly.
-              </p>
             </div>
           </div>
 
@@ -721,15 +694,17 @@ export default function ClientProposalPage() {
                     <p className="text-sm text-gray-600">Date:</p>
                   </div>
                   <div>
-                    <div className="border-b border-gray-400 pb-2 mb-2">
+                    <div className="border-b border-gray-400 pb-2 mb-2 min-h-[40px]">
                       <span className="text-gray-600">X:</span>
-                      {isSigned && proposal.signedByName && (
+                      {isSigned && proposal.signatureData && proposal.signatureType === 'drawn' ? (
+                        <img src={proposal.signatureData} alt="Client Signature" className="h-12 inline-block ml-2" />
+                      ) : isSigned && proposal.signedByName ? (
                         <span className="ml-2 italic text-lg" style={{ fontFamily: '"Brush Script MT", cursive' }}>
                           {proposal.signedByName}
                         </span>
-                      )}
+                      ) : null}
                     </div>
-                    <p className="text-sm text-gray-600">{proposal.clientName}</p>
+                    <p className="text-sm text-gray-600">{isSigned && proposal.signedByName ? proposal.signedByName : proposal.clientName}</p>
                   </div>
                 </div>
               </div>

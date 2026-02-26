@@ -3,6 +3,7 @@ import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email'
 import { getClientBaseUrl } from '@/lib/get-base-url'
+import { wrapEmailHtml } from '@/lib/meeting-emails'
 
 interface AuthSession {
   user: {
@@ -77,127 +78,57 @@ export async function POST(
     const baseUrl = getClientBaseUrl()
     const proposalUrl = `${baseUrl}/client/proposal/${proposal.accessToken}`
 
-    // Format currency
-    const formatCurrency = (amount: number) => {
-      return new Intl.NumberFormat('en-CA', {
-        style: 'currency',
-        currency: 'CAD',
-      }).format(amount)
-    }
+    // Build email body (matching meeting email style)
+    const validUntilStr = proposal.validUntil
+      ? new Date(proposal.validUntil).toLocaleDateString('en-US', {
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric',
+        })
+      : ''
 
-    // Build email HTML
-    const html = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <title>Proposal from ${companyName}</title>
-          <style>
-            .container { max-width: 600px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-            .header { background: linear-gradient(135deg, #10b981 0%, #14b8a6 100%); padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
-            .header h1 { color: white; margin: 0; font-size: 24px; }
-            .content { padding: 30px; background-color: #f8fafc; }
-            .proposal-box {
-              background-color: white;
-              border: 1px solid #e2e8f0;
-              border-radius: 8px;
-              padding: 24px;
-              margin: 20px 0;
-            }
-            .proposal-number {
-              font-family: monospace;
-              color: #64748b;
-              font-size: 14px;
-              margin-bottom: 8px;
-            }
-            .proposal-title {
-              font-size: 20px;
-              font-weight: 600;
-              color: #1e293b;
-              margin-bottom: 16px;
-            }
-            .amount-box {
-              background-color: #f1f5f9;
-              border-radius: 6px;
-              padding: 16px;
-              text-align: center;
-              margin: 20px 0;
-            }
-            .amount-label { color: #64748b; font-size: 14px; margin-bottom: 4px; }
-            .amount-value { color: #1e293b; font-size: 28px; font-weight: 700; }
-            .button {
-              display: inline-block;
-              padding: 14px 32px;
-              background: linear-gradient(135deg, #10b981 0%, #14b8a6 100%);
-              color: white;
-              text-decoration: none;
-              border-radius: 6px;
-              font-weight: 600;
-              font-size: 16px;
-            }
-            .footer {
-              background-color: #1e293b;
-              padding: 20px;
-              text-align: center;
-              font-size: 12px;
-              color: #94a3b8;
-              border-radius: 0 0 8px 8px;
-            }
-            .footer a { color: #60a5fa; text-decoration: none; }
-          </style>
-        </head>
-        <body style="background-color: #f1f5f9; padding: 20px;">
-          <div class="container">
-            <div class="header">
-              <h1>${companyName}</h1>
-            </div>
-            <div class="content">
-              <p style="color: #475569; line-height: 1.6;">
-                Hi ${proposal.clientName},
-              </p>
-              <p style="color: #475569; line-height: 1.6;">
-                Please find attached our proposal for <strong>${proposal.project.name}</strong>.
-              </p>
+    const body = `
+      <p style="font-size: 16px; color: #1e293b; margin: 0 0 6px; font-weight: 600;">Hi ${proposal.clientName},</p>
+      <p style="font-size: 15px; color: #475569; margin: 0 0 20px; line-height: 1.6;">
+        Thank you for choosing <strong style="color: #1e293b;">${companyName}</strong> — we've put together a design proposal for <strong style="color: #1e293b;">${proposal.project.name}</strong>. Please take a moment to review the details.
+      </p>
 
-              <div class="proposal-box">
-                <div class="proposal-number">${proposal.proposalNumber}</div>
-                <div class="proposal-title">${proposal.title}</div>
+      <div style="background: #f8fafc; border-radius: 12px; padding: 24px; margin: 20px 0; border: 1px solid #e2e8f0;">
+        <p style="margin: 0 0 16px; font-size: 18px; font-weight: 700; color: #1e293b;">${proposal.title}</p>
 
-                <div class="amount-box">
-                  <div class="amount-label">Total Amount</div>
-                  <div class="amount-value">${formatCurrency(Number(proposal.totalAmount))}</div>
-                </div>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 6px 0; font-size: 14px; color: #64748b; width: 100px; vertical-align: top;">Proposal</td>
+            <td style="padding: 6px 0; font-size: 14px; color: #1e293b; font-weight: 500;">${proposal.proposalNumber}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; font-size: 14px; color: #64748b; vertical-align: top;">Project</td>
+            <td style="padding: 6px 0; font-size: 14px; color: #1e293b; font-weight: 500;">${proposal.project.name}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; font-size: 14px; color: #64748b; vertical-align: top;">Prepared for</td>
+            <td style="padding: 6px 0; font-size: 14px; color: #1e293b; font-weight: 500;">${proposal.clientName}</td>
+          </tr>
+          ${validUntilStr ? `
+          <tr>
+            <td style="padding: 6px 0; font-size: 14px; color: #64748b; vertical-align: top;">Valid until</td>
+            <td style="padding: 6px 0; font-size: 14px; color: #1e293b; font-weight: 500;">${validUntilStr}</td>
+          </tr>` : ''}
+        </table>
+      </div>
 
-                ${proposal.validUntil ? `
-                  <p style="color: #64748b; font-size: 14px; text-align: center;">
-                    Valid until ${new Date(proposal.validUntil).toLocaleDateString('en-CA', {
-                      month: 'long',
-                      day: 'numeric',
-                      year: 'numeric'
-                    })}
-                  </p>
-                ` : ''}
-              </div>
+      <div style="text-align: center; margin: 24px 0 4px;">
+        <a href="${proposalUrl}"
+           style="display: inline-block; background: #1e293b; color: white; text-decoration: none; padding: 14px 36px; border-radius: 8px; font-size: 15px; font-weight: 600; letter-spacing: 0.01em;">
+          View & Sign Proposal
+        </a>
+      </div>
 
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="${proposalUrl}" class="button">View & Sign Proposal</a>
-              </div>
+      <p style="font-size: 13px; color: #94a3b8; margin: 16px 0 0; line-height: 1.5; text-align: center;">
+        If you have any questions, don't hesitate to reach out — we're happy to walk you through everything.
+      </p>`
 
-              <p style="color: #64748b; font-size: 14px; text-align: center;">
-                Click the button above to view the full proposal details and sign electronically.
-              </p>
-            </div>
-            <div class="footer">
-              <p>This proposal was sent by ${companyName}</p>
-              ${org?.businessEmail ? `<p>Contact: <a href="mailto:${org.businessEmail}">${org.businessEmail}</a></p>` : ''}
-              <p style="margin-top: 12px;">
-                <a href="${proposalUrl}">View proposal online</a>
-              </p>
-            </div>
-          </div>
-        </body>
-      </html>
-    `
+    const html = wrapEmailHtml(body, 'Design Proposal', `Proposal from ${companyName}`)
 
     // Send email
     const emailSent = await sendEmail({

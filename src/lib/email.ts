@@ -867,7 +867,6 @@ export const sendProposalSignedNotification = async (
     signedAt: Date
   }
 ): Promise<boolean> => {
-  const companyName = process.env.COMPANY_NAME || 'StudioFlow'
   const appUrl = getBaseUrl()
 
   const formattedAmount = proposal.totalAmount.toLocaleString('en-CA', {
@@ -880,187 +879,54 @@ export const sendProposalSignedNotification = async (
     timeStyle: 'short'
   })
 
-  const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <title>Proposal Signed - ${companyName}</title>
-        <style>
-          .container { max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif; }
-          .header { background-color: #22c55e; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
-          .header h1 { color: white; margin: 0; font-size: 24px; }
-          .content { padding: 30px; background-color: #f8fafc; }
-          .success-icon {
-            width: 60px;
-            height: 60px;
-            background-color: #22c55e;
-            border-radius: 50%;
-            margin: 0 auto 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          }
-          .success-icon::after {
-            content: "✓";
-            color: white;
-            font-size: 30px;
-            font-weight: bold;
-          }
-          .message-box {
-            background-color: white;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
-          }
-          .detail-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px solid #e2e8f0;
-          }
-          .detail-row:last-child {
-            border-bottom: none;
-          }
-          .detail-label {
-            color: #64748b;
-            font-size: 14px;
-          }
-          .detail-value {
-            color: #1e293b;
-            font-weight: 500;
-          }
-          .amount-highlight {
-            background-color: #dcfce7;
-            border: 1px solid #22c55e;
-            border-radius: 8px;
-            padding: 15px;
-            text-align: center;
-            margin: 20px 0;
-          }
-          .amount-highlight .label {
-            color: #166534;
-            font-size: 14px;
-            margin-bottom: 5px;
-          }
-          .amount-highlight .value {
-            color: #166534;
-            font-size: 28px;
-            font-weight: bold;
-          }
-          .button {
-            display: inline-block;
-            padding: 12px 24px;
-            background-color: #1e293b;
-            color: white;
-            text-decoration: none;
-            border-radius: 6px;
-            margin: 20px 0;
-            font-weight: 500;
-          }
-          .footer {
-            background-color: #1e293b;
-            padding: 20px;
-            text-align: center;
-            font-size: 12px;
-            color: #94a3b8;
-            border-radius: 0 0 8px 8px;
-          }
-        </style>
-      </head>
-      <body style="background-color: #f1f5f9; padding: 20px;">
-        <div class="container">
-          <div class="header">
-            <h1>Proposal Signed</h1>
-          </div>
-          <div class="content">
-            <div class="success-icon"></div>
-            <h2 style="text-align: center; color: #1e293b; margin-bottom: 10px;">Great News!</h2>
+  const { wrapEmailHtml } = await import('@/lib/meeting-emails')
 
-            <div class="message-box">
-              <p style="color: #475569; line-height: 1.6; margin: 0;">
-                Hi ${recipientName},
-              </p>
-              <p style="color: #475569; line-height: 1.6; margin-top: 15px;">
-                A proposal has just been signed by the client!
-              </p>
+  const body = `
+    <p style="font-size: 16px; color: #1e293b; margin: 0 0 6px; font-weight: 600;">Hi ${recipientName},</p>
+    <p style="font-size: 15px; color: #475569; margin: 0 0 20px; line-height: 1.6;">
+      Great news — <strong style="color: #1e293b;">${proposal.clientName}</strong> has signed the proposal for <strong style="color: #1e293b;">${proposal.projectName || proposal.title}</strong>.
+    </p>
 
-              <div style="margin-top: 20px;">
-                <div class="detail-row">
-                  <span class="detail-label">Proposal</span>
-                  <span class="detail-value">${proposal.proposalNumber}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">Title</span>
-                  <span class="detail-value">${proposal.title}</span>
-                </div>
-                ${proposal.projectName ? `
-                <div class="detail-row">
-                  <span class="detail-label">Project</span>
-                  <span class="detail-value">${proposal.projectName}</span>
-                </div>
-                ` : ''}
-                <div class="detail-row">
-                  <span class="detail-label">Client</span>
-                  <span class="detail-value">${proposal.clientName}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">Client Email</span>
-                  <span class="detail-value">${proposal.clientEmail}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">Signed By</span>
-                  <span class="detail-value">${proposal.signedByName}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">Signed At</span>
-                  <span class="detail-value">${signedDate}</span>
-                </div>
-              </div>
+    <div style="background: #f0fdf4; border-radius: 12px; padding: 24px; margin: 20px 0; border: 1px solid #bbf7d0;">
+      <p style="margin: 0 0 16px; font-size: 18px; font-weight: 700; color: #166534;">${proposal.title}</p>
 
-              <div class="amount-highlight">
-                <div class="label">Contract Value</div>
-                <div class="value">${formattedAmount}</div>
-              </div>
-            </div>
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td style="padding: 6px 0; font-size: 14px; color: #64748b; width: 100px; vertical-align: top;">Proposal</td>
+          <td style="padding: 6px 0; font-size: 14px; color: #1e293b; font-weight: 500;">${proposal.proposalNumber}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; font-size: 14px; color: #64748b; vertical-align: top;">Client</td>
+          <td style="padding: 6px 0; font-size: 14px; color: #1e293b; font-weight: 500;">${proposal.clientName} (${proposal.clientEmail})</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; font-size: 14px; color: #64748b; vertical-align: top;">Signed by</td>
+          <td style="padding: 6px 0; font-size: 14px; color: #1e293b; font-weight: 500;">${proposal.signedByName}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; font-size: 14px; color: #64748b; vertical-align: top;">Date</td>
+          <td style="padding: 6px 0; font-size: 14px; color: #1e293b; font-weight: 500;">${signedDate}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; font-size: 14px; color: #64748b; vertical-align: top;">Value</td>
+          <td style="padding: 6px 0; font-size: 16px; color: #166534; font-weight: 700;">${formattedAmount}</td>
+        </tr>
+      </table>
+    </div>
 
-            <div style="text-align: center;">
-              <a href="${proposal.projectId ? `${appUrl}/projects/${proposal.projectId}/billing` : `${appUrl}/dashboard`}" class="button">View Proposal</a>
-            </div>
-          </div>
-          <div class="footer">
-            <p>This is an automated notification from ${companyName}</p>
-          </div>
-        </div>
-      </body>
-    </html>
-  `
+    <div style="text-align: center; margin: 24px 0 4px;">
+      <a href="${proposal.projectId ? `${appUrl}/projects/${proposal.projectId}/billing` : `${appUrl}/dashboard`}"
+         style="display: inline-block; background: #1e293b; color: white; text-decoration: none; padding: 14px 36px; border-radius: 8px; font-size: 15px; font-weight: 600; letter-spacing: 0.01em;">
+        View in Dashboard
+      </a>
+    </div>`
 
-  const text = `
-    Proposal Signed! - ${companyName}
-
-    Hi ${recipientName},
-
-    Great news! A proposal has just been signed by the client.
-
-    Proposal: ${proposal.proposalNumber}
-    Title: ${proposal.title}
-    ${proposal.projectName ? `Project: ${proposal.projectName}` : ''}
-    Client: ${proposal.clientName} (${proposal.clientEmail})
-    Signed By: ${proposal.signedByName}
-    Signed At: ${signedDate}
-
-    Contract Value: ${formattedAmount}
-
-    View the proposal at: ${proposal.projectId ? `${appUrl}/projects/${proposal.projectId}/billing` : `${appUrl}/dashboard`}
-  `
+  const html = wrapEmailHtml(body, 'Proposal Signed', 'Proposal Signed — Meisner Interiors')
 
   return sendEmail({
     to: recipientEmail,
-    subject: `Proposal Signed: ${proposal.proposalNumber} - ${proposal.clientName} (${formattedAmount})`,
+    subject: `Proposal Signed: ${proposal.proposalNumber} — ${proposal.clientName} (${formattedAmount})`,
     html,
-    text
   })
 }
 
@@ -1146,108 +1012,49 @@ export const sendSignedProposalToClient = async (
   companyName: string,
   pdfBuffer: Buffer
 ): Promise<boolean> => {
-  const appUrl = getClientBaseUrl()
-
-  const formattedAmount = proposal.totalAmount.toLocaleString('en-CA', {
-    style: 'currency',
-    currency: 'CAD'
+  const signedDate = new Date(proposal.signedAt).toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
   })
 
-  const signedDate = new Date(proposal.signedAt).toLocaleString('en-CA', {
-    dateStyle: 'long',
-    timeStyle: 'short'
-  })
+  const { wrapEmailHtml } = await import('@/lib/meeting-emails')
 
-  const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Signed Proposal - ${companyName}</title>
-      </head>
-      <body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f1f5f9;">
-          <tr>
-            <td style="padding: 40px 20px;">
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
+  const body = `
+    <p style="font-size: 16px; color: #1e293b; margin: 0 0 6px; font-weight: 600;">Hi ${clientName},</p>
+    <p style="font-size: 15px; color: #475569; margin: 0 0 20px; line-height: 1.6;">
+      Thank you for signing the proposal for <strong style="color: #1e293b;">${proposal.projectName || proposal.title}</strong>. We're looking forward to working with you!
+    </p>
 
-                <!-- Header -->
-                <tr>
-                  <td style="background-color: #22c55e; padding: 32px 40px; text-align: center;">
-                    <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 700;">Thank You for Signing!</h1>
-                  </td>
-                </tr>
+    <div style="background: #f8fafc; border-radius: 12px; padding: 24px; margin: 20px 0; border: 1px solid #e2e8f0;">
+      <p style="margin: 0 0 16px; font-size: 18px; font-weight: 700; color: #1e293b;">${proposal.title}</p>
 
-                <!-- Main Content -->
-                <tr>
-                  <td style="padding: 40px;">
-                    <p style="color: #334155; font-size: 16px; line-height: 1.6; margin: 0 0 16px;">
-                      Hi ${clientName},
-                    </p>
-                    <p style="color: #475569; font-size: 16px; line-height: 1.6; margin: 0 0 24px;">
-                      Thank you for signing the proposal for <strong style="color: #1e293b;">${proposal.projectName || proposal.title}</strong>. Please find your signed copy attached to this email.
-                    </p>
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td style="padding: 6px 0; font-size: 14px; color: #64748b; width: 100px; vertical-align: top;">Proposal</td>
+          <td style="padding: 6px 0; font-size: 14px; color: #1e293b; font-weight: 500;">${proposal.proposalNumber}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; font-size: 14px; color: #64748b; vertical-align: top;">Signed on</td>
+          <td style="padding: 6px 0; font-size: 14px; color: #1e293b; font-weight: 500;">${signedDate}</td>
+        </tr>
+      </table>
+    </div>
 
-                    <!-- Proposal Details Card -->
-                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f8fafc; border-radius: 12px; margin-bottom: 32px;">
-                      <tr>
-                        <td style="padding: 24px;">
-                          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                            <tr>
-                              <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
-                                <span style="color: #64748b; font-size: 14px;">Proposal</span>
-                                <span style="color: #1e293b; font-size: 14px; font-weight: 600; float: right;">${proposal.proposalNumber}</span>
-                              </td>
-                            </tr>
-                            <tr>
-                              <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
-                                <span style="color: #64748b; font-size: 14px;">Signed On</span>
-                                <span style="color: #1e293b; font-size: 14px; font-weight: 500; float: right;">${signedDate}</span>
-                              </td>
-                            </tr>
-                            <tr>
-                              <td style="padding: 8px 0;">
-                                <span style="color: #64748b; font-size: 14px;">Contract Value</span>
-                                <span style="color: #166534; font-size: 16px; font-weight: 700; float: right;">${formattedAmount}</span>
-                              </td>
-                            </tr>
-                          </table>
-                        </td>
-                      </tr>
-                    </table>
+    <p style="font-size: 14px; color: #475569; margin: 0 0 8px; line-height: 1.6;">
+      Your signed copy is attached to this email. A deposit invoice will follow shortly.
+    </p>
 
-                    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 8px;">
-                      A deposit invoice will follow shortly. If you have any questions, please don't hesitate to reach out.
-                    </p>
-                  </td>
-                </tr>
+    <p style="font-size: 13px; color: #94a3b8; margin: 16px 0 0; line-height: 1.5;">
+      If you have any questions, don't hesitate to reach out — we're happy to help.
+    </p>`
 
-                <!-- Footer -->
-                <tr>
-                  <td style="background-color: #1e293b; padding: 24px 40px; text-align: center;">
-                    <p style="color: #94a3b8; font-size: 13px; margin: 0 0 8px;">
-                      This email was sent by <strong style="color: #cbd5e1;">${companyName}</strong>
-                    </p>
-                    <p style="color: #64748b; font-size: 12px; margin: 0;">
-                      The signed proposal PDF is attached to this email.
-                    </p>
-                  </td>
-                </tr>
-
-              </table>
-            </td>
-          </tr>
-        </table>
-      </body>
-    </html>
-  `
+  const html = wrapEmailHtml(body, 'Signed Proposal', `Signed Proposal — ${companyName}`)
 
   try {
-    // Use sendResendEmail directly (not the wrapper) because it supports attachments
     await sendResendEmail({
       to: clientEmail,
-      subject: `Your Signed Proposal - ${proposal.proposalNumber} from ${companyName}`,
+      subject: `Your Signed Proposal — ${proposal.proposalNumber} from ${companyName}`,
       html,
       attachments: [{
         filename: `${proposal.proposalNumber}-Signed.pdf`,
