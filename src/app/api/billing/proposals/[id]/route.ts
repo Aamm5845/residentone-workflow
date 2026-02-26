@@ -261,14 +261,13 @@ export async function DELETE(
       return NextResponse.json({ error: 'Proposal not found' }, { status: 404 })
     }
 
-    // Only allow deleting draft proposals
-    if (proposal.status !== 'DRAFT') {
-      return NextResponse.json({
-        error: `Cannot delete a proposal that has been ${proposal.status.toLowerCase()}. Only draft proposals can be deleted.`
-      }, { status: 400 })
-    }
+    // Unlink any invoices tied to this proposal (FK constraint)
+    await prisma.billingInvoice.updateMany({
+      where: { proposalId: id },
+      data: { proposalId: null },
+    })
 
-    // Delete activity logs first (foreign key constraint)
+    // Delete activity logs (FK constraint — cascade may handle this, but be safe)
     await prisma.proposalActivity.deleteMany({
       where: { proposalId: id },
     })

@@ -491,8 +491,11 @@ export default function BillingPageClient({
     }
   }
 
-  const deleteProposal = async (proposalId: string, proposalNumber: string) => {
-    if (!confirm(`Are you sure you want to delete proposal ${proposalNumber}?`)) return
+  const deleteProposal = async (proposalId: string, proposalNumber: string, status: string) => {
+    const message = status !== 'DRAFT'
+      ? `This proposal (${proposalNumber}) has been ${status.toLowerCase()}. Are you sure you want to permanently delete it?`
+      : `Are you sure you want to delete proposal ${proposalNumber}?`
+    if (!confirm(message)) return
     setDeletingProposal(proposalId)
     try {
       const response = await fetch(`/api/billing/proposals/${proposalId}`, {
@@ -1363,23 +1366,19 @@ export default function BillingPageClient({
                                   <Download className="w-4 h-4 mr-2" />
                                   Download PDF
                                 </DropdownMenuItem>
-                                {proposal.status === 'DRAFT' && (
-                                  <>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem
-                                      onClick={() => deleteProposal(proposal.id, proposal.proposalNumber)}
-                                      disabled={deletingProposal === proposal.id}
-                                      className="text-red-600 focus:text-red-600"
-                                    >
-                                      {deletingProposal === proposal.id ? (
-                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                      ) : (
-                                        <Trash2 className="w-4 h-4 mr-2" />
-                                      )}
-                                      Delete
-                                    </DropdownMenuItem>
-                                  </>
-                                )}
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => deleteProposal(proposal.id, proposal.proposalNumber, proposal.status)}
+                                  disabled={deletingProposal === proposal.id}
+                                  className="text-red-600 focus:text-red-600"
+                                >
+                                  {deletingProposal === proposal.id ? (
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                  )}
+                                  Delete
+                                </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
