@@ -20,6 +20,8 @@ export async function POST(request: NextRequest) {
       projectType,
       clientName,
       designDescription,
+      whatToInclude,
+      whatNotToInclude,
       scopeItems,
       currentOverview,
     } = body
@@ -60,6 +62,8 @@ PROJECT: ${projectName}
 TYPE: ${projectType || 'Interior Design'}
 CLIENT: ${clientName}
 ${designDescription ? `DESCRIPTION: ${designDescription}` : ''}
+${whatToInclude ? `INCLUDED SERVICES: ${whatToInclude}` : ''}
+${whatNotToInclude ? `NOT INCLUDED: ${whatNotToInclude}` : ''}
 ${scopeList ? `PHASES: ${scopeList}` : ''}
 ${currentOverview ? `CURRENT OVERVIEW (improve this): ${currentOverview}` : ''}
 

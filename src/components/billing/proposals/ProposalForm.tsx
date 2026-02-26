@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, ArrowRight, Save, Send, Sparkles, Loader2, Plus, Trash2, Calculator, FileText, GripVertical, Wand2, CheckCircle, DollarSign, Layers, CreditCard } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Save, Send, Sparkles, Loader2, Plus, Trash2, Calculator, FileText, GripVertical, Wand2, CheckCircle, DollarSign, Layers, CreditCard, X, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import Link from 'next/link'
@@ -120,6 +120,36 @@ export default function ProposalForm({
   const [generating, setGenerating] = useState(false)
   const [generatingPhases, setGeneratingPhases] = useState(false)
   const [aiGenerated, setAiGenerated] = useState(false)
+
+  // Editable quick-add chips
+  const [includeChips, setIncludeChips] = useState([
+    'Working with architect',
+    'Contractor coordination',
+    '3D renderings',
+    'Site visits',
+    'Furniture procurement',
+    'Custom millwork design',
+    'Lighting design',
+    'Material selections',
+    'Project management',
+  ])
+  const [excludeChips, setExcludeChips] = useState([
+    'Project management',
+    'Site visits',
+    'FFE procurement',
+    'Construction work',
+    'Permit applications',
+    'Structural engineering',
+    'MEP engineering',
+    'Product purchasing',
+    'Installation',
+    'Moving services',
+    'Storage',
+  ])
+  const [editingIncludeChips, setEditingIncludeChips] = useState(false)
+  const [editingExcludeChips, setEditingExcludeChips] = useState(false)
+  const [newIncludeChip, setNewIncludeChip] = useState('')
+  const [newExcludeChip, setNewExcludeChip] = useState('')
 
   // Form state
   const [title, setTitle] = useState(existingProposal?.title || `${projectName} - Interior Design Services`)
@@ -366,6 +396,8 @@ export default function ProposalForm({
           projectType,
           clientName,
           designDescription,
+          whatToInclude,
+          whatNotToInclude,
           scopeItems: scopeItems.filter(s => s.title),
           currentOverview: projectOverview || undefined,
         }),
@@ -571,7 +603,7 @@ export default function ProposalForm({
           {billingType !== 'HOURLY' && (
             <div className="bg-gray-50 rounded-xl p-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Total budget (leave blank to let AI suggest)
+                Total budget
               </label>
               <div className="flex items-center gap-2">
                 <span className="text-gray-500">$</span>
@@ -645,35 +677,66 @@ export default function ProposalForm({
         <div className="space-y-6">
           {/* Quick Add Chips */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
-              Quick add common features:
-            </label>
+            <div className="flex items-center justify-between mb-3">
+              <label className="block text-sm font-medium text-gray-700">
+                Quick add common features:
+              </label>
+              <button
+                type="button"
+                onClick={() => setEditingIncludeChips(!editingIncludeChips)}
+                className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1"
+              >
+                <Pencil className="w-3 h-3" />
+                {editingIncludeChips ? 'Done' : 'Edit list'}
+              </button>
+            </div>
             <div className="flex flex-wrap gap-2">
-              {[
-                'Working with architect',
-                'Contractor coordination',
-                '3D renderings',
-                'Site visits',
-                'Furniture procurement',
-                'Custom millwork design',
-                'Lighting design',
-                'Material selections',
-                'Project management',
-              ].map((feature) => (
+              {includeChips.map((feature) => (
                 <button
                   key={feature}
                   type="button"
                   onClick={() => {
-                    const current = whatToInclude.trim()
-                    if (!current.toLowerCase().includes(feature.toLowerCase())) {
-                      setWhatToInclude(current ? `${current}\n• ${feature}` : `• ${feature}`)
+                    if (editingIncludeChips) {
+                      setIncludeChips(includeChips.filter(c => c !== feature))
+                    } else {
+                      const current = whatToInclude.trim()
+                      if (!current.toLowerCase().includes(feature.toLowerCase())) {
+                        setWhatToInclude(current ? `${current}\n• ${feature}` : `• ${feature}`)
+                      }
                     }
                   }}
-                  className="px-3 py-1.5 rounded-full text-sm bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors"
+                  className={`px-3 py-1.5 rounded-full text-sm transition-colors flex items-center gap-1 ${
+                    editingIncludeChips
+                      ? 'bg-red-50 hover:bg-red-100 text-red-600'
+                      : 'bg-blue-50 hover:bg-blue-100 text-blue-700'
+                  }`}
                 >
-                  + {feature}
+                  {editingIncludeChips ? <X className="w-3 h-3" /> : '+'} {feature}
                 </button>
               ))}
+              {editingIncludeChips && (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    const val = newIncludeChip.trim()
+                    if (val && !includeChips.includes(val)) {
+                      setIncludeChips([...includeChips, val])
+                      setNewIncludeChip('')
+                    }
+                  }}
+                  className="flex items-center gap-1"
+                >
+                  <Input
+                    value={newIncludeChip}
+                    onChange={(e) => setNewIncludeChip(e.target.value)}
+                    placeholder="Add custom..."
+                    className="h-8 w-36 text-sm"
+                  />
+                  <Button type="submit" variant="outline" size="sm" className="h-8 px-2">
+                    <Plus className="w-3 h-3" />
+                  </Button>
+                </form>
+              )}
             </div>
           </div>
 
@@ -726,37 +789,66 @@ export default function ProposalForm({
         <div className="space-y-6">
           {/* Quick Add Chips */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
-              Common exclusions:
-            </label>
+            <div className="flex items-center justify-between mb-3">
+              <label className="block text-sm font-medium text-gray-700">
+                Common exclusions:
+              </label>
+              <button
+                type="button"
+                onClick={() => setEditingExcludeChips(!editingExcludeChips)}
+                className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1"
+              >
+                <Pencil className="w-3 h-3" />
+                {editingExcludeChips ? 'Done' : 'Edit list'}
+              </button>
+            </div>
             <div className="flex flex-wrap gap-2">
-              {[
-                'Project management',
-                'Site visits',
-                'FFE procurement',
-                'Construction work',
-                'Permit applications',
-                'Structural engineering',
-                'MEP engineering',
-                'Product purchasing',
-                'Installation',
-                'Moving services',
-                'Storage',
-              ].map((exclusion) => (
+              {excludeChips.map((exclusion) => (
                 <button
                   key={exclusion}
                   type="button"
                   onClick={() => {
-                    const current = whatNotToInclude.trim()
-                    if (!current.toLowerCase().includes(exclusion.toLowerCase())) {
-                      setWhatNotToInclude(current ? `${current}\n• ${exclusion}` : `• ${exclusion}`)
+                    if (editingExcludeChips) {
+                      setExcludeChips(excludeChips.filter(c => c !== exclusion))
+                    } else {
+                      const current = whatNotToInclude.trim()
+                      if (!current.toLowerCase().includes(exclusion.toLowerCase())) {
+                        setWhatNotToInclude(current ? `${current}\n• ${exclusion}` : `• ${exclusion}`)
+                      }
                     }
                   }}
-                  className="px-3 py-1.5 rounded-full text-sm bg-amber-50 hover:bg-amber-100 text-amber-700 transition-colors"
+                  className={`px-3 py-1.5 rounded-full text-sm transition-colors flex items-center gap-1 ${
+                    editingExcludeChips
+                      ? 'bg-red-50 hover:bg-red-100 text-red-600'
+                      : 'bg-amber-50 hover:bg-amber-100 text-amber-700'
+                  }`}
                 >
-                  + {exclusion}
+                  {editingExcludeChips ? <X className="w-3 h-3" /> : '+'} {exclusion}
                 </button>
               ))}
+              {editingExcludeChips && (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    const val = newExcludeChip.trim()
+                    if (val && !excludeChips.includes(val)) {
+                      setExcludeChips([...excludeChips, val])
+                      setNewExcludeChip('')
+                    }
+                  }}
+                  className="flex items-center gap-1"
+                >
+                  <Input
+                    value={newExcludeChip}
+                    onChange={(e) => setNewExcludeChip(e.target.value)}
+                    placeholder="Add custom..."
+                    className="h-8 w-36 text-sm"
+                  />
+                  <Button type="submit" variant="outline" size="sm" className="h-8 px-2">
+                    <Plus className="w-3 h-3" />
+                  </Button>
+                </form>
+              )}
             </div>
           </div>
 
