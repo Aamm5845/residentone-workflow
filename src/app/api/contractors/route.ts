@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
 
     const contractors = await prisma.contractor.findMany({
       where: { orgId: session.user.orgId, isActive: true },
+      include: { contacts: true },
       orderBy: { businessName: 'asc' }
     })
 
@@ -29,14 +30,14 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await request.json()
-    const { businessName, contactName, email, phone, address, type, specialty } = data
+    const { businessName, contactName, email, phone, address, type, specialty, trade, logoUrl, contacts } = data
 
     if (!businessName || !email) {
       return NextResponse.json({ error: 'Business name and email are required' }, { status: 400 })
     }
 
-    if (type === 'subcontractor' && !specialty) {
-      return NextResponse.json({ error: 'Specialty is required for subcontractors' }, { status: 400 })
+    if (type === 'subcontractor' && !specialty && !trade) {
+      return NextResponse.json({ error: 'Specialty or trade is required for subcontractors' }, { status: 400 })
     }
 
     // Check if contractor already exists
@@ -60,8 +61,22 @@ export async function POST(request: NextRequest) {
         address: address || null,
         type: type || 'CONTRACTOR',
         specialty: specialty || null,
-        orgId: session.user.orgId
-      }
+        trade: trade || null,
+        logoUrl: logoUrl || null,
+        orgId: session.user.orgId,
+        ...(contacts && contacts.length > 0 ? {
+          contacts: {
+            create: contacts.map((c: any) => ({
+              name: c.name,
+              email: c.email,
+              phone: c.phone || null,
+              role: c.role || null,
+              isPrimary: c.isPrimary || false,
+            }))
+          }
+        } : {})
+      },
+      include: { contacts: true }
     })
 
     return NextResponse.json(contractor, { status: 201 })

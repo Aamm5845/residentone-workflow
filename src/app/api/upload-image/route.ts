@@ -7,7 +7,7 @@ import { put } from '@vercel/blob'
 
 // Validation schema
 const uploadSchema = z.object({
-  imageType: z.enum(['avatar', 'project-cover', 'spec-item', 'quote-document', 'general']).optional().default('general'),
+  imageType: z.enum(['avatar', 'project-cover', 'spec-item', 'quote-document', 'contractor-logo', 'general']).optional().default('general'),
   supplierName: z.string().optional(),
 })
 
@@ -96,6 +96,23 @@ export async function POST(request: NextRequest) {
       // Case 1: Team member avatar → Blob
       if (imageType === 'avatar') {
         const blobFileName = `avatars/${session.user.id}/${timestamp}_${Math.random().toString(36).slice(2)}.${fileExtension}`
+        const blob = await put(blobFileName, file, { access: 'public', contentType: file.type })
+
+        return NextResponse.json({
+          success: true,
+          url: blob.url,
+          path: blob.pathname || blob.url,
+          fileName,
+          originalName: file.name,
+          size: file.size,
+          type: file.type,
+          storage: 'blob',
+        })
+      }
+
+      // Case 1b: Contractor logo → Blob only
+      if (imageType === 'contractor-logo') {
+        const blobFileName = `contractor-logos/${session.user.orgId}/${timestamp}_${Math.random().toString(36).slice(2)}.${fileExtension}`
         const blob = await put(blobFileName, file, { access: 'public', contentType: file.type })
 
         return NextResponse.json({

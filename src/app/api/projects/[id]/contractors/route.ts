@@ -34,7 +34,9 @@ export async function GET(
         isActive: true
       },
       include: {
-        contractor: true
+        contractor: {
+          include: { contacts: true }
+        }
       },
       orderBy: {
         createdAt: 'desc'

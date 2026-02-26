@@ -47,7 +47,9 @@ export default async function ProjectSettings({ params }: Props) {
           projectContractors: {
             where: { isActive: true },
             include: {
-              contractor: true
+              contractor: {
+                include: { contacts: true }
+              }
             }
           },
           _count: {
@@ -79,7 +81,10 @@ export default async function ProjectSettings({ params }: Props) {
         phone: pc.contractor.phone,
         address: pc.contractor.address,
         type: pc.contractor.type?.toLowerCase() || pc.role?.toLowerCase() || 'contractor',
-        specialty: pc.contractor.specialty
+        specialty: pc.contractor.specialty,
+        trade: pc.contractor.trade,
+        logoUrl: pc.contractor.logoUrl,
+        contacts: pc.contractor.contacts || [],
       }))
     } else if (project) {
       project.contractors = []

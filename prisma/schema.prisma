@@ -267,6 +267,7 @@ model User {
   createdTransmittals         Transmittal[]               @relation("TransmittalCreator")
   sentTransmittals            Transmittal[]               @relation("TransmittalSentBy")
   receivedFiles               ReceivedFile[]              @relation("ReceivedFileCreator")
+  dashboardPreferences        DashboardPreferences?       @relation("UserDashboardPreferences")
 }
 
 model Client {
@@ -304,6 +305,7 @@ model Contractor {
   type               ContractorType      @default(CONTRACTOR)
   specialty          String?
   notes              String?
+  logoUrl            String?
   isActive           Boolean             @default(true)
   orgId              String
   createdAt          DateTime            @default(now())
@@ -312,11 +314,27 @@ model Contractor {
   projectContractors ProjectContractor[]
   projectUpdateTasks ProjectUpdateTask[]
   meetingAttendances MeetingAttendee[]
+  contacts           ContractorContact[]
   trade              ContractorTrade?
 
   @@unique([orgId, email])
   @@index([orgId, type])
   @@index([orgId, isActive])
+}
+
+model ContractorContact {
+  id           String     @id @default(cuid())
+  contractorId String
+  name         String
+  email        String
+  phone        String?
+  role         String?
+  isPrimary    Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  contractor   Contractor @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+
+  @@index([contractorId])
 }
 
 model ProjectContractor {
@@ -4902,6 +4920,11 @@ enum CadFreshnessStatus {
 
 enum ContractorTrade {
   GENERAL_CONTRACTOR
+  ARCHITECT
+  INTERIOR_DESIGNER
+  STRUCTURAL_ENGINEER
+  MEP_ENGINEER
+  CIVIL_ENGINEER
   ELECTRICIAN
   PLUMBER
   HVAC
@@ -5158,5 +5181,17 @@ model CadSourceLink {
   @@index([cadDropboxPath])
   @@index([cadFreshnessStatus])
   @@index([drawingId])
+}
+
+model DashboardPreferences {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation("UserDashboardPreferences", fields: [userId], references: [id], onDelete: Cascade)
+  layouts        Json     // react-grid-layout Layout[] → { i, x, y, w, h }
+  enabledWidgets String[] // ["quick-stats", "my-tasks", ...]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId])
 }
 

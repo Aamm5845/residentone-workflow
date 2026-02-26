@@ -18,11 +18,12 @@ export async function GET(request: NextRequest, { params }: Props) {
     const { id } = await params
 
     const contractor = await prisma.contractor.findFirst({
-      where: { 
+      where: {
         id,
-        orgId: session.user.orgId 
+        orgId: session.user.orgId
       },
       include: {
+        contacts: true,
         projectContractors: {
           include: {
             project: {
@@ -57,21 +58,21 @@ export async function PUT(request: NextRequest, { params }: Props) {
 
     const { id } = await params
     const data = await request.json()
-    const { businessName, contactName, email, phone, address, type, specialty, notes, isActive } = data
+    const { businessName, contactName, email, phone, address, type, specialty, notes, isActive, trade, logoUrl, contacts } = data
 
     if (!businessName || !email) {
       return NextResponse.json({ error: 'Business name and email are required' }, { status: 400 })
     }
 
-    if (type === 'SUBCONTRACTOR' && !specialty) {
-      return NextResponse.json({ error: 'Specialty is required for subcontractors' }, { status: 400 })
+    if (type === 'SUBCONTRACTOR' && !specialty && !trade) {
+      return NextResponse.json({ error: 'Specialty or trade is required for subcontractors' }, { status: 400 })
     }
 
     // Check if contractor exists and belongs to the organization
     const existingContractor = await prisma.contractor.findFirst({
-      where: { 
+      where: {
         id,
-        orgId: session.user.orgId 
+        orgId: session.user.orgId
       }
     })
 
@@ -94,6 +95,24 @@ export async function PUT(request: NextRequest, { params }: Props) {
       }
     }
 
+    // Handle contacts CRUD if provided
+    if (contacts !== undefined) {
+      // Delete existing contacts and recreate
+      await prisma.contractorContact.deleteMany({ where: { contractorId: id } })
+      if (contacts && contacts.length > 0) {
+        await prisma.contractorContact.createMany({
+          data: contacts.map((c: any) => ({
+            contractorId: id,
+            name: c.name,
+            email: c.email,
+            phone: c.phone || null,
+            role: c.role || null,
+            isPrimary: c.isPrimary || false,
+          }))
+        })
+      }
+    }
+
     const contractor = await prisma.contractor.update({
       where: { id },
       data: {
@@ -104,9 +123,12 @@ export async function PUT(request: NextRequest, { params }: Props) {
         address: address || null,
         type: type || 'CONTRACTOR',
         specialty: specialty || null,
+        trade: trade || null,
+        logoUrl: logoUrl !== undefined ? (logoUrl || null) : undefined,
         notes: notes || null,
         isActive: isActive !== undefined ? isActive : true
-      }
+      },
+      include: { contacts: true }
     })
 
     return NextResponse.json(contractor)

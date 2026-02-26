@@ -1,12 +1,23 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Search, Edit, Trash2, Building, Phone, Mail, MapPin, Briefcase, FileText, AlertCircle, CheckCircle, X } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, Building, Phone, Mail, MapPin, Briefcase, FileText, AlertCircle, CheckCircle, X, Upload, User, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import Image from 'next/image'
 import toast from 'react-hot-toast'
+import { getTradeOptions, getTradeLabel } from '@/lib/contractor-utils'
+
+interface ContractorContact {
+  id?: string
+  name: string
+  email: string
+  phone?: string | null
+  role?: string | null
+  isPrimary: boolean
+}
 
 interface Contractor {
   id: string
@@ -17,10 +28,13 @@ interface Contractor {
   address: string | null
   type: 'CONTRACTOR' | 'SUBCONTRACTOR'
   specialty: string | null
+  trade: string | null
+  logoUrl: string | null
   notes: string | null
   isActive: boolean
   createdAt: string
   updatedAt: string
+  contacts?: ContractorContact[]
   projectContractors?: {
     id: string
     project: {
@@ -47,7 +61,10 @@ interface ContractorFormData {
   address: string
   type: 'CONTRACTOR' | 'SUBCONTRACTOR'
   specialty: string
+  trade: string
+  logoUrl: string
   notes: string
+  contacts: ContractorContact[]
 }
 
 const initialFormData: ContractorFormData = {
@@ -58,7 +75,10 @@ const initialFormData: ContractorFormData = {
   address: '',
   type: 'CONTRACTOR',
   specialty: '',
-  notes: ''
+  trade: '',
+  logoUrl: '',
+  notes: '',
+  contacts: []
 }
 
 export default function ContractorsManagement({ orgId, user }: ContractorsManagementProps) {
@@ -135,9 +155,61 @@ export default function ContractorsManagement({ orgId, user }: ContractorsManage
       address: contractor.address || '',
       type: contractor.type,
       specialty: contractor.specialty || '',
-      notes: contractor.notes || ''
+      trade: contractor.trade || '',
+      logoUrl: contractor.logoUrl || '',
+      notes: contractor.notes || '',
+      contacts: contractor.contacts || []
     })
     setShowForm(true)
+  }
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const uploadFormData = new FormData()
+    uploadFormData.append('file', file)
+    uploadFormData.append('imageType', 'contractor-logo')
+
+    try {
+      const res = await fetch('/api/upload-image', {
+        method: 'POST',
+        body: uploadFormData,
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setFormData(prev => ({ ...prev, logoUrl: data.url }))
+        toast.success('Logo uploaded')
+      } else {
+        toast.error('Failed to upload logo')
+      }
+    } catch {
+      toast.error('Failed to upload logo')
+    }
+  }
+
+  const addContact = () => {
+    setFormData(prev => ({
+      ...prev,
+      contacts: [...prev.contacts, { name: '', email: '', phone: '', role: '', isPrimary: prev.contacts.length === 0 }]
+    }))
+  }
+
+  const updateContact = (index: number, field: keyof ContractorContact, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      contacts: prev.contacts.map((c, i) => {
+        if (i !== index) return field === 'isPrimary' && value ? { ...c, isPrimary: false } : c
+        return { ...c, [field]: value }
+      })
+    }))
+  }
+
+  const removeContact = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      contacts: prev.contacts.filter((_, i) => i !== index)
+    }))
   }
 
   const handleDelete = async (id: string) => {
@@ -240,58 +312,65 @@ export default function ContractorsManagement({ orgId, user }: ContractorsManage
                   {filteredContractors.map((contractor) => (
                     <div key={contractor.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                       <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
-                            <h3 className="font-semibold text-gray-900">{contractor.businessName}</h3>
-                            <Badge 
-                              variant={contractor.type === 'CONTRACTOR' ? 'default' : 'secondary'}
-                              className="text-xs"
-                            >
-                              {contractor.type === 'CONTRACTOR' ? 'Contractor' : 'Subcontractor'}
-                            </Badge>
-                            {!contractor.isActive && (
-                              <Badge variant="destructive" className="text-xs">
-                                Inactive
-                              </Badge>
-                            )}
-                          </div>
-                          
-                          <div className="space-y-1 text-sm text-gray-600">
-                            {contractor.contactName && (
-                              <div className="flex items-center">
-                                <span className="w-16 font-medium">Contact:</span>
-                                <span>{contractor.contactName}</span>
-                              </div>
-                            )}
-                            <div className="flex items-center">
-                              <Mail className="w-4 h-4 mr-2" />
-                              <span>{contractor.email}</span>
-                            </div>
-                            {contractor.phone && (
-                              <div className="flex items-center">
-                                <Phone className="w-4 h-4 mr-2" />
-                                <span>{contractor.phone}</span>
-                              </div>
-                            )}
-                            {contractor.address && (
-                              <div className="flex items-center">
-                                <MapPin className="w-4 h-4 mr-2" />
-                                <span>{contractor.address}</span>
-                              </div>
-                            )}
-                            {contractor.specialty && (
-                              <div className="flex items-center">
-                                <Briefcase className="w-4 h-4 mr-2" />
-                                <span>{contractor.specialty}</span>
-                              </div>
-                            )}
-                          </div>
-
-                          {contractor.projectContractors && contractor.projectContractors.length > 0 && (
-                            <div className="mt-2 text-xs text-gray-500">
-                              Used in {contractor.projectContractors.length} project(s)
+                        <div className="flex items-start gap-3 flex-1">
+                          {contractor.logoUrl && (
+                            <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 border border-gray-200">
+                              <Image src={contractor.logoUrl} alt="" width={40} height={40} className="object-cover w-full h-full" />
                             </div>
                           )}
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-3 mb-2">
+                              <h3 className="font-semibold text-gray-900">{contractor.businessName}</h3>
+                              <Badge
+                                variant={contractor.type === 'CONTRACTOR' ? 'default' : 'secondary'}
+                                className="text-xs"
+                              >
+                                {contractor.trade ? getTradeLabel(contractor.trade) : (contractor.type === 'CONTRACTOR' ? 'Contractor' : 'Subcontractor')}
+                              </Badge>
+                              {!contractor.isActive && (
+                                <Badge variant="destructive" className="text-xs">
+                                  Inactive
+                                </Badge>
+                              )}
+                            </div>
+
+                            <div className="space-y-1 text-sm text-gray-600">
+                              {contractor.contactName && (
+                                <div className="flex items-center">
+                                  <User className="w-4 h-4 mr-2" />
+                                  <span>{contractor.contactName}</span>
+                                </div>
+                              )}
+                              <div className="flex items-center">
+                                <Mail className="w-4 h-4 mr-2" />
+                                <span>{contractor.email}</span>
+                              </div>
+                              {contractor.phone && (
+                                <div className="flex items-center">
+                                  <Phone className="w-4 h-4 mr-2" />
+                                  <span>{contractor.phone}</span>
+                                </div>
+                              )}
+                              {contractor.address && (
+                                <div className="flex items-center">
+                                  <MapPin className="w-4 h-4 mr-2" />
+                                  <span>{contractor.address}</span>
+                                </div>
+                              )}
+                              {contractor.contacts && contractor.contacts.length > 0 && (
+                                <div className="flex items-center text-xs text-purple-600">
+                                  <Users className="w-4 h-4 mr-2" />
+                                  <span>{contractor.contacts.length} contact{contractor.contacts.length !== 1 ? 's' : ''}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {contractor.projectContractors && contractor.projectContractors.length > 0 && (
+                              <div className="mt-2 text-xs text-gray-500">
+                                Used in {contractor.projectContractors.length} project(s)
+                              </div>
+                            )}
+                          </div>
                         </div>
                         
                         <div className="flex space-x-2">
@@ -355,6 +434,26 @@ export default function ContractorsManagement({ orgId, user }: ContractorsManage
                 </div>
 
                 <div className="space-y-4">
+                  {/* Logo Upload */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Company Logo</label>
+                    {formData.logoUrl ? (
+                      <div className="flex items-center gap-3">
+                        <div className="w-16 h-16 rounded-lg overflow-hidden border border-gray-200">
+                          <Image src={formData.logoUrl} alt="Logo" width={64} height={64} className="object-cover w-full h-full" />
+                        </div>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setFormData({ ...formData, logoUrl: '' })} className="text-red-500 hover:text-red-700">
+                          <X className="w-4 h-4 mr-1" /> Remove
+                        </Button>
+                      </div>
+                    ) : (
+                      <label className="flex items-center justify-center w-16 h-16 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-purple-400 transition-colors">
+                        <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+                        <Upload className="w-5 h-5 text-gray-400" />
+                      </label>
+                    )}
+                  </div>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Business Name *
@@ -416,16 +515,32 @@ export default function ContractorsManagement({ orgId, user }: ContractorsManage
                     </select>
                   </div>
 
-                  {formData.type === 'SUBCONTRACTOR' && (
+                  {/* Trade Dropdown */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Trade / Profession
+                    </label>
+                    <select
+                      value={formData.trade}
+                      onChange={(e) => setFormData({ ...formData, trade: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    >
+                      <option value="">Select a trade...</option>
+                      {getTradeOptions().map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {(!formData.trade || formData.trade === 'OTHER') && formData.type === 'SUBCONTRACTOR' && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Specialty *
+                        Custom Specialty
                       </label>
                       <Input
                         value={formData.specialty}
                         onChange={(e) => setFormData({ ...formData, specialty: e.target.value })}
-                        placeholder="Plumbing, Electrical, HVAC, etc."
-                        required={formData.type === 'SUBCONTRACTOR'}
+                        placeholder="e.g., Custom Metalwork"
                       />
                     </div>
                   )}
@@ -452,6 +567,70 @@ export default function ContractorsManagement({ orgId, user }: ContractorsManage
                       rows={3}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     />
+                  </div>
+
+                  {/* Contacts Section */}
+                  <div className="border-t pt-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="block text-sm font-semibold text-gray-700">Contacts</label>
+                      <Button type="button" variant="outline" size="sm" onClick={addContact}>
+                        <Plus className="w-3 h-3 mr-1" /> Add Contact
+                      </Button>
+                    </div>
+                    {formData.contacts.length > 0 ? (
+                      <div className="space-y-3">
+                        {formData.contacts.map((contact, idx) => (
+                          <div key={idx} className="bg-gray-50 rounded-lg p-3 space-y-2 relative">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
+                                  <input
+                                    type="radio"
+                                    name="primaryContact"
+                                    checked={contact.isPrimary}
+                                    onChange={() => updateContact(idx, 'isPrimary', true)}
+                                    className="accent-purple-600"
+                                  />
+                                  Primary
+                                </label>
+                              </div>
+                              <Button type="button" variant="ghost" size="sm" onClick={() => removeContact(idx)} className="text-red-500 hover:text-red-700 h-6 w-6 p-0">
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <Input
+                                value={contact.name}
+                                onChange={(e) => updateContact(idx, 'name', e.target.value)}
+                                placeholder="Name *"
+                                className="text-sm"
+                              />
+                              <Input
+                                type="email"
+                                value={contact.email}
+                                onChange={(e) => updateContact(idx, 'email', e.target.value)}
+                                placeholder="Email *"
+                                className="text-sm"
+                              />
+                              <Input
+                                value={contact.phone || ''}
+                                onChange={(e) => updateContact(idx, 'phone', e.target.value)}
+                                placeholder="Phone"
+                                className="text-sm"
+                              />
+                              <Input
+                                value={contact.role || ''}
+                                onChange={(e) => updateContact(idx, 'role', e.target.value)}
+                                placeholder="Role (e.g., PM, Owner)"
+                                className="text-sm"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-400 italic">No additional contacts. Use &quot;Add Contact&quot; to add team members for CC&apos;ing.</p>
+                    )}
                   </div>
                 </div>
               </div>

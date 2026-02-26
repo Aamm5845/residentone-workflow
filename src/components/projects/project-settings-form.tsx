@@ -17,6 +17,8 @@ import Image from 'next/image'
 import ClientAccessManagement from './ClientAccessManagement'
 import RoomsManagementSection from './rooms-management-section'
 import { DropboxFolderBrowser } from './DropboxFolderBrowser'
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion'
+import { TRADE_LABELS, TRADE_ORDER, getTradeForContractor, getTradeLabel } from '@/lib/contractor-utils'
 
 // Form validation schema
 const projectSettingsSchema = z.object({
@@ -650,16 +652,23 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
 
   // Main Overview - Project + Client + Contractors in one view
   const renderOverview = () => {
-    const contractors = contractorsList.filter((c: any) => c.type?.toLowerCase() === 'contractor')
-    const subcontractors = contractorsList.filter((c: any) => c.type?.toLowerCase() === 'subcontractor')
-    
-    // Group subcontractors by specialty
-    const subsBySpecialty = subcontractors.reduce((groups: Record<string, any[]>, sub: any) => {
-      const specialty = sub.specialty || 'Other'
-      if (!groups[specialty]) groups[specialty] = []
-      groups[specialty].push(sub)
+    // Group ALL contractors by trade
+    const contractorsByTrade = contractorsList.reduce((groups: Record<string, any[]>, c: any) => {
+      const trade = getTradeForContractor(c)
+      if (!groups[trade]) groups[trade] = []
+      groups[trade].push(c)
       return groups
     }, {})
+
+    // Sort trade groups by TRADE_ORDER
+    const sortedTrades = Object.keys(contractorsByTrade).sort((a, b) => {
+      const aIdx = TRADE_ORDER.indexOf(a)
+      const bIdx = TRADE_ORDER.indexOf(b)
+      if (aIdx === -1 && bIdx === -1) return a.localeCompare(b)
+      if (aIdx === -1) return 1
+      if (bIdx === -1) return -1
+      return aIdx - bIdx
+    })
 
     return (
       <div className="space-y-8">
@@ -955,10 +964,17 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
                 <div className="space-y-2">
                   {contractorsList.map((c: any, i: number) => (
                     <div key={i} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors">
-                      <div className="flex-1 cursor-pointer" onClick={() => openEditContractor(c)}>
-                        <p className="font-medium text-gray-900 text-sm">{c.businessName}</p>
-                        <p className="text-xs text-gray-500 capitalize">{c.type}{c.specialty ? ` • ${c.specialty}` : ''}</p>
-                        {c.email && <p className="text-xs text-gray-400">{c.email}</p>}
+                      <div className="flex items-center gap-3 flex-1 cursor-pointer" onClick={() => openEditContractor(c)}>
+                        {c.logoUrl && (
+                          <div className="w-8 h-8 rounded overflow-hidden flex-shrink-0 border border-gray-200">
+                            <Image src={c.logoUrl} alt="" width={32} height={32} className="object-cover w-full h-full" />
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-900 text-sm">{c.businessName}</p>
+                          <p className="text-xs text-gray-500">{getTradeLabel(getTradeForContractor(c))}{c.specialty && !c.trade ? ` • ${c.specialty}` : ''}</p>
+                          {c.email && <p className="text-xs text-gray-400">{c.email}</p>}
+                        </div>
                       </div>
                       <div className="flex items-center gap-1">
                         <Button variant="ghost" size="sm" onClick={() => openEditContractor(c)} className="text-purple-500 hover:text-purple-700 hover:bg-purple-50 h-8 w-8 p-0">
@@ -994,63 +1010,98 @@ export default function ProjectSettingsForm({ project, clients, session }: Proje
               </div>
             </div>
           ) : contractorsList.length > 0 ? (
-            <div className="space-y-4">
-              {/* General Contractors */}
-              {contractors.length > 0 && (
-                <div className="bg-blue-50 rounded-xl p-5 border border-blue-100">
-                  <h4 className="text-sm font-semibold text-blue-900 mb-4 flex items-center">
-                    <Building className="w-4 h-4 mr-2" />
-                    General Contractors
-                  </h4>
-                  <div className="space-y-4">
-                    {contractors.map((c: any, i: number) => (
-                      <div key={i} className="bg-white rounded-lg p-4 border border-blue-200 cursor-pointer hover:border-blue-400 hover:shadow-sm transition-all" onClick={() => openEditContractor(c)}>
-                        <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-                          <InfoRowSmall label="Business Name" value={c.businessName} />
-                          <InfoRowSmall label="Contact Name" value={c.contactName} />
-                          <InfoRowSmall label="Email" value={c.email} />
-                          <InfoRowSmall label="Phone" value={c.phone} />
-                          <InfoRowSmall label="Address" value={c.address} className="col-span-2" />
-                        </div>
-                        <div className="mt-3 pt-3 border-t border-blue-100 flex justify-end">
-                          <span className="text-xs text-blue-600 hover:text-blue-800 font-medium">Click to edit</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+            <Accordion type="multiple" defaultValue={['GENERAL_CONTRACTOR']} className="space-y-2">
+              {sortedTrades.map((trade) => {
+                const tradeContractors = contractorsByTrade[trade]
+                const label = getTradeLabel(trade)
+                const isGC = trade === 'GENERAL_CONTRACTOR'
+                const isDesignPro = ['ARCHITECT', 'INTERIOR_DESIGNER', 'STRUCTURAL_ENGINEER', 'MEP_ENGINEER', 'CIVIL_ENGINEER'].includes(trade)
+                const bgColor = isGC ? 'bg-blue-50 border-blue-100' : isDesignPro ? 'bg-indigo-50 border-indigo-100' : 'bg-purple-50 border-purple-100'
+                const badgeColor = isGC ? 'bg-blue-100 text-blue-700' : isDesignPro ? 'bg-indigo-100 text-indigo-700' : 'bg-purple-100 text-purple-700'
+                const borderColor = isGC ? 'border-blue-200' : isDesignPro ? 'border-indigo-200' : 'border-purple-200'
 
-              {/* Subcontractors by Trade */}
-              {Object.entries(subsBySpecialty).length > 0 && (
-                <div className="space-y-4">
-                  {Object.entries(subsBySpecialty).sort(([a], [b]) => a.localeCompare(b)).map(([specialty, subs]) => (
-                    <div key={specialty} className="bg-purple-50 rounded-xl p-5 border border-purple-100">
-                      <h4 className="text-sm font-semibold text-purple-900 mb-4 flex items-center">
-                        <Briefcase className="w-4 h-4 mr-2" />
-                        {specialty}
-                      </h4>
+                return (
+                  <AccordionItem key={trade} value={trade} className={`rounded-xl border ${bgColor} overflow-hidden`}>
+                    <AccordionTrigger className="px-5 py-3 hover:no-underline">
+                      <div className="flex items-center gap-3">
+                        {isGC ? <Building className="w-4 h-4" /> : <Briefcase className="w-4 h-4" />}
+                        <span className="text-sm font-semibold">{label}</span>
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${badgeColor}`}>
+                          {tradeContractors.length}
+                        </span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-5 pb-4">
                       <div className="space-y-3">
-                        {(subs as any[]).map((c: any, i: number) => (
-                          <div key={i} className="bg-white rounded-lg p-4 border border-purple-200 cursor-pointer hover:border-purple-400 hover:shadow-sm transition-all" onClick={() => openEditContractor(c)}>
-                            <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-                              <InfoRowSmall label="Business Name" value={c.businessName} />
-                              <InfoRowSmall label="Contact Name" value={c.contactName} />
-                              <InfoRowSmall label="Email" value={c.email} />
-                              <InfoRowSmall label="Phone" value={c.phone} />
-                              <InfoRowSmall label="Address" value={c.address} className="col-span-2" />
-                            </div>
-                            <div className="mt-3 pt-3 border-t border-purple-100 flex justify-end">
-                              <span className="text-xs text-purple-600 hover:text-purple-800 font-medium">Click to edit</span>
+                        {tradeContractors.map((c: any, i: number) => (
+                          <div key={i} className={`bg-white rounded-lg p-4 border ${borderColor} cursor-pointer hover:shadow-sm transition-all`} onClick={() => openEditContractor(c)}>
+                            <div className="flex items-start gap-3">
+                              {c.logoUrl && (
+                                <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 border border-gray-200">
+                                  <Image src={c.logoUrl} alt="" width={40} height={40} className="object-cover w-full h-full" />
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between">
+                                  <p className="font-medium text-gray-900 text-sm">{c.businessName}</p>
+                                  <span className="text-xs text-gray-400">Click to edit</span>
+                                </div>
+                                <div className="mt-1.5 grid grid-cols-2 gap-x-6 gap-y-1">
+                                  {(c.contacts && c.contacts.length > 0) ? (
+                                    <>
+                                      <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                                        <User className="w-3 h-3 text-gray-400" />
+                                        {c.contacts.find((ct: any) => ct.isPrimary)?.name || c.contacts[0]?.name || c.contactName || '—'}
+                                      </div>
+                                      <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                                        <Mail className="w-3 h-3 text-gray-400" />
+                                        {c.contacts.find((ct: any) => ct.isPrimary)?.email || c.contacts[0]?.email || c.email}
+                                      </div>
+                                      {(c.contacts.find((ct: any) => ct.isPrimary)?.phone || c.contacts[0]?.phone || c.phone) && (
+                                        <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                                          <Phone className="w-3 h-3 text-gray-400" />
+                                          {c.contacts.find((ct: any) => ct.isPrimary)?.phone || c.contacts[0]?.phone || c.phone}
+                                        </div>
+                                      )}
+                                      {c.contacts.length > 1 && (
+                                        <div className="flex items-center">
+                                          <span className="text-xs font-medium text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded">
+                                            +{c.contacts.length - 1} more contact{c.contacts.length > 2 ? 's' : ''}
+                                          </span>
+                                        </div>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <>
+                                      {c.contactName && (
+                                        <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                                          <User className="w-3 h-3 text-gray-400" />
+                                          {c.contactName}
+                                        </div>
+                                      )}
+                                      <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                                        <Mail className="w-3 h-3 text-gray-400" />
+                                        {c.email}
+                                      </div>
+                                      {c.phone && (
+                                        <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                                          <Phone className="w-3 h-3 text-gray-400" />
+                                          {c.phone}
+                                        </div>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </div>
                             </div>
                           </div>
                         ))}
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                )
+              })}
+            </Accordion>
           ) : (
             <div className="bg-gray-50 rounded-xl p-8 text-center border-2 border-dashed border-gray-200">
               <Users className="w-10 h-10 text-gray-300 mx-auto mb-3" />

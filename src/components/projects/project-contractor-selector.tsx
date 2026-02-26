@@ -5,7 +5,9 @@ import { Plus, X, Search, Building, Phone, Mail, MapPin, Briefcase } from 'lucid
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import Image from 'next/image'
 import toast from 'react-hot-toast'
+import { getTradeOptions, getTradeLabel } from '@/lib/contractor-utils'
 
 interface Contractor {
   id: string
@@ -16,6 +18,8 @@ interface Contractor {
   address: string | null
   type: 'CONTRACTOR' | 'SUBCONTRACTOR'
   specialty: string | null
+  trade: string | null
+  logoUrl: string | null
   notes: string | null
   isActive: boolean
 }
@@ -53,6 +57,7 @@ export default function ProjectContractorSelector({
     address: '',
     type: 'CONTRACTOR' as 'CONTRACTOR' | 'SUBCONTRACTOR',
     specialty: '',
+    trade: '',
     notes: ''
   })
 
@@ -158,6 +163,7 @@ export default function ProjectContractorSelector({
         address: '',
         type: 'CONTRACTOR',
         specialty: '',
+        trade: '',
         notes: ''
       })
       setShowNewContractorForm(false)
@@ -358,16 +364,19 @@ export default function ProjectContractorSelector({
                     />
                   </div>
 
-                  {selectorType === 'SUBCONTRACTOR' && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Specialty/Trade</label>
-                      <Input
-                        value={newContractorData.specialty}
-                        onChange={(e) => setNewContractorData({ ...newContractorData, specialty: e.target.value })}
-                        placeholder="e.g., Electrician, Plumber"
-                      />
-                    </div>
-                  )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Trade / Profession</label>
+                    <select
+                      value={newContractorData.trade}
+                      onChange={(e) => setNewContractorData({ ...newContractorData, trade: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                    >
+                      <option value="">Select a trade...</option>
+                      {getTradeOptions().map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </div>
 
                   <div className="flex justify-end space-x-3 pt-4">
                     <Button variant="outline" onClick={() => setShowNewContractorForm(false)}>
@@ -393,17 +402,23 @@ export default function ProjectContractorSelector({
                       onClick={() => linkContractor(contractor.id)}
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2 mb-1">
-                            <h4 className="font-medium text-gray-900">{contractor.businessName}</h4>
-                            <Badge variant={contractor.type === 'CONTRACTOR' ? 'default' : 'secondary'} className="text-xs">
-                              {contractor.type === 'CONTRACTOR' ? 'Contractor' : 'Subcontractor'}
-                            </Badge>
-                          </div>
-                          <div className="text-sm text-gray-600">
-                            {contractor.contactName && <div>{contractor.contactName}</div>}
-                            <div>{contractor.email}</div>
-                            {contractor.specialty && <div className="text-gray-500">{contractor.specialty}</div>}
+                        <div className="flex items-center gap-3 flex-1">
+                          {contractor.logoUrl && (
+                            <div className="w-8 h-8 rounded overflow-hidden flex-shrink-0 border border-gray-200">
+                              <Image src={contractor.logoUrl} alt="" width={32} height={32} className="object-cover w-full h-full" />
+                            </div>
+                          )}
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <h4 className="font-medium text-gray-900">{contractor.businessName}</h4>
+                              <Badge variant={contractor.type === 'CONTRACTOR' ? 'default' : 'secondary'} className="text-xs">
+                                {contractor.trade ? getTradeLabel(contractor.trade) : (contractor.type === 'CONTRACTOR' ? 'Contractor' : 'Subcontractor')}
+                              </Badge>
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              {contractor.contactName && <div>{contractor.contactName}</div>}
+                              <div>{contractor.email}</div>
+                            </div>
                           </div>
                         </div>
                         <Button size="sm">Add</Button>
