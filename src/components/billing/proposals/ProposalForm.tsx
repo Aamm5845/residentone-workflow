@@ -488,14 +488,14 @@ export default function ProposalForm({
           designDescription,
         },
         coverLetter,
-        paymentSchedule: billingType !== 'HOURLY' ? paymentSchedule.filter(p => p.title) : [],
+        paymentSchedule: paymentSchedule.filter(p => p.title),
         clientName,
         clientEmail,
         clientPhone: clientPhone || null,
         clientAddress: clientAddress || null,
         projectAddress: projectAddress || null,
         subtotal: billingType === 'HOURLY' ? 0 : totalBudget,
-        depositAmount: billingType !== 'HOURLY' ? depositAmount : null,
+        depositAmount: depositAmount || null,
         depositPercent: billingType !== 'HOURLY' && depositAmount > 0 && totalBudget > 0
           ? (depositAmount / totalBudget) * 100
           : null,

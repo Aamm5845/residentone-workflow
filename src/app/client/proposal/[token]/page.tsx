@@ -156,6 +156,7 @@ export default function ClientProposalPage() {
   const [signedByEmail, setSignedByEmail] = useState('')
   const [signing, setSigning] = useState(false)
   const [signSuccess, setSignSuccess] = useState(false)
+  const [showSignedView, setShowSignedView] = useState(false)
 
   // Canvas ref for drawn signature
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -204,7 +205,21 @@ export default function ClientProposalPage() {
     })
   }
 
-  // Canvas drawing functions
+  // Canvas drawing functions - scale coordinates to match canvas internal size
+  const getCanvasCoords = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current
+    if (!canvas) return { x: 0, y: 0 }
+    const rect = canvas.getBoundingClientRect()
+    const scaleX = canvas.width / rect.width
+    const scaleY = canvas.height / rect.height
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY,
+    }
+  }
+
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -215,10 +230,7 @@ export default function ClientProposalPage() {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    const rect = canvas.getBoundingClientRect()
-    const x = 'touches' in e ? e.touches[0].clientX - rect.left : e.clientX - rect.left
-    const y = 'touches' in e ? e.touches[0].clientY - rect.top : e.clientY - rect.top
-
+    const { x, y } = getCanvasCoords(e)
     ctx.beginPath()
     ctx.moveTo(x, y)
   }
@@ -232,10 +244,7 @@ export default function ClientProposalPage() {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    const rect = canvas.getBoundingClientRect()
-    const x = 'touches' in e ? e.touches[0].clientX - rect.left : e.clientX - rect.left
-    const y = 'touches' in e ? e.touches[0].clientY - rect.top : e.clientY - rect.top
-
+    const { x, y } = getCanvasCoords(e)
     ctx.lineWidth = 2
     ctx.lineCap = 'round'
     ctx.strokeStyle = '#1e293b'
@@ -311,7 +320,10 @@ export default function ClientProposalPage() {
       if (response.ok) {
         setSignSuccess(true)
         setShowSignDialog(false)
+        setShowSignedView(true)
         await loadProposal()
+        // Navigate to Terms page so client sees their signature on the document
+        setCurrentPage(3)
       } else {
         const errorData = await response.json()
         alert(errorData.error || 'Failed to sign proposal')
@@ -350,8 +362,8 @@ export default function ClientProposalPage() {
   const isDeclined = proposal.status === 'DECLINED'
   const canSign = !isSigned && !isExpired && !isDeclined
 
-  // Show "Thank You" page when proposal is signed (both immediately after and on revisit)
-  if (isSigned) {
+  // Show "Thank You" page when proposal is signed (on revisit, or after clicking Done)
+  if (isSigned && !showSignedView) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <div className="max-w-md w-full mx-4">
@@ -420,32 +432,27 @@ export default function ClientProposalPage() {
 
   // Header component for each page
   const PageHeader = () => (
-    <div className="flex items-start justify-between mb-8 pb-6 border-b-2 border-amber-500">
+    <div className="flex items-center justify-between mb-8 pb-6 border-b-2 border-amber-500">
       <div>
         {proposal.organization?.logoUrl ? (
           <img
             src={proposal.organization.logoUrl}
             alt={companyName}
-            className="h-20 max-w-[280px] object-contain"
+            className="h-16 max-w-[240px] object-contain"
           />
         ) : (
           <h2 className="text-2xl font-bold text-gray-900">{companyName}</h2>
         )}
       </div>
-      <div className="text-right text-sm text-gray-600">
-        <p className="font-medium">{proposal.organization?.businessPhone}</p>
+      <div className="text-right text-sm text-gray-500 leading-relaxed">
+        <p>{proposal.organization?.businessPhone}</p>
         <p>{proposal.organization?.businessEmail}</p>
-        <div className="mt-2 flex items-center gap-2 justify-end">
-          <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
-          <div>
-            <p>{proposal.organization?.businessAddress}</p>
-            <p>
-              {proposal.organization?.businessCity}
-              {proposal.organization?.businessProvince && ` ${proposal.organization.businessProvince}`}
-              {proposal.organization?.businessPostal && `, ${proposal.organization.businessPostal}`}
-            </p>
-          </div>
-        </div>
+        <p>{proposal.organization?.businessAddress}</p>
+        <p>
+          {proposal.organization?.businessCity}
+          {proposal.organization?.businessProvince && ` ${proposal.organization.businessProvince}`}
+          {proposal.organization?.businessPostal && `, ${proposal.organization.businessPostal}`}
+        </p>
       </div>
     </div>
   )
@@ -598,13 +605,13 @@ export default function ClientProposalPage() {
                       <div className="flex justify-between items-center">
                         <span className="text-gray-700">Hourly Rate</span>
                         <span className="border-b-2 border-dotted border-gray-300 flex-1 mx-4"></span>
-                        <span className="font-bold text-gray-900">{formatCurrency(proposal.hourlyRate || 0)}/hour</span>
+                        <span className="font-bold text-gray-900">{formatCurrency(proposal.hourlyRate || 0)}/hour <span className="text-xs font-normal text-gray-500">+ tax</span></span>
                       </div>
                       {proposal.depositAmount && proposal.depositAmount > 0 && (
                         <div className="flex justify-between items-center">
                           <span className="text-gray-700">Retainer (on signing)</span>
                           <span className="border-b-2 border-dotted border-gray-300 flex-1 mx-4"></span>
-                          <span className="text-gray-900">{formatCurrency(proposal.depositAmount)}</span>
+                          <span className="text-gray-900">{formatCurrency(proposal.depositAmount)} <span className="text-xs text-gray-500">+ tax</span></span>
                         </div>
                       )}
                       <p className="text-sm text-gray-600 mt-2 italic">
@@ -616,13 +623,13 @@ export default function ClientProposalPage() {
                       <div className="flex justify-between items-center font-semibold">
                         <span className="text-gray-900">Total Project Fee</span>
                         <span className="border-b-2 border-dotted border-gray-300 flex-1 mx-4"></span>
-                        <span className="text-gray-900">{formatCurrency(proposal.subtotal)}</span>
+                        <span className="text-gray-900">{formatCurrency(proposal.subtotal)} <span className="text-xs font-normal text-gray-500">+ tax</span></span>
                       </div>
                       {paymentSchedule.map((item, index) => (
                         <div key={index} className="flex justify-between items-center">
                           <span className="text-gray-700">{item.title}</span>
                           <span className="border-b-2 border-dotted border-gray-300 flex-1 mx-4"></span>
-                          <span className="text-gray-900">{formatCurrency(item.amount)}</span>
+                          <span className="text-gray-900">{formatCurrency(item.amount)} <span className="text-xs text-gray-500">+ tax</span></span>
                         </div>
                       ))}
                     </>
@@ -669,42 +676,45 @@ export default function ClientProposalPage() {
               </div>
 
               {/* Signature Section */}
-              <div className="border-t pt-8 mt-8">
-                <div className="grid grid-cols-3 gap-8">
+              <div className="signature-section border-t pt-6 mt-6">
+                <div className="grid grid-cols-3 gap-6">
                   <div>
-                    <div className="border-b border-gray-400 pb-2 mb-2">
-                      <span className="text-gray-600">X:</span>
+                    <p className="text-xs text-gray-500 mb-1">X:</p>
+                    <div className="h-12 flex items-end">
                       {proposal.companySignature ? (
-                        <img src={proposal.companySignature} alt="Company Signature" className="h-12 inline-block ml-2" />
+                        <img src={proposal.companySignature} alt="Company Signature" className="h-10 object-contain" />
                       ) : (
-                        <span className="ml-2 italic text-lg" style={{ fontFamily: '"Brush Script MT", cursive' }}>
+                        <span className="italic text-lg text-gray-800" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
                           {proposal.companySignedByName || 'Aaron Meisner'}
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-gray-600">{proposal.companySignedByName || 'Aaron Meisner'}</p>
+                    <div className="border-b border-gray-900 mt-1 mb-1"></div>
+                    <p className="text-xs text-gray-600">{proposal.companySignedByName || 'Aaron Meisner'}</p>
                   </div>
                   <div>
-                    <div className="border-b border-gray-400 pb-2 mb-2">
-                      <span className="text-gray-600">X:</span>
+                    <p className="text-xs text-gray-500 mb-1">X:</p>
+                    <div className="h-12 flex items-end">
                       {isSigned && proposal.signedAt && (
-                        <span className="ml-2 text-gray-700">{formatDate(proposal.signedAt)}</span>
+                        <span className="text-sm text-gray-800">{formatDate(proposal.signedAt)}</span>
                       )}
                     </div>
-                    <p className="text-sm text-gray-600">Date:</p>
+                    <div className="border-b border-gray-900 mt-1 mb-1"></div>
+                    <p className="text-xs text-gray-600">Date Signed</p>
                   </div>
                   <div>
-                    <div className="border-b border-gray-400 pb-2 mb-2 min-h-[40px]">
-                      <span className="text-gray-600">X:</span>
+                    <p className="text-xs text-gray-500 mb-1">X:</p>
+                    <div className="h-12 flex items-end">
                       {isSigned && proposal.signatureData && proposal.signatureType === 'drawn' ? (
-                        <img src={proposal.signatureData} alt="Client Signature" className="h-12 inline-block ml-2" />
+                        <img src={proposal.signatureData} alt="Client Signature" className="h-10 object-contain" />
                       ) : isSigned && proposal.signedByName ? (
-                        <span className="ml-2 italic text-lg" style={{ fontFamily: '"Brush Script MT", cursive' }}>
+                        <span className="italic text-lg text-gray-800" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
                           {proposal.signedByName}
                         </span>
                       ) : null}
                     </div>
-                    <p className="text-sm text-gray-600">{isSigned && proposal.signedByName ? proposal.signedByName : proposal.clientName}</p>
+                    <div className="border-b border-gray-900 mt-1 mb-1"></div>
+                    <p className="text-xs text-gray-600">{isSigned && proposal.signedByName ? proposal.signedByName : proposal.clientName}</p>
                   </div>
                 </div>
               </div>
@@ -719,6 +729,24 @@ export default function ClientProposalPage() {
                   >
                     <Pen className="w-5 h-5 mr-2" />
                     Sign & Accept Proposal
+                  </Button>
+                </div>
+              )}
+
+              {/* Done button after signing - client sees their signature first */}
+              {isSigned && showSignedView && (
+                <div className="mt-8 text-center no-print">
+                  <p className="text-emerald-700 font-medium mb-4">
+                    <CheckCircle className="w-5 h-5 inline-block mr-2 -mt-0.5" />
+                    Proposal signed successfully
+                  </p>
+                  <Button
+                    onClick={() => setShowSignedView(false)}
+                    className="bg-emerald-600 hover:bg-emerald-700"
+                    size="lg"
+                  >
+                    <CheckCircle className="w-5 h-5 mr-2" />
+                    Done
                   </Button>
                 </div>
               )}

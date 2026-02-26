@@ -58,26 +58,27 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 20,
     paddingBottom: 15,
     borderBottomWidth: 2,
     borderBottomColor: colors.primary,
   },
   logoBox: {
-    width: 180,
-    height: 80,
+    width: 160,
+    height: 60,
     justifyContent: 'center',
     alignItems: 'flex-start',
     padding: 0,
   },
   logoText: {
-    color: colors.white,
+    color: colors.text,
     fontSize: 22,
     fontWeight: 'bold',
     letterSpacing: 2,
   },
   logoSubtext: {
-    color: colors.white,
+    color: colors.textLight,
     fontSize: 8,
     letterSpacing: 4,
     marginTop: 5,
@@ -85,31 +86,11 @@ const styles = StyleSheet.create({
   contactInfo: {
     textAlign: 'right',
     fontSize: 9,
-    color: colors.textLight,
+    color: colors.textMuted,
+    lineHeight: 1.6,
   },
   contactLine: {
-    marginBottom: 3,
-  },
-  addressContainer: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'flex-start',
-    marginTop: 10,
-  },
-  orangeDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.primary,
-    marginRight: 8,
-    marginTop: 2,
-  },
-  orangeLine: {
-    width: 100,
-    height: 2,
-    backgroundColor: colors.primary,
-    marginLeft: 8,
-    marginTop: 6,
+    marginBottom: 2,
   },
 
   // Cover page styles
@@ -296,29 +277,31 @@ const styles = StyleSheet.create({
   signatureBoxContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 25,
-    paddingTop: 15,
+    marginTop: 20,
+    paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: colors.line,
   },
   signatureBox: {
     width: '30%',
   },
+  signatureContent: {
+    height: 40,
+    justifyContent: 'flex-end',
+  },
   signatureLine: {
     borderBottomWidth: 1,
     borderBottomColor: colors.text,
-    paddingBottom: 20,
-    marginBottom: 5,
-    minHeight: 30,
+    marginTop: 2,
+    marginBottom: 4,
   },
   signaturePrefix: {
-    fontSize: 10,
-    color: colors.textLight,
+    fontSize: 9,
+    color: colors.textMuted,
   },
   signatureBoxLabel: {
     fontSize: 9,
-    color: colors.textLight,
-    marginTop: 3,
+    color: colors.textMuted,
   },
 })
 
@@ -340,28 +323,20 @@ function Header({ org, logoDataUri }: { org: any; logoDataUri: string | null }) 
       ? React.createElement(View, { style: styles.logoBox },
           React.createElement(Image, {
             src: logoDataUri,
-            style: { width: 140, height: 70, objectFit: 'contain' }
+            style: { width: 130, height: 55, objectFit: 'contain' }
           })
         )
       : React.createElement(View, { style: styles.logoBox },
           React.createElement(Text, { style: styles.logoText }, 'MEISNER'),
           React.createElement(Text, { style: styles.logoSubtext }, 'INTERIORS')
         ),
-    // Contact info
+    // Contact info - clean, no lines
     React.createElement(View, { style: styles.contactInfo },
       React.createElement(Text, { style: styles.contactLine }, org?.businessPhone || '514-227-5505'),
-      React.createElement(View, { style: { borderBottomWidth: 1, borderBottomColor: colors.textLight, marginVertical: 5 } }),
       React.createElement(Text, { style: styles.contactLine }, org?.businessEmail || 'projects@meisnerinteriors.com'),
-      React.createElement(View, { style: { borderBottomWidth: 1, borderBottomColor: colors.textLight, marginVertical: 5 } }),
-      React.createElement(View, { style: styles.addressContainer },
-        React.createElement(View, { style: styles.orangeDot }),
-        React.createElement(View, { style: { flexDirection: 'column' } },
-          React.createElement(View, { style: styles.orangeLine }),
-          React.createElement(Text, { style: { ...styles.contactLine, marginTop: 5 } }, org?.businessAddress || '6700 Ave Du Parc Ave Unit 109'),
-          React.createElement(Text, null,
-            `${org?.businessCity || 'Montreal'} ${org?.businessProvince || 'QC'}, ${org?.businessPostal || 'H2V4H9'}`
-          )
-        )
+      React.createElement(Text, { style: styles.contactLine }, org?.businessAddress || '6700 Ave Du Parc Ave Unit 109'),
+      React.createElement(Text, { style: styles.contactLine },
+        `${org?.businessCity || 'Montreal'} ${org?.businessProvince || 'QC'}, ${org?.businessPostal || 'H2V4H9'}`
       )
     )
   )
@@ -438,14 +413,20 @@ function ScopePage({ proposal, org, logoDataUri }: { proposal: any; org: any; lo
         // Total Budget Row
         React.createElement(View, { style: styles.totalRow },
           React.createElement(Text, { style: styles.totalLabel }, 'Total Project Fee'),
-          React.createElement(Text, { style: styles.totalAmount }, formatCurrency(Number(proposal.subtotal)))
+          React.createElement(View, { style: { flexDirection: 'row', alignItems: 'baseline' } },
+            React.createElement(Text, { style: styles.totalAmount }, formatCurrency(Number(proposal.subtotal))),
+            React.createElement(Text, { style: { fontSize: 7, color: colors.textMuted, marginLeft: 3 } }, '+ tax')
+          )
         ),
 
         // Payment milestones
         ...paymentSchedule.map((item: any, i: number) =>
           React.createElement(View, { key: i, style: styles.paymentRow },
             React.createElement(Text, { style: styles.paymentLabel }, item.title),
-            React.createElement(Text, { style: styles.paymentAmount }, formatCurrency(item.amount))
+            React.createElement(View, { style: { flexDirection: 'row', alignItems: 'baseline' } },
+              React.createElement(Text, { style: styles.paymentAmount }, formatCurrency(item.amount)),
+              React.createElement(Text, { style: { fontSize: 7, color: colors.textMuted, marginLeft: 3 } }, '+ tax')
+            )
           )
         ),
 
@@ -487,44 +468,49 @@ function TermsPage({ proposal, org, logoDataUri }: { proposal: any; org: any; lo
         `I look forward to hearing from you, and as always, please feel free to call with any questions or further clarification.${org?.businessPhone ? ` I can be contacted at ${org.businessPhone}` : ''}`
       ),
 
-      // Sincerely
-      React.createElement(Text, { style: { fontSize: 10, color: colors.textLight, marginBottom: 5 } }, 'Sincerely,'),
-      React.createElement(Text, { style: styles.ceoName }, proposal.companySignedByName || 'Aaron Meisner'),
-      React.createElement(Text, { style: styles.ceoTitle }, `CEO ${org?.businessName || org?.name || 'Meisner Interiors'}`),
+      // Sincerely + Signature boxes kept together
+      React.createElement(View, { wrap: false },
+        React.createElement(Text, { style: { fontSize: 10, color: colors.textLight, marginBottom: 5 } }, 'Sincerely,'),
+        React.createElement(Text, { style: styles.ceoName }, proposal.companySignedByName || 'Aaron Meisner'),
+        React.createElement(Text, { style: styles.ceoTitle }, `CEO ${org?.businessName || org?.name || 'Meisner Interiors'}`),
 
-      // Signature boxes - wrap={false} keeps them on the same page
-      React.createElement(View, { style: styles.signatureBoxContainer, wrap: false },
-        // CEO signature
-        React.createElement(View, { style: styles.signatureBox },
-          React.createElement(View, { style: styles.signatureLine },
+        // Signature boxes
+        React.createElement(View, { style: styles.signatureBoxContainer },
+          // CEO signature
+          React.createElement(View, { style: styles.signatureBox },
             React.createElement(Text, { style: styles.signaturePrefix }, 'X:'),
-            proposal.companySignature ?
-              React.createElement(Image, { src: proposal.companySignature, style: { width: 100, height: 40, marginTop: 2, objectFit: 'contain' } }) :
-              React.createElement(Text, { style: { fontSize: 20, fontFamily: 'GreatVibes', marginTop: 5 } }, proposal.companySignedByName || 'Aaron Meisner')
+            React.createElement(View, { style: styles.signatureContent },
+              proposal.companySignature ?
+                React.createElement(Image, { src: proposal.companySignature, style: { width: 100, height: 35, objectFit: 'contain' } }) :
+                React.createElement(Text, { style: { fontSize: 18, fontFamily: 'GreatVibes' } }, proposal.companySignedByName || 'Aaron Meisner')
+            ),
+            React.createElement(View, { style: styles.signatureLine }),
+            React.createElement(Text, { style: styles.signatureBoxLabel }, proposal.companySignedByName || 'Aaron Meisner')
           ),
-          React.createElement(Text, { style: styles.signatureBoxLabel }, proposal.companySignedByName || 'Aaron Meisner')
-        ),
-        // Date
-        React.createElement(View, { style: styles.signatureBox },
-          React.createElement(View, { style: styles.signatureLine },
+          // Date
+          React.createElement(View, { style: styles.signatureBox },
             React.createElement(Text, { style: styles.signaturePrefix }, 'X:'),
-            proposal.signedAt ?
-              React.createElement(Text, { style: { fontSize: 10, marginTop: 5 } }, new Date(proposal.signedAt).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' })) :
-              null
+            React.createElement(View, { style: styles.signatureContent },
+              proposal.signedAt ?
+                React.createElement(Text, { style: { fontSize: 10 } }, new Date(proposal.signedAt).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' })) :
+                null
+            ),
+            React.createElement(View, { style: styles.signatureLine }),
+            React.createElement(Text, { style: styles.signatureBoxLabel }, 'Date Signed')
           ),
-          React.createElement(Text, { style: styles.signatureBoxLabel }, 'Date Signed')
-        ),
-        // Client signature
-        React.createElement(View, { style: styles.signatureBox },
-          React.createElement(View, { style: styles.signatureLine },
+          // Client signature
+          React.createElement(View, { style: styles.signatureBox },
             React.createElement(Text, { style: styles.signaturePrefix }, 'X:'),
-            proposal.signatureData && proposal.signatureType === 'drawn' ?
-              React.createElement(Image, { src: proposal.signatureData, style: { width: 120, height: 40, marginTop: 2, objectFit: 'contain' } }) :
-            proposal.signedByName ?
-              React.createElement(Text, { style: { fontSize: 20, fontFamily: 'GreatVibes', marginTop: 5 } }, proposal.signedByName) :
-              null
-          ),
-          React.createElement(Text, { style: styles.signatureBoxLabel }, proposal.signedByName || proposal.clientName)
+            React.createElement(View, { style: styles.signatureContent },
+              proposal.signatureData && proposal.signatureType === 'drawn' ?
+                React.createElement(Image, { src: proposal.signatureData, style: { width: 110, height: 35, objectFit: 'contain' } }) :
+              proposal.signedByName ?
+                React.createElement(Text, { style: { fontSize: 18, fontFamily: 'GreatVibes' } }, proposal.signedByName) :
+                null
+            ),
+            React.createElement(View, { style: styles.signatureLine }),
+            React.createElement(Text, { style: styles.signatureBoxLabel }, proposal.signedByName || proposal.clientName)
+          )
         )
       )
     )
