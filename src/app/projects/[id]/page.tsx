@@ -358,13 +358,13 @@ export default async function ProjectDetail({ params }: Props) {
   }
 
   const features = [
-    { key: 'floorplan', label: 'Floorplan', description: 'Manage floorplan drawings and client approvals', href: `/projects/${project.id}/floorplan`, icon: FileText, visible: project.hasFloorplanApproval },
-    { key: 'specs', label: 'All Specs', description: 'View and manage all product specs', href: `/projects/${project.id}/specs/all`, icon: BookOpen, visible: project.hasSpecBook },
-    { key: 'procurement', label: 'Procurement', description: 'Quotes, orders, and deliveries', href: `/projects/${project.id}/procurement`, icon: ShoppingCart, visible: project.hasBillingProcurement },
-    { key: 'files', label: 'Project Files', description: 'Documents, plans, and reference files', href: `/projects/${project.id}/floorplan/sources`, icon: FolderOpen, visible: true },
-    { key: 'tasks', label: 'Tasks', description: 'Manage and assign team tasks', href: `/projects/${project.id}/tasks`, icon: CheckSquare, visible: true },
-    { key: 'updates', label: 'Project Updates', description: 'Manage onsite visits and revisions', href: `/projects/${project.id}/project-updates`, icon: ClipboardList, visible: true },
-    { key: 'billing', label: 'Billing', description: 'Proposals & Invoices', href: `/projects/${project.id}/billing`, icon: DollarSign, visible: canSeeBilling && project.hasBillingProcurement },
+    { key: 'floorplan', label: 'Floorplan', description: 'Manage floorplan drawings and client approvals', href: `/projects/${project.id}/floorplan`, icon: FileText, visible: project.hasFloorplanApproval, color: '#14b8a6' },
+    { key: 'specs', label: 'All Specs', description: 'View and manage all product specs', href: `/projects/${project.id}/specs/all`, icon: BookOpen, visible: project.hasSpecBook, color: '#a657f0' },
+    { key: 'procurement', label: 'Procurement', description: 'Quotes, orders, and deliveries', href: `/projects/${project.id}/procurement`, icon: ShoppingCart, visible: project.hasBillingProcurement, color: '#f6762e' },
+    { key: 'files', label: 'Project Files', description: 'Documents, plans, and reference files', href: `/projects/${project.id}/floorplan/sources`, icon: FolderOpen, visible: true, color: '#0ea5e9' },
+    { key: 'tasks', label: 'Tasks', description: 'Manage and assign team tasks', href: `/projects/${project.id}/tasks`, icon: CheckSquare, visible: true, color: '#e94d97' },
+    { key: 'updates', label: 'Project Updates', description: 'Manage onsite visits and revisions', href: `/projects/${project.id}/project-updates`, icon: ClipboardList, visible: true, color: '#6366ea' },
+    { key: 'billing', label: 'Billing', description: 'Proposals & Invoices', href: `/projects/${project.id}/billing`, icon: DollarSign, visible: canSeeBilling && project.hasBillingProcurement, color: '#22c55e' },
   ]
   const visibleFeatures = features.filter(f => f.visible)
 
@@ -432,11 +432,11 @@ export default async function ProjectDetail({ params }: Props) {
           </div>
         </div>
 
-        {/* Quick Access Section */}
+        {/* Project Features Section */}
         <div className="border-b border-gray-100">
           <div className="max-w-7xl mx-auto px-6 py-8">
             <div className="flex items-center gap-4 mb-5">
-              <span className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">Quick Access</span>
+              <span className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">Project Features</span>
               <div className="flex-1 h-px bg-gray-200" />
             </div>
 
@@ -445,12 +445,15 @@ export default async function ProjectDetail({ params }: Props) {
                 const Icon = feature.icon
                 return (
                   <Link key={feature.key} href={feature.href} className="group block">
-                    <div className="bg-white border border-gray-200 rounded-xl p-4 transition-all duration-200 hover:bg-gray-50 hover:border-gray-300 h-full flex flex-col">
+                    <div className="bg-white border border-gray-200 rounded-xl p-4 transition-all duration-200 hover:shadow-md hover:border-gray-300 h-full flex flex-col">
                       <div className="flex items-center justify-between mb-3">
-                        <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center">
-                          <Icon className="w-[18px] h-[18px] text-gray-400" />
+                        <div
+                          className="w-9 h-9 rounded-lg flex items-center justify-center"
+                          style={{ backgroundColor: `${feature.color}15` }}
+                        >
+                          <Icon className="w-[18px] h-[18px]" style={{ color: feature.color }} />
                         </div>
-                        <ArrowUpRight className="w-3.5 h-3.5 text-gray-200 group-hover:text-[#a657f0] transition-colors duration-200" />
+                        <ArrowUpRight className="w-3.5 h-3.5 text-gray-200 group-hover:text-gray-400 transition-colors duration-200" />
                       </div>
                       <h3 className="font-medium text-gray-900 text-[13px] leading-tight">{feature.label}</h3>
                       <p className="text-[11px] text-gray-400 mt-1 leading-snug line-clamp-2">{feature.description}</p>
@@ -464,11 +467,10 @@ export default async function ProjectDetail({ params }: Props) {
 
         {/* Modern Rooms Section */}
         <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h2 className="text-2xl font-semibold text-gray-900">Rooms</h2>
-              <p className="text-gray-600 mt-1">Manage and track progress for all project rooms</p>
-            </div>
+          <div className="flex items-center gap-4 mb-6">
+            <span className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">Rooms</span>
+            <div className="flex-1 h-px bg-gray-200" />
+            <span className="text-[12px] text-gray-400">{project.rooms.length} room{project.rooms.length !== 1 ? 's' : ''}</span>
           </div>
           
           {/* Room Cards Organized by Sections */}
@@ -570,38 +572,35 @@ export default async function ProjectDetail({ params }: Props) {
                   href={`/projects/${project.id}/rooms/${room.id}`}
                   className="group block"
                 >
-                  <div className={`rounded-xl border p-6 hover:shadow-lg transition-all duration-200 group-hover:scale-[1.02] ${getRoomCardStyle()}`}>
+                  <div className={`rounded-xl border p-5 hover:shadow-lg transition-all duration-200 group-hover:scale-[1.01] ${getRoomCardStyle()}`}>
                     {/* Room Header */}
-                    <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center space-x-3">
-                        <div className={`w-12 h-12 ${roomIconData.color} rounded-lg flex items-center justify-center shadow-sm`}>
-                          <IconComponent className="w-6 h-6 text-white" />
+                        <div className={`w-11 h-11 ${roomIconData.color} rounded-xl flex items-center justify-center shadow-sm`}>
+                          <IconComponent className="w-5 h-5 text-white" />
                         </div>
                         <div>
-                          <h3 className={`font-semibold transition-colors ${
+                          <h3 className={`text-[15px] font-semibold transition-colors leading-tight ${
                             isCompleted ? 'text-green-800 group-hover:text-green-900' :
                             isInProgress ? 'text-blue-800 group-hover:text-blue-900' :
                             'text-gray-900 group-hover:text-purple-600'
                           }`}>
                             {room.name || formatRoomType(room.type)}
                           </h3>
-                          <div className="flex items-center space-x-1 mt-1">
-                            <span className="text-xs text-gray-500">{currentPhase.icon}</span>
-                            <span className="text-xs text-gray-500">{currentPhase.name}</span>
-                          </div>
+                          <p className="text-[11px] text-gray-400 mt-0.5 font-medium">{currentPhase.name}</p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-lg font-bold text-gray-900">{roomProgress}%</div>
-                        <div className="text-xs text-gray-500">Complete</div>
+                        <div className="text-[18px] font-bold text-gray-900 leading-none">{roomProgress}%</div>
+                        <div className="text-[10px] text-gray-400 mt-0.5 font-medium">Complete</div>
                       </div>
                     </div>
-                    
+
                     {/* Progress Bar */}
                     <div className="mb-4">
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className={`h-2 rounded-full transition-all duration-500 ${
+                      <div className="w-full bg-gray-200/60 rounded-full h-1.5">
+                        <div
+                          className={`h-1.5 rounded-full transition-all duration-500 ${
                             isCompleted ? 'bg-gradient-to-r from-green-500 to-green-600' :
                             isInProgress ? 'bg-gradient-to-r from-blue-500 to-blue-600' :
                             'bg-gradient-to-r from-gray-400 to-gray-500'
@@ -610,11 +609,11 @@ export default async function ProjectDetail({ params }: Props) {
                         />
                       </div>
                     </div>
-                    
+
                     {/* Stages Overview */}
-                    <div className="space-y-3">
-                      <div className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        Workflow Stages
+                    <div className="space-y-2.5">
+                      <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">
+                        Stages
                       </div>
                       <div className="grid grid-cols-5 gap-3">
                         {(() => {
@@ -725,7 +724,7 @@ export default async function ProjectDetail({ params }: Props) {
                       </div>
                       
                       {/* Stage Summary */}
-                      <div className="flex justify-between text-xs text-gray-600">
+                      <div className="flex justify-between text-[11px] text-gray-400 font-medium pt-1">
                         {(() => {
                           const phaseIds = ['DESIGN_CONCEPT', 'THREE_D', 'CLIENT_APPROVAL', 'DRAWINGS', 'FFE']
                           
@@ -794,11 +793,12 @@ export default async function ProjectDetail({ params }: Props) {
                   
                   return (
                     <div key={section.id}>
-                      <div className="mb-4">
-                        <h3 className="text-lg font-semibold text-gray-900">{section.name}</h3>
-                        <p className="text-sm text-gray-500">{sectionRooms.length} room{sectionRooms.length !== 1 ? 's' : ''}</p>
+                      <div className="flex items-center gap-3 mb-4">
+                        <h3 className="text-[14px] font-semibold text-gray-800">{section.name}</h3>
+                        <span className="text-[11px] text-gray-400 font-medium">{sectionRooms.length} room{sectionRooms.length !== 1 ? 's' : ''}</span>
+                        <div className="flex-1 h-px bg-gray-100" />
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {sectionRooms.map(renderRoomCard)}
                       </div>
                     </div>
@@ -808,13 +808,14 @@ export default async function ProjectDetail({ params }: Props) {
                 {/* Render unassigned rooms */}
                 {unassignedRooms.length > 0 && (
                   <div>
-                    <div className="mb-4">
-                      <h3 className="text-lg font-semibold text-gray-900">
+                    <div className="flex items-center gap-3 mb-4">
+                      <h3 className="text-[14px] font-semibold text-gray-800">
                         {roomSections.length > 0 ? 'Unassigned Rooms' : 'All Rooms'}
                       </h3>
-                      <p className="text-sm text-gray-500">{unassignedRooms.length} room{unassignedRooms.length !== 1 ? 's' : ''}</p>
+                      <span className="text-[11px] text-gray-400 font-medium">{unassignedRooms.length} room{unassignedRooms.length !== 1 ? 's' : ''}</span>
+                      <div className="flex-1 h-px bg-gray-100" />
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {unassignedRooms.map(renderRoomCard)}
                     </div>
                   </div>
