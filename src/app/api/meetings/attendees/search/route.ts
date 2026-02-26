@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
           where: { isActive: true },
           include: {
             contractor: {
-              select: { id: true, businessName: true, contactName: true, email: true, type: true },
+              select: { id: true, businessName: true, contactName: true, email: true, type: true, contacts: true },
             },
           },
         },
@@ -57,21 +57,44 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      // Add project contractors/subs
+      // Add project contractors/subs — include each contact as a separate entry
       for (const pc of project.projectContractors) {
         const c = pc.contractor
-        const matchesQuery = !query || [c.businessName, c.contactName, c.email].some(
-          (v) => v && v.toLowerCase().includes(query.toLowerCase())
-        )
-        if (matchesQuery) {
-          projectResults.push({
-            id: c.id,
-            name: c.contactName || c.businessName,
-            email: c.email,
-            type: c.type === 'SUBCONTRACTOR' ? ('SUBCONTRACTOR' as const) : ('CONTRACTOR' as const),
-            subtitle: c.type === 'SUBCONTRACTOR' ? `Sub - ${c.businessName}` : `Contractor - ${c.businessName}`,
-            isProjectContact: true,
-          })
+        const contractorType = c.type === 'SUBCONTRACTOR' ? ('SUBCONTRACTOR' as const) : ('CONTRACTOR' as const)
+        const subtitlePrefix = c.type === 'SUBCONTRACTOR' ? 'Sub' : 'Contractor'
+
+        if (c.contacts && c.contacts.length > 0) {
+          // Show each contact as a selectable person
+          for (const contact of c.contacts) {
+            const matchesQuery = !query || [contact.name, contact.email, c.businessName].some(
+              (v) => v && v.toLowerCase().includes(query.toLowerCase())
+            )
+            if (matchesQuery) {
+              projectResults.push({
+                id: c.id,
+                name: contact.name,
+                email: contact.email,
+                type: contractorType,
+                subtitle: `${subtitlePrefix} - ${c.businessName}${contact.role ? ` (${contact.role})` : ''}`,
+                isProjectContact: true,
+              })
+            }
+          }
+        } else {
+          // Fallback to legacy contactName/email
+          const matchesQuery = !query || [c.businessName, c.contactName, c.email].some(
+            (v) => v && v.toLowerCase().includes(query.toLowerCase())
+          )
+          if (matchesQuery) {
+            projectResults.push({
+              id: c.id,
+              name: c.contactName || c.businessName,
+              email: c.email,
+              type: contractorType,
+              subtitle: `${subtitlePrefix} - ${c.businessName}`,
+              isProjectContact: true,
+            })
+          }
         }
       }
     }
@@ -118,9 +141,11 @@ export async function GET(req: NextRequest) {
           { businessName: { contains: query, mode: 'insensitive' } },
           { contactName: { contains: query, mode: 'insensitive' } },
           { email: { contains: query, mode: 'insensitive' } },
+          { contacts: { some: { name: { contains: query, mode: 'insensitive' } } } },
+          { contacts: { some: { email: { contains: query, mode: 'insensitive' } } } },
         ],
       },
-      select: { id: true, businessName: true, contactName: true, email: true, type: true },
+      select: { id: true, businessName: true, contactName: true, email: true, type: true, contacts: true },
       take: 10,
     }),
   ])
@@ -144,13 +169,27 @@ export async function GET(req: NextRequest) {
       type: 'CLIENT' as const,
       subtitle: c.company ? `Client - ${c.company}` : 'Client',
     })),
-    ...contractors.filter((c) => !projectContactIds.has(c.id)).map((c) => ({
-      id: c.id,
-      name: c.contactName || c.businessName,
-      email: c.email,
-      type: c.type === 'SUBCONTRACTOR' ? ('SUBCONTRACTOR' as const) : ('CONTRACTOR' as const),
-      subtitle: c.type === 'SUBCONTRACTOR' ? `Sub - ${c.businessName}` : `Contractor - ${c.businessName}`,
-    })),
+    ...contractors.filter((c) => !projectContactIds.has(c.id)).flatMap((c) => {
+      const contractorType = c.type === 'SUBCONTRACTOR' ? ('SUBCONTRACTOR' as const) : ('CONTRACTOR' as const)
+      const subtitlePrefix = c.type === 'SUBCONTRACTOR' ? 'Sub' : 'Contractor'
+
+      if (c.contacts && c.contacts.length > 0) {
+        return c.contacts.map((contact: any) => ({
+          id: c.id,
+          name: contact.name,
+          email: contact.email,
+          type: contractorType,
+          subtitle: `${subtitlePrefix} - ${c.businessName}${contact.role ? ` (${contact.role})` : ''}`,
+        }))
+      }
+      return [{
+        id: c.id,
+        name: c.contactName || c.businessName,
+        email: c.email,
+        type: contractorType,
+        subtitle: `${subtitlePrefix} - ${c.businessName}`,
+      }]
+    }),
   ]
 
   // Project contacts first, then org-wide results
