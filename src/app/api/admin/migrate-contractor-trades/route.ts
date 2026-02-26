@@ -55,11 +55,15 @@ const SPECIALTY_TO_TRADE: Record<string, string> = {
   'architecture': 'ARCHITECT',
   'interior designer': 'INTERIOR_DESIGNER',
   'interior design': 'INTERIOR_DESIGNER',
+  'engineer': 'MEP_ENGINEER',
+  'engineering': 'MEP_ENGINEER',
   'structural engineer': 'STRUCTURAL_ENGINEER',
   'structural': 'STRUCTURAL_ENGINEER',
   'mep engineer': 'MEP_ENGINEER',
   'mep': 'MEP_ENGINEER',
   'mechanical': 'MEP_ENGINEER',
+  'mechanical engineer': 'MEP_ENGINEER',
+  'electrical engineer': 'MEP_ENGINEER',
   'civil engineer': 'CIVIL_ENGINEER',
   'civil': 'CIVIL_ENGINEER',
   'general contractor': 'GENERAL_CONTRACTOR',
@@ -83,8 +87,8 @@ export async function POST(request: NextRequest) {
     let contactsCreated = 0
 
     for (const contractor of contractors) {
-      // Map specialty to trade if trade not set
-      if (!contractor.trade) {
+      // Map specialty to trade if trade not set or was set to OTHER
+      if (!contractor.trade || contractor.trade === 'OTHER') {
         let mappedTrade: string | null = null
 
         if (contractor.specialty) {
