@@ -3,10 +3,14 @@ import { Document, Page, Text, View, StyleSheet, renderToBuffer, Image, Font } f
 import * as path from 'path'
 import * as fs from 'fs'
 
-// Register a cursive/script font for signatures
+// Register Priestacy script font for signatures (loaded from local file)
+function getPriestacyFontPath(): string {
+  return path.join(process.cwd(), 'public', 'fonts', 'Priestacy.otf')
+}
+
 Font.register({
-  family: 'GreatVibes',
-  src: 'https://fonts.gstatic.com/s/greatvibes/v18/RWmMoKWR9v4ksMfaWd_JN-XC.ttf',
+  family: 'Priestacy',
+  src: getPriestacyFontPath(),
 })
 
 // Register fonts with fallbacks
@@ -163,7 +167,7 @@ const styles = StyleSheet.create({
   },
   signatureText: {
     fontSize: 24,
-    fontFamily: 'GreatVibes',
+    fontFamily: 'Priestacy',
     color: colors.text,
     marginTop: 10,
   },
@@ -286,18 +290,19 @@ const styles = StyleSheet.create({
     width: '30%',
   },
   signatureContent: {
-    height: 40,
+    height: 35,
     justifyContent: 'flex-end',
+    marginTop: 2,
   },
   signatureLine: {
     borderBottomWidth: 1,
     borderBottomColor: colors.text,
-    marginTop: 2,
     marginBottom: 4,
   },
   signaturePrefix: {
     fontSize: 9,
     color: colors.textMuted,
+    marginBottom: 0,
   },
   signatureBoxLabel: {
     fontSize: 9,
@@ -481,8 +486,8 @@ function TermsPage({ proposal, org, logoDataUri }: { proposal: any; org: any; lo
             React.createElement(Text, { style: styles.signaturePrefix }, 'X:'),
             React.createElement(View, { style: styles.signatureContent },
               proposal.companySignature ?
-                React.createElement(Image, { src: proposal.companySignature, style: { width: 100, height: 35, objectFit: 'contain' } }) :
-                React.createElement(Text, { style: { fontSize: 18, fontFamily: 'GreatVibes' } }, proposal.companySignedByName || 'Aaron Meisner')
+                React.createElement(Image, { src: proposal.companySignature, style: { width: 100, height: 30, objectFit: 'contain' } }) :
+                React.createElement(Text, { style: { fontSize: 22, fontFamily: 'Priestacy', color: colors.text } }, proposal.companySignedByName || 'Aaron Meisner')
             ),
             React.createElement(View, { style: styles.signatureLine }),
             React.createElement(Text, { style: styles.signatureBoxLabel }, proposal.companySignedByName || 'Aaron Meisner')
@@ -492,7 +497,7 @@ function TermsPage({ proposal, org, logoDataUri }: { proposal: any; org: any; lo
             React.createElement(Text, { style: styles.signaturePrefix }, 'X:'),
             React.createElement(View, { style: styles.signatureContent },
               proposal.signedAt ?
-                React.createElement(Text, { style: { fontSize: 10 } }, new Date(proposal.signedAt).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' })) :
+                React.createElement(Text, { style: { fontSize: 10, color: colors.text } }, new Date(proposal.signedAt).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' })) :
                 null
             ),
             React.createElement(View, { style: styles.signatureLine }),
@@ -503,9 +508,9 @@ function TermsPage({ proposal, org, logoDataUri }: { proposal: any; org: any; lo
             React.createElement(Text, { style: styles.signaturePrefix }, 'X:'),
             React.createElement(View, { style: styles.signatureContent },
               proposal.signatureData && proposal.signatureType === 'drawn' ?
-                React.createElement(Image, { src: proposal.signatureData, style: { width: 110, height: 35, objectFit: 'contain' } }) :
+                React.createElement(Image, { src: proposal.signatureData, style: { width: 110, height: 30, objectFit: 'contain' } }) :
               proposal.signedByName ?
-                React.createElement(Text, { style: { fontSize: 18, fontFamily: 'GreatVibes' } }, proposal.signedByName) :
+                React.createElement(Text, { style: { fontSize: 22, fontFamily: 'Priestacy', color: colors.text } }, proposal.signedByName) :
                 null
             ),
             React.createElement(View, { style: styles.signatureLine }),

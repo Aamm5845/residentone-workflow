@@ -85,6 +85,14 @@ interface ProposalData {
 
 // Print styles
 const printStyles = `
+  @font-face {
+    font-family: 'Priestacy';
+    src: url('/fonts/Priestacy.otf') format('opentype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+  }
+
   @media print {
     .no-print { display: none !important; }
     .print-only { display: block !important; }
@@ -569,7 +577,7 @@ export default function ClientProposalPage() {
                   />
                 )}
                 {!proposal.companySignature && (
-                  <div className="mt-4 italic text-2xl text-gray-400" style={{ fontFamily: '"Brush Script MT", cursive' }}>
+                  <div className="mt-4 text-2xl text-gray-400" style={{ fontFamily: 'Priestacy, "Brush Script MT", cursive' }}>
                     {proposal.companySignedByName || 'Aaron Meisner'}
                   </div>
                 )}
@@ -684,7 +692,7 @@ export default function ClientProposalPage() {
                       {proposal.companySignature ? (
                         <img src={proposal.companySignature} alt="Company Signature" className="h-10 object-contain" />
                       ) : (
-                        <span className="italic text-lg text-gray-800" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
+                        <span className="text-xl text-gray-800" style={{ fontFamily: 'Priestacy, "Brush Script MT", cursive' }}>
                           {proposal.companySignedByName || 'Aaron Meisner'}
                         </span>
                       )}
@@ -708,7 +716,7 @@ export default function ClientProposalPage() {
                       {isSigned && proposal.signatureData && proposal.signatureType === 'drawn' ? (
                         <img src={proposal.signatureData} alt="Client Signature" className="h-10 object-contain" />
                       ) : isSigned && proposal.signedByName ? (
-                        <span className="italic text-lg text-gray-800" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
+                        <span className="text-xl text-gray-800" style={{ fontFamily: 'Priestacy, "Brush Script MT", cursive' }}>
                           {proposal.signedByName}
                         </span>
                       ) : null}
@@ -864,13 +872,13 @@ export default function ClientProposalPage() {
                       onChange={(e) => setTypedName(e.target.value)}
                       placeholder="Your full name"
                       className="text-center text-xl"
-                      style={{ fontFamily: '"Brush Script MT", cursive, sans-serif', fontStyle: 'italic' }}
+                      style={{ fontFamily: 'Priestacy, "Brush Script MT", cursive' }}
                     />
                     {typedName && (
                       <div className="mt-4 p-4 bg-gray-50 rounded-lg text-center">
                         <span
                           className="text-2xl text-gray-900"
-                          style={{ fontFamily: '"Brush Script MT", cursive, sans-serif', fontStyle: 'italic' }}
+                          style={{ fontFamily: 'Priestacy, "Brush Script MT", cursive' }}
                         >
                           {typedName}
                         </span>
