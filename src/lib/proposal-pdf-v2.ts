@@ -441,7 +441,7 @@ const s = StyleSheet.create({
   // Terms
   termRow: {
     flexDirection: 'row',
-    marginBottom: 5,
+    marginBottom: 4,
     paddingRight: 10,
   },
   termBullet: {
@@ -797,16 +797,9 @@ function TermsPageV2({ proposal, org, logoDataUri }: { proposal: any; org: any; 
       },
         // Company
         React.createElement(View, { style: { flex: 1 } },
-          React.createElement(View, { style: { height: 22, justifyContent: 'flex-end' } },
-            proposal.companySignature
-              ? React.createElement(Image, {
-                  src: proposal.companySignature,
-                  style: { width: 100, height: 24, objectFit: 'contain' },
-                })
-              : React.createElement(Text, {
-                  style: { fontSize: 20, fontFamily: 'Priestacy', color: colors.charcoal },
-                }, proposal.companySignedByName || 'Aaron Meisner')
-          ),
+          React.createElement(Text, {
+            style: { fontSize: 20, fontFamily: 'Priestacy', color: colors.charcoal, marginBottom: 2 },
+          }, proposal.companySignedByName || 'Aaron Meisner'),
           React.createElement(View, { style: { borderBottomWidth: 0.75, borderBottomColor: colors.charcoal, marginBottom: 4 } }),
           React.createElement(Text, { style: { fontSize: 8, fontWeight: 300, color: colors.textMuted } },
             proposal.companySignedByName || 'Aaron Meisner'
@@ -815,18 +808,16 @@ function TermsPageV2({ proposal, org, logoDataUri }: { proposal: any; org: any; 
 
         // Client
         React.createElement(View, { style: { flex: 1 } },
-          React.createElement(View, { style: { height: 22, justifyContent: 'flex-end' } },
-            proposal.signatureData && proposal.signatureType === 'drawn'
-              ? React.createElement(Image, {
-                  src: proposal.signatureData,
-                  style: { width: 110, height: 24, objectFit: 'contain' },
-                })
-              : proposal.signedByName
-                ? React.createElement(Text, {
-                    style: { fontSize: 18, fontFamily: 'GreatVibes', color: colors.charcoal },
-                  }, proposal.signedByName)
-                : null
-          ),
+          proposal.signatureData && proposal.signatureType === 'drawn'
+            ? React.createElement(Image, {
+                src: proposal.signatureData,
+                style: { width: 110, height: 24, objectFit: 'contain', marginBottom: 2 },
+              })
+            : proposal.signedByName
+              ? React.createElement(Text, {
+                  style: { fontSize: 18, fontFamily: 'GreatVibes', color: colors.charcoal, marginBottom: 2 },
+                }, proposal.signedByName)
+              : React.createElement(View, { style: { height: 24, marginBottom: 2 } }),
           React.createElement(View, { style: { borderBottomWidth: 0.75, borderBottomColor: colors.charcoal, marginBottom: 4 } }),
           React.createElement(Text, { style: { fontSize: 8, fontWeight: 300, color: colors.textMuted } },
             proposal.signedByName || proposal.clientName || 'Client'
@@ -835,13 +826,11 @@ function TermsPageV2({ proposal, org, logoDataUri }: { proposal: any; org: any; 
 
         // Date
         React.createElement(View, { style: { flex: 1 } },
-          React.createElement(View, { style: { height: 22, justifyContent: 'flex-end' } },
-            proposal.signedAt
-              ? React.createElement(Text, {
-                  style: { fontSize: 9, fontWeight: 400, color: colors.charcoal },
-                }, formatDateLong(proposal.signedAt))
-              : null
-          ),
+          proposal.signedAt
+            ? React.createElement(Text, {
+                style: { fontSize: 9, fontWeight: 400, color: colors.charcoal, marginBottom: 2, marginTop: 14 },
+              }, formatDateLong(proposal.signedAt))
+            : React.createElement(View, { style: { height: 24, marginBottom: 2 } }),
           React.createElement(View, { style: { borderBottomWidth: 0.75, borderBottomColor: colors.charcoal, marginBottom: 4 } }),
           React.createElement(Text, { style: { fontSize: 8, fontWeight: 300, color: colors.textMuted } }, 'Date')
         )
