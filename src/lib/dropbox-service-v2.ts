@@ -343,6 +343,27 @@ class DropboxServiceV2 {
   }
 
   /**
+   * Copy a file in Dropbox
+   */
+  async copyFile(fromPath: string, toPath: string, memberId?: string): Promise<boolean> {
+    try {
+      const client = this.getClient(memberId)
+      console.log(`[DropboxService] Copying file: "${fromPath}" -> "${toPath}" for member: ${memberId || 'default'}`)
+      await client.filesCopyV2({
+        from_path: fromPath,
+        to_path: toPath,
+        allow_shared_folder: true,
+        autorename: false,
+      })
+      console.log(`[DropboxService] Successfully copied: "${fromPath}" -> "${toPath}"`)
+      return true
+    } catch (error: any) {
+      console.error('[DropboxService] Error copying file:', error)
+      throw new Error(`Failed to copy file in Dropbox: ${error.message || 'Unknown error'}`)
+    }
+  }
+
+  /**
    * Rename/move a file in Dropbox
    */
   async moveFile(fromPath: string, toPath: string, memberId?: string): Promise<boolean> {
