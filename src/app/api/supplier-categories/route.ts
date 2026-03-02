@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export const dynamic = 'force-dynamic'
 
@@ -133,6 +134,15 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    await logActivity({
+      session: { user: { id: session.user.id, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'ORG_SETTINGS_UPDATED',
+      entity: 'SupplierCategory',
+      entityId: category.id,
+      details: { name: name.trim(), icon, color },
+      ipAddress: getIPAddress(request)
+    })
+
     return NextResponse.json({ category })
   } catch (error) {
     console.error('Error creating supplier category:', error)
@@ -203,6 +213,15 @@ export async function PATCH(request: NextRequest) {
       }
     })
 
+    await logActivity({
+      session: { user: { id: session.user.id, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'ORG_SETTINGS_UPDATED',
+      entity: 'SupplierCategory',
+      entityId: id,
+      details: { name: category.name, categoryId: id },
+      ipAddress: getIPAddress(request)
+    })
+
     return NextResponse.json({ category })
   } catch (error) {
     console.error('Error updating supplier category:', error)
@@ -258,6 +277,15 @@ export async function DELETE(request: NextRequest) {
     await prisma.supplierCategory.update({
       where: { id },
       data: { isActive: false }
+    })
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'ORG_SETTINGS_UPDATED',
+      entity: 'SupplierCategory',
+      entityId: id,
+      details: { name: existing.name, action: 'deleted' },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({ success: true })

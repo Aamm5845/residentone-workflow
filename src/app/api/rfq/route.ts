@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export const dynamic = 'force-dynamic'
 
@@ -265,6 +266,16 @@ export async function POST(request: NextRequest) {
         message: `RFQ ${rfqNumber} created`,
         userId
       }
+    })
+
+    // Log to global activity feed
+    await logActivity({
+      session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'RFQ_CREATED',
+      entity: 'RFQ',
+      entityId: rfq.id,
+      details: { rfqNumber, title, projectId, projectName: project.name },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({ rfq })

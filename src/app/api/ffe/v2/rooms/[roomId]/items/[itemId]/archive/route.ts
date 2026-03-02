@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { authOptions } from '@/auth'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 /**
  * PATCH /api/ffe/v2/rooms/[roomId]/items/[itemId]/archive
@@ -123,6 +124,25 @@ export async function PATCH(
           linksRemoved: item.specLinks?.length || 0
         }
       }
+    })
+
+    // Log activity for item archival
+    const orgId = item.section.instance.room.project.orgId
+    await logActivity({
+      session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'FFE_ITEM_DELETED',
+      entity: 'FFEItem',
+      entityId: itemId,
+      details: {
+        itemName: item.name,
+        roomId,
+        archived: true,
+        previousStatus: item.specStatus,
+        linksRemoved: item.specLinks?.length || 0,
+        projectId: item.section.instance.room.project.id,
+        projectName: item.section.instance.room.project.name
+      },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({

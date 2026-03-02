@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email-service'
 import { getBaseUrl } from '@/lib/get-base-url'
 import { generateClientQuoteEmailTemplate } from '@/lib/email-templates'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export async function POST(
   request: NextRequest,
@@ -188,6 +189,15 @@ export async function POST(
         message: `Invoice sent to ${clientEmail}`,
         userId: userId
       }
+    })
+
+    await logActivity({
+      session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'CLIENT_INVOICE_SENT',
+      entity: 'ClientInvoice',
+      entityId: invoiceId,
+      details: { invoiceNumber: invoice.quoteNumber, projectId, clientEmail, projectName: invoice.project.name },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({

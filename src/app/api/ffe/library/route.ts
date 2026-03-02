@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { 
-  getOrganizationFFELibrary, 
+import {
+  getOrganizationFFELibrary,
   addCustomFFEItem,
   removeCustomFFEItem,
-  updateCustomFFEItem 
+  updateCustomFFEItem
 } from '@/lib/ffe/library-manager'
 import { getSession } from '@/auth'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 // Get FFE library items for an organization
 export async function GET(request: NextRequest) {
@@ -68,6 +69,23 @@ export async function POST(request: NextRequest) {
         notes
       }
     )
+
+    // Log activity for library item creation
+    const userOrgId = (session.user as any).orgId || orgId
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: userOrgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'ITEM_LIBRARY_UPDATED',
+      entity: 'ItemLibrary',
+      entityId: itemId,
+      details: {
+        itemName: name,
+        category,
+        roomTypes,
+        isRequired: Boolean(isRequired),
+        isStandard: Boolean(isStandard)
+      },
+      ipAddress: getIPAddress(request)
+    })
 
     return NextResponse.json({ success: true, message: 'FFE item added to library' })
 

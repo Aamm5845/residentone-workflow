@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export const dynamic = 'force-dynamic'
 
@@ -56,6 +57,20 @@ export async function PATCH(
     const updated = await prisma.supplierQuote.update({
       where: { id: quoteId },
       data: { status }
+    })
+
+    const statusActionMap: Record<string, string> = {
+      ACCEPTED: 'SUPPLIER_QUOTE_APPROVED',
+      REJECTED: 'SUPPLIER_QUOTE_REJECTED',
+    }
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: statusActionMap[status] || 'SUPPLIER_QUOTE_RECEIVED',
+      entity: 'SupplierQuote',
+      entityId: quoteId,
+      details: { projectId, status, previousStatus: quote.status },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({

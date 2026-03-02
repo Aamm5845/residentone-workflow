@@ -4,6 +4,7 @@ import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email-service'
 import { getBaseUrl } from '@/lib/get-base-url'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export async function POST(
   request: NextRequest,
@@ -210,6 +211,15 @@ export async function POST(
           isOverdue
         }
       }
+    })
+
+    await logActivity({
+      session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'CLIENT_INVOICE_REMINDER_SENT',
+      entity: 'ClientInvoice',
+      entityId: invoiceId,
+      details: { invoiceNumber: invoice.quoteNumber, projectId, clientEmail, balance, isOverdue },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({

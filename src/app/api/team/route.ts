@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { autoAssignUserToPhases } from '@/lib/utils/auto-assignment'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 import type { Session } from 'next-auth'
 
 interface AuthSession extends Session {
@@ -194,6 +195,15 @@ export async function POST(request: NextRequest) {
 
     // TODO: Send invitation email to the new user
     // await sendInvitationEmail(newUser.email, newUser.name, session.user.organization.name)
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: session.user.orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'TEAM_MEMBER_ADDED',
+      entity: 'User',
+      entityId: newUser.id,
+      details: { memberName: newUser.name, email: newUser.email },
+      ipAddress: getIPAddress(request)
+    })
 
     return NextResponse.json({
       success: true,

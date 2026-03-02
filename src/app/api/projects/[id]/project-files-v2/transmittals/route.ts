@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export const runtime = 'nodejs'
 
@@ -218,6 +219,18 @@ export async function POST(
         }
       })
     })
+
+    // Log activity
+    if (transmittal) {
+      await logActivity({
+        session: { user: { id: session.user.id, orgId: (session.user as any).orgId, role: (session.user as any).role || 'USER' } } as any,
+        action: 'TRANSMITTAL_CREATED',
+        entity: 'Transmittal',
+        entityId: transmittal.id,
+        details: { transmittalNumber: transmittal.transmittalNumber, projectId: id, projectName: project.name, recipientName, itemCount: items.length },
+        ipAddress: getIPAddress(request)
+      })
+    }
 
     return NextResponse.json(transmittal, { status: 201 })
   } catch (error) {

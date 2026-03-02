@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { autoAssignPhasesToTeam } from '@/lib/utils/auto-assignment'
 import { RoomType, StageType, StageStatus } from '@prisma/client'
 import type { Session } from 'next-auth'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export async function POST(
   request: NextRequest,
@@ -158,6 +159,15 @@ export async function POST(
         },
         ffeItems: true
       }
+    })
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: session.user.orgId, role: session.user.role || 'USER' } } as any,
+      action: 'ROOM_CREATED',
+      entity: 'Room',
+      entityId: room.id,
+      details: { roomName: room.name, projectId: project.id },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json(fullRoom, { status: 201 })

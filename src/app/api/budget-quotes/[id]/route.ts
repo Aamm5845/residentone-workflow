@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 /**
  * GET /api/budget-quotes/[id]
@@ -111,6 +112,15 @@ export async function PATCH(
       }
     })
 
+    await logActivity({
+      session: { user: { id: session.user.id, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'BUDGET_QUOTE_UPDATED',
+      entity: 'BudgetQuote',
+      entityId: id,
+      details: { title: budgetQuote.title, projectId: budgetQuote.projectId, updatedFields: Object.keys(updateData) },
+      ipAddress: getIPAddress(request)
+    })
+
     return NextResponse.json(budgetQuote)
   } catch (error) {
     console.error('Error updating budget quote:', error)
@@ -149,6 +159,15 @@ export async function DELETE(
 
     await prisma.budgetQuote.delete({
       where: { id }
+    })
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'BUDGET_QUOTE_DELETED',
+      entity: 'BudgetQuote',
+      entityId: id,
+      details: { title: existing.title, projectId: existing.projectId },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({ success: true })

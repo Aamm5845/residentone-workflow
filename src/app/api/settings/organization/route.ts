@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export const dynamic = 'force-dynamic'
 
@@ -169,6 +170,15 @@ export async function PATCH(request: NextRequest) {
         checkInstructions: true,
         etransferEmail: true,
       }
+    })
+
+    await logActivity({
+      session: { user: { id: (session.user as any).id, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'ORG_SETTINGS_UPDATED',
+      entity: 'Organization',
+      entityId: orgId,
+      details: { updatedFields: Object.keys(updateData) },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({ organization })

@@ -3,6 +3,7 @@ import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email-service'
 import { getBaseUrl } from '@/lib/get-base-url'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export const dynamic = 'force-dynamic'
 
@@ -274,6 +275,15 @@ export async function PATCH(
       })
     }
 
+    await logActivity({
+      session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'CLIENT_INVOICE_UPDATED',
+      entity: 'ClientInvoice',
+      entityId: id,
+      details: { quoteNumber: existing.quoteNumber, changes, status: status || existing.status },
+      ipAddress: getIPAddress(request)
+    })
+
     return NextResponse.json({ quote })
   } catch (error) {
     console.error('Error updating client quote:', error)
@@ -449,6 +459,15 @@ export async function DELETE(
 
     await prisma.clientQuote.delete({
       where: { id }
+    })
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'CLIENT_INVOICE_DELETED',
+      entity: 'ClientInvoice',
+      entityId: id,
+      details: { quoteNumber: existing.quoteNumber, title: existing.title },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({ success: true })

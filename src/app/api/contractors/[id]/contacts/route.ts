@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 interface Props {
   params: Promise<{
@@ -71,6 +72,15 @@ export async function POST(request: NextRequest, { params }: Props) {
         role: role || null,
         isPrimary: isPrimary || false,
       }
+    })
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: (session.user as any).orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'CONTRACTOR_CONTACT_ADDED',
+      entity: 'Contractor',
+      entityId: id,
+      details: { contactName: contact.name, contractorName: contractor.businessName },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json(contact, { status: 201 })

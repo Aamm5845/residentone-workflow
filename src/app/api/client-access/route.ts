@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { nanoid } from 'nanoid'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 // GET /api/client-access?projectId=<projectId> - Get all active tokens for a project
 export async function GET(request: NextRequest) {
@@ -135,8 +136,18 @@ export async function POST(request: NextRequest) {
       // Continue anyway - don't fail token creation because of logging
     }
 
-    return NextResponse.json({ 
-      success: true, 
+    // Log activity via attribution system
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: (session.user as any).orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'CLIENT_ACCESS_GRANTED',
+      entity: 'ClientAccess',
+      entityId: clientAccessToken.id,
+      details: { projectId, tokenName: clientAccessToken.name, clientName: project.client?.name },
+      ipAddress: getIPAddress(request)
+    })
+
+    return NextResponse.json({
+      success: true,
       token: clientAccessToken,
       url: `${process.env.NEXTAUTH_URL}/client-progress/${token}`
     }, { status: 201 })
@@ -213,9 +224,19 @@ export async function DELETE(request: NextRequest) {
       // Continue anyway
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      token: updatedToken 
+    // Log activity via attribution system
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: (session.user as any).orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'CLIENT_ACCESS_REVOKED',
+      entity: 'ClientAccess',
+      entityId: existingToken.id,
+      details: { projectId: existingToken.projectId, tokenName: existingToken.name },
+      ipAddress: getIPAddress(request)
+    })
+
+    return NextResponse.json({
+      success: true,
+      token: updatedToken
     })
 
   } catch (error) {

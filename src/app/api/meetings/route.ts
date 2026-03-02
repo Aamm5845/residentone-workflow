@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { sendMeetingInvitation } from '@/lib/meeting-emails'
 import { createZoomMeeting } from '@/lib/zoom'
 import { sendMeetingSMS } from '@/lib/twilio'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 // GET /api/meetings?month=2025-07
 export async function GET(req: NextRequest) {
@@ -191,6 +192,18 @@ export async function POST(req: NextRequest) {
       sendInvitationEmails(meeting).catch((err) =>
         console.error('Failed to send meeting invitations:', err)
       )
+    }
+
+    // Log activity
+    if (meeting) {
+      await logActivity({
+        session: { user: { id: session.user.id, orgId: (session.user as any).orgId, role: (session.user as any).role || 'USER' } } as any,
+        action: 'MEETING_CREATED',
+        entity: 'Meeting',
+        entityId: meeting.id,
+        details: { title, projectId: projectId || null, locationType, date, attendeeCount: attendees.length },
+        ipAddress: getIPAddress(req)
+      })
     }
 
     return NextResponse.json({ meeting }, { status: 201 })

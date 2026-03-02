@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 // Get FFE global settings for an organization
 export async function GET(request: NextRequest) {
@@ -82,6 +83,21 @@ export async function PUT(request: NextRequest) {
         },
         orgId
       }
+    })
+
+    // Log activity via attribution system
+    const userOrgId = (session.user as any).orgId || orgId
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: userOrgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'ORG_SETTINGS_UPDATED',
+      entity: 'Organization',
+      entityId: updatedSettings.id,
+      details: {
+        updatedFields: Object.keys(settingsData),
+        orgId,
+        settingsType: 'FFE'
+      },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({ settings: updatedSettings, message: 'Settings updated successfully' })

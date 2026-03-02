@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export async function PATCH(
   request: NextRequest,
@@ -60,6 +61,15 @@ export async function PATCH(
         )
       )
     }
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: (session.user as any).orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'ROOM_UPDATED',
+      entity: 'Room',
+      entityId: roomId,
+      details: { roomId, startDate, dueDate },
+      ipAddress: getIPAddress(request)
+    })
 
     return NextResponse.json({
       success: true,

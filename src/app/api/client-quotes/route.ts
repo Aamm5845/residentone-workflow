@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { Decimal } from '@prisma/client/runtime/library'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export const dynamic = 'force-dynamic'
 
@@ -386,6 +387,15 @@ export async function POST(request: NextRequest) {
         message: `Quote ${quoteNumber} created`,
         userId
       }
+    })
+
+    await logActivity({
+      session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'CLIENT_INVOICE_CREATED',
+      entity: 'ClientInvoice',
+      entityId: clientQuote.id,
+      details: { quoteNumber, projectId, projectName: project.name, title, lineItemCount: lineItemsData.length, totalAmount },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({ quote: clientQuote })

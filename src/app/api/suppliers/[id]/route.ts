@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 /**
  * GET /api/suppliers/[id]
@@ -348,6 +349,15 @@ export async function PUT(
       })
       console.log(`Updated ${updateResult.count} items to currency: ${body.currency}`)
     }
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'ORG_SETTINGS_UPDATED',
+      entity: 'Supplier',
+      entityId: id,
+      details: { name: updated.name, supplierId: id },
+      ipAddress: getIPAddress(request)
+    })
 
     return NextResponse.json({ success: true, supplier: updated })
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export async function GET(
   request: NextRequest,
@@ -393,6 +394,30 @@ export async function POST(
       }
     }
 
+    // Log activity for item creation
+    if (createdItems.length > 0) {
+      const orgId = (session.user as any).orgId
+      const projectId = section.instance.room.projectId
+      for (const item of createdItems) {
+        await logActivity({
+          session: { user: { id: session.user.id, orgId, role: (session.user as any).role || 'USER' } } as any,
+          action: 'FFE_ITEM_CREATED',
+          entity: 'FFEItem',
+          entityId: item.id,
+          details: {
+            itemName: item.name,
+            roomId,
+            sectionId,
+            projectId,
+            quantity,
+            isSpecItem: isSpecItem || false,
+            ffeRequirementId: ffeRequirementId || null
+          },
+          ipAddress: getIPAddress(request)
+        })
+      }
+    }
+
     return NextResponse.json({
       success: true,
       data: createdItems,
@@ -643,6 +668,24 @@ export async function DELETE(
         where: { id: { in: idsArray } }
       })
 
+      // Log activity for bulk delete
+      const orgId = (session.user as any).orgId
+      for (const item of items) {
+        await logActivity({
+          session: { user: { id: session.user.id, orgId, role: (session.user as any).role || 'USER' } } as any,
+          action: 'FFE_ITEM_DELETED',
+          entity: 'FFEItem',
+          entityId: item.id,
+          details: {
+            itemName: item.name,
+            roomId,
+            bulkDelete: true,
+            totalDeleted: idsArray.length
+          },
+          ipAddress: getIPAddress(request)
+        })
+      }
+
       return NextResponse.json({
         success: true,
         message: `${idsArray.length} items deleted successfully`
@@ -680,6 +723,20 @@ export async function DELETE(
     // Delete item
     await prisma.roomFFEItem.delete({
       where: { id: itemId }
+    })
+
+    // Log activity for single delete
+    const orgId = (session.user as any).orgId
+    await logActivity({
+      session: { user: { id: session.user.id, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'FFE_ITEM_DELETED',
+      entity: 'FFEItem',
+      entityId: itemId,
+      details: {
+        itemName: item.name,
+        roomId
+      },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({

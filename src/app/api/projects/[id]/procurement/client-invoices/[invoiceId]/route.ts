@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { dropboxService } from '@/lib/dropbox-service'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 // GET - Get single invoice details
 export async function GET(
@@ -159,6 +160,15 @@ export async function PATCH(
       }
     })
 
+    await logActivity({
+      session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'CLIENT_INVOICE_UPDATED',
+      entity: 'ClientInvoice',
+      entityId: invoiceId,
+      details: { invoiceNumber: invoice.quoteNumber, projectId, title: updated.title },
+      ipAddress: getIPAddress(request)
+    })
+
     return NextResponse.json({ success: true, invoice: updated })
   } catch (error) {
     console.error('Error updating invoice:', error)
@@ -250,6 +260,15 @@ export async function DELETE(
         }
       })
     }
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'CLIENT_INVOICE_DELETED',
+      entity: 'ClientInvoice',
+      entityId: invoiceId,
+      details: { invoiceNumber: invoice.quoteNumber, projectId, title: invoice.title },
+      ipAddress: getIPAddress(request)
+    })
 
     return NextResponse.json({ success: true })
   } catch (error) {

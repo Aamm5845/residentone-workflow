@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export async function POST(
   request: NextRequest,
@@ -109,6 +110,22 @@ export async function POST(
         createdById: userId,
         updatedById: userId
       }
+    })
+
+    // Log activity for item duplication
+    await logActivity({
+      session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'FFE_ITEM_CREATED',
+      entity: 'FFEItem',
+      entityId: duplicateItem.id,
+      details: {
+        itemName: duplicateItem.name,
+        roomId,
+        duplicatedFrom: originalItem.id,
+        duplicatedFromName: originalItem.name,
+        sectionId: originalItem.sectionId
+      },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({

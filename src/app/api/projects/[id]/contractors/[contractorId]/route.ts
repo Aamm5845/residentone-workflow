@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 // DELETE - Unlink a contractor from a project
 export async function DELETE(
@@ -45,6 +46,15 @@ export async function DELETE(
     await prisma.projectContractor.update({
       where: { id: contractorId },
       data: { isActive: false }
+    })
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: (session.user as any).orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'CONTRACTOR_UPDATED',
+      entity: 'Contractor',
+      entityId: contractorId,
+      details: { projectId, contractorId, action: 'unlinked_from_project' },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({ message: 'Contractor removed from project' })

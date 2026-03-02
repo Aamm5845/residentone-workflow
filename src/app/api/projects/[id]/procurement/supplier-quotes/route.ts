@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export const dynamic = 'force-dynamic'
 
@@ -879,6 +880,21 @@ export async function PATCH(
       }
     }
 
+    const actionMap: Record<string, string> = {
+      approve: 'SUPPLIER_QUOTE_APPROVED',
+      decline: 'SUPPLIER_QUOTE_REJECTED',
+      request_revision: 'SUPPLIER_QUOTE_RECEIVED'
+    }
+
+    await logActivity({
+      session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: actionMap[action] || 'SUPPLIER_QUOTE_APPROVED',
+      entity: 'SupplierQuote',
+      entityId: quoteId,
+      details: { projectId, action, quoteStatus: newStatus },
+      ipAddress: getIPAddress(request)
+    })
+
     return NextResponse.json({
       success: true,
       quote: {
@@ -977,6 +993,15 @@ export async function PUT(
         }
       })
     }
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: (session.user as any).orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'SUPPLIER_QUOTE_RECEIVED',
+      entity: 'SupplierQuote',
+      entityId: quoteId,
+      details: { projectId, lineItemsUpdated: lineItems.length },
+      ipAddress: getIPAddress(request)
+    })
 
     return NextResponse.json({
       success: true,
@@ -1082,6 +1107,15 @@ export async function DELETE(
         }
       }
     }
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: (session.user as any).orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'SUPPLIER_QUOTE_REJECTED',
+      entity: 'SupplierQuote',
+      entityId: quoteId,
+      details: { projectId, action: 'deleted' },
+      ipAddress: getIPAddress(request)
+    })
 
     return NextResponse.json({
       success: true,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 // GET - Get all contractors linked to a project
 export async function GET(
@@ -138,6 +139,15 @@ export async function POST(
       include: {
         contractor: true
       }
+    })
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: (session.user as any).orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'CONTRACTOR_UPDATED',
+      entity: 'Contractor',
+      entityId: contractorId,
+      details: { projectId, contractorId, role, action: 'linked_to_project' },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json(projectContractor, { status: 201 })

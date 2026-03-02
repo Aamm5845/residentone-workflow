@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 // Validation schema for updating an invoice
 const updateInvoiceSchema = z.object({
@@ -338,6 +339,15 @@ export async function PUT(
       },
     })
 
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: session.user.orgId, role: session.user.role || 'USER' } } as any,
+      action: 'INVOICE_UPDATED',
+      entity: 'BillingInvoice',
+      entityId: id,
+      details: { updatedFields: Object.keys(validatedData) },
+      ipAddress: getIPAddress(request)
+    })
+
     return NextResponse.json({
       ...updatedInvoice,
       subtotal: Number(updatedInvoice!.subtotal),
@@ -416,6 +426,15 @@ export async function DELETE(
 
     await prisma.billingInvoice.delete({
       where: { id },
+    })
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: session.user.orgId, role: session.user.role || 'USER' } } as any,
+      action: 'INVOICE_DELETED',
+      entity: 'BillingInvoice',
+      entityId: id,
+      details: { invoiceNumber: invoice.invoiceNumber },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({ success: true })

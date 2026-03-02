@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email-service'
 import { generateClientQuoteEmailTemplate } from '@/lib/email-templates'
 import { calculateQuebecTaxes, QUEBEC_TAX_RATES } from '@/lib/tax-utils'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export const dynamic = 'force-dynamic'
 
@@ -299,6 +300,15 @@ export async function POST(request: NextRequest) {
         subject: emailTemplate.subject,
         sentAt: new Date()
       }
+    })
+
+    await logActivity({
+      session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'CLIENT_INVOICE_SENT',
+      entity: 'ClientInvoice',
+      entityId: clientQuote.id,
+      details: { quoteNumber, projectId, projectName: project.name, clientEmail, itemCount: items.length },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({

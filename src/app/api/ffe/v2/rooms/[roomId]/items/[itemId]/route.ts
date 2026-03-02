@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export async function PUT(
   request: NextRequest,
@@ -161,6 +162,20 @@ export async function PUT(
       }
     }
 
+    // Log activity for item update (PUT)
+    await logActivity({
+      session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'FFE_ITEM_UPDATED',
+      entity: 'FFEItem',
+      entityId: itemId,
+      details: {
+        itemName: updatedItem.name,
+        roomId,
+        updatedFields: Object.keys({ name, description, quantity, unitType, state, notes, docCode }).filter(k => ({ name, description, quantity, unitType, state, notes, docCode } as any)[k] !== undefined)
+      },
+      ipAddress: getIPAddress(request)
+    })
+
     return NextResponse.json({
       success: true,
       data: updatedItem,
@@ -314,6 +329,19 @@ export async function DELETE(
     // Delete the item (cascades will handle ItemActivity, ItemQuoteRequest, FFESpecLink)
     await prisma.roomFFEItem.delete({
       where: { id: itemId }
+    })
+
+    // Log activity for item deletion
+    await logActivity({
+      session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'FFE_ITEM_DELETED',
+      entity: 'FFEItem',
+      entityId: itemId,
+      details: {
+        itemName: existingItem.name,
+        roomId
+      },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({
@@ -761,6 +789,23 @@ export async function PATCH(
         })
       }
 
+      // Log activity for item update (PATCH)
+      await logActivity({
+        session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+        action: 'FFE_ITEM_UPDATED',
+        entity: 'FFEItem',
+        entityId: itemId,
+        details: {
+          itemName: updatedItem.name,
+          roomId,
+          sectionName: updatedItem.section?.name,
+          targetSectionId: targetSectionId || undefined,
+          specStatusChanged: specStatus !== undefined ? { from: existingItem.specStatus, to: specStatus } : undefined,
+          clientApprovedChanged: clientApproved !== undefined ? { from: existingItem.clientApproved, to: clientApproved } : undefined
+        },
+        ipAddress: getIPAddress(request)
+      })
+
       return NextResponse.json({
         success: true,
         data: updatedItem,
@@ -769,8 +814,8 @@ export async function PATCH(
     }
 
     // No updates provided
-    return NextResponse.json({ 
-      error: 'No update fields provided' 
+    return NextResponse.json({
+      error: 'No update fields provided'
     }, { status: 400 })
 
   } catch (error: any) {

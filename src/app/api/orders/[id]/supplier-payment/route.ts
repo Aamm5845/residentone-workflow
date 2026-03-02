@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { syncItemsStatus } from '@/lib/procurement/status-sync'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export const dynamic = 'force-dynamic'
 
@@ -219,6 +220,15 @@ export async function POST(
         await syncItemsStatus(itemIds, 'order_confirmed', userId)
       }
     }
+
+    await logActivity({
+      session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'ORDER_PAYMENT_RECORDED',
+      entity: 'Order',
+      entityId: orderId,
+      details: { orderNumber: order.orderNumber, amount, paymentType, method: paymentMethodName || method },
+      ipAddress: getIPAddress(request)
+    })
 
     return NextResponse.json({
       success: true,

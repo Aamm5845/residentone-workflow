@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export const dynamic = 'force-dynamic'
 
@@ -306,6 +307,15 @@ export async function PATCH(
       })
     }
 
+    await logActivity({
+      session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'RFQ_UPDATED',
+      entity: 'RFQ',
+      entityId: id,
+      details: { rfqNumber: existing.rfqNumber, projectName: rfq.project.name },
+      ipAddress: getIPAddress(request)
+    })
+
     return NextResponse.json({ rfq })
   } catch (error) {
     console.error('Error updating RFQ:', error)
@@ -413,6 +423,17 @@ export async function DELETE(
           data: { specStatus: 'SELECTED' }
         })
       }
+    })
+
+    const userId = session.user.id
+
+    await logActivity({
+      session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'RFQ_DELETED',
+      entity: 'RFQ',
+      entityId: id,
+      details: { rfqNumber: existing.rfqNumber },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({ success: true })

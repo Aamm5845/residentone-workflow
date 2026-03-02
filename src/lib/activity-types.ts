@@ -121,8 +121,78 @@ export type ActivityType =
   | 'SESSION_CREATED'
   | 'LOGIN'
   | 'LOGOUT'
+  // Procurement - RFQ
+  | 'RFQ_CREATED'
+  | 'RFQ_UPDATED'
+  | 'RFQ_SENT'
+  | 'RFQ_DELETED'
+  | 'RFQ_DUPLICATED'
+  // Procurement - Orders
+  | 'ORDER_CREATED'
+  | 'ORDER_UPDATED'
+  | 'ORDER_SENT'
+  | 'ORDER_DELETED'
+  | 'ORDER_PAYMENT_RECORDED'
+  // Procurement - Supplier Quotes
+  | 'SUPPLIER_QUOTE_RECEIVED'
+  | 'SUPPLIER_QUOTE_APPROVED'
+  | 'SUPPLIER_QUOTE_REJECTED'
+  // Procurement - Client Invoices
+  | 'CLIENT_INVOICE_CREATED'
+  | 'CLIENT_INVOICE_UPDATED'
+  | 'CLIENT_INVOICE_SENT'
+  | 'CLIENT_INVOICE_DELETED'
+  | 'CLIENT_INVOICE_PAYMENT_RECEIVED'
+  | 'CLIENT_INVOICE_REMINDER_SENT'
+  // Procurement - Budget Quotes
+  | 'BUDGET_QUOTE_CREATED'
+  | 'BUDGET_QUOTE_UPDATED'
+  | 'BUDGET_QUOTE_SENT'
+  | 'BUDGET_QUOTE_DELETED'
+  // Contractors
+  | 'CONTRACTOR_CREATED'
+  | 'CONTRACTOR_UPDATED'
+  | 'CONTRACTOR_DELETED'
+  | 'CONTRACTOR_CONTACT_ADDED'
+  | 'CONTRACTOR_CONTACT_UPDATED'
+  // Team
+  | 'TEAM_MEMBER_ADDED'
+  | 'TEAM_MEMBER_UPDATED'
+  | 'TEAM_MEMBER_REMOVED'
+  // Billing
+  | 'INVOICE_CREATED'
+  | 'INVOICE_UPDATED'
+  | 'INVOICE_SENT'
+  | 'INVOICE_DELETED'
+  | 'PAYMENT_RECORDED'
+  | 'PROPOSAL_CREATED'
+  | 'PROPOSAL_SENT'
+  // Deliveries
+  | 'DELIVERY_CREATED'
+  | 'DELIVERY_UPDATED'
+  | 'DELIVERY_TRACKED'
+  // Meetings
+  | 'MEETING_CREATED'
+  | 'MEETING_UPDATED'
+  | 'MEETING_DELETED'
+  // Settings
+  | 'ORG_SETTINGS_UPDATED'
+  | 'ITEM_LIBRARY_UPDATED'
+  // Project Files
+  | 'FILE_UPLOADED'
+  | 'FILE_DELETED'
+  | 'TRANSMITTAL_CREATED'
+  | 'TRANSMITTAL_SENT'
+  // Tasks
+  | 'TASK_CREATED'
+  | 'TASK_UPDATED'
+  | 'TASK_COMPLETED'
+  | 'TASK_DELETED'
+  // Client Access
+  | 'CLIENT_ACCESS_GRANTED'
+  | 'CLIENT_ACCESS_REVOKED'
 
-export type ActivityCategory = 
+export type ActivityCategory =
   | 'Projects'
   | 'Rooms'
   | 'Stages'
@@ -140,6 +210,15 @@ export type ActivityCategory =
   | 'Team'
   | 'System'
   | 'Updates'
+  | 'Procurement'
+  | 'Billing'
+  | 'Contractors'
+  | 'Deliveries'
+  | 'Meetings'
+  | 'Settings'
+  | 'Files'
+  | 'Tasks'
+  | 'Workflow'
 
 export interface ActivityTypeMeta {
   label: string
@@ -762,6 +841,370 @@ export const ACTIVITY_TYPE_META: Record<ActivityType, ActivityTypeMeta> = {
     color: 'text-blue-600',
     category: 'Updates'
   },
+
+  // Procurement - RFQ
+  RFQ_CREATED: {
+    label: 'RFQ created',
+    icon: 'FileText',
+    color: 'text-cyan-600',
+    category: 'Procurement'
+  },
+  RFQ_UPDATED: {
+    label: 'RFQ updated',
+    icon: 'Edit',
+    color: 'text-cyan-600',
+    category: 'Procurement'
+  },
+  RFQ_SENT: {
+    label: 'RFQ sent',
+    icon: 'Send',
+    color: 'text-cyan-600',
+    category: 'Procurement'
+  },
+  RFQ_DELETED: {
+    label: 'RFQ deleted',
+    icon: 'Trash2',
+    color: 'text-red-600',
+    category: 'Procurement'
+  },
+  RFQ_DUPLICATED: {
+    label: 'RFQ duplicated',
+    icon: 'Copy',
+    color: 'text-cyan-600',
+    category: 'Procurement'
+  },
+
+  // Procurement - Orders
+  ORDER_CREATED: {
+    label: 'Order created',
+    icon: 'ShoppingBag',
+    color: 'text-cyan-600',
+    category: 'Procurement'
+  },
+  ORDER_UPDATED: {
+    label: 'Order updated',
+    icon: 'Edit',
+    color: 'text-cyan-600',
+    category: 'Procurement'
+  },
+  ORDER_SENT: {
+    label: 'Order sent',
+    icon: 'Send',
+    color: 'text-cyan-600',
+    category: 'Procurement'
+  },
+  ORDER_DELETED: {
+    label: 'Order deleted',
+    icon: 'Trash2',
+    color: 'text-red-600',
+    category: 'Procurement'
+  },
+  ORDER_PAYMENT_RECORDED: {
+    label: 'Order payment recorded',
+    icon: 'DollarSign',
+    color: 'text-green-600',
+    category: 'Procurement'
+  },
+
+  // Procurement - Supplier Quotes
+  SUPPLIER_QUOTE_RECEIVED: {
+    label: 'Supplier quote received',
+    icon: 'FileInput',
+    color: 'text-cyan-600',
+    category: 'Procurement'
+  },
+  SUPPLIER_QUOTE_APPROVED: {
+    label: 'Supplier quote approved',
+    icon: 'CheckCircle2',
+    color: 'text-green-600',
+    category: 'Procurement'
+  },
+  SUPPLIER_QUOTE_REJECTED: {
+    label: 'Supplier quote rejected',
+    icon: 'XCircle',
+    color: 'text-red-600',
+    category: 'Procurement'
+  },
+
+  // Procurement - Client Invoices
+  CLIENT_INVOICE_CREATED: {
+    label: 'Client invoice created',
+    icon: 'Receipt',
+    color: 'text-cyan-600',
+    category: 'Procurement'
+  },
+  CLIENT_INVOICE_UPDATED: {
+    label: 'Client invoice updated',
+    icon: 'Edit',
+    color: 'text-cyan-600',
+    category: 'Procurement'
+  },
+  CLIENT_INVOICE_SENT: {
+    label: 'Client invoice sent',
+    icon: 'Send',
+    color: 'text-cyan-600',
+    category: 'Procurement'
+  },
+  CLIENT_INVOICE_DELETED: {
+    label: 'Client invoice deleted',
+    icon: 'Trash2',
+    color: 'text-red-600',
+    category: 'Procurement'
+  },
+  CLIENT_INVOICE_PAYMENT_RECEIVED: {
+    label: 'Client payment received',
+    icon: 'DollarSign',
+    color: 'text-green-600',
+    category: 'Procurement'
+  },
+  CLIENT_INVOICE_REMINDER_SENT: {
+    label: 'Invoice reminder sent',
+    icon: 'Bell',
+    color: 'text-orange-600',
+    category: 'Procurement'
+  },
+
+  // Procurement - Budget Quotes
+  BUDGET_QUOTE_CREATED: {
+    label: 'Budget quote created',
+    icon: 'Calculator',
+    color: 'text-cyan-600',
+    category: 'Procurement'
+  },
+  BUDGET_QUOTE_UPDATED: {
+    label: 'Budget quote updated',
+    icon: 'Edit',
+    color: 'text-cyan-600',
+    category: 'Procurement'
+  },
+  BUDGET_QUOTE_SENT: {
+    label: 'Budget quote sent',
+    icon: 'Send',
+    color: 'text-cyan-600',
+    category: 'Procurement'
+  },
+  BUDGET_QUOTE_DELETED: {
+    label: 'Budget quote deleted',
+    icon: 'Trash2',
+    color: 'text-red-600',
+    category: 'Procurement'
+  },
+
+  // Contractors
+  CONTRACTOR_CREATED: {
+    label: 'Contractor added',
+    icon: 'HardHat',
+    color: 'text-amber-600',
+    category: 'Contractors'
+  },
+  CONTRACTOR_UPDATED: {
+    label: 'Contractor updated',
+    icon: 'Edit',
+    color: 'text-amber-600',
+    category: 'Contractors'
+  },
+  CONTRACTOR_DELETED: {
+    label: 'Contractor deleted',
+    icon: 'Trash2',
+    color: 'text-red-600',
+    category: 'Contractors'
+  },
+  CONTRACTOR_CONTACT_ADDED: {
+    label: 'Contractor contact added',
+    icon: 'UserPlus',
+    color: 'text-amber-600',
+    category: 'Contractors'
+  },
+  CONTRACTOR_CONTACT_UPDATED: {
+    label: 'Contractor contact updated',
+    icon: 'Edit',
+    color: 'text-amber-600',
+    category: 'Contractors'
+  },
+
+  // Team
+  TEAM_MEMBER_ADDED: {
+    label: 'Team member added',
+    icon: 'UserPlus',
+    color: 'text-green-600',
+    category: 'Team'
+  },
+  TEAM_MEMBER_UPDATED: {
+    label: 'Team member updated',
+    icon: 'Edit',
+    color: 'text-blue-600',
+    category: 'Team'
+  },
+  TEAM_MEMBER_REMOVED: {
+    label: 'Team member removed',
+    icon: 'UserMinus',
+    color: 'text-red-600',
+    category: 'Team'
+  },
+
+  // Billing
+  INVOICE_CREATED: {
+    label: 'Invoice created',
+    icon: 'Receipt',
+    color: 'text-teal-600',
+    category: 'Billing'
+  },
+  INVOICE_UPDATED: {
+    label: 'Invoice updated',
+    icon: 'Edit',
+    color: 'text-teal-600',
+    category: 'Billing'
+  },
+  INVOICE_SENT: {
+    label: 'Invoice sent',
+    icon: 'Send',
+    color: 'text-teal-600',
+    category: 'Billing'
+  },
+  INVOICE_DELETED: {
+    label: 'Invoice deleted',
+    icon: 'Trash2',
+    color: 'text-red-600',
+    category: 'Billing'
+  },
+  PAYMENT_RECORDED: {
+    label: 'Payment recorded',
+    icon: 'DollarSign',
+    color: 'text-green-600',
+    category: 'Billing'
+  },
+  PROPOSAL_CREATED: {
+    label: 'Proposal created',
+    icon: 'FileText',
+    color: 'text-teal-600',
+    category: 'Billing'
+  },
+  PROPOSAL_SENT: {
+    label: 'Proposal sent',
+    icon: 'Send',
+    color: 'text-teal-600',
+    category: 'Billing'
+  },
+
+  // Deliveries
+  DELIVERY_CREATED: {
+    label: 'Delivery created',
+    icon: 'Truck',
+    color: 'text-orange-600',
+    category: 'Deliveries'
+  },
+  DELIVERY_UPDATED: {
+    label: 'Delivery updated',
+    icon: 'Edit',
+    color: 'text-orange-600',
+    category: 'Deliveries'
+  },
+  DELIVERY_TRACKED: {
+    label: 'Delivery tracked',
+    icon: 'MapPin',
+    color: 'text-orange-600',
+    category: 'Deliveries'
+  },
+
+  // Meetings
+  MEETING_CREATED: {
+    label: 'Meeting created',
+    icon: 'Calendar',
+    color: 'text-violet-600',
+    category: 'Meetings'
+  },
+  MEETING_UPDATED: {
+    label: 'Meeting updated',
+    icon: 'Edit',
+    color: 'text-violet-600',
+    category: 'Meetings'
+  },
+  MEETING_DELETED: {
+    label: 'Meeting deleted',
+    icon: 'Trash2',
+    color: 'text-red-600',
+    category: 'Meetings'
+  },
+
+  // Settings
+  ORG_SETTINGS_UPDATED: {
+    label: 'Organization settings updated',
+    icon: 'Settings',
+    color: 'text-gray-600',
+    category: 'Settings'
+  },
+  ITEM_LIBRARY_UPDATED: {
+    label: 'Item library updated',
+    icon: 'Library',
+    color: 'text-gray-600',
+    category: 'Settings'
+  },
+
+  // Project Files
+  FILE_UPLOADED: {
+    label: 'File uploaded',
+    icon: 'Upload',
+    color: 'text-blue-600',
+    category: 'Files'
+  },
+  FILE_DELETED: {
+    label: 'File deleted',
+    icon: 'Trash2',
+    color: 'text-red-600',
+    category: 'Files'
+  },
+  TRANSMITTAL_CREATED: {
+    label: 'Transmittal created',
+    icon: 'FileOutput',
+    color: 'text-blue-600',
+    category: 'Files'
+  },
+  TRANSMITTAL_SENT: {
+    label: 'Transmittal sent',
+    icon: 'Send',
+    color: 'text-blue-600',
+    category: 'Files'
+  },
+
+  // Tasks
+  TASK_CREATED: {
+    label: 'Task created',
+    icon: 'CheckSquare',
+    color: 'text-green-600',
+    category: 'Tasks'
+  },
+  TASK_UPDATED: {
+    label: 'Task updated',
+    icon: 'Edit',
+    color: 'text-blue-600',
+    category: 'Tasks'
+  },
+  TASK_COMPLETED: {
+    label: 'Task completed',
+    icon: 'CheckCircle2',
+    color: 'text-green-600',
+    category: 'Tasks'
+  },
+  TASK_DELETED: {
+    label: 'Task deleted',
+    icon: 'Trash2',
+    color: 'text-red-600',
+    category: 'Tasks'
+  },
+
+  // Client Access
+  CLIENT_ACCESS_GRANTED: {
+    label: 'Client access granted',
+    icon: 'UserCheck',
+    color: 'text-green-600',
+    category: 'Team'
+  },
+  CLIENT_ACCESS_REVOKED: {
+    label: 'Client access revoked',
+    icon: 'UserX',
+    color: 'text-red-600',
+    category: 'Team'
+  },
 }
 
 // ============================================================================
@@ -1040,7 +1483,16 @@ export function getActivitiesByCategory(): Record<ActivityCategory, ActivityType
     Tags: [],
     Team: [],
     System: [],
-    Updates: []
+    Updates: [],
+    Procurement: [],
+    Billing: [],
+    Contractors: [],
+    Deliveries: [],
+    Meetings: [],
+    Settings: [],
+    Files: [],
+    Tasks: [],
+    Workflow: [],
   }
 
   Object.entries(ACTIVITY_TYPE_META).forEach(([type, meta]) => {

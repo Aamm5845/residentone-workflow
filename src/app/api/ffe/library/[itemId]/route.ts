@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { 
+import {
   updateCustomFFEItem,
-  removeCustomFFEItem 
+  removeCustomFFEItem
 } from '@/lib/ffe/library-manager'
 import { getSession } from '@/auth'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 // Update FFE library item
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ itemId: string }> }) {
@@ -35,6 +36,24 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       }
     )
 
+    // Log activity for library item update
+    const userOrgId = (session.user as any).orgId || orgId
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: userOrgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'ITEM_LIBRARY_UPDATED',
+      entity: 'ItemLibrary',
+      entityId: itemId,
+      details: {
+        itemName: name,
+        category,
+        roomTypes,
+        isRequired: Boolean(isRequired),
+        isStandard: Boolean(isStandard),
+        updated: true
+      },
+      ipAddress: getIPAddress(request)
+    })
+
     return NextResponse.json({ success: true, message: 'FFE item updated' })
 
   } catch (error) {
@@ -60,6 +79,20 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     }
 
     await removeCustomFFEItem(orgId, itemId, session.user.id)
+
+    // Log activity for library item deletion
+    const userOrgId = (session.user as any).orgId || orgId
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: userOrgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'FFE_ITEM_DELETED',
+      entity: 'ItemLibrary',
+      entityId: itemId,
+      details: {
+        deleted: true,
+        orgId
+      },
+      ipAddress: getIPAddress(request)
+    })
 
     return NextResponse.json({ success: true, message: 'FFE item deleted' })
 

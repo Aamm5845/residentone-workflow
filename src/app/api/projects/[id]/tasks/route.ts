@@ -3,6 +3,7 @@ import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 const taskCreateSchema = z.object({
   updateId: z.string().optional(),
@@ -441,6 +442,16 @@ export async function POST(
 
     // Revalidate paths
     revalidatePath(`/projects/${projectId}/project-updates`)
+
+    // Log activity
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: (session.user as any).orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'TASK_CREATED',
+      entity: 'Task',
+      entityId: task.id,
+      details: { title: validatedData.title, projectId, priority: validatedData.priority, assigneeId: validatedData.assigneeId },
+      ipAddress: getIPAddress(request)
+    })
 
     // TODO: Send real-time notification via WebSocket
     // TODO: Send email notification if enabled

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 // PUT /api/projects/[id]/floors/[floorId] - Update floor
 export async function PUT(
@@ -19,7 +20,7 @@ export async function PUT(
     const { name, order } = body
 
     const floor = await prisma.floor.update({
-      where: { 
+      where: {
         id: floorId,
         projectId // Ensure floor belongs to this project
       },
@@ -30,6 +31,15 @@ export async function PUT(
       include: {
         rooms: true
       }
+    })
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: (session.user as any).orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'PROJECT_UPDATED',
+      entity: 'Project',
+      entityId: projectId,
+      details: { projectId, floorId, floorName: name, updatedFields: { name, order } },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json(floor)
@@ -69,10 +79,19 @@ export async function DELETE(
     }
 
     await prisma.floor.delete({
-      where: { 
+      where: {
         id: floorId,
         projectId // Ensure floor belongs to this project
       }
+    })
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: (session.user as any).orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'PROJECT_UPDATED',
+      entity: 'Project',
+      entityId: projectId,
+      details: { projectId, floorId, action: 'floor_deleted' },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({ success: true })

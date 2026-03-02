@@ -3,6 +3,7 @@ import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email-service'
 import { getBaseUrl } from '@/lib/get-base-url'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export const dynamic = 'force-dynamic'
 
@@ -259,6 +260,15 @@ export async function POST(
           data: { specStatus: 'RFQ_SENT' }
         })
       }
+
+      await logActivity({
+        session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+        action: 'RFQ_SENT',
+        entity: 'RFQ',
+        entityId: id,
+        details: { rfqNumber: rfq.rfqNumber, projectName: rfq.project.name, supplierCount: successCount },
+        ipAddress: getIPAddress(request)
+      })
     }
 
     return NextResponse.json({

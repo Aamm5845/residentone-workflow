@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email-service'
 import { getBaseUrl } from '@/lib/get-base-url'
 import { generateSupplierQuoteEmailTemplate } from '@/lib/email-templates'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export const dynamic = 'force-dynamic'
 
@@ -516,6 +517,17 @@ export async function POST(request: NextRequest) {
     // Calculate skipped items
     const skippedItems = Array.from(supplierItemsMap.values())
       .flatMap(e => e.alreadySentItems)
+
+    if (successCount > 0) {
+      await logActivity({
+        session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+        action: 'SUPPLIER_QUOTE_RECEIVED',
+        entity: 'SupplierQuote',
+        entityId: rfq.id,
+        details: { projectId, rfqNumber: rfq.rfqNumber, projectName: project.name, suppliersSent: successCount, itemCount: dbItems.length },
+        ipAddress: getIPAddress(request)
+      })
+    }
 
     return NextResponse.json({
       success: successCount > 0,

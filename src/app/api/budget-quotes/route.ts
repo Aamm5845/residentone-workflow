@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 /**
  * GET /api/budget-quotes
@@ -124,6 +125,15 @@ export async function POST(request: NextRequest) {
           select: { id: true, name: true, email: true }
         }
       }
+    })
+
+    await logActivity({
+      session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'BUDGET_QUOTE_CREATED',
+      entity: 'BudgetQuote',
+      entityId: budgetQuote.id,
+      details: { title, projectId, projectName: project.name, estimatedTotal, itemCount: itemIds.length },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json(budgetQuote, { status: 201 })

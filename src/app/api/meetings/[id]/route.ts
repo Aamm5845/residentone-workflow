@@ -3,6 +3,7 @@ import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { sendMeetingCancellation, sendMeetingUpdate } from '@/lib/meeting-emails'
 import { updateZoomMeeting, deleteZoomMeeting } from '@/lib/zoom'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 const meetingInclude = {
   attendees: {
@@ -174,6 +175,16 @@ export async function PATCH(
       )
     }
 
+    // Log activity
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: (session.user as any).orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'MEETING_UPDATED',
+      entity: 'Meeting',
+      entityId: id,
+      details: { title: title || existing.title, changes: Object.keys(body).filter(k => k !== 'sendUpdateEmails') },
+      ipAddress: getIPAddress(req)
+    })
+
     return NextResponse.json({ meeting })
   } catch (error) {
     console.error('Error updating meeting:', error)
@@ -223,6 +234,16 @@ export async function DELETE(
   sendCancellationEmails(existing).catch((err) =>
     console.error('Failed to send meeting cancellation emails:', err)
   )
+
+  // Log activity
+  await logActivity({
+    session: { user: { id: session.user.id, orgId: (session.user as any).orgId, role: (session.user as any).role || 'USER' } } as any,
+    action: 'MEETING_DELETED',
+    entity: 'Meeting',
+    entityId: id,
+    details: { title: existing.title, date: existing.date, projectId: existing.projectId },
+    ipAddress: getIPAddress(req)
+  })
 
   return NextResponse.json({ success: true })
 }

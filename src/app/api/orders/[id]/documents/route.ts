@@ -3,6 +3,7 @@ import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { put } from '@vercel/blob'
 import { dropboxService } from '@/lib/dropbox-service'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export const dynamic = 'force-dynamic'
 
@@ -188,6 +189,15 @@ export async function POST(
           fileSize: file.size
         }
       }
+    })
+
+    await logActivity({
+      session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'DOCUMENT_UPLOADED',
+      entity: 'Order',
+      entityId: order.id,
+      details: { orderNumber: order.orderNumber, documentId: document.id, fileName: file.name, documentType },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({

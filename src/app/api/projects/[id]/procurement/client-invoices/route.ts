@@ -4,6 +4,7 @@ import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { generateInvoicePdf } from '@/lib/invoice-pdf-generator'
 import { dropboxService } from '@/lib/dropbox-service'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 // GET - List all client invoices for a project
 export async function GET(
@@ -466,6 +467,15 @@ export async function POST(
         }))
       })
     }
+
+    await logActivity({
+      session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'CLIENT_INVOICE_CREATED',
+      entity: 'ClientInvoice',
+      entityId: invoice.id,
+      details: { invoiceNumber, projectId, title, lineItemCount: lineItems.length, totalAmount: Number(invoice.totalAmount) },
+      ipAddress: getIPAddress(request)
+    })
 
     return NextResponse.json({
       success: true,

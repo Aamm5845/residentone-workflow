@@ -179,8 +179,124 @@ function getEntityUrl(activity: Activity): string | null {
     case 'PROJECT_STATUS_CHANGED':
       if (projectId) return `/projects/${projectId}`
       break
+
+    // RFQ activities
+    case 'RFQ_CREATED':
+    case 'RFQ_UPDATED':
+    case 'RFQ_SENT':
+    case 'RFQ_DELETED':
+    case 'RFQ_DUPLICATED':
+      if (details.rfqId) return `/procurement/rfq/${details.rfqId}`
+      if (activity.entityId) return `/procurement/rfq/${activity.entityId}`
+      return `/procurement/rfq`
+
+    // Order activities
+    case 'ORDER_CREATED':
+    case 'ORDER_UPDATED':
+    case 'ORDER_SENT':
+    case 'ORDER_DELETED':
+    case 'ORDER_PAYMENT_RECORDED':
+      if (details.orderId) return `/procurement/orders/${details.orderId}`
+      if (activity.entityId) return `/procurement/orders/${activity.entityId}`
+      return `/procurement/orders`
+
+    // Supplier Quote activities
+    case 'SUPPLIER_QUOTE_RECEIVED':
+    case 'SUPPLIER_QUOTE_APPROVED':
+    case 'SUPPLIER_QUOTE_REJECTED':
+      if (details.rfqId) return `/procurement/rfq/${details.rfqId}`
+      return `/procurement/rfq`
+
+    // Client Invoice activities
+    case 'CLIENT_INVOICE_CREATED':
+    case 'CLIENT_INVOICE_UPDATED':
+    case 'CLIENT_INVOICE_SENT':
+    case 'CLIENT_INVOICE_DELETED':
+    case 'CLIENT_INVOICE_PAYMENT_RECEIVED':
+    case 'CLIENT_INVOICE_REMINDER_SENT':
+      if (details.invoiceId) return `/procurement/client-quotes/${details.invoiceId}`
+      if (activity.entityId) return `/procurement/client-quotes/${activity.entityId}`
+      return `/procurement/client-quotes`
+
+    // Budget Quote activities
+    case 'BUDGET_QUOTE_CREATED':
+    case 'BUDGET_QUOTE_UPDATED':
+    case 'BUDGET_QUOTE_SENT':
+    case 'BUDGET_QUOTE_DELETED':
+      if (details.quoteId) return `/procurement/budget-quotes/${details.quoteId}`
+      if (activity.entityId) return `/procurement/budget-quotes/${activity.entityId}`
+      return `/procurement/budget-quotes`
+
+    // Contractor activities
+    case 'CONTRACTOR_CREATED':
+    case 'CONTRACTOR_UPDATED':
+    case 'CONTRACTOR_DELETED':
+    case 'CONTRACTOR_CONTACT_ADDED':
+    case 'CONTRACTOR_CONTACT_UPDATED':
+      return `/preferences?tab=contractors`
+
+    // Team activities
+    case 'TEAM_MEMBER_ADDED':
+    case 'TEAM_MEMBER_UPDATED':
+    case 'TEAM_MEMBER_REMOVED':
+      return `/preferences?tab=team`
+
+    // Billing activities
+    case 'INVOICE_CREATED':
+    case 'INVOICE_UPDATED':
+    case 'INVOICE_SENT':
+    case 'INVOICE_DELETED':
+    case 'PAYMENT_RECORDED':
+      return `/billing`
+
+    case 'PROPOSAL_CREATED':
+    case 'PROPOSAL_SENT':
+      return `/billing`
+
+    // Delivery activities
+    case 'DELIVERY_CREATED':
+    case 'DELIVERY_UPDATED':
+    case 'DELIVERY_TRACKED':
+      return `/procurement/deliveries`
+
+    // Meeting activities
+    case 'MEETING_CREATED':
+    case 'MEETING_UPDATED':
+    case 'MEETING_DELETED':
+      if (projectId) return `/projects/${projectId}/meetings`
+      return null
+
+    // Settings activities
+    case 'ORG_SETTINGS_UPDATED':
+    case 'ITEM_LIBRARY_UPDATED':
+      return `/preferences`
+
+    // File activities
+    case 'FILE_UPLOADED':
+    case 'FILE_DELETED':
+      if (projectId) return `/projects/${projectId}/files`
+      return null
+
+    case 'TRANSMITTAL_CREATED':
+    case 'TRANSMITTAL_SENT':
+      if (projectId) return `/projects/${projectId}/files`
+      return null
+
+    // Task activities
+    case 'TASK_CREATED':
+    case 'TASK_UPDATED':
+    case 'TASK_COMPLETED':
+    case 'TASK_DELETED':
+      if (projectId) return `/projects/${projectId}/tasks`
+      return null
+
+    // Client Access activities
+    case 'CLIENT_ACCESS_GRANTED':
+    case 'CLIENT_ACCESS_REVOKED':
+      if (projectId) return `/projects/${projectId}/settings`
+      return null
   }
-  
+
   // Fallback: try entity type
   switch (activity.entity) {
     case 'Project':
@@ -459,6 +575,146 @@ function getActivityText(activity: Activity): {
       return { action: 'Logged in' }
     case 'LOGOUT':
       return { action: 'Logged out' }
+
+    // RFQ activities
+    case 'RFQ_CREATED':
+      return { action: 'Created RFQ', itemName: details.rfqNumber || details.title }
+    case 'RFQ_UPDATED':
+      return { action: 'Updated RFQ', itemName: details.rfqNumber || details.title }
+    case 'RFQ_SENT':
+      return { action: 'Sent RFQ', itemName: details.rfqNumber || details.title, extraDetails: details.supplierName ? `to ${details.supplierName}` : undefined }
+    case 'RFQ_DELETED':
+      return { action: 'Deleted RFQ', itemName: details.rfqNumber || details.title }
+    case 'RFQ_DUPLICATED':
+      return { action: 'Duplicated RFQ', itemName: details.rfqNumber || details.title }
+
+    // Order activities
+    case 'ORDER_CREATED':
+      return { action: 'Created order', itemName: details.orderNumber || details.title }
+    case 'ORDER_UPDATED':
+      return { action: 'Updated order', itemName: details.orderNumber || details.title }
+    case 'ORDER_SENT':
+      return { action: 'Sent order', itemName: details.orderNumber || details.title, extraDetails: details.supplierName ? `to ${details.supplierName}` : undefined }
+    case 'ORDER_DELETED':
+      return { action: 'Deleted order', itemName: details.orderNumber || details.title }
+    case 'ORDER_PAYMENT_RECORDED':
+      return { action: 'Recorded payment for order', itemName: details.orderNumber || details.title, extraDetails: details.amount ? `$${details.amount}` : undefined }
+
+    // Supplier Quote activities
+    case 'SUPPLIER_QUOTE_RECEIVED':
+      return { action: 'Received supplier quote', extraDetails: details.supplierName ? `from ${details.supplierName}` : undefined }
+    case 'SUPPLIER_QUOTE_APPROVED':
+      return { action: 'Approved supplier quote', extraDetails: details.supplierName ? `from ${details.supplierName}` : undefined }
+    case 'SUPPLIER_QUOTE_REJECTED':
+      return { action: 'Rejected supplier quote', extraDetails: details.supplierName ? `from ${details.supplierName}` : undefined }
+
+    // Client Invoice activities
+    case 'CLIENT_INVOICE_CREATED':
+      return { action: 'Created client invoice', itemName: details.invoiceNumber || details.title }
+    case 'CLIENT_INVOICE_UPDATED':
+      return { action: 'Updated client invoice', itemName: details.invoiceNumber || details.title }
+    case 'CLIENT_INVOICE_SENT':
+      return { action: 'Sent client invoice', itemName: details.invoiceNumber || details.title }
+    case 'CLIENT_INVOICE_DELETED':
+      return { action: 'Deleted client invoice', itemName: details.invoiceNumber || details.title }
+    case 'CLIENT_INVOICE_PAYMENT_RECEIVED':
+      return { action: 'Received payment for invoice', itemName: details.invoiceNumber || details.title, extraDetails: details.amount ? `$${details.amount}` : undefined }
+    case 'CLIENT_INVOICE_REMINDER_SENT':
+      return { action: 'Sent invoice reminder', itemName: details.invoiceNumber || details.title }
+
+    // Budget Quote activities
+    case 'BUDGET_QUOTE_CREATED':
+      return { action: 'Created budget quote', itemName: details.quoteNumber || details.title }
+    case 'BUDGET_QUOTE_UPDATED':
+      return { action: 'Updated budget quote', itemName: details.quoteNumber || details.title }
+    case 'BUDGET_QUOTE_SENT':
+      return { action: 'Sent budget quote', itemName: details.quoteNumber || details.title }
+    case 'BUDGET_QUOTE_DELETED':
+      return { action: 'Deleted budget quote', itemName: details.quoteNumber || details.title }
+
+    // Contractor activities
+    case 'CONTRACTOR_CREATED':
+      return { action: 'Added contractor', itemName: details.contractorName || details.companyName }
+    case 'CONTRACTOR_UPDATED':
+      return { action: 'Updated contractor', itemName: details.contractorName || details.companyName }
+    case 'CONTRACTOR_DELETED':
+      return { action: 'Deleted contractor', itemName: details.contractorName || details.companyName }
+    case 'CONTRACTOR_CONTACT_ADDED':
+      return { action: 'Added contact', itemName: details.contactName, extraDetails: details.contractorName ? `for ${details.contractorName}` : undefined }
+    case 'CONTRACTOR_CONTACT_UPDATED':
+      return { action: 'Updated contact', itemName: details.contactName, extraDetails: details.contractorName ? `for ${details.contractorName}` : undefined }
+
+    // Team activities (new)
+    case 'TEAM_MEMBER_ADDED':
+      return { action: 'Added team member', itemName: details.memberName || details.email }
+    case 'TEAM_MEMBER_UPDATED':
+      return { action: 'Updated team member', itemName: details.memberName || details.email }
+    case 'TEAM_MEMBER_REMOVED':
+      return { action: 'Removed team member', itemName: details.memberName || details.email }
+
+    // Billing activities
+    case 'INVOICE_CREATED':
+      return { action: 'Created invoice', itemName: details.invoiceNumber || details.title }
+    case 'INVOICE_UPDATED':
+      return { action: 'Updated invoice', itemName: details.invoiceNumber || details.title }
+    case 'INVOICE_SENT':
+      return { action: 'Sent invoice', itemName: details.invoiceNumber || details.title }
+    case 'INVOICE_DELETED':
+      return { action: 'Deleted invoice', itemName: details.invoiceNumber || details.title }
+    case 'PAYMENT_RECORDED':
+      return { action: 'Recorded payment', extraDetails: details.amount ? `$${details.amount}` : undefined }
+    case 'PROPOSAL_CREATED':
+      return { action: 'Created proposal', itemName: details.proposalName || details.title }
+    case 'PROPOSAL_SENT':
+      return { action: 'Sent proposal', itemName: details.proposalName || details.title }
+
+    // Delivery activities
+    case 'DELIVERY_CREATED':
+      return { action: 'Created delivery', itemName: details.deliveryNumber || details.title }
+    case 'DELIVERY_UPDATED':
+      return { action: 'Updated delivery', itemName: details.deliveryNumber || details.title }
+    case 'DELIVERY_TRACKED':
+      return { action: 'Updated delivery tracking', itemName: details.deliveryNumber || details.title }
+
+    // Meeting activities
+    case 'MEETING_CREATED':
+      return { action: 'Scheduled meeting', itemName: details.meetingTitle || details.title }
+    case 'MEETING_UPDATED':
+      return { action: 'Updated meeting', itemName: details.meetingTitle || details.title }
+    case 'MEETING_DELETED':
+      return { action: 'Cancelled meeting', itemName: details.meetingTitle || details.title }
+
+    // Settings activities
+    case 'ORG_SETTINGS_UPDATED':
+      return { action: 'Updated organization settings' }
+    case 'ITEM_LIBRARY_UPDATED':
+      return { action: 'Updated item library' }
+
+    // File activities
+    case 'FILE_UPLOADED':
+      return { action: 'Uploaded file', itemName: details.fileName }
+    case 'FILE_DELETED':
+      return { action: 'Deleted file', itemName: details.fileName }
+    case 'TRANSMITTAL_CREATED':
+      return { action: 'Created transmittal', itemName: details.transmittalNumber || details.title }
+    case 'TRANSMITTAL_SENT':
+      return { action: 'Sent transmittal', itemName: details.transmittalNumber || details.title }
+
+    // Task activities
+    case 'TASK_CREATED':
+      return { action: 'Created task', itemName: details.taskTitle || details.title }
+    case 'TASK_UPDATED':
+      return { action: 'Updated task', itemName: details.taskTitle || details.title }
+    case 'TASK_COMPLETED':
+      return { action: 'Completed task', itemName: details.taskTitle || details.title }
+    case 'TASK_DELETED':
+      return { action: 'Deleted task', itemName: details.taskTitle || details.title }
+
+    // Client Access activities
+    case 'CLIENT_ACCESS_GRANTED':
+      return { action: 'Granted client access', itemName: details.clientEmail || details.clientName }
+    case 'CLIENT_ACCESS_REVOKED':
+      return { action: 'Revoked client access', itemName: details.clientEmail || details.clientName }
 
     default:
       // Fallback: convert action to readable format and make it user-friendly

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export const dynamic = 'force-dynamic'
 
@@ -128,6 +129,15 @@ export async function POST(
           }
         }
       }
+    })
+
+    await logActivity({
+      session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'RFQ_DUPLICATED',
+      entity: 'RFQ',
+      entityId: duplicate.id,
+      details: { rfqNumber, originalRfqNumber: original.rfqNumber, projectId: original.projectId },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({

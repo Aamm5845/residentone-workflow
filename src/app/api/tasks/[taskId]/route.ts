@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { taskNotificationService } from '@/lib/notifications/task-notification-service'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 // GET /api/tasks/[taskId] - Get full task details
 export async function GET(
@@ -142,6 +143,16 @@ export async function PATCH(
       )
     }
 
+    // Log activity
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: (session.user as any).orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'TASK_UPDATED',
+      entity: 'Task',
+      entityId: taskId,
+      details: { title: task.title, projectId: task.projectId, projectName: task.project?.name, changes: Object.keys(body) },
+      ipAddress: getIPAddress(request)
+    })
+
     return NextResponse.json({ task })
   } catch (error) {
     console.error('Error updating task:', error)
@@ -177,6 +188,16 @@ export async function DELETE(
     }
 
     await prisma.task.delete({ where: { id: taskId } })
+
+    // Log activity
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: (session.user as any).orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'TASK_DELETED',
+      entity: 'Task',
+      entityId: taskId,
+      details: { title: task.title, projectId: task.projectId },
+      ipAddress: getIPAddress(request)
+    })
 
     return NextResponse.json({ success: true })
   } catch (error) {

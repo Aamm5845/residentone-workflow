@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export const dynamic = 'force-dynamic'
 
@@ -119,6 +120,15 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    await logActivity({
+      session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'ORG_SETTINGS_UPDATED',
+      entity: 'Supplier',
+      entityId: supplier.id,
+      details: { name, email, category },
+      ipAddress: getIPAddress(request)
+    })
+
     return NextResponse.json({ supplier })
   } catch (error) {
     console.error('Error creating supplier:', error)
@@ -203,6 +213,15 @@ export async function PATCH(request: NextRequest) {
       console.log(`Updated ${updateResult.count} items to currency: ${currency}`)
     }
 
+    await logActivity({
+      session: { user: { id: session.user.id, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'ORG_SETTINGS_UPDATED',
+      entity: 'Supplier',
+      entityId: id,
+      details: { name: supplier.name, supplierId: id },
+      ipAddress: getIPAddress(request)
+    })
+
     return NextResponse.json({ supplier })
   } catch (error) {
     console.error('Error updating supplier:', error)
@@ -259,6 +278,15 @@ export async function DELETE(request: NextRequest) {
     await prisma.supplier.update({
       where: { id },
       data: { isActive: false }
+    })
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'ORG_SETTINGS_UPDATED',
+      entity: 'Supplier',
+      entityId: id,
+      details: { name: existing.name, action: 'deleted' },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({ success: true })

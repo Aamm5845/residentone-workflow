@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { taskNotificationService } from '@/lib/notifications/task-notification-service'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 // GET /api/tasks - Get all tasks for the current user (global My Tasks)
 export async function GET(request: NextRequest) {
@@ -211,6 +212,16 @@ export async function POST(request: NextRequest) {
         { id: session.user.id, name: session.user.name || null, email: session.user.email || '' }
       )
     }
+
+    // Log activity
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: (session.user as any).orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'TASK_CREATED',
+      entity: 'Task',
+      entityId: task.id,
+      details: { title: task.title, projectId, projectName: task.project?.name, assignedToId, priority: task.priority },
+      ipAddress: getIPAddress(request)
+    })
 
     return NextResponse.json({ task }, { status: 201 })
   } catch (error) {

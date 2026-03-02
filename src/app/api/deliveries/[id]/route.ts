@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export const dynamic = 'force-dynamic'
 
@@ -150,6 +151,15 @@ export async function PATCH(
       })
     }
 
+    await logActivity({
+      session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'DELIVERY_UPDATED',
+      entity: 'Delivery',
+      entityId: id,
+      details: { orderId: existingDelivery.orderId, orderNumber: delivery.order?.orderNumber, status },
+      ipAddress: getIPAddress(request)
+    })
+
     return NextResponse.json(delivery)
   } catch (error) {
     console.error('Error updating delivery:', error)
@@ -193,6 +203,15 @@ export async function DELETE(
 
     await prisma.delivery.delete({
       where: { id }
+    })
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'DELIVERY_UPDATED',
+      entity: 'Delivery',
+      entityId: id,
+      details: { orderId: delivery.orderId, action: 'deleted' },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({ success: true })

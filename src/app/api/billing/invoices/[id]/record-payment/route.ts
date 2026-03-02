@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 interface AuthSession {
   user: {
@@ -116,6 +117,15 @@ export async function POST(
           message: `Manual payment of $${paymentAmount.toFixed(2)} recorded via ${methodLabel}`,
         }
       })
+    })
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: session.user.orgId, role: session.user.role || 'USER' } } as any,
+      action: 'PAYMENT_RECORDED',
+      entity: 'Payment',
+      entityId: invoice.id,
+      details: { amount: paymentAmount, method: paymentMethod, invoiceId: invoice.id },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({

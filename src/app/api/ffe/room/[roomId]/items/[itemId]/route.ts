@@ -3,6 +3,7 @@ import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { getRoomFFEConfig } from '@/lib/constants/room-ffe-config'
 import type { Session } from 'next-auth'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export async function PATCH(
   request: NextRequest,
@@ -108,6 +109,24 @@ export async function PATCH(
         userId: session.user.id,
         projectId: room.projectId
       }
+    })
+
+    // Log activity via attribution system
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: session.user.orgId, role: session.user.role || 'USER' } } as any,
+      action: 'FFE_ITEM_UPDATED',
+      entity: 'FFEItem',
+      entityId: itemId,
+      details: {
+        itemName: itemName,
+        roomId,
+        projectId: room.projectId,
+        newStatus: updates.status,
+        hasNotes: !!updates.notes,
+        hasSupplierLink: !!updates.supplierLink,
+        hasPrice: !!updates.actualPrice
+      },
+      ipAddress: getIPAddress(request)
     })
 
     // Return formatted item status
@@ -265,6 +284,19 @@ export async function DELETE(
         userId: session.user.id,
         projectId: room.projectId
       }
+    })
+
+    // Log activity via attribution system
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: session.user.orgId, role: session.user.role || 'USER' } } as any,
+      action: 'FFE_ITEM_DELETED',
+      entity: 'FFEItem',
+      entityId: itemId,
+      details: {
+        roomId,
+        projectId: room.projectId
+      },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export const dynamic = 'force-dynamic'
 
@@ -156,6 +157,15 @@ export async function PATCH(
       }
     })
 
+    await logActivity({
+      session: { user: { id: session.user.id, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'CLIENT_ACCESS_REVOKED',
+      entity: 'ClientAccess',
+      entityId: linkId,
+      details: { projectId, linkId, updatedFields: Object.keys(body) },
+      ipAddress: getIPAddress(request)
+    })
+
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
     return NextResponse.json({
@@ -214,6 +224,15 @@ export async function DELETE(
     await prisma.specShareLink.update({
       where: { id: linkId },
       data: { active: false }
+    })
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'CLIENT_ACCESS_REVOKED',
+      entity: 'ClientAccess',
+      entityId: linkId,
+      details: { projectId, linkId, action: 'deleted' },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({ success: true })

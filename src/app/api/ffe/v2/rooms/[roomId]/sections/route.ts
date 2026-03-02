@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export async function POST(
   request: NextRequest,
@@ -124,6 +125,23 @@ export async function POST(
         section: newSection,
         items: createdItems
       }
+    })
+
+    // Log activity for section creation
+    await logActivity({
+      session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'FFE_ITEM_CREATED',
+      entity: 'FFEItem',
+      entityId: result.section.id,
+      details: {
+        itemName: name,
+        roomId,
+        isSection: true,
+        sectionName: name,
+        itemsCreated: result.items.length,
+        docCodePrefix: docCodePrefix || null
+      },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({
@@ -379,12 +397,29 @@ export async function DELETE(
       }
     })
 
+    // Log activity for section deletion
+    await logActivity({
+      session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'FFE_ITEM_DELETED',
+      entity: 'FFEItem',
+      entityId: sectionId,
+      details: {
+        isSection: true,
+        sectionName: result.deletedSectionName,
+        roomId,
+        itemsDeleted: result.itemsDeleted,
+        movedItemsCount: result.movedItemsCount,
+        targetSectionName: result.targetSectionName
+      },
+      ipAddress: getIPAddress(request)
+    })
+
     return NextResponse.json({
       success: true,
       data: result,
       message: result.itemsDeleted > 0
         ? `Section "${result.deletedSectionName}" and ${result.itemsDeleted} items deleted.`
-        : result.movedItemsCount > 0 
+        : result.movedItemsCount > 0
           ? `Section "${result.deletedSectionName}" deleted. ${result.movedItemsCount} items moved to "${result.targetSectionName}".`
           : `Section "${result.deletedSectionName}" deleted.`
     })

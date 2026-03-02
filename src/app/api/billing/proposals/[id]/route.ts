@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 // Validation schema for updating a proposal
 const updateProposalSchema = z.object({
@@ -208,6 +209,15 @@ export async function PUT(
       })
     }
 
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: session.user.orgId, role: session.user.role || 'USER' } } as any,
+      action: 'PROPOSAL_UPDATED',
+      entity: 'Proposal',
+      entityId: id,
+      details: { updatedFields: Object.keys(validatedData) },
+      ipAddress: getIPAddress(request)
+    })
+
     return NextResponse.json({
       ...proposal,
       subtotal: Number(proposal.subtotal),
@@ -275,6 +285,15 @@ export async function DELETE(
     // Delete the proposal
     await prisma.proposal.delete({
       where: { id },
+    })
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: session.user.orgId, role: session.user.role || 'USER' } } as any,
+      action: 'PROPOSAL_DELETED',
+      entity: 'Proposal',
+      entityId: id,
+      details: { proposalNumber: proposal.proposalNumber },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({

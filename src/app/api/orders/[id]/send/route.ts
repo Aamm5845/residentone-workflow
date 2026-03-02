@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email-service'
 import { generatePurchaseOrderEmailTemplate, PurchaseOrderEmailData } from '@/lib/email-templates'
 import { decrypt, formatExpiry } from '@/lib/encryption'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export const dynamic = 'force-dynamic'
 
@@ -297,6 +298,15 @@ export async function POST(
       await prisma.orderItem.updateMany({
         where: { orderId: id },
         data: { status: 'ORDERED' }
+      })
+
+      await logActivity({
+        session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+        action: 'ORDER_SENT',
+        entity: 'Order',
+        entityId: id,
+        details: { orderNumber: order.orderNumber, supplierEmail, supplierName: order.supplier?.name || order.vendorName },
+        ipAddress: getIPAddress(request)
       })
     }
 

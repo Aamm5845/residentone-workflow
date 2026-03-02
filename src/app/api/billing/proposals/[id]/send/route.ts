@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email'
 import { getClientBaseUrl } from '@/lib/get-base-url'
 import { wrapEmailHtml } from '@/lib/meeting-emails'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 interface AuthSession {
   user: {
@@ -157,6 +158,15 @@ export async function POST(
         type: 'SENT',
         message: `Proposal sent to ${proposal.clientEmail}`,
       },
+    })
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: session.user.orgId, role: session.user.role || 'USER' } } as any,
+      action: 'PROPOSAL_SENT',
+      entity: 'Proposal',
+      entityId: id,
+      details: { recipientEmail: proposal.clientEmail, proposalNumber: proposal.proposalNumber },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({

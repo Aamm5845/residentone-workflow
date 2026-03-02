@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export async function POST(
   request: NextRequest,
@@ -244,6 +245,26 @@ export async function POST(
           orderBy: { order: 'asc' }
         }
       }
+    })
+
+    // Log activity for template import
+    const totalItems = updatedInstance?.sections?.reduce((sum: number, s: any) => sum + (s.items?.length || 0), 0) || 0
+    await logActivity({
+      session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'FFE_ITEM_CREATED',
+      entity: 'FFEItem',
+      entityId: roomInstance.id,
+      details: {
+        roomId,
+        roomName: room.name || room.type,
+        templateId,
+        templateName: template.name,
+        importedFromTemplate: true,
+        sectionsCreated: updatedInstance?.sections?.length || 0,
+        itemsCreated: totalItems,
+        selectedItemIds: selectedItemIds || null
+      },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({

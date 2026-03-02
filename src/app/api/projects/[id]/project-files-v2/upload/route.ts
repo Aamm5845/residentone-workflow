@@ -3,6 +3,7 @@ import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { dropboxService as dropboxServiceV1 } from '@/lib/dropbox-service'
 import { dropboxService as dropboxServiceV2 } from '@/lib/dropbox-service-v2'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -75,6 +76,17 @@ export async function POST(
         try { await dropboxServiceV2.createFolder(targetFolder) } catch (e) { /* exists */ }
 
         const result = await dropboxServiceV2.uploadSessionFinish(sessionId, offset, dropboxPath)
+
+        // Log activity for chunked upload finish
+        await logActivity({
+          session: { user: { id: session.user.id, orgId: (session.user as any).orgId, role: (session.user as any).role || 'USER' } } as any,
+          action: 'FILE_UPLOADED',
+          entity: 'ProjectFile',
+          entityId: id,
+          details: { fileName: sanitizedName, path: result.path_display || dropboxPath, size: offset, projectId: id, method: 'chunked' },
+          ipAddress: getIPAddress(request)
+        })
+
         return NextResponse.json({
           success: true,
           file: { name: sanitizedName, path: result.path_display || dropboxPath, size: offset }
@@ -115,6 +127,16 @@ export async function POST(
     try { await dropboxServiceV1.createFolder(targetFolder) } catch (e) { /* exists */ }
 
     const uploadResult = await dropboxServiceV1.uploadFile(dropboxPath, buffer, { mode: 'add' })
+
+    // Log activity for standard upload
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: (session.user as any).orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'FILE_UPLOADED',
+      entity: 'ProjectFile',
+      entityId: id,
+      details: { fileName: sanitizedName, path: uploadResult.path_display || dropboxPath, size: file.size, projectId: id, method: 'standard' },
+      ipAddress: getIPAddress(request)
+    })
 
     return NextResponse.json({
       success: true,

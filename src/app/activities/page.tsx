@@ -21,14 +21,11 @@ export default async function ActivitiesPage() {
 
   return (
     <DashboardLayout session={session}>
-      <div className="p-6">
+      <div className="p-6 max-w-5xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Activities</h1>
-          <p className="text-gray-600 mt-1">
-            Recent activities across your organization
-          </p>
+          <h1 className="text-2xl font-bold text-gray-900">Activity Log</h1>
         </div>
-        
+
         <ActivitiesContent />
       </div>
     </DashboardLayout>

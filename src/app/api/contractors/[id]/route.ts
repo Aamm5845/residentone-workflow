@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 interface Props {
   params: Promise<{
@@ -131,6 +132,15 @@ export async function PUT(request: NextRequest, { params }: Props) {
       include: { contacts: true }
     })
 
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: (session.user as any).orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'CONTRACTOR_UPDATED',
+      entity: 'Contractor',
+      entityId: id,
+      details: { contractorName: contractor.businessName, companyName: contractor.businessName },
+      ipAddress: getIPAddress(request)
+    })
+
     return NextResponse.json(contractor)
   } catch (error) {
     console.error('Error updating contractor:', error)
@@ -169,15 +179,33 @@ export async function DELETE(request: NextRequest, { params }: Props) {
         where: { id },
         data: { isActive: false }
       })
-      return NextResponse.json({ 
-        message: 'Contractor deactivated (used in projects)', 
-        contractor 
+      await logActivity({
+        session: { user: { id: session.user.id, orgId: (session.user as any).orgId, role: (session.user as any).role || 'USER' } } as any,
+        action: 'CONTRACTOR_DELETED',
+        entity: 'Contractor',
+        entityId: id,
+        details: { contractorName: existingContractor.businessName, companyName: existingContractor.businessName, softDelete: true },
+        ipAddress: getIPAddress(request)
+      })
+
+      return NextResponse.json({
+        message: 'Contractor deactivated (used in projects)',
+        contractor
       })
     }
 
     // Hard delete if not used in any projects
     await prisma.contractor.delete({
       where: { id }
+    })
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: (session.user as any).orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'CONTRACTOR_DELETED',
+      entity: 'Contractor',
+      entityId: id,
+      details: { contractorName: existingContractor.businessName, companyName: existingContractor.businessName, hardDelete: true },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({ message: 'Contractor deleted successfully' })

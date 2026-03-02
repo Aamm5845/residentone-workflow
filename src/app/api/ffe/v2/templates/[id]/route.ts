@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { logActivity, getIPAddress } from '@/lib/attribution';
 
 export async function GET(
   request: NextRequest,
@@ -147,6 +148,23 @@ export async function PUT(
       });
     });
 
+    // Log activity for template update
+    if (updatedTemplate) {
+      await logActivity({
+        session: { user: { id: session.user.id, orgId: session.user.orgId, role: (session.user as any).role || 'USER' } } as any,
+        action: 'FFE_ITEM_UPDATED',
+        entity: 'FFEItem',
+        entityId: templateId,
+        details: {
+          templateName: updatedTemplate.name,
+          isTemplate: true,
+          updatedFields: Object.keys(data).filter(k => k !== 'sections'),
+          sectionsUpdated: !!data.sections
+        },
+        ipAddress: getIPAddress(request)
+      });
+    }
+
     return NextResponse.json({
       success: true,
       data: updatedTemplate
@@ -154,7 +172,7 @@ export async function PUT(
 
   } catch (error) {
     console.error('Error updating FFE template:', error);
-    
+
     if (error.message === 'Template not found') {
       return NextResponse.json({ error: 'Template not found' }, { status: 404 });
     }
@@ -190,6 +208,18 @@ export async function DELETE(
     if (deletedTemplate.count === 0) {
       return NextResponse.json({ error: 'Template not found' }, { status: 404 });
     }
+
+    // Log activity for template deletion
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: session.user.orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'FFE_ITEM_DELETED',
+      entity: 'FFEItem',
+      entityId: templateId,
+      details: {
+        isTemplate: true
+      },
+      ipAddress: getIPAddress(request)
+    });
 
     return NextResponse.json({
       success: true,

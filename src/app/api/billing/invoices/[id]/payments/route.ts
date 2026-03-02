@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 // Validation schema for recording a payment
 const recordPaymentSchema = z.object({
@@ -175,6 +176,15 @@ export async function POST(
           method: validatedData.method,
         },
       },
+    })
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: session.user.orgId, role: session.user.role || 'USER' } } as any,
+      action: 'PAYMENT_RECORDED',
+      entity: 'Payment',
+      entityId: payment.id,
+      details: { amount: validatedData.amount, method: validatedData.method, invoiceId },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({

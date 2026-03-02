@@ -3,6 +3,7 @@ import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 const messageSchema = z.object({
   content: z.string().min(1).max(2000),
@@ -435,6 +436,15 @@ export async function POST(
         })
       }
     }
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: (session.user as any).orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'CHAT_MESSAGE_SENT',
+      entity: 'ChatMessage',
+      entityId: newMessage.id,
+      details: { projectId, hasAttachments: (validatedData.attachments?.length || 0) > 0, isReply: !!validatedData.parentMessageId },
+      ipAddress: getIPAddress(request)
+    })
 
     // Revalidate paths
     revalidatePath(`/projects/${projectId}/project-updates`)

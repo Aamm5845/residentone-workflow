@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 /**
  * POST /api/projects/[id]/procurement/supplier-quotes/approve-match
@@ -96,6 +97,15 @@ export async function POST(
         data: updateData
       })
     }
+
+    await logActivity({
+      session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'SUPPLIER_QUOTE_APPROVED',
+      entity: 'SupplierQuote',
+      entityId: lineItemId,
+      details: { projectId, quoteId, lineItemId, roomFFEItemId, matchApproved: true },
+      ipAddress: getIPAddress(request)
+    })
 
     return NextResponse.json({
       success: true,

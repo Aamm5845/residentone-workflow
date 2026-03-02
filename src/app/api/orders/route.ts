@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export const dynamic = 'force-dynamic'
 
@@ -301,6 +302,15 @@ export async function POST(request: NextRequest) {
         message: `Order ${orderNumber} created`,
         userId
       }
+    })
+
+    await logActivity({
+      session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'ORDER_CREATED',
+      entity: 'Order',
+      entityId: order.id,
+      details: { orderNumber, projectId, projectName: project.name },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({ order })

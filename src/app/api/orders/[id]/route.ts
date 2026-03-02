@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { syncItemsStatus } from '@/lib/procurement/status-sync'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export const dynamic = 'force-dynamic'
 
@@ -382,6 +383,15 @@ export async function PATCH(
       })
     }
 
+    await logActivity({
+      session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'ORDER_UPDATED',
+      entity: 'Order',
+      entityId: id,
+      details: { orderNumber: existing.orderNumber },
+      ipAddress: getIPAddress(request)
+    })
+
     return NextResponse.json({ order })
   } catch (error) {
     console.error('Error updating order:', error)
@@ -453,6 +463,15 @@ export async function POST(
             message: 'Purchase order placed with supplier',
             userId
           }
+        })
+
+        await logActivity({
+          session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+          action: 'ORDER_SENT',
+          entity: 'Order',
+          entityId: id,
+          details: { orderNumber: order.orderNumber },
+          ipAddress: getIPAddress(request)
         })
 
         // Sync items to ORDERED status
@@ -585,6 +604,15 @@ export async function POST(
           }
         })
 
+        await logActivity({
+          session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+          action: 'ORDER_PAYMENT_RECORDED',
+          entity: 'Order',
+          entityId: id,
+          details: { orderNumber: order.orderNumber, paymentMethod, paymentAmount: amount },
+          ipAddress: getIPAddress(request)
+        })
+
         // Sync items when auto-confirmed
         if (shouldAutoConfirm && order.items.length > 0) {
           const itemIds = order.items.map(item => item.roomFFEItemId).filter(Boolean) as string[]
@@ -621,6 +649,15 @@ export async function POST(
             message: `Order cancelled${reason ? `: ${reason}` : ''}`,
             userId
           }
+        })
+
+        await logActivity({
+          session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+          action: 'ORDER_DELETED',
+          entity: 'Order',
+          entityId: id,
+          details: { orderNumber: order.orderNumber, reason },
+          ipAddress: getIPAddress(request)
         })
 
         return NextResponse.json({ success: true, action: 'cancelled' })
@@ -720,6 +757,15 @@ export async function DELETE(
           data: { specStatus: 'QUOTE_APPROVED' }
         })
       }
+    })
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'ORDER_DELETED',
+      entity: 'Order',
+      entityId: id,
+      details: { orderNumber: existing.orderNumber },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({ success: true })

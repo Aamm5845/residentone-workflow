@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export async function GET(request: NextRequest) {
   try {
@@ -77,6 +78,15 @@ export async function POST(request: NextRequest) {
         } : {})
       },
       include: { contacts: true }
+    })
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: (session.user as any).orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'CONTRACTOR_CREATED',
+      entity: 'Contractor',
+      entityId: contractor.id,
+      details: { contractorName: contractor.businessName, companyName: contractor.businessName },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json(contractor, { status: 201 })

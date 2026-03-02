@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { logActivity, getIPAddress } from '@/lib/attribution';
 
 export async function GET(request: NextRequest) {
   try {
@@ -110,6 +111,25 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    // Log activity for section library creation
+    const orgId = (session.user as any).orgId
+    const userId = (session.user as any).id || session.user.id
+    if (orgId && userId) {
+      await logActivity({
+        session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+        action: 'FFE_ITEM_CREATED',
+        entity: 'FFEItem',
+        entityId: newSection.id,
+        details: {
+          itemName: name,
+          isSectionLibrary: true,
+          sectionName: name,
+          isGlobal
+        },
+        ipAddress: getIPAddress(request)
+      });
+    }
+
     return NextResponse.json({
       success: true,
       data: newSection
@@ -117,7 +137,7 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error creating FFE section:', error);
-    
+
     // Handle unique constraint errors
     if (error.code === 'P2002') {
       return NextResponse.json(

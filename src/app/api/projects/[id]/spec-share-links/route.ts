@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { getBaseUrl } from '@/lib/get-base-url'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export const dynamic = 'force-dynamic'
 
@@ -148,6 +149,15 @@ export async function POST(
           select: { id: true, name: true }
         }
       }
+    })
+
+    await logActivity({
+      session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'CLIENT_ACCESS_GRANTED',
+      entity: 'ClientAccess',
+      entityId: shareLink.id,
+      details: { projectId, linkName: name, itemCount: shareLink.itemIds.length, isAllItems: shareLink.itemIds.length === 0 },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email'
 import { generateBudgetQuoteEmailTemplate } from '@/lib/email-templates'
 import { getBaseUrl } from '@/lib/get-base-url'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export const dynamic = 'force-dynamic'
 
@@ -125,6 +126,15 @@ export async function POST(
         }
       })
     }
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'BUDGET_QUOTE_SENT',
+      entity: 'BudgetQuote',
+      entityId: id,
+      details: { title: budgetQuote.title, projectName: budgetQuote.project.name, clientEmail: email, itemCount: items.length },
+      ipAddress: getIPAddress(request)
+    })
 
     return NextResponse.json({
       success: true,

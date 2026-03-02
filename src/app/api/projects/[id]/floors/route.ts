@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 // GET /api/projects/[id]/floors - Get all floors for a project
 export async function GET(
@@ -41,7 +42,16 @@ export async function POST(
 
     // Floor model doesn't exist in schema - return not implemented error
     // TODO: Add Floor model to Prisma schema if floor organization is needed
-    
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: session.user.orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'PROJECT_UPDATED',
+      entity: 'Project',
+      entityId: projectId,
+      details: { projectId, floorName: name },
+      ipAddress: getIPAddress(request)
+    })
+
     return NextResponse.json({ error: 'Floor functionality not implemented - Floor model missing from schema' }, { status: 501 })
   } catch (error) {
     console.error('Error creating floor:', error)

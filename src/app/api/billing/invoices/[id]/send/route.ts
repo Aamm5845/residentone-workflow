@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { sendInvoiceEmail } from '@/lib/send-invoice-email'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 interface AuthSession {
   user: {
@@ -61,6 +62,15 @@ export async function POST(
     })
 
     const recipientEmail = customEmail || invoice?.clientEmail || 'client'
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: session.user.orgId, role: session.user.role || 'USER' } } as any,
+      action: 'INVOICE_SENT',
+      entity: 'BillingInvoice',
+      entityId: id,
+      details: { recipientEmail },
+      ipAddress: getIPAddress(request)
+    })
 
     return NextResponse.json({
       success: true,

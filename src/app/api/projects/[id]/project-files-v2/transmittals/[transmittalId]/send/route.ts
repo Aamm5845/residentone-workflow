@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email-service'
 import { dropboxService } from '@/lib/dropbox-service-v2'
 import { getBaseUrl } from '@/lib/get-base-url'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export const runtime = 'nodejs'
 
@@ -320,6 +321,16 @@ export async function POST(
           select: { id: true, name: true }
         }
       }
+    })
+
+    // Log activity
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: (session.user as any).orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'TRANSMITTAL_SENT',
+      entity: 'Transmittal',
+      entityId: transmittalId,
+      details: { transmittalNumber: transmittal.transmittalNumber, projectId: id, projectName: project.name, recipientEmail: transmittal.recipientEmail, recipientName: transmittal.recipientName, attachedFiles: attachments.length },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({

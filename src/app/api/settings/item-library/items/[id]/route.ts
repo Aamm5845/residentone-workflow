@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 const updateItemSchema = z.object({
   name: z.string().min(1).max(100).optional(),
@@ -40,6 +41,15 @@ export async function PATCH(
       data: updateData,
     })
 
+    await logActivity({
+      session: { user: { id: (session.user as any).id, orgId: (session.user as any).orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'ITEM_LIBRARY_UPDATED',
+      entity: 'ItemLibrary',
+      entityId: id,
+      details: { updatedFields: Object.keys(data), operation: 'updated' },
+      ipAddress: getIPAddress(req)
+    })
+
     return NextResponse.json(item)
   } catch (error) {
     console.error('Error updating item:', error)
@@ -65,6 +75,15 @@ export async function DELETE(
     await prisma.designConceptItemLibrary.update({
       where: { id },
       data: { isActive: false },
+    })
+
+    await logActivity({
+      session: { user: { id: (session.user as any).id, orgId: (session.user as any).orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'ITEM_LIBRARY_UPDATED',
+      entity: 'ItemLibrary',
+      entityId: id,
+      details: { operation: 'deleted' },
+      ipAddress: getIPAddress(req)
     })
 
     return NextResponse.json({ success: true })

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { logActivity, getIPAddress } from '@/lib/attribution';
 
 // Default preset items for each section type
 const SECTION_PRESET_ITEMS: Record<string, any[]> = {
@@ -212,6 +213,24 @@ export async function POST(request: NextRequest) {
       });
     });
 
+    // Log activity for template creation
+    if (template) {
+      await logActivity({
+        session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+        action: 'FFE_ITEM_CREATED',
+        entity: 'FFEItem',
+        entityId: template.id,
+        details: {
+          itemName: name,
+          templateName: name,
+          isTemplate: true,
+          sectionCount: sections.length,
+          isDefault
+        },
+        ipAddress: getIPAddress(request)
+      });
+    }
+
     return NextResponse.json({
       success: true,
       data: template
@@ -220,8 +239,8 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error creating FFE template:', error);
     return NextResponse.json(
-      { 
-        error: 'Failed to create template', 
+      {
+        error: 'Failed to create template',
         details: error.message
       },
       { status: 500 }

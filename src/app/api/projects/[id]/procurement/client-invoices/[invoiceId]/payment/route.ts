@@ -4,6 +4,7 @@ import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email-service'
 import { generatePaymentConfirmationEmailTemplate } from '@/lib/email-templates'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 // GET - Get payment history for an invoice
 export async function GET(
@@ -292,6 +293,15 @@ export async function POST(
         console.error('Failed to send payment confirmation email:', emailError)
       }
     }
+
+    await logActivity({
+      session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'CLIENT_INVOICE_PAYMENT_RECEIVED',
+      entity: 'ClientInvoice',
+      entityId: invoiceId,
+      details: { invoiceNumber: invoice.quoteNumber, projectId, paymentId: payment.id, amount, method, isFullyPaid, balance: totalAmount - newPaidAmount },
+      ipAddress: getIPAddress(request)
+    })
 
     return NextResponse.json({
       success: true,

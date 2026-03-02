@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { reassignPhasesOnRoleChange } from '@/lib/utils/auto-assignment'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 import { z } from 'zod'
 import { UserRole } from '@prisma/client'
 import type { Session } from 'next-auth'
@@ -270,6 +271,15 @@ export async function PUT(
       }
     }
 
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: session.user.orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'TEAM_MEMBER_UPDATED',
+      entity: 'User',
+      entityId: params.userId,
+      details: { memberName: updatedUser.name, email: updatedUser.email },
+      ipAddress: getIPAddress(request)
+    })
+
     return NextResponse.json(updatedUser)
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -329,6 +339,15 @@ export async function DELETE(
         orgId: null,
         updatedAt: new Date(),
       }
+    })
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: session.user.orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'TEAM_MEMBER_REMOVED',
+      entity: 'User',
+      entityId: params.userId,
+      details: { memberName: existingUser.name, email: existingUser.email },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({

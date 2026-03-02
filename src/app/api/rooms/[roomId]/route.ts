@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import type { Session } from 'next-auth'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export async function DELETE(
   request: NextRequest,
@@ -78,8 +79,17 @@ export async function DELETE(
       where: { id: resolvedParams.roomId }
     })
 
-    return NextResponse.json({ 
-      success: true, 
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: session.user.orgId, role: session.user.role || 'USER' } } as any,
+      action: 'ROOM_DELETED',
+      entity: 'Room',
+      entityId: resolvedParams.roomId,
+      details: { roomName: room.name, projectId: room.project?.id },
+      ipAddress: getIPAddress(request)
+    })
+
+    return NextResponse.json({
+      success: true,
       message: 'Room deleted successfully',
       deletedRoomId: resolvedParams.roomId
     })
@@ -129,6 +139,15 @@ export async function PUT(
           }
         }
       }
+    })
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: session.user.orgId, role: session.user.role || 'USER' } } as any,
+      action: 'ROOM_UPDATED',
+      entity: 'Room',
+      entityId: resolvedParams.roomId,
+      details: { roomName: room.name, updatedFields: Object.keys(updateData) },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json(room)

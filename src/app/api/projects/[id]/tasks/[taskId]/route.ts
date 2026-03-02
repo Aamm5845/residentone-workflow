@@ -3,6 +3,7 @@ import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 const taskUpdateSchema = z.object({
   title: z.string().optional(),
@@ -412,6 +413,16 @@ export async function PUT(
     // Revalidate paths
     revalidatePath(`/projects/${projectId}/project-updates`)
 
+    // Log activity
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: (session.user as any).orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'TASK_UPDATED',
+      entity: 'Task',
+      entityId: taskId,
+      details: { title: existingTask.title, projectId, changes: Object.keys(validatedData) },
+      ipAddress: getIPAddress(request)
+    })
+
     // TODO: Send real-time notification via WebSocket
     // TODO: Update dependent tasks if this task was blocking them
 
@@ -536,11 +547,21 @@ export async function DELETE(
     // Revalidate paths
     revalidatePath(`/projects/${projectId}/project-updates`)
 
+    // Log activity
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: (session.user as any).orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'TASK_DELETED',
+      entity: 'Task',
+      entityId: taskId,
+      details: { title: existingTask.title, projectId, status: existingTask.status },
+      ipAddress: getIPAddress(request)
+    })
+
     // TODO: Send real-time notification via WebSocket
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Task deleted successfully' 
+    return NextResponse.json({
+      success: true,
+      message: 'Task deleted successfully'
     })
 
   } catch (error) {

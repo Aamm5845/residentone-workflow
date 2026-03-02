@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 // Validation schema for creating an invoice
 const createInvoiceSchema = z.object({
@@ -293,6 +294,15 @@ export async function POST(request: NextRequest) {
         type: 'CREATED',
         message: `Invoice ${invoiceNumber} created`,
       },
+    })
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: session.user.orgId, role: session.user.role || 'USER' } } as any,
+      action: 'INVOICE_CREATED',
+      entity: 'BillingInvoice',
+      entityId: invoice.id,
+      details: { invoiceNumber },
+      ipAddress: getIPAddress(request)
     })
 
     return NextResponse.json({

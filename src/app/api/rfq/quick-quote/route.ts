@@ -3,6 +3,7 @@ import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email-service'
 import { getBaseUrl } from '@/lib/get-base-url'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 export const dynamic = 'force-dynamic'
 
@@ -272,6 +273,17 @@ export async function POST(request: NextRequest) {
           userId,
           metadata: { results }
         }
+      })
+    }
+
+    if (successCount > 0) {
+      await logActivity({
+        session: { user: { id: userId, orgId, role: (session.user as any).role || 'USER' } } as any,
+        action: 'SUPPLIER_QUOTE_RECEIVED',
+        entity: 'SupplierQuote',
+        entityId: rfq.id,
+        details: { projectId, rfqNumber: rfq.rfqNumber, projectName: project.name, suppliersSent: successCount, itemCount: itemIds.length },
+        ipAddress: getIPAddress(request)
       })
     }
 

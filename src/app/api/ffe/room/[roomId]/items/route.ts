@@ -5,6 +5,7 @@ import { getFFEItemsForRoom, autoAddToLibraryIfNew } from '@/lib/ffe/library-man
 import { type FFEItemState } from '@/lib/constants/room-ffe-config'
 import { prisma } from '@/lib/prisma'
 import { getSession } from '@/auth'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 // Get FFE checklist and status for a room
 export async function GET(request: NextRequest, { params }: { params: Promise<{ roomId: string }> }) {
@@ -179,6 +180,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       'pending',
       session.user.id
     )
+
+    // Log activity for custom FFE item creation
+    const orgId = (session.user as any).orgId
+    if (orgId) {
+      await logActivity({
+        session: { user: { id: session.user.id, orgId, role: (session.user as any).role || 'USER' } } as any,
+        action: 'FFE_ITEM_CREATED',
+        entity: 'FFEItem',
+        entityId: itemId,
+        details: {
+          itemName: name,
+          roomId,
+          category,
+          isCustomItem: true
+        },
+        ipAddress: getIPAddress(request)
+      })
+    }
 
     return NextResponse.json({ success: true, message: 'Custom item added' })
 

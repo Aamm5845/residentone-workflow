@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { getBaseUrl } from '@/lib/get-base-url'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 // GET share settings for a project
 export async function GET(
@@ -139,6 +140,15 @@ export async function POST(
     const shareUrl = shareSettings.isPublished 
       ? `${baseUrl}/shared/specs/${projectId}`
       : null
+
+    await logActivity({
+      session: { user: { id: session.user.id, orgId: (session.user as any).orgId || orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'PROJECT_UPDATED',
+      entity: 'Project',
+      entityId: projectId,
+      details: { projectId, shareSettings },
+      ipAddress: getIPAddress(request)
+    })
 
     return NextResponse.json({
       success: true,

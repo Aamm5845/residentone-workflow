@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { logActivity, getIPAddress } from '@/lib/attribution'
 
 const createCategorySchema = z.object({
   name: z.string().min(1).max(100),
@@ -56,6 +57,15 @@ export async function POST(req: NextRequest) {
         icon: data.icon,
         order: (maxOrder._max.order || 0) + 1,
       }
+    })
+
+    await logActivity({
+      session: { user: { id: (session.user as any).id, orgId: (session.user as any).orgId, role: (session.user as any).role || 'USER' } } as any,
+      action: 'ITEM_LIBRARY_UPDATED',
+      entity: 'ItemLibrary',
+      entityId: category.id,
+      details: { name: data.name, key, operation: 'category_created' },
+      ipAddress: getIPAddress(req)
     })
 
     return NextResponse.json(category)
