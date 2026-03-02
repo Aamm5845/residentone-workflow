@@ -713,8 +713,8 @@ class DropboxService {
   }
 
   /**
-   * Upload a survey photo to the project's 7- SOURCES/Site Photos folder organized by date
-   * Creates folder structure: /ProjectFolder/7- SOURCES/Site Photos/YYYY-MM-DD/
+   * Upload a survey photo to the project's 7- Reference/Site Photos folder organized by date
+   * Creates folder structure: /ProjectFolder/7- Reference/Site Photos/YYYY-MM-DD/
    */
   async uploadSurveyPhoto(
     projectFolderPath: string,
@@ -726,8 +726,8 @@ class DropboxService {
       // Format date as YYYY-MM-DD
       const dateStr = date.toISOString().split('T')[0]
       
-      // Construct the path: /ProjectFolder/7- SOURCES/Site Photos/YYYY-MM-DD/
-      const sitePhotosFolder = `${projectFolderPath}/7- SOURCES/Site Photos`
+      // Construct the path: /ProjectFolder/7- Reference/Site Photos/YYYY-MM-DD/
+      const sitePhotosFolder = `${projectFolderPath}/7- Reference/Site Photos`
       const dateFolder = `${sitePhotosFolder}/${dateStr}`
       
       // Ensure Site Photos folder exists
@@ -765,7 +765,7 @@ class DropboxService {
   /**
    * Create project folder structure in Dropbox
    * Creates: /Meisner Interiors Team Folder/{projectName}/
-   * With subfolders: 1-CAD, 2-MAX, 3-RENDERING, 4-SENT, 5-RECIEVED, 6-SHOPPING, 7-SOURCES, 8-DRAWINGS, 9-SKP, 10-REFERENCE MOOD, 11-SOFTWARE UPLOADS
+   * With subfolders: 1-CAD, 2-MAX, 3-RENDERING, 4-SENT, 5-RECIEVED, 6-SHOPPING, 7-Reference, 8-DRAWINGS, 9-SKP, 10-REFERENCE MOOD, 11-SOFTWARE UPLOADS
    */
   async createProjectFolderStructure(projectName: string): Promise<string> {
     try {
@@ -795,7 +795,7 @@ class DropboxService {
         '4- SENT',
         '5- RECIEVED',
         '6- SHOPPING',
-        '7- SOURCES',
+        '7- Reference',
         '8- DRAWINGS',
         '9- SKP',
         '10- REFERENCE MOOD',

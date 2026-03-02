@@ -110,14 +110,14 @@ export async function POST(request: NextRequest) {
       const roomName = section.stage.room.name || section.stage.room.type
       const sanitizedRoomName = roomName.replace(/[<>:"\/\\|?*]/g, '-').trim()
       
-      // Create path: /Project/7- SOURCES/Design Concept/{RoomName}/
-      const dropboxFolderPath = `${section.stage.room.project.dropboxFolder}/7- SOURCES/Design Concept/${sanitizedRoomName}`
-      
+      // Create path: /Project/7- Reference/Design Concept/{RoomName}/
+      const dropboxFolderPath = `${section.stage.room.project.dropboxFolder}/7- Reference/Design Concept/${sanitizedRoomName}`
+
       // Ensure the folder exists
       try {
         console.log('[Dropbox] Creating folder structure...', dropboxFolderPath)
-        await dropboxService.createFolder(`${section.stage.room.project.dropboxFolder}/7- SOURCES`)
-        await dropboxService.createFolder(`${section.stage.room.project.dropboxFolder}/7- SOURCES/Design Concept`)
+        await dropboxService.createFolder(`${section.stage.room.project.dropboxFolder}/7- Reference`)
+        await dropboxService.createFolder(`${section.stage.room.project.dropboxFolder}/7- Reference/Design Concept`)
         await dropboxService.createFolder(dropboxFolderPath)
         console.log('[Dropbox] ✅ Folder structure created successfully')
       } catch (folderError) {

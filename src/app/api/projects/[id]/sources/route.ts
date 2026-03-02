@@ -199,15 +199,15 @@ export async function POST(
     // Create Dropbox path (using project's configured dropboxFolder, like renderings)
     const categoryConfig = SOURCE_CATEGORIES[category as keyof typeof SOURCE_CATEGORIES]
     const basePath = project.dropboxFolder
-    const sourcesPath = `${basePath}/7- SOURCES/${categoryConfig.folder}`
+    const sourcesPath = `${basePath}/7- Reference/${categoryConfig.folder}`
     const fileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
     const dropboxPath = `${sourcesPath}/${fileName}`
 
     // Ensure folder structure exists (matching renderings pattern with separate try/catch blocks)
     try {
-      await dropboxService.createFolder(`${basePath}/7- SOURCES`)
+      await dropboxService.createFolder(`${basePath}/7- Reference`)
     } catch (err) {
-      console.warn('[sources] Could not create 7- SOURCES folder (may exist):', `${basePath}/7- SOURCES`)
+      console.warn('[sources] Could not create 7- Reference folder (may exist):', `${basePath}/7- Reference`)
     }
     
     try {

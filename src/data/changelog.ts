@@ -88,7 +88,7 @@ export const changelog: ChangelogEntry[] = [
     highlights: [
       'Post updates in Project Overview to share where the project is at',
       'Start Site Survey to capture on-site photos & videos',
-      'Photos saved to Dropbox: Project Folder → 7- SOURCES → Site Photos → Date',
+      'Photos saved to Dropbox: Project Folder → 7- Reference → Site Photos → Date',
       'Tag photos with room names, trade categories & notes',
       'Mark photos as Before/After for easy comparison',
       'View all media in the Photos tab with full details'

@@ -17,7 +17,7 @@ function isMediaFile(name: string): boolean {
 
 /**
  * GET /api/admin/migrate-sources-photos
- * List projects that need migration (have media in 7- SOURCES)
+ * List projects that need migration (have media in 7- Reference)
  */
 export async function GET() {
   try {
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     }
 
     const folder = project.dropboxFolder!
-    const sourcesPath = `${folder}/7- SOURCES`
+    const sourcesPath = `${folder}/7- Reference`
     const photosPath = `${folder}/5- Photos`
 
     // Get existing files in 5- Photos to avoid doubles
@@ -91,14 +91,14 @@ export async function POST(request: NextRequest) {
       // 5- Photos may not exist yet
     }
 
-    // Get media from 7- SOURCES
+    // Get media from 7- Reference
     let sourceMedia: Array<{ name: string; path: string; relativePath: string }> = []
     try {
       sourceMedia = await listAllMediaRecursive(sourcesPath)
     } catch {
       return NextResponse.json({
         project: project.name,
-        message: 'No 7- SOURCES folder found',
+        message: 'No 7- Reference folder found',
         copied: 0, skipped: 0, failed: 0
       })
     }
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
     if (sourceMedia.length === 0) {
       return NextResponse.json({
         project: project.name,
-        message: 'No media files in 7- SOURCES',
+        message: 'No media files in 7- Reference',
         copied: 0, skipped: 0, failed: 0
       })
     }

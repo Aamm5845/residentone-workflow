@@ -46,9 +46,9 @@ export async function GET() {
       let hasPhotosFolder = false
       let photosCount = 0
 
-      // Check 7- SOURCES for photos/surveys (recursive scan)
+      // Check 7- Reference for photos/surveys (recursive scan)
       try {
-        const sourcesPath = `${folder}/7- SOURCES`
+        const sourcesPath = `${folder}/7- Reference`
         const mediaFiles = await countMediaRecursive(sourcesPath)
         sourcesPhotos = mediaFiles.count
         sourcesFolders.push(...mediaFiles.folders)

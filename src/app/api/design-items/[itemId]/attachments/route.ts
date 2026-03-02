@@ -102,8 +102,8 @@ export async function POST(
     // Initialize Dropbox service
     const dropboxService = new DropboxService();
 
-    // Create the Dropbox folder structure: ProjectFolder/7- SOURCES/RoomName/ItemName/Attachments/
-    const sourcesPath = `${project.dropboxFolder}/7- SOURCES`;
+    // Create the Dropbox folder structure: ProjectFolder/7- Reference/RoomName/ItemName/Attachments/
+    const sourcesPath = `${project.dropboxFolder}/7- Reference`;
     const roomPath = `${sourcesPath}/${roomName}`;
     const itemPath = `${roomPath}/${itemName}`;
     const attachmentsPath = `${itemPath}/Attachments`;
