@@ -5,80 +5,100 @@ import { prisma } from '@/lib/prisma'
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  const session = await getSession()
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  try {
+    const session = await getSession()
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
-  const orgId = (session.user as any).orgId
+    const orgId = (session.user as any).orgId
 
-  // Find projects that have ProjectUpdatePhotos (survey photos stored in 7- SOURCES/Site Photos)
-  const projectsWithSurveyPhotos = await prisma.project.findMany({
-    where: {
-      orgId,
-      updates: {
-        some: {
-          photos: { some: {} }
-        }
-      }
-    },
-    select: {
-      id: true,
-      name: true,
-      dropboxFolder: true,
-      _count: {
-        select: {
-          updates: true
+    // Simple query: get all ProjectUpdatePhotos with their project info
+    const photos = await prisma.projectUpdatePhoto.findMany({
+      where: {
+        update: {
+          project: { orgId }
         }
       },
-      updates: {
-        where: { photos: { some: {} } },
-        select: {
-          id: true,
-          title: true,
-          _count: { select: { photos: true } },
-          photos: {
-            select: {
-              id: true,
-              takenAt: true,
-              asset: {
-                select: { url: true }
+      select: {
+        id: true,
+        takenAt: true,
+        asset: {
+          select: { url: true, filename: true }
+        },
+        update: {
+          select: {
+            id: true,
+            title: true,
+            project: {
+              select: {
+                id: true,
+                name: true,
+                dropboxFolder: true,
               }
             }
           }
         }
       }
-    }
-  })
+    })
 
-  // Also check ProjectSource records (files uploaded to 7- SOURCES)
-  const projectsWithSources = await prisma.projectSource.groupBy({
-    by: ['projectId', 'category'],
-    _count: { id: true },
-    where: {
-      project: { orgId }
-    }
-  })
+    // Group by project
+    const projectMap = new Map<string, {
+      projectId: string
+      projectName: string
+      dropboxFolder: string | null
+      photos: { id: string; url: string | null; filename: string | null; takenAt: Date | null }[]
+    }>()
 
-  const summary = projectsWithSurveyPhotos.map(p => {
-    const totalPhotos = p.updates.reduce((sum, u) => sum + u.photos.length, 0)
-    const dropboxPaths = p.updates.flatMap(u =>
-      u.photos.map(ph => ph.asset?.url).filter(Boolean)
-    )
-    return {
-      projectId: p.id,
-      projectName: p.name,
+    for (const photo of photos) {
+      const proj = photo.update.project
+      if (!projectMap.has(proj.id)) {
+        projectMap.set(proj.id, {
+          projectId: proj.id,
+          projectName: proj.name,
+          dropboxFolder: proj.dropboxFolder,
+          photos: []
+        })
+      }
+      projectMap.get(proj.id)!.photos.push({
+        id: photo.id,
+        url: photo.asset?.url || null,
+        filename: photo.asset?.filename || null,
+        takenAt: photo.takenAt,
+      })
+    }
+
+    const projects = Array.from(projectMap.values()).map(p => ({
+      projectId: p.projectId,
+      projectName: p.projectName,
       dropboxFolder: p.dropboxFolder,
-      totalSurveyPhotos: totalPhotos,
-      updatesWithPhotos: p.updates.length,
-      samplePaths: dropboxPaths.slice(0, 3),
-    }
-  })
+      totalSurveyPhotos: p.photos.length,
+      samplePaths: p.photos.slice(0, 5).map(ph => ph.url),
+    }))
 
-  return NextResponse.json({
-    totalProjectsWithSurveyPhotos: summary.length,
-    totalSurveyPhotos: summary.reduce((s, p) => s + p.totalSurveyPhotos, 0),
-    projects: summary,
-    sourcesBreakdown: projectsWithSources,
-  })
+    // Also try to get ProjectSource records
+    let sourcesBreakdown: any[] = []
+    try {
+      sourcesBreakdown = await prisma.projectSource.groupBy({
+        by: ['projectId', 'category'],
+        _count: { id: true },
+        where: { project: { orgId } }
+      })
+    } catch (e: any) {
+      sourcesBreakdown = [{ error: e.message }]
+    }
+
+    return NextResponse.json({
+      totalProjectsWithSurveyPhotos: projects.length,
+      totalSurveyPhotos: photos.length,
+      projects,
+      sourcesBreakdown,
+    })
+  } catch (error: any) {
+    console.error('[check-survey-photos] Error:', error)
+    return NextResponse.json({
+      error: error.message || 'Unknown error',
+      stack: error.stack?.split('\n').slice(0, 5),
+    }, { status: 500 })
+  }
 }
