@@ -1233,27 +1233,25 @@ export function generateChargeRequestEmailTemplate(data: ChargeRequestEmailData)
   }
 
   const companyDisplayName = 'Meisner Interiors'
-  const subject = `Payment Request: ${data.poNumber} - ${data.milestoneLabel} (${formatCurrency(data.requestedAmount)})`
+  const subject = `Charge Request: ${data.poNumber} - ${data.milestoneLabel} (${formatCurrency(data.requestedAmount)})`
+
+  const logoUrl = data.companyLogo || 'https://app.meisnerinteriors.com/meisnerinteriorlogo.png'
 
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Payment Request - ${data.poNumber}</title>
+    <title>Charge Request - ${data.poNumber}</title>
 </head>
 <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f9fafb; line-height: 1.6;">
     <div style="max-width: 560px; margin: 40px auto; background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
         <!-- Header -->
         <div style="padding: 40px 40px 32px 40px; text-align: center; border-bottom: 1px solid #e5e7eb;">
-            ${data.companyLogo ? `
-            <img src="${data.companyLogo}"
+            <img src="${logoUrl}"
                  alt="${companyDisplayName}"
                  style="max-width: 220px; max-height: 80px; height: auto; margin-bottom: 24px;" />
-            ` : `
-            <div style="color: #111827; font-size: 22px; font-weight: 700; margin-bottom: 24px;">${companyDisplayName}</div>
-            `}
-            <p style="margin: 0; color: #111827; font-size: 18px; font-weight: 600;">Payment Request</p>
+            <p style="margin: 0; color: #111827; font-size: 18px; font-weight: 600;">Charge Request</p>
             <p style="margin: 6px 0 0 0; color: #6b7280; font-size: 14px;">${data.poNumber} &middot; ${data.projectName}</p>
         </div>
 
@@ -1264,7 +1262,7 @@ export function generateChargeRequestEmailTemplate(data: ChargeRequestEmailData)
             </p>
 
             <p style="margin: 0 0 32px 0; color: #4b5563; font-size: 15px;">
-                We are requesting you process the following payment for Purchase Order <strong>${data.poNumber}</strong>.
+                We are requesting you charge the following amount for Purchase Order <strong>${data.poNumber}</strong>.
             </p>
 
             <!-- Amount Box -->
@@ -1275,7 +1273,7 @@ export function generateChargeRequestEmailTemplate(data: ChargeRequestEmailData)
 
             <!-- Payment Summary Table -->
             <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
-                <p style="margin: 0 0 12px 0; color: #374151; font-size: 14px; font-weight: 600;">Payment Summary</p>
+                <p style="margin: 0 0 12px 0; color: #374151; font-size: 14px; font-weight: 600;">Order Summary</p>
                 <table style="width: 100%; border-collapse: collapse;">
                     <tr>
                         <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Order Total</td>
@@ -1304,14 +1302,14 @@ export function generateChargeRequestEmailTemplate(data: ChargeRequestEmailData)
                 ${data.supplierPortalUrl ? `
                 <a href="${data.supplierPortalUrl}"
                    style="display: inline-block; background: #111827; color: white; text-decoration: none; padding: 14px 32px; border-radius: 6px; font-weight: 600; font-size: 15px;">
-                    Process Payment
+                    Process Charge
                 </a>
                 <p style="margin: 16px 0 0 0; color: #6b7280; font-size: 13px;">
-                    Click above to view order details and record payment
+                    Click above to view order details and process the charge
                 </p>
                 ` : `
                 <p style="margin: 0; color: #6b7280; font-size: 14px;">
-                    Please reply to this email to confirm payment processing.
+                    Please reply to this email to confirm you have processed the charge.
                 </p>
                 `}
             </div>
