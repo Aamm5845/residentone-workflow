@@ -50,10 +50,12 @@ import {
   Phone,
   CheckCircle2,
   AlertTriangle,
-  Download
+  Download,
+  DollarSign
 } from 'lucide-react'
 import { toast } from 'sonner'
 import SendPODialog from '@/components/procurement/SendPODialog'
+import RequestChargeDialog from '@/components/procurement/RequestChargeDialog'
 
 interface OrderItem {
   id: string
@@ -203,6 +205,7 @@ export default function OrderDetailSheet({
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [showSendPO, setShowSendPO] = useState(false)
+  const [showRequestCharge, setShowRequestCharge] = useState(false)
   const [downloadingPDF, setDownloadingPDF] = useState(false)
   const [sendingTestEmail, setSendingTestEmail] = useState(false)
   const [showTestEmailDialog, setShowTestEmailDialog] = useState(false)
@@ -1118,6 +1121,7 @@ export default function OrderDetailSheet({
                           <div className={`w-2 h-2 rounded-full ${
                             activity.type === 'PO_SENT' ? 'bg-blue-500' :
                             activity.type === 'PAYMENT_MADE' || activity.type === 'PAYMENT_RECORDED' ? 'bg-green-500' :
+                            activity.type === 'CHARGE_REQUESTED' ? 'bg-amber-500' :
                             activity.type === 'SUPPLIER_CONFIRMED' ? 'bg-purple-500' :
                             activity.type === 'SHIPPED' ? 'bg-cyan-500' :
                             activity.type === 'DELIVERED' ? 'bg-emerald-500' :
@@ -1201,6 +1205,16 @@ export default function OrderDetailSheet({
                     >
                       <Mail className="w-4 h-4 mr-1" />
                       Test Email
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowRequestCharge(true)}
+                      disabled={supplierPaid >= totalAmount}
+                      className="text-amber-700 border-amber-300 hover:bg-amber-50"
+                    >
+                      <DollarSign className="w-4 h-4 mr-1" />
+                      Request Charge
                     </Button>
                     <Button
                       size="sm"
@@ -1484,6 +1498,30 @@ export default function OrderDetailSheet({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Request Charge Dialog */}
+      {order && (
+        <RequestChargeDialog
+          open={showRequestCharge}
+          onOpenChange={setShowRequestCharge}
+          order={{
+            id: order.id,
+            orderNumber: order.orderNumber,
+            vendorName: order.supplier?.name || order.vendorName || 'Supplier',
+            vendorEmail: order.supplier?.email || order.vendorEmail || undefined,
+            totalAmount,
+            depositRequired,
+            depositPaid,
+            supplierPaymentAmount: supplierPaid,
+            currency: order.currency,
+          }}
+          onSuccess={() => {
+            setShowRequestCharge(false)
+            fetchOrder()
+            onUpdate()
+          }}
+        />
+      )}
 
       {/* Send PO Dialog */}
       {order && (
