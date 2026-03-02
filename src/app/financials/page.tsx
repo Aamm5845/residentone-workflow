@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import FinancialsPageClient from '@/components/financials/FinancialsPageClient'
 
+export const dynamic = 'force-dynamic'
+
 export default async function FinancialsPage() {
   const session = await getSession()
 
