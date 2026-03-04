@@ -589,6 +589,17 @@ export default function OrderDetailSheet({
     }).format(new Date(dateStr))
   }
 
+  // Tax rate derived from original order for proportional recalculation
+  const originalSubtotal = order ? order.items.reduce((sum, item) => sum + parseFloat(item.totalPrice), 0) : 0
+  const originalTax = order ? parseFloat(order.taxAmount || '0') : 0
+  const taxRate = originalSubtotal > 0 ? originalTax / originalSubtotal : 0
+
+  // Recalculate tax when items change (proportional to new subtotal)
+  const recalcTax = (items: typeof editForm.items) => {
+    const newSubtotal = items.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0)
+    return (newSubtotal * taxRate).toFixed(2)
+  }
+
   // Live-calculated totals for edit mode
   const editSubtotal = editForm.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
   const editShipping = parseFloat(editForm.shippingCost) || 0
@@ -858,11 +869,15 @@ export default function OrderDetailSheet({
                                 size="sm"
                                 className="h-7 w-7 p-0 text-red-400 hover:text-red-600 hover:bg-red-50 flex-shrink-0"
                                 onClick={() => {
-                                  setEditForm(prev => ({
-                                    ...prev,
-                                    items: prev.items.filter(i => i.id !== item.id),
-                                    removedItemIds: [...prev.removedItemIds, item.id]
-                                  }))
+                                  setEditForm(prev => {
+                                    const newItems = prev.items.filter(i => i.id !== item.id)
+                                    return {
+                                      ...prev,
+                                      items: newItems,
+                                      removedItemIds: [...prev.removedItemIds, item.id],
+                                      taxAmount: recalcTax(newItems)
+                                    }
+                                  })
                                 }}
                               >
                                 <X className="w-4 h-4" />
@@ -877,12 +892,12 @@ export default function OrderDetailSheet({
                                   value={item.quantity}
                                   onChange={(e) => {
                                     const qty = parseInt(e.target.value) || 1
-                                    setEditForm(prev => ({
-                                      ...prev,
-                                      items: prev.items.map(i =>
+                                    setEditForm(prev => {
+                                      const newItems = prev.items.map(i =>
                                         i.id === item.id ? { ...i, quantity: qty } : i
                                       )
-                                    }))
+                                      return { ...prev, items: newItems, taxAmount: recalcTax(newItems) }
+                                    })
                                   }}
                                   className="w-16 h-8 text-sm"
                                 />
@@ -898,12 +913,12 @@ export default function OrderDetailSheet({
                                     value={item.unitPrice}
                                     onChange={(e) => {
                                       const price = parseFloat(e.target.value) || 0
-                                      setEditForm(prev => ({
-                                        ...prev,
-                                        items: prev.items.map(i =>
+                                      setEditForm(prev => {
+                                        const newItems = prev.items.map(i =>
                                           i.id === item.id ? { ...i, unitPrice: price } : i
                                         )
-                                      }))
+                                        return { ...prev, items: newItems, taxAmount: recalcTax(newItems) }
+                                      })
                                     }}
                                     className="w-24 h-8 text-sm pl-5"
                                   />
