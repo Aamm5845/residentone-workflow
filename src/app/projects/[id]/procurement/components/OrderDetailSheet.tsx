@@ -1312,7 +1312,7 @@ export default function OrderDetailSheet({
                       <>
                         <div className="flex items-center justify-between pt-2 border-t border-emerald-200 mt-2">
                           <p className="text-sm text-blue-700 font-medium">
-                            Deposit Required {depositPercent > 0 ? `(${depositPercent}%)` : ''}
+                            Deposit Required {depositPercent > 0 ? `(${Math.round(depositPercent * 100) / 100}%)` : ''}
                           </p>
                           <p className="font-bold text-blue-700">
                             {formatCurrency(depositRequired, order.currency)}
