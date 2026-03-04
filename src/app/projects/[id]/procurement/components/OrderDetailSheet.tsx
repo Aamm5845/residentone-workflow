@@ -1184,16 +1184,27 @@ export default function OrderDetailSheet({
                     {/* Tax - editable */}
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm text-emerald-700">Tax</p>
-                      <div className="relative w-28">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={editForm.taxAmount}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, taxAmount: e.target.value }))}
-                          className="h-8 text-sm pl-5 bg-white"
-                        />
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-xs text-emerald-600 hover:text-emerald-800 hover:bg-emerald-100"
+                          title="Recalculate tax from current subtotal"
+                          onClick={() => setEditForm(prev => ({ ...prev, taxAmount: recalcTax(prev.items) }))}
+                        >
+                          Recalc
+                        </Button>
+                        <div className="relative w-28">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={editForm.taxAmount}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, taxAmount: e.target.value }))}
+                            className="h-8 text-sm pl-5 bg-white"
+                          />
+                        </div>
                       </div>
                     </div>
                     {/* Extra Charges - editable rows */}
