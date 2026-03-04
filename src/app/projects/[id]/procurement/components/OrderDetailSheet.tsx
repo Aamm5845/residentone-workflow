@@ -51,7 +51,9 @@ import {
   CheckCircle2,
   AlertTriangle,
   Download,
-  DollarSign
+  DollarSign,
+  Plus,
+  X
 } from 'lucide-react'
 import { toast } from 'sonner'
 import SendPODialog from '@/components/procurement/SendPODialog'
@@ -232,7 +234,16 @@ export default function OrderDetailSheet({
     shippingAddress: '',
     expectedDelivery: '',
     notes: '',
-    internalNotes: ''
+    internalNotes: '',
+    vendorName: '',
+    vendorEmail: '',
+    shippingCost: '',
+    taxAmount: '',
+    extraCharges: [] as ExtraCharge[],
+    depositPercent: '',
+    currency: 'CAD',
+    items: [] as { id: string; name: string; quantity: number; unitPrice: number; imageUrl: string | null; roomName: string | null; isComponent: boolean; parentItemId: string | null; roomFFEItem: OrderItem['roomFFEItem'] }[],
+    removedItemIds: [] as string[]
   })
 
   useEffect(() => {
@@ -247,7 +258,26 @@ export default function OrderDetailSheet({
         shippingAddress: order.shippingAddress || '',
         expectedDelivery: order.expectedDelivery?.split('T')[0] || '',
         notes: order.notes || '',
-        internalNotes: order.internalNotes || ''
+        internalNotes: order.internalNotes || '',
+        vendorName: order.supplier?.name || order.vendorName || '',
+        vendorEmail: order.supplier?.email || order.vendorEmail || '',
+        shippingCost: order.shippingCost || '0',
+        taxAmount: order.taxAmount || '0',
+        extraCharges: order.extraCharges ? [...order.extraCharges] : [],
+        depositPercent: order.depositPercent || '0',
+        currency: order.currency || 'CAD',
+        items: order.items.map(item => ({
+          id: item.id,
+          name: item.name,
+          quantity: item.quantity,
+          unitPrice: parseFloat(item.unitPrice),
+          imageUrl: item.imageUrl,
+          roomName: item.roomName,
+          isComponent: item.isComponent,
+          parentItemId: item.parentItemId,
+          roomFFEItem: item.roomFFEItem
+        })),
+        removedItemIds: []
       })
     }
   }, [order])
@@ -278,6 +308,20 @@ export default function OrderDetailSheet({
 
     setSaving(true)
     try {
+      // Build item updates: only items that changed quantity or unitPrice
+      const itemUpdates = editForm.items
+        .filter(editItem => {
+          const original = order.items.find(o => o.id === editItem.id)
+          if (!original) return false
+          return editItem.quantity !== original.quantity ||
+            editItem.unitPrice !== parseFloat(original.unitPrice)
+        })
+        .map(item => ({
+          id: item.id,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice
+        }))
+
       const res = await fetch(`/api/orders/${order.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -285,7 +329,16 @@ export default function OrderDetailSheet({
           shippingAddress: editForm.shippingAddress || null,
           expectedDelivery: editForm.expectedDelivery || null,
           notes: editForm.notes || null,
-          internalNotes: editForm.internalNotes || null
+          internalNotes: editForm.internalNotes || null,
+          vendorName: editForm.vendorName || null,
+          vendorEmail: editForm.vendorEmail || null,
+          shippingCost: editForm.shippingCost,
+          taxAmount: editForm.taxAmount,
+          extraCharges: editForm.extraCharges,
+          depositPercent: editForm.depositPercent,
+          currency: editForm.currency,
+          itemUpdates: itemUpdates.length > 0 ? itemUpdates : undefined,
+          removedItemIds: editForm.removedItemIds.length > 0 ? editForm.removedItemIds : undefined
         })
       })
 
@@ -536,6 +589,15 @@ export default function OrderDetailSheet({
     }).format(new Date(dateStr))
   }
 
+  // Live-calculated totals for edit mode
+  const editSubtotal = editForm.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
+  const editShipping = parseFloat(editForm.shippingCost) || 0
+  const editTax = parseFloat(editForm.taxAmount) || 0
+  const editExtraTotal = editForm.extraCharges.reduce((sum, c) => sum + (c.amount || 0), 0)
+  const editTotal = editSubtotal + editShipping + editTax + editExtraTotal
+  const editDepositPercent = parseFloat(editForm.depositPercent) || 0
+  const editDepositRequired = editDepositPercent > 0 ? editTotal * editDepositPercent / 100 : 0
+
   if (!order && loading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -623,36 +685,62 @@ export default function OrderDetailSheet({
               {/* Supplier Info */}
               <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-xs text-blue-600 uppercase tracking-wide mb-1">Supplier</p>
-                <div className="flex items-center gap-3">
-                  <Building2 className="w-5 h-5 text-blue-600" />
-                  <div>
-                    <p className="font-medium text-blue-900">{order.supplier?.name || order.vendorName}</p>
-                    {(order.supplier?.email || order.vendorEmail) && (
-                      <p className="text-sm text-blue-700 flex items-center gap-1">
-                        <Mail className="w-3 h-3" />
-                        {order.supplier?.email || order.vendorEmail}
-                      </p>
-                    )}
-                    {order.supplier?.phone && (
-                      <p className="text-sm text-blue-700 flex items-center gap-1">
-                        <Phone className="w-3 h-3" />
-                        {order.supplier.phone}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                {/* Supplier Confirmation Info */}
-                {order.supplierConfirmedAt && (
-                  <div className="mt-3 pt-3 border-t border-blue-200">
-                    <p className="text-xs text-emerald-600 uppercase tracking-wide mb-1">Supplier Confirmed</p>
-                    <div className="text-sm">
-                      <p className="text-blue-900">
-                        <span className="font-medium">{order.supplierConfirmedBy || 'Supplier'}</span>
-                        {' confirmed on '}
-                        {formatDate(order.supplierConfirmedAt)}
-                      </p>
+                {editing ? (
+                  <div className="space-y-2">
+                    <div>
+                      <Label className="text-xs text-blue-700">Vendor Name</Label>
+                      <Input
+                        value={editForm.vendorName}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, vendorName: e.target.value }))}
+                        placeholder="Vendor name"
+                        className="bg-white"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-blue-700">Vendor Email</Label>
+                      <Input
+                        type="email"
+                        value={editForm.vendorEmail}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, vendorEmail: e.target.value }))}
+                        placeholder="vendor@example.com"
+                        className="bg-white"
+                      />
                     </div>
                   </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <Building2 className="w-5 h-5 text-blue-600" />
+                      <div>
+                        <p className="font-medium text-blue-900">{order.supplier?.name || order.vendorName}</p>
+                        {(order.supplier?.email || order.vendorEmail) && (
+                          <p className="text-sm text-blue-700 flex items-center gap-1">
+                            <Mail className="w-3 h-3" />
+                            {order.supplier?.email || order.vendorEmail}
+                          </p>
+                        )}
+                        {order.supplier?.phone && (
+                          <p className="text-sm text-blue-700 flex items-center gap-1">
+                            <Phone className="w-3 h-3" />
+                            {order.supplier.phone}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    {/* Supplier Confirmation Info */}
+                    {order.supplierConfirmedAt && (
+                      <div className="mt-3 pt-3 border-t border-blue-200">
+                        <p className="text-xs text-emerald-600 uppercase tracking-wide mb-1">Supplier Confirmed</p>
+                        <div className="text-sm">
+                          <p className="text-blue-900">
+                            <span className="font-medium">{order.supplierConfirmedBy || 'Supplier'}</span>
+                            {' confirmed on '}
+                            {formatDate(order.supplierConfirmedAt)}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -710,23 +798,137 @@ export default function OrderDetailSheet({
               {/* Items */}
               <div className="space-y-3">
                 <h3 className="text-sm font-semibold text-gray-900">
-                  Items ({order.items.length})
+                  Items ({editing ? editForm.items.length : order.items.length})
                 </h3>
                 <div className="space-y-2">
                   {(() => {
-                    // Group items: parent items first, then their components
+                    if (editing) {
+                      // Edit mode: show editable items from editForm
+                      const items = editForm.items
+                      const parentItems = items.filter(item => !item.isComponent)
+                      const componentItems = items.filter(item => item.isComponent)
+
+                      const orderedItems: typeof items = []
+                      parentItems.forEach(parent => {
+                        orderedItems.push(parent)
+                        const children = componentItems.filter(c => c.parentItemId === parent.id)
+                        orderedItems.push(...children)
+                      })
+                      const usedComponentIds = new Set(orderedItems.filter(i => i.isComponent).map(i => i.id))
+                      componentItems.forEach(comp => {
+                        if (!usedComponentIds.has(comp.id)) {
+                          orderedItems.push(comp)
+                        }
+                      })
+
+                      return orderedItems.map((item) => {
+                        const imageUrl = item.imageUrl || item.roomFFEItem?.images?.[0]
+                        const isComponent = item.isComponent
+                        const lineTotal = item.quantity * item.unitPrice
+
+                        return (
+                          <div
+                            key={item.id}
+                            className={`p-3 bg-white border rounded-lg ${isComponent ? 'ml-6 border-l-2 border-l-gray-300' : ''}`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                                {imageUrl ? (
+                                  <img
+                                    src={imageUrl}
+                                    alt={item.name}
+                                    className={`object-cover rounded border flex-shrink-0 ${isComponent ? 'w-8 h-8' : 'w-10 h-10'}`}
+                                  />
+                                ) : (
+                                  <div className={`bg-gray-100 rounded border flex items-center justify-center flex-shrink-0 ${isComponent ? 'w-8 h-8' : 'w-10 h-10'}`}>
+                                    <Package className={`text-gray-400 ${isComponent ? 'w-4 h-4' : 'w-5 h-5'}`} />
+                                  </div>
+                                )}
+                                <div className="min-w-0">
+                                  <p className={`font-medium text-gray-900 truncate ${isComponent ? 'text-sm' : ''}`}>
+                                    {item.name}
+                                  </p>
+                                  {item.roomName && (
+                                    <p className="text-xs text-gray-500">{item.roomName}</p>
+                                  )}
+                                </div>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 text-red-400 hover:text-red-600 hover:bg-red-50 flex-shrink-0"
+                                onClick={() => {
+                                  setEditForm(prev => ({
+                                    ...prev,
+                                    items: prev.items.filter(i => i.id !== item.id),
+                                    removedItemIds: [...prev.removedItemIds, item.id]
+                                  }))
+                                }}
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
+                            <div className="flex items-center gap-2 mt-2">
+                              <div className="flex items-center gap-1">
+                                <Label className="text-xs text-gray-500 w-7">Qty</Label>
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  value={item.quantity}
+                                  onChange={(e) => {
+                                    const qty = parseInt(e.target.value) || 1
+                                    setEditForm(prev => ({
+                                      ...prev,
+                                      items: prev.items.map(i =>
+                                        i.id === item.id ? { ...i, quantity: qty } : i
+                                      )
+                                    }))
+                                  }}
+                                  className="w-16 h-8 text-sm"
+                                />
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Label className="text-xs text-gray-500">@</Label>
+                                <div className="relative">
+                                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={item.unitPrice}
+                                    onChange={(e) => {
+                                      const price = parseFloat(e.target.value) || 0
+                                      setEditForm(prev => ({
+                                        ...prev,
+                                        items: prev.items.map(i =>
+                                          i.id === item.id ? { ...i, unitPrice: price } : i
+                                        )
+                                      }))
+                                    }}
+                                    className="w-24 h-8 text-sm pl-5"
+                                  />
+                                </div>
+                              </div>
+                              <span className="text-xs text-gray-400">=</span>
+                              <span className="text-sm font-medium text-gray-900 ml-auto">
+                                {formatCurrency(lineTotal, editForm.currency)}
+                              </span>
+                            </div>
+                          </div>
+                        )
+                      })
+                    }
+
+                    // View mode: original display
                     const parentItems = order.items.filter(item => !item.isComponent)
                     const componentItems = order.items.filter(item => item.isComponent)
 
-                    // Build ordered list: each parent followed by its components
                     const orderedItems: OrderItem[] = []
                     parentItems.forEach(parent => {
                       orderedItems.push(parent)
-                      // Find components that belong to this parent
                       const children = componentItems.filter(c => c.parentItemId === parent.id)
                       orderedItems.push(...children)
                     })
-                    // Add any orphan components (no parent found)
                     const usedComponentIds = new Set(orderedItems.filter(i => i.isComponent).map(i => i.id))
                     componentItems.forEach(comp => {
                       if (!usedComponentIds.has(comp.id)) {
@@ -793,19 +995,32 @@ export default function OrderDetailSheet({
                 </div>
               </div>
 
-              {/* Shipping Address (editable) */}
+              {/* Shipping Address & Expected Delivery (editable) */}
               {editing ? (
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2">
-                    <Truck className="w-4 h-4 text-gray-500" />
-                    Ship To Address
-                  </Label>
-                  <Textarea
-                    value={editForm.shippingAddress}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, shippingAddress: e.target.value }))}
-                    placeholder="Enter shipping address..."
-                    rows={3}
-                  />
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <Truck className="w-4 h-4 text-gray-500" />
+                      Ship To Address
+                    </Label>
+                    <Textarea
+                      value={editForm.shippingAddress}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, shippingAddress: e.target.value }))}
+                      placeholder="Enter shipping address..."
+                      rows={3}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-gray-500" />
+                      Expected Delivery
+                    </Label>
+                    <Input
+                      type="date"
+                      value={editForm.expectedDelivery}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, expectedDelivery: e.target.value }))}
+                    />
+                  </div>
                 </div>
               ) : null}
 
@@ -852,6 +1067,32 @@ export default function OrderDetailSheet({
                   <p className="text-sm text-gray-400 italic">No notes</p>
                 )}
               </div>
+
+              {/* Internal Notes */}
+              {editing ? (
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-gray-500" />
+                    Internal Notes
+                  </Label>
+                  <Textarea
+                    value={editForm.internalNotes}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, internalNotes: e.target.value }))}
+                    placeholder="Internal notes (not visible on PO)..."
+                    rows={2}
+                  />
+                </div>
+              ) : order.internalNotes ? (
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-gray-500" />
+                    Internal Notes
+                  </Label>
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-sm text-gray-700 whitespace-pre-line">{order.internalNotes}</p>
+                  </div>
+                </div>
+              ) : null}
 
               {/* Documents */}
               {order.documents && order.documents.length > 0 && (
@@ -901,75 +1142,207 @@ export default function OrderDetailSheet({
 
               {/* Totals - matches CreatePODialog exactly */}
               <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-emerald-700">Items Subtotal ({order.items.length})</p>
-                  <p className="font-medium text-emerald-800">
-                    {formatCurrency(order.subtotal, order.currency)}
-                  </p>
-                </div>
-                {order.shippingCost && parseFloat(order.shippingCost) > 0 && (
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-emerald-700">Shipping</p>
-                    <p className="font-medium text-emerald-800">
-                      {formatCurrency(order.shippingCost, order.currency)}
-                    </p>
-                  </div>
-                )}
-                {order.extraCharges && order.extraCharges.length > 0 && order.extraCharges.map((charge, idx) => (
-                  <div key={idx} className="flex items-center justify-between">
-                    <p className="text-sm text-emerald-700">{charge.label}</p>
-                    <p className="font-medium text-emerald-800">
-                      {formatCurrency(charge.amount, order.currency)}
-                    </p>
-                  </div>
-                ))}
-                {order.taxAmount && parseFloat(order.taxAmount) > 0 && (
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-emerald-700">Tax</p>
-                    <p className="font-medium text-emerald-800">
-                      {formatCurrency(order.taxAmount, order.currency)}
-                    </p>
-                  </div>
-                )}
-                <div className="flex items-center justify-between pt-2 border-t border-emerald-200">
-                  <p className="font-semibold text-emerald-800">Total</p>
-                  <p className="text-xl font-bold text-emerald-900">
-                    {formatCurrency(order.totalAmount, order.currency)}
-                  </p>
-                </div>
-                {depositRequired > 0 && (
+                {editing ? (
                   <>
-                    <div className="flex items-center justify-between pt-2 border-t border-emerald-200 mt-2">
-                      <p className="text-sm text-blue-700 font-medium">
-                        Deposit Required {depositPercent > 0 ? `(${depositPercent}%)` : ''}
-                      </p>
-                      <p className="font-bold text-blue-700">
-                        {formatCurrency(depositRequired, order.currency)}
+                    {/* Subtotal - read only, auto-calculated */}
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-emerald-700">Items Subtotal ({editForm.items.length})</p>
+                      <p className="font-medium text-emerald-800">
+                        {formatCurrency(editSubtotal, editForm.currency)}
                       </p>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-gray-600">Deposit Paid</p>
-                      <div className="flex items-center gap-1.5">
-                        <p className={`font-medium ${depositPaid >= depositRequired ? 'text-emerald-600' : 'text-amber-600'}`}>
-                          {formatCurrency(depositPaid, order.currency)}
-                        </p>
-                        {depositPaid >= depositRequired ? (
-                          <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 text-emerald-600 border-emerald-300 bg-emerald-50">
-                            Paid
-                          </Badge>
-                        ) : depositPaid > 0 ? (
-                          <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 text-amber-600 border-amber-300 bg-amber-50">
-                            Remaining: {formatCurrency(depositRequired - depositPaid, order.currency)}
-                          </Badge>
-                        ) : null}
+                    {/* Shipping - editable */}
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm text-emerald-700">Shipping</p>
+                      <div className="relative w-28">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={editForm.shippingCost}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, shippingCost: e.target.value }))}
+                          className="h-8 text-sm pl-5 bg-white"
+                        />
                       </div>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-gray-600">Balance Due</p>
-                      <p className="font-medium text-gray-700">
-                        {formatCurrency(totalAmount - supplierPaid, order.currency)}
+                    {/* Tax - editable */}
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm text-emerald-700">Tax</p>
+                      <div className="relative w-28">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={editForm.taxAmount}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, taxAmount: e.target.value }))}
+                          className="h-8 text-sm pl-5 bg-white"
+                        />
+                      </div>
+                    </div>
+                    {/* Extra Charges - editable rows */}
+                    {editForm.extraCharges.map((charge, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <Input
+                          value={charge.label}
+                          onChange={(e) => {
+                            const updated = [...editForm.extraCharges]
+                            updated[idx] = { ...updated[idx], label: e.target.value }
+                            setEditForm(prev => ({ ...prev, extraCharges: updated }))
+                          }}
+                          placeholder="Charge label"
+                          className="h-8 text-sm flex-1 bg-white"
+                        />
+                        <div className="relative w-24">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={charge.amount}
+                            onChange={(e) => {
+                              const updated = [...editForm.extraCharges]
+                              updated[idx] = { ...updated[idx], amount: parseFloat(e.target.value) || 0 }
+                              setEditForm(prev => ({ ...prev, extraCharges: updated }))
+                            }}
+                            className="h-8 text-sm pl-5 bg-white"
+                          />
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-red-400 hover:text-red-600"
+                          onClick={() => {
+                            setEditForm(prev => ({
+                              ...prev,
+                              extraCharges: prev.extraCharges.filter((_, i) => i !== idx)
+                            }))
+                          }}
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-emerald-700 hover:text-emerald-800 h-7 text-xs"
+                      onClick={() => {
+                        setEditForm(prev => ({
+                          ...prev,
+                          extraCharges: [...prev.extraCharges, { label: '', amount: 0 }]
+                        }))
+                      }}
+                    >
+                      <Plus className="w-3.5 h-3.5 mr-1" />
+                      Add Extra Charge
+                    </Button>
+                    {/* Total - auto-calculated */}
+                    <div className="flex items-center justify-between pt-2 border-t border-emerald-200">
+                      <p className="font-semibold text-emerald-800">Total</p>
+                      <p className="text-xl font-bold text-emerald-900">
+                        {formatCurrency(editTotal, editForm.currency)}
                       </p>
                     </div>
+                    {/* Deposit % - editable */}
+                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-emerald-200 mt-2">
+                      <p className="text-sm text-blue-700 font-medium">Deposit %</p>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          step="1"
+                          min="0"
+                          max="100"
+                          value={editForm.depositPercent}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, depositPercent: e.target.value }))}
+                          className="w-20 h-8 text-sm bg-white"
+                        />
+                        <span className="text-xs text-gray-500">%</span>
+                      </div>
+                    </div>
+                    {editDepositRequired > 0 && (
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-blue-600">Deposit Required</p>
+                        <p className="font-medium text-blue-700">
+                          {formatCurrency(editDepositRequired, editForm.currency)}
+                        </p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-emerald-700">Items Subtotal ({order.items.length})</p>
+                      <p className="font-medium text-emerald-800">
+                        {formatCurrency(order.subtotal, order.currency)}
+                      </p>
+                    </div>
+                    {order.shippingCost && parseFloat(order.shippingCost) > 0 && (
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-emerald-700">Shipping</p>
+                        <p className="font-medium text-emerald-800">
+                          {formatCurrency(order.shippingCost, order.currency)}
+                        </p>
+                      </div>
+                    )}
+                    {order.extraCharges && order.extraCharges.length > 0 && order.extraCharges.map((charge, idx) => (
+                      <div key={idx} className="flex items-center justify-between">
+                        <p className="text-sm text-emerald-700">{charge.label}</p>
+                        <p className="font-medium text-emerald-800">
+                          {formatCurrency(charge.amount, order.currency)}
+                        </p>
+                      </div>
+                    ))}
+                    {order.taxAmount && parseFloat(order.taxAmount) > 0 && (
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-emerald-700">Tax</p>
+                        <p className="font-medium text-emerald-800">
+                          {formatCurrency(order.taxAmount, order.currency)}
+                        </p>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between pt-2 border-t border-emerald-200">
+                      <p className="font-semibold text-emerald-800">Total</p>
+                      <p className="text-xl font-bold text-emerald-900">
+                        {formatCurrency(order.totalAmount, order.currency)}
+                      </p>
+                    </div>
+                    {depositRequired > 0 && (
+                      <>
+                        <div className="flex items-center justify-between pt-2 border-t border-emerald-200 mt-2">
+                          <p className="text-sm text-blue-700 font-medium">
+                            Deposit Required {depositPercent > 0 ? `(${depositPercent}%)` : ''}
+                          </p>
+                          <p className="font-bold text-blue-700">
+                            {formatCurrency(depositRequired, order.currency)}
+                          </p>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm text-gray-600">Deposit Paid</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className={`font-medium ${depositPaid >= depositRequired ? 'text-emerald-600' : 'text-amber-600'}`}>
+                              {formatCurrency(depositPaid, order.currency)}
+                            </p>
+                            {depositPaid >= depositRequired ? (
+                              <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 text-emerald-600 border-emerald-300 bg-emerald-50">
+                                Paid
+                              </Badge>
+                            ) : depositPaid > 0 ? (
+                              <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 text-amber-600 border-amber-300 bg-amber-50">
+                                Remaining: {formatCurrency(depositRequired - depositPaid, order.currency)}
+                              </Badge>
+                            ) : null}
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm text-gray-600">Balance Due</p>
+                          <p className="font-medium text-gray-700">
+                            {formatCurrency(totalAmount - supplierPaid, order.currency)}
+                          </p>
+                        </div>
+                      </>
+                    )}
                   </>
                 )}
                 {/* Payment History */}

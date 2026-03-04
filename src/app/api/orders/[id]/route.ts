@@ -269,7 +269,17 @@ export async function PATCH(
       supplierPaymentMethod,
       supplierPaymentAmount,
       supplierPaymentRef,
-      supplierPaymentNotes
+      supplierPaymentNotes,
+      // Full edit mode fields
+      vendorName,
+      vendorEmail,
+      shippingCost,
+      taxAmount,
+      extraCharges,
+      depositPercent,
+      currency,
+      itemUpdates,   // { id, quantity, unitPrice }[]
+      removedItemIds // string[]
     } = body
 
     const updateData: any = {
@@ -291,6 +301,10 @@ export async function PATCH(
       ...(supplierPaymentAmount !== undefined && { supplierPaymentAmount }),
       ...(supplierPaymentRef !== undefined && { supplierPaymentRef }),
       ...(supplierPaymentNotes !== undefined && { supplierPaymentNotes }),
+      // Full edit mode fields
+      ...(vendorName !== undefined && { vendorName }),
+      ...(vendorEmail !== undefined && { vendorEmail }),
+      ...(currency !== undefined && { currency }),
       updatedById: userId
     }
 
@@ -310,19 +324,131 @@ export async function PATCH(
       }
     }
 
-    const order = await prisma.order.update({
-      where: { id },
-      data: updateData,
-      include: {
-        project: {
-          select: { id: true, name: true }
-        },
-        supplier: {
-          select: { id: true, name: true }
-        },
-        items: true
-      }
-    })
+    // Full edit: handle item removals, item updates, and recalculate totals
+    const needsRecalculation = removedItemIds?.length > 0 || itemUpdates?.length > 0 ||
+      shippingCost !== undefined || taxAmount !== undefined || extraCharges !== undefined ||
+      depositPercent !== undefined
+
+    let order
+    if (needsRecalculation) {
+      order = await prisma.$transaction(async (tx) => {
+        // 1. Remove items and reset their RoomFFEItem status
+        if (removedItemIds && removedItemIds.length > 0) {
+          // Get the roomFFEItemIds for the removed items
+          const removedItems = await tx.orderItem.findMany({
+            where: { id: { in: removedItemIds }, orderId: id },
+            select: { roomFFEItemId: true }
+          })
+          const roomFFEItemIds = removedItems
+            .map(i => i.roomFFEItemId)
+            .filter((rid): rid is string => rid !== null)
+
+          // Delete the order items
+          await tx.orderItem.deleteMany({
+            where: { id: { in: removedItemIds }, orderId: id }
+          })
+
+          // Reset RoomFFEItem statuses
+          if (roomFFEItemIds.length > 0) {
+            await tx.roomFFEItem.updateMany({
+              where: {
+                id: { in: roomFFEItemIds },
+                paymentStatus: { in: ['DEPOSIT_PAID', 'FULLY_PAID'] }
+              },
+              data: { specStatus: 'CLIENT_PAID' }
+            })
+            await tx.roomFFEItem.updateMany({
+              where: {
+                id: { in: roomFFEItemIds },
+                paymentStatus: { in: ['NOT_INVOICED', 'INVOICED'] }
+              },
+              data: { specStatus: 'QUOTE_APPROVED' }
+            })
+          }
+        }
+
+        // 2. Update items (quantity, unitPrice)
+        if (itemUpdates && itemUpdates.length > 0) {
+          for (const item of itemUpdates) {
+            const totalPrice = item.quantity * item.unitPrice
+            await tx.orderItem.update({
+              where: { id: item.id },
+              data: {
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                totalPrice
+              }
+            })
+          }
+        }
+
+        // 3. Query remaining items to recalculate subtotal
+        const remainingItems = await tx.orderItem.findMany({
+          where: { orderId: id },
+          select: { totalPrice: true }
+        })
+        const subtotal = remainingItems.reduce(
+          (sum, item) => sum + parseFloat(item.totalPrice?.toString() || '0'), 0
+        )
+
+        // 4. Calculate totals
+        const newShippingCost = shippingCost !== undefined ? parseFloat(shippingCost) || 0 : parseFloat(existing.shippingCost?.toString() || '0')
+        const newTaxAmount = taxAmount !== undefined ? parseFloat(taxAmount) || 0 : parseFloat(existing.taxAmount?.toString() || '0')
+
+        const newExtraCharges: { label: string; amount: number }[] = extraCharges !== undefined
+          ? extraCharges
+          : (existing.extraCharges as any[] || [])
+        const extraChargesTotal = newExtraCharges.reduce((sum: number, c: any) => sum + (parseFloat(c.amount) || 0), 0)
+
+        const totalAmount = subtotal + newShippingCost + newTaxAmount + extraChargesTotal
+
+        // 5. Deposit
+        const newDepositPercent = depositPercent !== undefined ? parseFloat(depositPercent) || 0 : parseFloat(existing.depositPercent?.toString() || '0')
+        const depositRequired = newDepositPercent > 0 ? totalAmount * newDepositPercent / 100 : 0
+
+        // 6. Balance due
+        const supplierPaidAmt = parseFloat(existing.supplierPaymentAmount?.toString() || '0')
+        const balanceDue = totalAmount - supplierPaidAmt
+
+        // 7. Update the order
+        updateData.subtotal = subtotal
+        updateData.shippingCost = newShippingCost
+        updateData.taxAmount = newTaxAmount
+        updateData.extraCharges = newExtraCharges
+        updateData.totalAmount = totalAmount
+        updateData.depositPercent = newDepositPercent
+        updateData.depositRequired = depositRequired
+        updateData.balanceDue = balanceDue
+
+        return await tx.order.update({
+          where: { id },
+          data: updateData,
+          include: {
+            project: {
+              select: { id: true, name: true }
+            },
+            supplier: {
+              select: { id: true, name: true }
+            },
+            items: true
+          }
+        })
+      })
+    } else {
+      order = await prisma.order.update({
+        where: { id },
+        data: updateData,
+        include: {
+          project: {
+            select: { id: true, name: true }
+          },
+          supplier: {
+            select: { id: true, name: true }
+          },
+          items: true
+        }
+      })
+    }
 
     // Log status changes and sync RoomFFEItem statuses
     if (status && status !== existing.status) {
