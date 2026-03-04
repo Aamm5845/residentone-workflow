@@ -142,8 +142,6 @@ export async function POST(
 
     const totalAmount = Number(order.totalAmount) || 0
     const depositRequired = Number(order.depositRequired) || 0
-    const currentPaid = Number(order.supplierPaymentAmount) || 0
-    const depositPaid = Number(order.depositPaid) || 0
 
     // Determine payment method name from saved payment method
     let paymentMethodName = method
@@ -156,47 +154,7 @@ export async function POST(
       }
     }
 
-    // Build update data
-    const updateData: any = {
-      supplierPaymentAmount: currentPaid + amount,
-      supplierPaymentMethod: paymentMethodName || method,
-      supplierPaymentRef: reference || order.supplierPaymentRef,
-      supplierPaymentNotes: notes || order.supplierPaymentNotes,
-      supplierPaidAt: paidAt ? new Date(paidAt) : new Date(),
-      savedPaymentMethodId: savedPaymentMethodId || order.savedPaymentMethodId,
-      updatedById: userId
-    }
-
-    // Update deposit tracking based on payment type
-    // Auto-confirm: if a payment is recorded and the order is still in a pre-confirmed state,
-    // it means the supplier has been engaged, so we transition to CONFIRMED
-    const PRE_CONFIRMED_STATUSES = ['PENDING_PAYMENT', 'PAYMENT_RECEIVED', 'DEPOSIT_PAID', 'PAID_TO_SUPPLIER', 'ORDERED']
-    if (PRE_CONFIRMED_STATUSES.includes(order.status)) {
-      updateData.status = 'CONFIRMED'
-      if (!order.confirmedAt) {
-        updateData.confirmedAt = new Date()
-      }
-    }
-
-    if (paymentType === 'DEPOSIT') {
-      updateData.depositPaid = depositPaid + amount
-      updateData.depositPaidAt = new Date()
-      updateData.balanceDue = totalAmount - (depositPaid + amount)
-    } else if (paymentType === 'BALANCE' || paymentType === 'FULL') {
-      updateData.balancePaidAt = new Date()
-      if (currentPaid + amount >= totalAmount) {
-        updateData.balanceDue = 0
-      }
-    }
-
-    const newTotalPaid = currentPaid + amount
-
-    const updatedOrder = await prisma.order.update({
-      where: { id: orderId },
-      data: updateData
-    })
-
-    // Log activity
+    // 1. Create the activity FIRST so we can recalculate from all activities
     await prisma.orderActivity.create({
       data: {
         orderId,
@@ -208,9 +166,64 @@ export async function POST(
           paymentType,
           method: paymentMethodName || method,
           reference,
-          totalPaid: newTotalPaid
+          isDeposit: paymentType === 'DEPOSIT'
         }
       }
+    })
+
+    // 2. Recalculate totals from ALL payment activities (robust — same pattern as DELETE/PATCH)
+    const allActivities = await prisma.orderActivity.findMany({
+      where: {
+        orderId,
+        type: { in: ['PAYMENT_MADE', 'PAYMENT_RECORDED'] }
+      }
+    })
+
+    let newTotalPaid = 0
+    let newDepositPaid = 0
+    for (const act of allActivities) {
+      const meta = act.metadata as any
+      const amt = meta?.amount || 0
+      newTotalPaid += amt
+      if (meta?.isDeposit || meta?.paymentType === 'DEPOSIT') {
+        newDepositPaid += amt
+      }
+    }
+
+    // 3. Build update data
+    const updateData: any = {
+      supplierPaymentAmount: newTotalPaid,
+      supplierPaymentMethod: paymentMethodName || method,
+      supplierPaymentRef: reference || order.supplierPaymentRef,
+      supplierPaymentNotes: notes || order.supplierPaymentNotes,
+      supplierPaidAt: paidAt ? new Date(paidAt) : new Date(),
+      savedPaymentMethodId: savedPaymentMethodId || order.savedPaymentMethodId,
+      depositPaid: Math.min(newDepositPaid, depositRequired || newDepositPaid),
+      balanceDue: totalAmount - newTotalPaid,
+      updatedById: userId
+    }
+
+    if (paymentType === 'DEPOSIT') {
+      updateData.depositPaidAt = new Date()
+    }
+    if (newTotalPaid >= totalAmount) {
+      updateData.balanceDue = 0
+      updateData.balancePaidAt = new Date()
+    }
+
+    // Auto-confirm: if a payment is recorded and the order is still in a pre-confirmed state,
+    // it means the supplier has been engaged, so we transition to CONFIRMED
+    const PRE_CONFIRMED_STATUSES = ['PENDING_PAYMENT', 'PAYMENT_RECEIVED', 'DEPOSIT_PAID', 'PAID_TO_SUPPLIER', 'ORDERED']
+    if (PRE_CONFIRMED_STATUSES.includes(order.status)) {
+      updateData.status = 'CONFIRMED'
+      if (!order.confirmedAt) {
+        updateData.confirmedAt = new Date()
+      }
+    }
+
+    const updatedOrder = await prisma.order.update({
+      where: { id: orderId },
+      data: updateData
     })
 
     // Sync RoomFFEItem statuses if order was auto-confirmed
