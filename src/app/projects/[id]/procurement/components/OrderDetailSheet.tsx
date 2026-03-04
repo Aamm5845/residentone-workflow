@@ -184,7 +184,7 @@ const statusConfig: Record<string, { label: string; color: string }> = {
   PENDING_PAYMENT: { label: 'Pending Payment', color: 'bg-gray-100 text-gray-600' },
   PAYMENT_RECEIVED: { label: 'Ready to Send', color: 'bg-blue-50 text-blue-700' },
   DEPOSIT_PAID: { label: 'Deposit Paid', color: 'bg-indigo-50 text-indigo-700' },
-  PAID_TO_SUPPLIER: { label: 'Paid to Supplier', color: 'bg-purple-50 text-purple-700' },
+  PAID_TO_SUPPLIER: { label: 'Payment Made', color: 'bg-purple-50 text-purple-700' },
   ORDERED: { label: 'Sent', color: 'bg-purple-50 text-purple-700' },
   CONFIRMED: { label: 'Confirmed', color: 'bg-indigo-50 text-indigo-700' },
   IN_PRODUCTION: { label: 'In Production', color: 'bg-amber-50 text-amber-700' },
@@ -1029,7 +1029,7 @@ export default function OrderDetailSheet({
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     <CreditCard className="w-4 h-4 text-gray-500" />
-                    Payment Method for Supplier
+                    Payment Method
                   </Label>
                   <div className="p-3 bg-white border rounded-lg flex items-center gap-3">
                     <CreditCard className="w-5 h-5 text-gray-400" />
@@ -1354,7 +1354,7 @@ export default function OrderDetailSheet({
                   return (
                     <div className="pt-2 border-t border-emerald-200 mt-2 space-y-2">
                       <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium text-emerald-800">Payments Recorded</p>
+                        <p className="text-sm font-medium text-emerald-800">Amount Paid</p>
                         {supplierPaid > 0 && (
                           <span className="text-sm font-semibold text-emerald-700">
                             Total: {formatCurrency(supplierPaid, order.currency)}
@@ -1447,7 +1447,7 @@ export default function OrderDetailSheet({
                           }}
                         >
                           <CreditCard className="w-4 h-4 mr-1.5" />
-                          Record Payment to Supplier
+                          Record Payment
                         </Button>
                       )}
 
@@ -1609,9 +1609,9 @@ export default function OrderDetailSheet({
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Record Payment to Supplier</DialogTitle>
+            <DialogTitle>Record Payment</DialogTitle>
             <DialogDescription>
-              Record when you've paid the supplier (check, wire, card, etc.)
+              Record a payment made (check, wire, card, etc.)
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
