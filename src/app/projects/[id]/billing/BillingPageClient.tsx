@@ -1334,8 +1334,8 @@ export default function BillingPageClient({
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => window.open(`/api/billing/proposals/${proposal.id}/generate-pdf?v=2`, '_blank')}
-                              title="Download Professional PDF"
+                              onClick={() => window.open(`/api/billing/proposals/${proposal.id}/generate-pdf`, '_blank')}
+                              title="Download PDF"
                             >
                               <Download className="w-4 h-4" />
                             </Button>
@@ -1363,7 +1363,7 @@ export default function BillingPageClient({
                                   <Eye className="w-4 h-4 mr-2" />
                                   View as Client
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => window.open(`/api/billing/proposals/${proposal.id}/generate-pdf?v=2`, '_blank')}>
+                                <DropdownMenuItem onClick={() => window.open(`/api/billing/proposals/${proposal.id}/generate-pdf`, '_blank')}>
                                   <Download className="w-4 h-4 mr-2" />
                                   Download PDF
                                 </DropdownMenuItem>

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { generateProposalPdfBuffer } from '@/lib/proposal-pdf'
 import { generateProposalPdfBufferV2 } from '@/lib/proposal-pdf-v2'
 
 interface AuthSession {
@@ -72,18 +71,14 @@ export async function GET(
       },
     })
 
-    // Generate PDF (v2 = professional Montserrat layout)
-    const version = request.nextUrl.searchParams.get('v')
-    const pdfBuffer = version === '2'
-      ? await generateProposalPdfBufferV2(proposal, org)
-      : await generateProposalPdfBuffer(proposal, org)
+    // Generate PDF
+    const pdfBuffer = await generateProposalPdfBufferV2(proposal, org)
 
     // Return PDF as response
-    const suffix = version === '2' ? '-pro' : ''
     return new NextResponse(pdfBuffer, {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${proposal.proposalNumber}-${proposal.clientName.replace(/\s+/g, '-')}${suffix}.pdf"`,
+        'Content-Disposition': `attachment; filename="${proposal.proposalNumber}-${proposal.clientName.replace(/\s+/g, '-')}.pdf"`,
       },
     })
   } catch (error) {

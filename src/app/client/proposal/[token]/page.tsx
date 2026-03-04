@@ -375,7 +375,7 @@ export default function ClientProposalPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => window.open(`/api/billing/proposals/${token}/pdf?v=2`, '_blank')}
+                onClick={() => window.open(`/api/billing/proposals/${token}/pdf`, '_blank')}
                 style={{ borderColor: colors.amber, color: colors.charcoal }}
               >
                 <Download className="w-4 h-4 mr-2" />
@@ -470,7 +470,7 @@ export default function ClientProposalPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => window.open(`/api/billing/proposals/${token}/pdf?v=2`, '_blank')}
+                onClick={() => window.open(`/api/billing/proposals/${token}/pdf`, '_blank')}
                 style={{ borderColor: colors.line, color: colors.charcoal, fontFamily: 'Montserrat, sans-serif', fontSize: '0.75rem' }}
               >
                 <Download className="w-3.5 h-3.5 mr-1.5" />

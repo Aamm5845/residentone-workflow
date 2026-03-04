@@ -391,8 +391,8 @@ export async function POST(
 
     // 2. Generate signed PDF, upload to Dropbox, and email to client
     try {
-      const { generateProposalPdfBuffer } = await import('@/lib/proposal-pdf')
-      const pdfBuffer = await generateProposalPdfBuffer(updatedProposal, org)
+      const { generateProposalPdfBufferV2 } = await import('@/lib/proposal-pdf-v2')
+      const pdfBuffer = await generateProposalPdfBufferV2(updatedProposal, org)
 
       // Upload signed PDF to Dropbox under 6- Documents/Proposals/
       if (project?.dropboxFolder) {
