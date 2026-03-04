@@ -1321,16 +1321,16 @@ export default function OrderDetailSheet({
                         <div className="flex items-center justify-between">
                           <p className="text-sm text-gray-600">Deposit Paid</p>
                           <div className="flex items-center gap-1.5">
-                            <p className={`font-medium ${depositPaid >= depositRequired ? 'text-emerald-600' : 'text-amber-600'}`}>
-                              {formatCurrency(depositPaid, order.currency)}
+                            <p className={`font-medium ${supplierPaid >= depositRequired ? 'text-emerald-600' : 'text-amber-600'}`}>
+                              {formatCurrency(Math.min(supplierPaid, depositRequired), order.currency)}
                             </p>
-                            {depositPaid >= depositRequired ? (
+                            {supplierPaid >= depositRequired ? (
                               <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 text-emerald-600 border-emerald-300 bg-emerald-50">
                                 Paid
                               </Badge>
-                            ) : depositPaid > 0 ? (
+                            ) : supplierPaid > 0 ? (
                               <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 text-amber-600 border-amber-300 bg-amber-50">
-                                Remaining: {formatCurrency(depositRequired - depositPaid, order.currency)}
+                                Remaining: {formatCurrency(depositRequired - supplierPaid, order.currency)}
                               </Badge>
                             ) : null}
                           </div>
@@ -1348,7 +1348,7 @@ export default function OrderDetailSheet({
                 {/* Payment History */}
                 {(() => {
                   const paymentActivities = (order.activities || []).filter(
-                    a => a.type === 'PAYMENT_MADE' || a.type === 'PAYMENT_RECORDED'
+                    a => a.type === 'PAYMENT_MADE' || a.type === 'PAYMENT_RECORDED' || a.type === 'SUPPLIER_PAID'
                   )
 
                   return (
@@ -1493,7 +1493,7 @@ export default function OrderDetailSheet({
                         <div className="flex flex-col items-center">
                           <div className={`w-2 h-2 rounded-full ${
                             activity.type === 'PO_SENT' ? 'bg-blue-500' :
-                            activity.type === 'PAYMENT_MADE' || activity.type === 'PAYMENT_RECORDED' ? 'bg-green-500' :
+                            activity.type === 'PAYMENT_MADE' || activity.type === 'PAYMENT_RECORDED' || activity.type === 'SUPPLIER_PAID' ? 'bg-green-500' :
                             activity.type === 'CHARGE_REQUESTED' ? 'bg-amber-500' :
                             activity.type === 'SUPPLIER_CONFIRMED' ? 'bg-purple-500' :
                             activity.type === 'SHIPPED' ? 'bg-cyan-500' :
@@ -1505,7 +1505,12 @@ export default function OrderDetailSheet({
                           )}
                         </div>
                         <div className="flex-1 pb-3">
-                          <p className="text-gray-700">{activity.message}</p>
+                          <p className="text-gray-700">
+                            {activity.message
+                              .replace(/^Supplier paid /i, 'Payment of ')
+                              .replace(/^Payment to supplier recorded: /i, 'Payment of ')
+                            }
+                          </p>
                           <p className="text-xs text-gray-400 mt-0.5">
                             {formatDate(activity.createdAt)}
                             {activity.user?.name && ` • ${activity.user.name}`}

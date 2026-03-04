@@ -498,7 +498,7 @@ export async function PATCH(
         data: {
           orderId: id,
           type: 'PAYMENT_RECORDED',
-          message: `Payment to supplier recorded: $${supplierPaymentAmount.toFixed(2)} via ${supplierPaymentMethod || 'unknown'}${supplierPaymentRef ? ` (Ref: ${supplierPaymentRef})` : ''}`,
+          message: `Payment of $${supplierPaymentAmount.toFixed(2)} made via ${supplierPaymentMethod || 'unknown'}${supplierPaymentRef ? ` (Ref: ${supplierPaymentRef})` : ''}`,
           userId,
           metadata: {
             amount: supplierPaymentAmount,
@@ -724,9 +724,9 @@ export async function POST(
           data: {
             orderId: id,
             type: 'SUPPLIER_PAID',
-            message: `Supplier paid $${amount.toFixed(2)} via ${paymentMethod}${paymentRef ? ` (Ref: ${paymentRef})` : ''}`,
+            message: `Payment of $${amount.toFixed(2)} made via ${paymentMethod}${paymentRef ? ` (Ref: ${paymentRef})` : ''}`,
             userId,
-            metadata: { paymentMethod, paymentRef, paymentAmount: amount }
+            metadata: { amount, method: paymentMethod, reference: paymentRef, paymentAmount: amount }
           }
         })
 
