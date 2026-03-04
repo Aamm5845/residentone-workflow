@@ -793,14 +793,17 @@ function TermsPageV2({ proposal, org, logoDataUri }: { proposal: any; org: any; 
           justifyContent: 'space-between',
           marginTop: 10,
           gap: 24,
+          alignItems: 'flex-end',
         },
       },
         // Company
         React.createElement(View, { style: { flex: 1 } },
-          React.createElement(Text, {
-            style: { fontSize: 20, fontFamily: 'Priestacy', color: colors.charcoal, marginBottom: 2 },
-          }, proposal.companySignedByName || 'Aaron Meisner'),
-          React.createElement(View, { style: { borderBottomWidth: 0.75, borderBottomColor: colors.charcoal, marginBottom: 4 } }),
+          React.createElement(View, { style: { minHeight: 36, justifyContent: 'flex-end' } },
+            React.createElement(Text, {
+              style: { fontSize: 20, fontFamily: 'Priestacy', color: colors.charcoal },
+            }, proposal.companySignedByName || 'Aaron Meisner')
+          ),
+          React.createElement(View, { style: { borderBottomWidth: 0.75, borderBottomColor: colors.charcoal, marginTop: 2, marginBottom: 4 } }),
           React.createElement(Text, { style: { fontSize: 8, fontWeight: 300, color: colors.textMuted } },
             proposal.companySignedByName || 'Aaron Meisner'
           )
@@ -808,17 +811,19 @@ function TermsPageV2({ proposal, org, logoDataUri }: { proposal: any; org: any; 
 
         // Client
         React.createElement(View, { style: { flex: 1 } },
-          proposal.signatureData && proposal.signatureType === 'drawn'
-            ? React.createElement(Image, {
-                src: proposal.signatureData,
-                style: { width: 110, height: 24, objectFit: 'contain', marginBottom: 2 },
-              })
-            : proposal.signedByName
-              ? React.createElement(Text, {
-                  style: { fontSize: 18, fontFamily: 'GreatVibes', color: colors.charcoal, marginBottom: 2 },
-                }, proposal.signedByName)
-              : React.createElement(View, { style: { height: 24, marginBottom: 2 } }),
-          React.createElement(View, { style: { borderBottomWidth: 0.75, borderBottomColor: colors.charcoal, marginBottom: 4 } }),
+          React.createElement(View, { style: { minHeight: 36, justifyContent: 'flex-end' } },
+            proposal.signatureData && proposal.signatureType === 'drawn'
+              ? React.createElement(Image, {
+                  src: proposal.signatureData,
+                  style: { width: 110, height: 28, objectFit: 'contain' },
+                })
+              : proposal.signedByName
+                ? React.createElement(Text, {
+                    style: { fontSize: 18, fontFamily: 'GreatVibes', color: colors.charcoal },
+                  }, proposal.signedByName)
+                : null
+          ),
+          React.createElement(View, { style: { borderBottomWidth: 0.75, borderBottomColor: colors.charcoal, marginTop: 2, marginBottom: 4 } }),
           React.createElement(Text, { style: { fontSize: 8, fontWeight: 300, color: colors.textMuted } },
             proposal.signedByName || proposal.clientName || 'Client'
           )
@@ -826,12 +831,14 @@ function TermsPageV2({ proposal, org, logoDataUri }: { proposal: any; org: any; 
 
         // Date
         React.createElement(View, { style: { flex: 1 } },
-          proposal.signedAt
-            ? React.createElement(Text, {
-                style: { fontSize: 9, fontWeight: 400, color: colors.charcoal, marginBottom: 2, marginTop: 14 },
-              }, formatDateLong(proposal.signedAt))
-            : React.createElement(View, { style: { height: 24, marginBottom: 2 } }),
-          React.createElement(View, { style: { borderBottomWidth: 0.75, borderBottomColor: colors.charcoal, marginBottom: 4 } }),
+          React.createElement(View, { style: { minHeight: 36, justifyContent: 'flex-end' } },
+            proposal.signedAt
+              ? React.createElement(Text, {
+                  style: { fontSize: 9, fontWeight: 400, color: colors.charcoal },
+                }, formatDateLong(proposal.signedAt))
+              : null
+          ),
+          React.createElement(View, { style: { borderBottomWidth: 0.75, borderBottomColor: colors.charcoal, marginTop: 2, marginBottom: 4 } }),
           React.createElement(Text, { style: { fontSize: 8, fontWeight: 300, color: colors.textMuted } }, 'Date')
         )
       )
