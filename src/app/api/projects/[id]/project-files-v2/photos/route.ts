@@ -251,6 +251,32 @@ export async function DELETE(
       // Not critical if meta cleanup fails
     }
 
+    // Clean up empty parent folders in Dropbox
+    try {
+      const foldersToCheck = new Set<string>()
+      for (const p of pathsToDelete) {
+        const parts = p.split('/')
+        if (parts.length > 1) {
+          foldersToCheck.add(parts.slice(0, -1).join('/'))
+        }
+      }
+
+      for (const folder of foldersToCheck) {
+        try {
+          const folderPath = photosBase + '/' + folder
+          const contents = await dropboxService.listFolder(folderPath)
+          if (contents.files.length === 0 && contents.folders.length === 0 && !contents.hasMore) {
+            await dropboxService.deleteFile(folderPath)
+            console.log('[project-files-v2/photos] Deleted empty folder:', folderPath)
+          }
+        } catch {
+          // Folder might not exist or be inaccessible
+        }
+      }
+    } catch {
+      // Not critical if folder cleanup fails
+    }
+
     return NextResponse.json({
       success: true,
       deleted: pathsToDelete.length - errors.length,

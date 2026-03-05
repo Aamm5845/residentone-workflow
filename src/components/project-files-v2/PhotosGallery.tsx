@@ -143,6 +143,9 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
   const [uploadSuccess, setUploadSuccess] = useState(false)
   const [pendingFiles, setPendingFiles] = useState<File[] | null>(null)
   const [uploadType, setUploadType] = useState<'photo' | 'survey'>('photo')
+  const [uploadDate, setUploadDate] = useState(getTodayDateFolder())
+  const [uploadTagInput, setUploadTagInput] = useState('')
+  const [uploadTags, setUploadTags] = useState<string[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dragCountRef = useRef(0)
 
@@ -203,20 +206,21 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
     setPendingFiles(null)
 
     const doUpload = async () => {
-      // Auto date folder — surveys go to a subfolder inside 5- Photos so they appear in the gallery
-      const dateFolder = getTodayDateFolder()
+      // Use selected date folder — surveys go to a subfolder inside 5- Photos so they appear in the gallery
+      const dateFolder = uploadDate || getTodayDateFolder()
       const targetPath = uploadType === 'survey'
         ? '5- Photos/Survey ' + dateFolder
         : '5- Photos/' + dateFolder
 
       const MAX_DIRECT_SIZE = 4 * 1024 * 1024 // 4MB — Vercel serverless limit
+      const uploadedRelativePaths: string[] = []
 
       let done = 0
       for (const file of files) {
         try {
+          const sanitizedName = file.name.replace(/[^a-zA-Z0-9._\-() ]/g, '_')
           if (file.size > MAX_DIRECT_SIZE) {
             // Large file: upload to Vercel Blob first, then transfer to Dropbox
-            const sanitizedName = file.name.replace(/[^a-zA-Z0-9._\-() ]/g, '_')
             const blobPath = `project-files/${projectId}/${dateFolder}/${Date.now()}-${sanitizedName}`
             const blob = await upload(blobPath, file, {
               access: 'public',
@@ -242,6 +246,12 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
               body: formData,
             })
           }
+          // Track relative path for tagging
+          const relPath = (uploadType === 'survey'
+            ? 'survey ' + dateFolder + '/' + sanitizedName
+            : dateFolder + '/' + sanitizedName
+          ).toLowerCase()
+          uploadedRelativePaths.push(relPath)
           done++
           setUploadProgress({ done, total: files.length })
         } catch (err) {
@@ -251,15 +261,33 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
         }
       }
 
+      // Save tags for uploaded files
+      const tagsToSave = uploadTags
+      if (tagsToSave.length > 0 && uploadedRelativePaths.length > 0) {
+        for (const relPath of uploadedRelativePaths) {
+          try {
+            await fetch('/api/projects/' + projectId + '/project-files-v2/photos/tags', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ dropboxPath: relPath, tags: tagsToSave })
+            })
+          } catch {
+            // Not critical if tag saving fails
+          }
+        }
+      }
+
       setUploading(false)
       setUploadProgress(null)
       setUploadSuccess(true)
+      setUploadTags([])
+      setUploadTagInput('')
       mutate()
       setTimeout(() => setUploadSuccess(false), 3000)
     }
 
     doUpload()
-  }, [pendingFiles, projectId, mutate, uploadType])
+  }, [pendingFiles, projectId, mutate, uploadType, uploadDate, uploadTags])
 
   // Reset page when folder/tag filter changes
   useEffect(() => {
@@ -694,7 +722,7 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
 
   const hasMore = offset + limit < total
   const lightboxPhoto = lightboxIndex !== null ? filteredPhotos[lightboxIndex] : null
-  const dateFolder = getTodayDateFolder()
+  const dateFolder = uploadDate || getTodayDateFolder()
 
   return (
     <div
@@ -793,7 +821,84 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
             </Button>
 
             {showUploadMenu && !uploading && (
-              <div className="absolute top-full right-0 mt-1 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-50">
+              <div className="absolute top-full right-0 mt-1 w-72 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
+                {/* Date picker */}
+                <div className="px-3 mb-2">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Date</label>
+                  <input
+                    type="date"
+                    value={uploadDate}
+                    onChange={(e) => setUploadDate(e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
+                  />
+                </div>
+
+                {/* Tags */}
+                <div className="px-3 mb-2">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Tags</label>
+                  {uploadTags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-1.5">
+                      {uploadTags.map(tag => (
+                        <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-xs">
+                          {tag}
+                          <button onClick={() => setUploadTags(prev => prev.filter(t => t !== tag))} className="hover:text-purple-900">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Add tag and press Enter…"
+                      value={uploadTagInput}
+                      onChange={(e) => setUploadTagInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && uploadTagInput.trim()) {
+                          e.preventDefault()
+                          const tag = uploadTagInput.trim().replace(/\b\w/g, c => c.toUpperCase())
+                          if (!uploadTags.includes(tag)) {
+                            setUploadTags(prev => [...prev, tag])
+                          }
+                          setUploadTagInput('')
+                        }
+                      }}
+                      className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
+                    />
+                    {/* Tag autocomplete suggestions */}
+                    {uploadTagInput.trim().length > 0 && (() => {
+                      const query = uploadTagInput.trim().toLowerCase()
+                      const suggestions = allTags.filter(
+                        t => t.toLowerCase().includes(query) && !uploadTags.map(ut => ut.toLowerCase()).includes(t.toLowerCase())
+                      )
+                      if (suggestions.length === 0) return null
+                      return (
+                        <div className="absolute left-0 top-full mt-1 w-full max-h-28 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
+                          {suggestions.map(tag => (
+                            <button
+                              key={tag}
+                              onClick={() => {
+                                const formatted = tag.replace(/\b\w/g, c => c.toUpperCase())
+                                if (!uploadTags.includes(formatted)) {
+                                  setUploadTags(prev => [...prev, formatted])
+                                }
+                                setUploadTagInput('')
+                              }}
+                              className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+                            >
+                              {tag}
+                            </button>
+                          ))}
+                        </div>
+                      )
+                    })()}
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-100 mx-3 my-1" />
+
+                {/* Upload type buttons */}
                 <button
                   onClick={() => {
                     setUploadType('photo')
@@ -807,7 +912,7 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
                 >
                   <Camera className="w-4 h-4 text-gray-500" />
                   <div className="text-left">
-                    <p className="font-medium">Photos</p>
+                    <p className="font-medium">Upload Photos</p>
                     <p className="text-xs text-gray-400">Site photos &amp; videos</p>
                   </div>
                 </button>
@@ -824,7 +929,7 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
                 >
                   <Ruler className="w-4 h-4 text-blue-500" />
                   <div className="text-left">
-                    <p className="font-medium">Survey</p>
+                    <p className="font-medium">Upload Survey</p>
                     <p className="text-xs text-gray-400">Dimension sketches &amp; notes</p>
                   </div>
                 </button>
@@ -838,7 +943,7 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
       {uploadSuccess && (
         <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm animate-in fade-in slide-in-from-top-2 duration-300">
           <CheckCircle className="w-4 h-4 shrink-0" />
-          {uploadType === 'survey' ? 'Survey uploaded to Photos/Survey ' + getTodayDateFolder() : 'Photos uploaded successfully'}
+          {uploadType === 'survey' ? 'Survey uploaded to Photos/Survey ' + dateFolder : 'Photos uploaded to ' + dateFolder}
         </div>
       )}
 
