@@ -129,6 +129,27 @@ export function ScheduleMeetingDialog({ projects, editMeeting, trigger, onSucces
 
   const isEditing = !!editMeeting
 
+  // When dialog opens via controlled open prop with a defaultDate (e.g. clicking a calendar day),
+  // reset the form with the pre-filled date since handleOpenChange won't fire for controlled opens
+  useEffect(() => {
+    if (open && !editMeeting && defaultDate) {
+      reset({
+        title: '',
+        description: '',
+        date: defaultDate,
+        startTime: '',
+        endTime: '',
+        locationType: 'VIRTUAL',
+        locationDetails: '',
+        meetingLink: '',
+        projectId: '',
+        reminderMinutes: 30,
+      })
+      setAttendees([])
+      setError('')
+    }
+  }, [open, defaultDate, editMeeting, reset])
+
   // Check if org has Zoom connected
   useEffect(() => {
     fetch('/api/integrations/zoom/status')
@@ -141,7 +162,7 @@ export function ScheduleMeetingDialog({ projects, editMeeting, trigger, onSucces
   useEffect(() => {
     async function fetchTeamQuickAdd() {
       try {
-        const names = ['Sami', 'Shaya']
+        const names = ['Sami', 'Shaya', 'Aaron']
         const results: QuickAddContact[] = []
         for (const name of names) {
           const res = await fetch(`/api/meetings/attendees/search?q=${encodeURIComponent(name)}`)

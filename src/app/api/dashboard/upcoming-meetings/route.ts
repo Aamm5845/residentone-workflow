@@ -17,8 +17,8 @@ export async function GET() {
       where: {
         orgId: session.user.orgId,
         status: { not: 'CANCELLED' },
-        // Only future or today's meetings
-        startTime: { gte: now },
+        // Show meetings until they end (not just until they start)
+        endTime: { gte: now },
         // Only meetings where the current user is an attendee
         attendees: {
           some: {
