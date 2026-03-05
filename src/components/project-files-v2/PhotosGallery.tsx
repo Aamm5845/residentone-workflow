@@ -680,22 +680,116 @@ export default function PhotosGallery({ projectId, dropboxFolder }: PhotosGaller
             : 'Upload photos or add them to the "5- Photos" folder in Dropbox.'}
         </p>
         <div className="flex items-center justify-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="gap-1.5"
-          >
-            {uploading ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Upload className="w-3.5 h-3.5" />
+          {/* Upload button with dropdown for date/tags/type */}
+          <div className="relative" ref={uploadMenuRef}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (uploading) return
+                setShowUploadMenu(!showUploadMenu)
+              }}
+              disabled={uploading}
+              className="gap-1.5"
+            >
+              {uploading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Upload className="w-3.5 h-3.5" />
+              )}
+              {uploading
+                ? `Uploading ${uploadProgress?.done ?? 0}/${uploadProgress?.total ?? 0}`
+                : 'Upload Photos'}
+            </Button>
+
+            {showUploadMenu && !uploading && (
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 w-72 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
+                {/* Date picker */}
+                <div className="px-3 mb-2">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Date</label>
+                  <input
+                    type="date"
+                    value={uploadDate}
+                    onChange={(e) => setUploadDate(e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
+                  />
+                </div>
+
+                {/* Tags */}
+                <div className="px-3 mb-2">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Tags</label>
+                  {uploadTags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-1.5">
+                      {uploadTags.map(tag => (
+                        <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-xs">
+                          {tag}
+                          <button onClick={() => setUploadTags(prev => prev.filter(t => t !== tag))} className="hover:text-purple-900">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <input
+                    type="text"
+                    placeholder="Add tag and press Enter…"
+                    value={uploadTagInput}
+                    onChange={(e) => setUploadTagInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && uploadTagInput.trim()) {
+                        e.preventDefault()
+                        const tag = uploadTagInput.trim().replace(/\b\w/g, c => c.toUpperCase())
+                        if (!uploadTags.includes(tag)) {
+                          setUploadTags(prev => [...prev, tag])
+                        }
+                        setUploadTagInput('')
+                      }
+                    }}
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
+                  />
+                </div>
+
+                <div className="border-t border-gray-100 mx-3 my-1" />
+
+                {/* Upload type buttons */}
+                <button
+                  onClick={() => {
+                    setUploadType('photo')
+                    setShowUploadMenu(false)
+                    if (fileInputRef.current) {
+                      fileInputRef.current.accept = 'image/*,video/*'
+                      fileInputRef.current.click()
+                    }
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <Camera className="w-4 h-4 text-gray-500" />
+                  <div className="text-left">
+                    <p className="font-medium">Upload Photos</p>
+                    <p className="text-xs text-gray-400">Site photos &amp; videos</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => {
+                    setUploadType('survey')
+                    setShowUploadMenu(false)
+                    if (fileInputRef.current) {
+                      fileInputRef.current.accept = 'image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.dwg,.dxf'
+                      fileInputRef.current.click()
+                    }
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <Ruler className="w-4 h-4 text-blue-500" />
+                  <div className="text-left">
+                    <p className="font-medium">Upload Survey</p>
+                    <p className="text-xs text-gray-400">Dimension sketches &amp; notes</p>
+                  </div>
+                </button>
+              </div>
             )}
-            {uploading
-              ? `Uploading ${uploadProgress?.done ?? 0}/${uploadProgress?.total ?? 0}`
-              : 'Upload Photos'}
-          </Button>
+          </div>
+
           {selectedFolder && (
             <Button variant="outline" size="sm" onClick={() => setSelectedFolder(null)}>
               View All Photos
