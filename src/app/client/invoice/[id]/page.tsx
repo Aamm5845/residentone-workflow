@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
-import { Loader2, FileText, ChevronDown, Building, Banknote, CheckCircle, X } from 'lucide-react'
+import { Loader2, FileText, ChevronDown, Building, Banknote, CheckCircle, X, CreditCard } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import dynamic from 'next/dynamic'
 
@@ -572,15 +572,9 @@ export default function ClientInvoicePage() {
               {/* Credit Card - only show if allowed */}
               {invoice.allowCreditCard !== false && (
                 <div className="bg-white rounded-xl border p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-[#635BFF] rounded flex items-center justify-center">
-                        <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="currentColor">
-                          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zm0 2v2h16V6H4zm0 6v6h16v-6H4zm2 2h4v2H6v-2z"/>
-                        </svg>
-                      </div>
-                      <span className="text-sm text-gray-600">Credit / Debit Card</span>
-                    </div>
+                  <div className="flex items-center gap-3 mb-3">
+                    <CreditCard className="w-5 h-5 text-gray-400" />
+                    <span className="font-medium text-gray-900 text-sm">Credit / Debit Card</span>
                   </div>
                   {/* Payment breakdown */}
                   <div className="bg-gray-50 rounded-lg p-3 mb-3 text-sm space-y-1">
