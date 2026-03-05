@@ -52,13 +52,12 @@ export async function POST(
     const totalAmount = originalAmount + surchargeAmount
 
     // Create pending payment record
-    const payment = await prisma.billingInvoicePayment.create({
+    const payment = await prisma.billingPayment.create({
       data: {
         billingInvoiceId: invoice.id,
         amount: totalAmount,
         method: 'CREDIT_CARD',
         status: 'PENDING',
-        reference: `PAY-${Date.now()}`,
         notes: applySurcharge ? `Includes ${surchargePercent}% credit card fee` : undefined,
       }
     })
@@ -103,7 +102,7 @@ export async function PATCH(
     }
 
     // Get payment and invoice
-    const payment = await prisma.billingInvoicePayment.findUnique({
+    const payment = await prisma.billingPayment.findUnique({
       where: { id: paymentId },
       include: {
         billingInvoice: {
@@ -172,11 +171,11 @@ export async function PATCH(
       // Payment approved
       await prisma.$transaction(async (tx) => {
         // Update payment record
-        await tx.billingInvoicePayment.update({
+        await tx.billingPayment.update({
           where: { id: paymentId },
           data: {
-            status: 'COMPLETED',
-            reference: result.transactionId || payment.reference,
+            status: 'CONFIRMED',
+            stripePaymentId: result.transactionId || undefined,
             paidAt: new Date(),
           }
         })
@@ -212,7 +211,7 @@ export async function PATCH(
       })
     } else {
       // Payment declined
-      await prisma.billingInvoicePayment.update({
+      await prisma.billingPayment.update({
         where: { id: paymentId },
         data: {
           status: 'FAILED',
