@@ -175,7 +175,7 @@ export async function POST(
     const allActivities = await prisma.orderActivity.findMany({
       where: {
         orderId,
-        type: { in: ['PAYMENT_MADE', 'PAYMENT_RECORDED'] }
+        type: { in: ['PAYMENT_MADE', 'PAYMENT_RECORDED', 'SUPPLIER_PAID'] }
       }
     })
 
@@ -293,7 +293,7 @@ export async function DELETE(
       where: {
         id: activityId,
         orderId,
-        type: { in: ['PAYMENT_MADE', 'PAYMENT_RECORDED'] }
+        type: { in: ['PAYMENT_MADE', 'PAYMENT_RECORDED', 'SUPPLIER_PAID'] }
       }
     })
 
@@ -314,7 +314,7 @@ export async function DELETE(
     const remainingActivities = await prisma.orderActivity.findMany({
       where: {
         orderId,
-        type: { in: ['PAYMENT_MADE', 'PAYMENT_RECORDED'] }
+        type: { in: ['PAYMENT_MADE', 'PAYMENT_RECORDED', 'SUPPLIER_PAID'] }
       }
     })
 
@@ -337,8 +337,8 @@ export async function DELETE(
       where: { id: orderId },
       data: {
         supplierPaymentAmount: newTotalPaid,
-        depositPaid: Math.min(newDepositPaid, depositRequired),
-        balanceDue: totalAmount - Math.min(newDepositPaid, depositRequired),
+        depositPaid: Math.min(newDepositPaid, depositRequired || newDepositPaid),
+        balanceDue: Math.max(0, totalAmount - newTotalPaid),
         supplierPaidAt: newTotalPaid > 0 ? order.supplierPaidAt : null,
         balancePaidAt: newTotalPaid >= totalAmount ? order.balancePaidAt : null,
         updatedById: userId
@@ -405,7 +405,7 @@ export async function PATCH(
       where: {
         id: activityId,
         orderId,
-        type: { in: ['PAYMENT_MADE', 'PAYMENT_RECORDED'] }
+        type: { in: ['PAYMENT_MADE', 'PAYMENT_RECORDED', 'SUPPLIER_PAID'] }
       }
     })
 
@@ -439,7 +439,7 @@ export async function PATCH(
     const allActivities = await prisma.orderActivity.findMany({
       where: {
         orderId,
-        type: { in: ['PAYMENT_MADE', 'PAYMENT_RECORDED'] }
+        type: { in: ['PAYMENT_MADE', 'PAYMENT_RECORDED', 'SUPPLIER_PAID'] }
       }
     })
 
@@ -462,8 +462,8 @@ export async function PATCH(
       where: { id: orderId },
       data: {
         supplierPaymentAmount: newTotalPaid,
-        depositPaid: Math.min(newDepositPaid, depositRequired),
-        balanceDue: totalAmount - Math.min(newDepositPaid, depositRequired),
+        depositPaid: Math.min(newDepositPaid, depositRequired || newDepositPaid),
+        balanceDue: Math.max(0, totalAmount - newTotalPaid),
         updatedById: userId
       }
     })

@@ -1281,7 +1281,7 @@ export default function SupplierOrderPortal() {
                           <div key={activity.id} className="flex gap-3 text-sm border-b border-gray-100 pb-3 last:border-0">
                             <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
                               activity.type === 'PO_SENT' ? 'bg-blue-500' :
-                              activity.type === 'PAYMENT_MADE' || activity.type === 'PAYMENT_RECORDED' ? 'bg-green-500' :
+                              activity.type === 'PAYMENT_MADE' || activity.type === 'PAYMENT_RECORDED' || activity.type === 'SUPPLIER_PAID' ? 'bg-green-500' :
                               activity.type === 'ORDER_CONFIRMED' ? 'bg-emerald-500' :
                               activity.type === 'ORDER_SHIPPED' ? 'bg-purple-500' :
                               activity.type === 'ORDER_DELIVERED' ? 'bg-green-600' :

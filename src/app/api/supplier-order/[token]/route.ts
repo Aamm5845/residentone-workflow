@@ -767,8 +767,10 @@ export async function POST(
           const newDepositPaid = Math.min(currentDepositPaid + paymentAmountRounded, depositRequired)
           updateData.depositPaid = newDepositPaid
           updateData.depositPaidAt = new Date()
-          updateData.balanceDue = totalAmount - newDepositPaid
         }
+
+        // Always update balance due based on total paid
+        updateData.balanceDue = Math.max(0, totalAmount - newTotalPayment)
 
         // Update balance tracking if fully paid
         if (newTotalPayment >= totalAmount) {
