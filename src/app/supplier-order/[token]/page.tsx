@@ -770,8 +770,8 @@ export default function SupplierOrderPortal() {
               </Card>
             </div>
 
-            {/* Payment Card */}
-            {(order.paymentCardLastFour || order.paymentCardNumber) && (
+            {/* Payment Card - hide when fully paid (no need to expose card details) */}
+            {(order.paymentCardLastFour || order.paymentCardNumber) && (order.totalAmount - (order.supplierPaymentAmount || 0) > 0) && (
               <Card>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-2 mb-4">
