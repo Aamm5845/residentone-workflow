@@ -6,6 +6,33 @@ import { dropboxService } from '@/lib/dropbox-service'
 export const runtime = 'nodejs'
 export const maxDuration = 30
 
+// Helper: try getting a Dropbox temporary link with fallbacks for renamed folders
+async function getDropboxLinkWithFallbacks(path: string): Promise<string | null> {
+  try {
+    const link = await dropboxService.getTemporaryLink(path)
+    if (link) return link
+  } catch {}
+
+  const folderVariants = ['3- RENDERING', '3- Renderings', '3- Rendering']
+  const lowerPath = path.toLowerCase()
+  for (const variant of folderVariants) {
+    if (lowerPath.includes(variant.toLowerCase())) {
+      for (const replacement of folderVariants) {
+        if (replacement === variant) continue
+        const regex = new RegExp(variant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
+        const altPath = path.replace(regex, replacement)
+        if (altPath === path) continue
+        try {
+          const link = await dropboxService.getTemporaryLink(altPath)
+          if (link) return link
+        } catch {}
+      }
+      break
+    }
+  }
+  return null
+}
+
 // GET - List all renderings pushed to client for a project
 // Returns rendering assets grouped by room, only for versions with status PUSHED_TO_CLIENT
 export async function GET(
@@ -128,26 +155,16 @@ export async function GET(
               return { ...asset, displayUrl: asset.url }
             }
 
-            // Priority 4: Dropbox path — generate temporary link
+            // Priority 4: Dropbox path — generate temporary link (with folder rename fallbacks)
             if (asset.provider === 'dropbox' && asset.url) {
-              try {
-                const temporaryLink = await dropboxService.getTemporaryLink(asset.url)
-                return { ...asset, displayUrl: temporaryLink || null }
-              } catch (error) {
-                console.error(`Failed to get Dropbox link for asset ${asset.id}:`, error)
-                return { ...asset, displayUrl: null }
-              }
+              const temporaryLink = await getDropboxLinkWithFallbacks(asset.url)
+              return { ...asset, displayUrl: temporaryLink || null }
             }
 
             // Priority 5: try url as dropbox path even without provider tag
             if (asset.url && !asset.url.startsWith('http')) {
-              try {
-                const temporaryLink = await dropboxService.getTemporaryLink(asset.url)
-                return { ...asset, displayUrl: temporaryLink || null }
-              } catch (error) {
-                console.error(`Failed to get Dropbox link for asset ${asset.id}:`, error)
-                return { ...asset, displayUrl: null }
-              }
+              const temporaryLink = await getDropboxLinkWithFallbacks(asset.url)
+              return { ...asset, displayUrl: temporaryLink || null }
             }
 
             return { ...asset, displayUrl: null }

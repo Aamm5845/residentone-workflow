@@ -78,6 +78,36 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' }
     })
 
+    // Helper: try getting a Dropbox temporary link with fallbacks for renamed folders
+    // Handles "3- RENDERING" → "3- Renderings" / "3- Rendering" renames
+    async function getDropboxLinkWithFallbacks(path: string): Promise<string | null> {
+      // Try original path first
+      try {
+        const link = await dropboxService.getTemporaryLink(path)
+        if (link) return link
+      } catch {}
+
+      // Build fallback paths for known folder renames
+      const folderVariants = ['3- RENDERING', '3- Renderings', '3- Rendering']
+      const lowerPath = path.toLowerCase()
+      for (const variant of folderVariants) {
+        if (lowerPath.includes(variant.toLowerCase())) {
+          for (const replacement of folderVariants) {
+            if (replacement === variant) continue
+            const regex = new RegExp(variant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
+            const altPath = path.replace(regex, replacement)
+            if (altPath === path) continue
+            try {
+              const link = await dropboxService.getTemporaryLink(altPath)
+              if (link) return link
+            } catch {}
+          }
+          break // Only try variants for the first matching folder name
+        }
+      }
+      return null
+    }
+
     // Generate URLs for assets - prefer Blob for speed, fallback to Dropbox
     const versionsWithLinks = await Promise.all(
       renderingVersions.map(async (version) => {
@@ -111,18 +141,14 @@ export async function GET(request: NextRequest) {
               }
             }
 
-            // Priority 3: If stored in Dropbox, get temporary link
+            // Priority 3: If stored in Dropbox, get temporary link (with folder rename fallbacks)
             if (asset.provider === 'dropbox' && asset.url) {
-              try {
-                const temporaryLink = await dropboxService.getTemporaryLink(asset.url)
-                return {
-                  ...asset,
-                  temporaryUrl: temporaryLink || asset.url
-                }
-              } catch (error) {
-                console.error(`Failed to generate temporary link for asset ${asset.id}:`, error)
-                return asset
+              const temporaryLink = await getDropboxLinkWithFallbacks(asset.url)
+              if (temporaryLink) {
+                return { ...asset, temporaryUrl: temporaryLink }
               }
+              console.error(`Failed to generate temporary link for asset ${asset.id} (all path variants)`)
+              return asset
             }
 
             // Fallback: use asset.url directly if it's http
@@ -130,6 +156,14 @@ export async function GET(request: NextRequest) {
               return {
                 ...asset,
                 temporaryUrl: asset.url
+              }
+            }
+
+            // Last resort: try as Dropbox path even without provider tag (with fallbacks)
+            if (asset.url && !asset.url.startsWith('http')) {
+              const temporaryLink = await getDropboxLinkWithFallbacks(asset.url)
+              if (temporaryLink) {
+                return { ...asset, temporaryUrl: temporaryLink }
               }
             }
 
