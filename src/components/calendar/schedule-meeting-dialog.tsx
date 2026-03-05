@@ -129,27 +129,6 @@ export function ScheduleMeetingDialog({ projects, editMeeting, trigger, onSucces
 
   const isEditing = !!editMeeting
 
-  // When dialog opens via controlled open prop with a defaultDate (e.g. clicking a calendar day),
-  // reset the form with the pre-filled date since handleOpenChange won't fire for controlled opens
-  useEffect(() => {
-    if (open && !editMeeting && defaultDate) {
-      reset({
-        title: '',
-        description: '',
-        date: defaultDate,
-        startTime: '',
-        endTime: '',
-        locationType: 'VIRTUAL',
-        locationDetails: '',
-        meetingLink: '',
-        projectId: '',
-        reminderMinutes: 30,
-      })
-      setAttendees([])
-      setError('')
-    }
-  }, [open, defaultDate, editMeeting, reset])
-
   // Check if org has Zoom connected
   useEffect(() => {
     fetch('/api/integrations/zoom/status')
@@ -215,6 +194,27 @@ export function ScheduleMeetingDialog({ projects, editMeeting, trigger, onSucces
 
   const locationType = watch('locationType')
   const selectedProjectId = watch('projectId')
+
+  // When dialog opens via controlled open prop with a defaultDate (e.g. clicking a calendar day),
+  // reset the form with the pre-filled date since handleOpenChange won't fire for controlled opens
+  useEffect(() => {
+    if (open && !editMeeting && defaultDate) {
+      reset({
+        title: '',
+        description: '',
+        date: defaultDate,
+        startTime: '',
+        endTime: '',
+        locationType: 'VIRTUAL',
+        locationDetails: '',
+        meetingLink: '',
+        projectId: '',
+        reminderMinutes: 30,
+      })
+      setAttendees([])
+      setError('')
+    }
+  }, [open, defaultDate, editMeeting, reset])
 
   // Populate form when editMeeting changes (for controlled open state)
   useEffect(() => {
