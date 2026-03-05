@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { generateMeisnerDeliveryEmailTemplate } from '@/lib/email-templates'
 import { getBaseUrl } from '@/lib/get-base-url'
 import { dropboxService } from '@/lib/dropbox-service'
+import { getDropboxLinkWithFallbacks } from '@/lib/dropbox-link-helpers'
 
 // GET /api/client-approval/[stageId]/email-preview - Get email preview before sending
 export async function GET(
@@ -89,22 +90,18 @@ export async function GET(
         }
       }
       
-      // If no Blob URL, try to get Dropbox temporary link
+      // If no Blob URL, try to get Dropbox temporary link (with folder rename fallbacks)
       if (assetItem.asset.provider === 'dropbox' && assetItem.asset.url) {
-        try {
-          const dropboxPath = assetItem.asset.url.startsWith('/') 
-            ? assetItem.asset.url 
-            : '/' + assetItem.asset.url
-          const temporaryLink = await dropboxService.getTemporaryLink(dropboxPath)
-          if (temporaryLink) {
-            return {
-              id: assetItem.id,
-              url: temporaryLink,
-              includeInEmail: true
-            }
+        const dropboxPath = assetItem.asset.url.startsWith('/')
+          ? assetItem.asset.url
+          : '/' + assetItem.asset.url
+        const temporaryLink = await getDropboxLinkWithFallbacks(dropboxService, dropboxPath)
+        if (temporaryLink) {
+          return {
+            id: assetItem.id,
+            url: temporaryLink,
+            includeInEmail: true
           }
-        } catch (error) {
-          console.error(`[email-preview] Failed to get Dropbox link for asset ${assetItem.id}:`, error)
         }
       }
       

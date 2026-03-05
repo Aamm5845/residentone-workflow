@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { dropboxService } from '@/lib/dropbox-service'
+import { getDropboxLinkWithFallbacks } from '@/lib/dropbox-link-helpers'
 import { 
   withUpdateAttribution,
   withCompletionAttribution,
@@ -98,18 +99,13 @@ export async function GET(
           }
         }
 
-        // Priority 3: If stored in Dropbox, get temporary link
+        // Priority 3: If stored in Dropbox, get temporary link (with folder rename fallbacks)
         if (asset.provider === 'dropbox' && asset.url) {
-          try {
-            const temporaryLink = await dropboxService.getTemporaryLink(asset.url)
-            return {
-              ...asset,
-              temporaryUrl: temporaryLink || asset.url
-            }
-          } catch (error) {
-            console.error(`Failed to generate temporary link for asset ${asset.id}:`, error)
-            return asset
+          const temporaryLink = await getDropboxLinkWithFallbacks(dropboxService, asset.url)
+          if (temporaryLink) {
+            return { ...asset, temporaryUrl: temporaryLink }
           }
+          return asset
         }
 
         // Fallback: use asset.url directly if it's http

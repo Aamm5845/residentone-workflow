@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { dropboxService } from '@/lib/dropbox-service'
+import { getDropboxLinkWithFallbacks } from '@/lib/dropbox-link-helpers'
 
 // GET /api/client-approval/[stageId] - Get client approval data for a stage
 export async function GET(
@@ -172,19 +173,17 @@ export async function GET(
       currentVersion.assets.map(async (clientAsset) => {
         const asset = clientAsset.asset
         if (asset.provider === 'dropbox' && asset.url) {
-          try {
-            const temporaryLink = await dropboxService.getTemporaryLink(asset.url)
+          const temporaryLink = await getDropboxLinkWithFallbacks(dropboxService, asset.url)
+          if (temporaryLink) {
             return {
               ...clientAsset,
               asset: {
                 ...asset,
-                temporaryUrl: temporaryLink || asset.url
+                temporaryUrl: temporaryLink
               }
             }
-          } catch (error) {
-            console.error(`Failed to generate temporary link for asset ${asset.id}:`, error)
-            return clientAsset
           }
+          return clientAsset
         }
         return clientAsset
       })

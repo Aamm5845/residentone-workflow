@@ -11,6 +11,7 @@ import {
   type AIFFEDetectionResult 
 } from '@/lib/server/aiFFEPrompt'
 import { dropboxService } from '@/lib/dropbox-service'
+import { getDropboxLinkWithFallbacks } from '@/lib/dropbox-link-helpers'
 
 // Configure Next.js route
 export const runtime = 'nodejs'
@@ -188,19 +189,15 @@ export async function POST(
         return asset.url
       }
 
-      // Handle Dropbox links
+      // Handle Dropbox links (with folder rename fallbacks)
       if (asset.provider === 'dropbox' && asset.url) {
-        try {
-          const temporaryLink = await dropboxService.getTemporaryLink(asset.url)
-          if (temporaryLink) {
-            return temporaryLink
-          }
-        } catch (error) {
-          console.error(`Failed to get Dropbox link for asset ${asset.id}:`, error)
-          // Try using the URL directly as fallback
-          if (asset.url.startsWith('http')) {
-            return asset.url
-          }
+        const temporaryLink = await getDropboxLinkWithFallbacks(dropboxService, asset.url)
+        if (temporaryLink) {
+          return temporaryLink
+        }
+        // Try using the URL directly as fallback
+        if (asset.url.startsWith('http')) {
+          return asset.url
         }
       } else if (asset.url && asset.url.startsWith('http')) {
         return asset.url

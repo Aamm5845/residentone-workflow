@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { pdfGenerationService } from '@/lib/pdf-generation'
 import { cadConversionService } from '@/lib/cad-conversion'
 import { dropboxService } from '@/lib/dropbox-service-v2'
+import { getDropboxLinkWithFallbacks } from '@/lib/dropbox-link-helpers'
 import { CadPreferences } from '@/types/cad'
 
 export async function POST(request: NextRequest) {
@@ -356,13 +357,9 @@ export async function POST(request: NextRequest) {
       if (approvedVersion && approvedVersion.assets.length > 0) {
         for (const asset of approvedVersion.assets) {
           if (asset.provider === 'dropbox' && !asset.url.startsWith('http')) {
-            try {
-              const temporaryLink = await dropboxService.getTemporaryLink(asset.url)
-              if (temporaryLink) {
-                renderingUrls.push(temporaryLink)
-              }
-            } catch (error) {
-              console.error(`Failed to get temporary link for ${asset.url}:`, error)
+            const temporaryLink = await getDropboxLinkWithFallbacks(dropboxService, asset.url)
+            if (temporaryLink) {
+              renderingUrls.push(temporaryLink)
             }
           } else {
             renderingUrls.push(asset.url)

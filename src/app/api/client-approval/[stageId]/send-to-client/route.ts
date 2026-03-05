@@ -3,6 +3,7 @@ import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { sendClientApprovalEmail, sendEmail } from '@/lib/email-service'
 import { dropboxService } from '@/lib/dropbox-service'
+import { getDropboxLinkWithFallbacks } from '@/lib/dropbox-link-helpers'
 import { getBaseUrl } from '@/lib/get-base-url'
 
 // POST /api/client-approval/[stageId]/send-to-client - Send approval email to client
@@ -111,23 +112,19 @@ export async function POST(
           }
         }
         
-        // If no Blob URL, try to get Dropbox temporary link
+        // If no Blob URL, try to get Dropbox temporary link (with folder rename fallbacks)
         if (assetItem.asset.provider === 'dropbox' && assetItem.asset.url) {
-          try {
-            const dropboxPath = assetItem.asset.url.startsWith('/') 
-              ? assetItem.asset.url 
-              : '/' + assetItem.asset.url
-            const temporaryLink = await dropboxService.getTemporaryLink(dropboxPath)
-            if (temporaryLink) {
-              console.log(`[send-to-client] ✅ Generated Dropbox temp link for asset ${assetItem.id}`)
-              return {
-                id: assetItem.id,
-                url: temporaryLink,
-                includeInEmail: true
-              }
+          const dropboxPath = assetItem.asset.url.startsWith('/')
+            ? assetItem.asset.url
+            : '/' + assetItem.asset.url
+          const temporaryLink = await getDropboxLinkWithFallbacks(dropboxService, dropboxPath)
+          if (temporaryLink) {
+            console.log(`[send-to-client] ✅ Generated Dropbox temp link for asset ${assetItem.id}`)
+            return {
+              id: assetItem.id,
+              url: temporaryLink,
+              includeInEmail: true
             }
-          } catch (error) {
-            console.error(`[send-to-client] ❌ Failed to get Dropbox link for asset ${assetItem.id}:`, error)
           }
         }
         

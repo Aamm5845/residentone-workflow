@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { dropboxService } from '@/lib/dropbox-service-v2'
+import { getDropboxLinkWithFallbacks } from '@/lib/dropbox-link-helpers'
 
 export async function GET(request: NextRequest) {
   try {
@@ -77,20 +78,15 @@ export async function GET(request: NextRequest) {
         approvedVersion.assets.map(async (asset) => {
           const filename = asset.filename || asset.title || asset.url?.split('/').pop()?.split('?')[0] || 'rendering.jpg'
           
-          // Convert Dropbox paths to temporary download links
+          // Convert Dropbox paths to temporary download links (with folder rename fallbacks)
           let displayUrl = asset.url
           if (asset.url && !asset.url.startsWith('http')) {
-            // This is a Dropbox path, get temporary link
-            try {
-              const tempLink = await dropboxService.getTemporaryLink(asset.url)
-              if (tempLink) {
-                displayUrl = tempLink
-              }
-            } catch (error) {
-              console.error(`Failed to get temporary link for ${asset.url}:`, error)
+            const tempLink = await getDropboxLinkWithFallbacks(dropboxService, asset.url)
+            if (tempLink) {
+              displayUrl = tempLink
             }
           }
-          
+
           return {
             id: asset.id,
             url: displayUrl,
@@ -148,19 +144,15 @@ export async function GET(request: NextRequest) {
         latestVersion.assets.map(async (asset) => {
           const filename = asset.filename || asset.title || asset.url?.split('/').pop()?.split('?')[0] || 'rendering.jpg'
           
-          // Convert Dropbox paths to temporary download links
+          // Convert Dropbox paths to temporary download links (with folder rename fallbacks)
           let displayUrl = asset.url
           if (asset.url && !asset.url.startsWith('http')) {
-            try {
-              const tempLink = await dropboxService.getTemporaryLink(asset.url)
-              if (tempLink) {
-                displayUrl = tempLink
-              }
-            } catch (error) {
-              console.error(`Failed to get temporary link for ${asset.url}:`, error)
+            const tempLink = await getDropboxLinkWithFallbacks(dropboxService, asset.url)
+            if (tempLink) {
+              displayUrl = tempLink
             }
           }
-          
+
           return {
             id: asset.id,
             url: displayUrl,
