@@ -22,16 +22,7 @@ export async function POST(
         ]
       },
       include: {
-        project: {
-          include: {
-            organization: {
-              select: {
-                cardknoxKey: true,
-                ccSurchargePercent: true,
-              }
-            }
-          }
-        }
+        project: true
       }
     })
 
@@ -48,8 +39,7 @@ export async function POST(
       return NextResponse.json({ error: 'Payment processing not configured' }, { status: 500 })
     }
 
-    // Get Cardknox iFields key (prefer organization-specific, fallback to global)
-    const iFieldsKey = invoice.project?.organization?.cardknoxKey || soloService.getIFieldsKey()
+    const iFieldsKey = soloService.getIFieldsKey()
 
     if (!iFieldsKey) {
       return NextResponse.json({ error: 'Payment processing not configured' }, { status: 500 })
@@ -57,7 +47,7 @@ export async function POST(
 
     // Calculate surcharge if applicable
     const originalAmount = amount || Number(invoice.balanceDue)
-    const surchargePercent = invoice.project?.organization?.ccSurchargePercent || invoice.ccFeePercent || 3
+    const surchargePercent = invoice.ccFeePercent || 3
     const surchargeAmount = applySurcharge ? originalAmount * (surchargePercent / 100) : 0
     const totalAmount = originalAmount + surchargeAmount
 
@@ -118,17 +108,7 @@ export async function PATCH(
       include: {
         billingInvoice: {
           include: {
-            project: {
-              include: {
-                organization: {
-                  select: {
-                    cardknoxKey: true,
-                    businessName: true,
-                    name: true,
-                  }
-                }
-              }
-            }
+            project: true
           }
         }
       }
