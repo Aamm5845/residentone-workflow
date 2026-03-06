@@ -8,10 +8,11 @@ export const maxDuration = 300 // 5 minutes
 
 /**
  * POST /api/admin/cleanup-old-drawings
- * Check each project's Dropbox for the old "8- DRAWINGS" folder.
+ * Check each project's Dropbox for a specified folder.
  * If empty, delete it. If it has files, report it.
  *
  * Body:
+ * - folderName: string (optional, default "8- DRAWINGS") - the folder to check/delete
  * - dryRun: boolean (optional, default true) - if true, only report what would happen
  */
 export async function POST(request: NextRequest) {
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
 
     const orgId = (session.user as any).orgId
     const body = await request.json()
-    const { dryRun = true } = body
+    const { dryRun = true, folderName = '8- DRAWINGS' } = body
 
     const projects = await prisma.project.findMany({
       where: {
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
 
     for (const project of projects) {
       const dropboxFolder = project.dropboxFolder!
-      const oldDrawingsPath = `${dropboxFolder}/8- DRAWINGS`
+      const oldDrawingsPath = `${dropboxFolder}/${folderName}`
 
       try {
         const listing = await dropboxService.listFolder(oldDrawingsPath)
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
             })
           } else {
             await dropboxService.deleteFile(oldDrawingsPath)
-            console.log(`✅ Deleted empty 8- DRAWINGS: ${oldDrawingsPath}`)
+            console.log(`✅ Deleted empty ${folderName}: ${oldDrawingsPath}`)
             results.push({
               projectId: project.id,
               projectName: project.name,
@@ -100,7 +101,7 @@ export async function POST(request: NextRequest) {
             projectId: project.id,
             projectName: project.name,
             status: 'not_found',
-            reason: '8- DRAWINGS folder does not exist',
+            reason: `${folderName} folder does not exist`,
           })
         } else {
           results.push({
@@ -124,6 +125,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       dryRun,
+      folderName,
       message: dryRun
         ? `Dry run complete. ${summary.deleted} empty folders would be deleted, ${summary.hasFiles} still have files.`
         : `Cleanup complete. ${summary.deleted} deleted, ${summary.hasFiles} still have files, ${summary.notFound} not found, ${summary.errors} errors.`,
