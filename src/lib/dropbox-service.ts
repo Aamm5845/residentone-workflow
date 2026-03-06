@@ -765,7 +765,7 @@ class DropboxService {
   /**
    * Create project folder structure in Dropbox
    * Creates: /Meisner Interiors Team Folder/{projectName}/
-   * With subfolders: 1-CAD, 2-MAX, 3-RENDERING, 4-SENT, 5-RECIEVED, 6-SHOPPING, 7-Reference, 8-DRAWINGS, 9-SKP, 10-REFERENCE MOOD, 11-SOFTWARE UPLOADS
+   * With subfolders: 1-CAD, 2-MAX, 3-Renderings, 4-SENT, 5-RECIEVED, 7-Reference, 8-Shopping, 9-SKP, 10-REFERENCE MOOD, 11-SOFTWARE UPLOADS
    */
   async createProjectFolderStructure(projectName: string): Promise<string> {
     try {
@@ -794,7 +794,7 @@ class DropboxService {
         '3- Renderings',
         '4- SENT',
         '5- RECIEVED',
-        '6- SHOPPING',
+        '8- Shopping',
         '7- Reference',
         '8- DRAWINGS',
         '9- SKP',
@@ -859,7 +859,7 @@ class DropboxService {
 
   /**
    * Create Shopping category folder with standard subfolders
-   * Structure: /ProjectFolder/6- SHOPPING/{CategoryName}/
+   * Structure: /ProjectFolder/8- Shopping/{CategoryName}/
    *   - Drawings/  (for shop drawings, specs, PDFs)
    *   - Quotes/    (for supplier quotes)
    *   - Photos/    (for product photos)
@@ -873,7 +873,7 @@ class DropboxService {
         throw new Error('Category name resulted in empty folder name after sanitization')
       }
 
-      const categoryPath = `${projectFolderPath}/6- SHOPPING/${sanitizedCategory}`
+      const categoryPath = `${projectFolderPath}/8- Shopping/${sanitizedCategory}`
 
       console.log('[DropboxService] 📁 Creating Shopping category folder:', categoryPath)
 
@@ -912,7 +912,7 @@ class DropboxService {
   /**
    * Upload a file to the Shopping folder for a project
    * Automatically creates category folder if it doesn't exist
-   * Structure: /ProjectFolder/6- SHOPPING/{Category}/{FileType}/{FileName}
+   * Structure: /ProjectFolder/8- Shopping/{Category}/{FileType}/{FileName}
    */
   async uploadShoppingFile(
     projectFolderPath: string,

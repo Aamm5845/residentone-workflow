@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
           try {
             // Use supplier name as category, upload to Quotes folder
             const categoryName = supplierName || 'General'
-            console.log(`[upload-image] Uploading quote doc to Dropbox: ${projectDropboxFolder}/6- SHOPPING/${categoryName}/Quotes/`)
+            console.log(`[upload-image] Uploading quote doc to Dropbox: ${projectDropboxFolder}/8- Shopping/${categoryName}/Quotes/`)
 
             const result = await dropboxService.uploadShoppingFile(
               projectDropboxFolder,

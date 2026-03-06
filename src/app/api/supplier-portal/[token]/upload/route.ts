@@ -121,7 +121,7 @@ export async function POST(
 
       console.log('[Supplier Upload] Uploading to:', projectFolderPath, 'Category:', categoryName)
 
-      // Upload to 6- SHOPPING/{Category}/Quotes/ using the existing method
+      // Upload to 8- Shopping/{Category}/Quotes/ using the existing method
       const result = await dropboxService.uploadShoppingFile(
         projectFolderPath,
         categoryName,

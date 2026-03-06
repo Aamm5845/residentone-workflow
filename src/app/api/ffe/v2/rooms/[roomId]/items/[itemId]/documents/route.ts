@@ -336,7 +336,7 @@ export async function POST(
         const arrayBuffer = await file.arrayBuffer()
         const buffer = Buffer.from(arrayBuffer)
 
-        // Upload to 6- SHOPPING/{Category}/{FileType}/
+        // Upload to 8- Shopping/{Category}/{FileType}/
         const result = await dropboxService.uploadShoppingFile(
           project.dropboxFolder,
           categoryName,
