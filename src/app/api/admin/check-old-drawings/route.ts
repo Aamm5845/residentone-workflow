@@ -8,8 +8,11 @@ export const maxDuration = 300 // 5 minutes
 
 /**
  * POST /api/admin/check-old-drawings
- * Check each project's Dropbox for files under the old "8- DRAWINGS" folder.
+ * Check each project's Dropbox for files under a specified folder.
  * Reports which projects have files there and how many.
+ *
+ * Body:
+ * - folderName: string (optional, default "8- DRAWINGS") - the folder to check
  */
 export async function POST(request: NextRequest) {
   try {
@@ -19,6 +22,8 @@ export async function POST(request: NextRequest) {
     }
 
     const orgId = (session.user as any).orgId
+    const body = await request.json().catch(() => ({}))
+    const folderName = body.folderName || '8- DRAWINGS'
 
     const projects = await prisma.project.findMany({
       where: {
@@ -53,7 +58,7 @@ export async function POST(request: NextRequest) {
 
     for (const project of projects) {
       const dropboxFolder = project.dropboxFolder!
-      const oldDrawingsPath = `${dropboxFolder}/8- DRAWINGS`
+      const oldDrawingsPath = `${dropboxFolder}/${folderName}`
 
       try {
         const listing = await dropboxService.listFolder(oldDrawingsPath)
@@ -93,7 +98,7 @@ export async function POST(request: NextRequest) {
             projectName: project.name,
             dropboxFolder,
             status: 'not_found',
-            reason: '8- DRAWINGS folder does not exist',
+            reason: `${folderName} folder does not exist`,
           })
         } else {
           results.push({
@@ -117,7 +122,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Checked ${summary.totalProjects} projects. ${summary.withFiles} have files in 8- DRAWINGS, ${summary.empty} are empty, ${summary.notFound} don't have the folder.`,
+      folderName,
+      message: `Checked ${summary.totalProjects} projects. ${summary.withFiles} have files in ${folderName}, ${summary.empty} are empty, ${summary.notFound} don't have the folder.`,
       summary,
       results,
     })
