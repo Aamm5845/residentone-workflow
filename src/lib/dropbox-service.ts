@@ -765,7 +765,7 @@ class DropboxService {
   /**
    * Create project folder structure in Dropbox
    * Creates: /Meisner Interiors Team Folder/{projectName}/
-   * With subfolders: 1-CAD, 2-3D Models, 3-Renderings, 4-SENT, 5-RECIEVED, 7-Reference, 8-Shopping, 9-SKP, 10-REFERENCE MOOD, 11-SOFTWARE UPLOADS
+   * With subfolders: 1-CAD, 2-3D Models, 3-Renderings, 4-Drawings, 5-Photos, 6-Documents, 7-Reference, 8-Shopping, 9-Software Uploads
    */
   async createProjectFolderStructure(projectName: string): Promise<string> {
     try {
@@ -792,14 +792,12 @@ class DropboxService {
         '1- CAD',
         '2- 3D Models',
         '3- Renderings',
-        '4- SENT',
-        '5- RECIEVED',
-        '8- Shopping',
+        '4- Drawings',
+        '5- Photos',
+        '6- Documents',
         '7- Reference',
-        '8- DRAWINGS',
-        '9- SKP',
-        '10- REFERENCE MOOD',
-        '11- SOFTWARE UPLOADS'
+        '8- Shopping',
+        '9- Software Uploads',
       ]
       
       // Create each subfolder
