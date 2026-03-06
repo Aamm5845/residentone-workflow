@@ -6,7 +6,7 @@ import { dropboxService } from '@/lib/dropbox-service-v2'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300 // 5 minutes
 
-const FOLDERS_TO_ADD = ['4- Drawings', '5- Photos', '6- Documents', '7- Reference', '8- Shopping']
+const FOLDERS_TO_ADD = ['2- 3D Models', '4- Drawings', '5- Photos', '6- Documents', '7- Reference', '8- Shopping']
 
 /**
  * POST /api/admin/add-project-folders
